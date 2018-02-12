@@ -1,7 +1,7 @@
 """Unit tests for narr_netcdf_io.py."""
 
 import unittest
-from gewittergefahr.general_exam import narr_netcdf_io
+from generalexam.ge_io import narr_netcdf_io
 
 FAKE_FIELD_NAME = 'poop'
 
