@@ -21,6 +21,6 @@ if __name__ == '__main__':
           author='Ryan Lagerquist', author_email='ryan.lagerquist@ou.edu',
           long_description=LONG_DESCRIPTION, license='MIT',
           url='https://github.com/thunderhoser/GeneralExam',
-          packages=PACKAGE_NAMES, scripts=[],
-          classifiers=CLASSIFIERS, include_package_data=True, zip_safe=False,
+          packages=PACKAGE_NAMES, scripts=[], classifiers=CLASSIFIERS,
+          include_package_data=True, zip_safe=False,
           install_requires=PACKAGE_REQUIREMENTS)
