@@ -13,6 +13,23 @@ REQUIRED_COLUMNS = [
 
 WARM_FRONT_TYPE = 'warm'
 COLD_FRONT_TYPE = 'cold'
+VALID_FRONT_TYPES = [WARM_FRONT_TYPE, COLD_FRONT_TYPE]
+
+
+def check_front_type(front_type):
+    """Ensures that front type is valid.
+
+    :param front_type: Front type (string).
+    :raises: ValueError: if front type is unrecognized.
+    """
+
+    error_checking.assert_is_string(front_type)
+    if front_type not in VALID_FRONT_TYPES:
+        error_string = (
+            '\n\n' + str(VALID_FRONT_TYPES) +
+            '\n\nValid front types (listed above) do not include "' +
+            front_type + '".')
+        raise ValueError(error_string)
 
 
 def write_file(front_table, pickle_file_name):

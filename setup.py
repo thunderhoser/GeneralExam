@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-PACKAGE_NAMES = ['generalexam', 'generalexam.ge_io']
+PACKAGE_NAMES = ['generalexam', 'generalexam.ge_io', 'generalexam.plotting']
 SHORT_DESCRIPTION = 'General-exam stuff'
 LONG_DESCRIPTION = 'Code for 2018 Ph.D. general exam'
 
