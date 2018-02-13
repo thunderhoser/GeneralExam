@@ -68,10 +68,10 @@ def _field_name_orig_to_new(field_name_orig):
 
 def _get_pathless_file_name(month_string, field_name):
     """Generates pathless name for NetCDF file.
-    
+
     This file should contain a single variable at all pressure levels for one
     month.
-    
+
     :param month_string: Month (format "yyyymm").
     :param field_name: Field name in GewitterGefahr format.
     :return: pathless_netcdf_file_name: Pathless name for NetCDF file.
@@ -131,6 +131,7 @@ def find_file(month_string, field_name, top_directory_name,
 
     # Error-checking.
     error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
     _ = time_conversion.string_to_unix_sec(month_string, TIME_FORMAT_MONTH)
 
     pathless_netcdf_file_name = _get_pathless_file_name(
