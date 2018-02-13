@@ -126,8 +126,8 @@ def read_fronts_from_file(text_file_name):
     valid_time_unix_sec = _file_name_to_valid_time(text_file_name)
 
     front_types = []
-    latitudes_2d_list_deg = [[]]
-    longitudes_2d_list_deg = [[]]
+    latitudes_2d_list_deg = []
+    longitudes_2d_list_deg = []
 
     for this_line in open(text_file_name, 'r').readlines():
         these_words = this_line.split()  # Need to skip empty lines.
@@ -163,6 +163,10 @@ def read_fronts_from_file(text_file_name):
     print len(valid_times_unix_sec)
     print len(latitudes_2d_list_deg)
     print len(longitudes_2d_list_deg)
+    print latitudes_2d_list_deg
+    print '\n\n'
+    print longitudes_2d_list_deg
+    print '\n\n'
 
     front_dict = {
         fronts_io.FRONT_TYPE_COLUMN: front_types,
