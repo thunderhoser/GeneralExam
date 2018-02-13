@@ -159,6 +159,11 @@ def read_fronts_from_file(text_file_name):
     valid_times_unix_sec = numpy.full(
         num_fronts, valid_time_unix_sec, dtype=int)
 
+    print len(front_types)
+    print len(valid_times_unix_sec)
+    print len(latitudes_2d_list_deg)
+    print len(longitudes_2d_list_deg)
+
     front_dict = {
         fronts_io.FRONT_TYPE_COLUMN: front_types,
         fronts_io.TIME_COLUMN: valid_times_unix_sec,
