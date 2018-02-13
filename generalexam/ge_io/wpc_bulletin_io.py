@@ -2,6 +2,7 @@
 
 import re
 import os.path
+import warnings
 import numpy
 import pandas
 from generalexam.ge_io import fronts_io
@@ -33,7 +34,7 @@ def _file_name_to_valid_time(bulletin_file_name):
         valid_time_string, TIME_FORMAT_IN_FILE_NAME)
 
 
-def _string_to_latlng(latlng_string):
+def _string_to_latlng(latlng_string, raise_error_if_fails=True):
     """Converts string to latitude and longitude.
 
     The string must be formatted in one of two ways:
@@ -46,6 +47,10 @@ def _string_to_latlng(latlng_string):
       character.
 
     :param latlng_string: Input string.
+    :param raise_error_if_fails: Boolean flag.  If lat/long cannot be parsed
+        from string and raise_error_if_fails = True, this method will error out.
+        If lat/long cannot be parsed and raise_error_if_fails = False, this
+        method will return NaN for all output variables.
     :return: latitude_deg: Latitude (deg N).
     :return: longitude_deg: Longitude (deg E).
     :raises: ValueError: if string does not match expected format.
@@ -67,7 +72,11 @@ def _string_to_latlng(latlng_string):
         'Input string ("{0:s}") does not match expected format ("{1:s}" or '
         '"{2:s}").').format(latlng_string, LATLNG_STRING_PATTERN_7CHARS,
                             LATLNG_STRING_PATTERN_5CHARS)
-    raise ValueError(error_string)
+    if raise_error_if_fails:
+        raise ValueError(error_string)
+
+    warnings.warn(error_string)
+    return numpy.nan, numpy.nan
 
 
 def find_file(
@@ -145,7 +154,10 @@ def read_fronts_from_file(text_file_name):
 
         for i in range(this_num_points):
             these_latitudes_deg[i], these_longitudes_deg[i] = _string_to_latlng(
-                these_words[i])
+                these_words[i], False)
+
+        if numpy.any(numpy.isnan(these_latitudes_deg)):
+            continue
 
         error_checking.assert_is_valid_lat_numpy_array(these_latitudes_deg)
         these_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
