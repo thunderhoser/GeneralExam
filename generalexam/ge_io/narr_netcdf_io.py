@@ -12,6 +12,7 @@ from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_io import processed_narr_io
 
 HOURS_TO_SECONDS = 3600
 NARR_ZERO_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
@@ -31,17 +32,6 @@ V_WIND_NAME_ORIG = 'vwnd'
 FIELD_NAMES_ORIG = [
     TEMPERATURE_NAME_ORIG, HEIGHT_NAME_ORIG, VERTICAL_VELOCITY_NAME_ORIG,
     SPECIFIC_HUMIDITY_NAME_ORIG, U_WIND_NAME_ORIG, V_WIND_NAME_ORIG]
-
-TEMPERATURE_NAME = 'temperature_kelvins'
-HEIGHT_NAME = 'height_m_asl'
-VERTICAL_VELOCITY_NAME = 'w_wind_pascals_s01'
-SPECIFIC_HUMIDITY_NAME = 'specific_humidity_kg_kg01'
-U_WIND_NAME = 'u_wind_m_s01'
-V_WIND_NAME = 'v_wind_m_s01'
-
-FIELD_NAMES = [
-    TEMPERATURE_NAME, HEIGHT_NAME, VERTICAL_VELOCITY_NAME,
-    SPECIFIC_HUMIDITY_NAME, U_WIND_NAME, V_WIND_NAME]
 
 PRESSURE_LEVEL_NAME_ORIG = 'level'
 TIME_NAME_ORIG = 'time'
@@ -86,7 +76,7 @@ def _check_field_name_orig(field_name_orig):
     error_checking.assert_is_string(field_name_orig)
     if field_name_orig not in FIELD_NAMES_ORIG:
         error_string = (
-            '\n\n' + str(FIELD_NAMES) +
+            '\n\n' + str(FIELD_NAMES_ORIG) +
             '\n\nValid field names (listed above) do not include "' +
             field_name_orig + '".')
         raise ValueError(error_string)
@@ -100,7 +90,8 @@ def _field_name_orig_to_new(field_name_orig):
     """
 
     _check_field_name_orig(field_name_orig)
-    return FIELD_NAMES[FIELD_NAMES_ORIG.index(field_name_orig)]
+    return processed_narr_io.FIELD_NAMES[
+        FIELD_NAMES_ORIG.index(field_name_orig)]
 
 
 def _get_pathless_file_name(month_string, field_name):
@@ -118,23 +109,6 @@ def _get_pathless_file_name(month_string, field_name):
         field_name_new_to_orig(field_name), month_string, NETCDF_FILE_EXTENSION)
 
 
-def check_field_name(field_name):
-    """Ensures that name of model field is recognized.
-
-    :param field_name: Field name in GewitterGefahr format (not the original
-        NetCDF format).
-    :raises: ValueError: if field name is unrecognized.
-    """
-
-    error_checking.assert_is_string(field_name)
-    if field_name not in FIELD_NAMES:
-        error_string = (
-            '\n\n' + str(FIELD_NAMES) +
-            '\n\nValid field names (listed above) do not include "' +
-            field_name + '".')
-        raise ValueError(error_string)
-
-
 def field_name_new_to_orig(field_name):
     """Converts field name from new (GewitterGefahr) to orig (NetCDF) format.
 
@@ -142,8 +116,8 @@ def field_name_new_to_orig(field_name):
     :return: field_name_orig: Field name in NetCDF format.
     """
 
-    check_field_name(field_name)
-    return FIELD_NAMES_ORIG[FIELD_NAMES.index(field_name)]
+    processed_narr_io.check_field_name(field_name)
+    return FIELD_NAMES_ORIG[processed_narr_io.FIELD_NAMES.index(field_name)]
 
 
 def find_file(month_string, field_name, top_directory_name,

@@ -2,6 +2,7 @@
 
 import unittest
 from generalexam.ge_io import narr_netcdf_io
+from generalexam.ge_io import processed_narr_io
 
 FAKE_FIELD_NAME = 'poop'
 
@@ -9,7 +10,7 @@ NARR_TIME_HOURS = 1884678  # 0600 UTC 2 Jan 2015
 UNIX_TIME_SEC = 1420178400  # 0600 UTC 2 Jan 2015
 
 MONTH_STRING = '201802'
-FIELD_NAME_FOR_FILES = narr_netcdf_io.SPECIFIC_HUMIDITY_NAME
+FIELD_NAME_FOR_FILES = processed_narr_io.SPECIFIC_HUMIDITY_NAME
 PATHLESS_FILE_NAME = 'shum.201802.nc'
 TOP_DIRECTORY_NAME = 'narr_netcdf'
 FILE_NAME = 'narr_netcdf/shum.201802.nc'
@@ -49,7 +50,7 @@ class NarrNetcdfIoTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             narr_netcdf_io._check_field_name_orig(
-                narr_netcdf_io.TEMPERATURE_NAME)
+                processed_narr_io.TEMPERATURE_NAME)
 
     def test_check_field_name_orig_fake(self):
         """Ensures correct output from _check_field_name_orig.
@@ -60,47 +61,18 @@ class NarrNetcdfIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             narr_netcdf_io._check_field_name_orig(FAKE_FIELD_NAME)
 
-    def test_check_field_name_valid(self):
-        """Ensures correct output from check_field_name.
-
-        In this case, input is a valid field name in the new (GewitterGefahr)
-        format.
-        """
-
-        narr_netcdf_io.check_field_name(narr_netcdf_io.TEMPERATURE_NAME)
-
-    def test_check_field_name_orig(self):
-        """Ensures correct output from check_field_name.
-
-        In this case, input is a valid field name only in the original (NetCDF)
-        format, not the new (GewitterGefahr) format.
-        """
-
-        with self.assertRaises(ValueError):
-            narr_netcdf_io.check_field_name(
-                narr_netcdf_io.TEMPERATURE_NAME_ORIG)
-
-    def test_check_field_name_fake(self):
-        """Ensures correct output from check_field_name.
-
-        In this case, input is a completely fake field name.
-        """
-
-        with self.assertRaises(ValueError):
-            narr_netcdf_io.check_field_name(FAKE_FIELD_NAME)
-
     def test_field_name_orig_to_new(self):
         """Ensures correct output from _field_name_orig_to_new."""
 
         self.assertTrue(narr_netcdf_io._field_name_orig_to_new(
             narr_netcdf_io.U_WIND_NAME_ORIG) ==
-                        narr_netcdf_io.U_WIND_NAME)
+                        processed_narr_io.U_WIND_NAME)
 
     def test_field_name_new_to_orig(self):
         """Ensures correct output from field_name_new_to_orig."""
 
         self.assertTrue(narr_netcdf_io.field_name_new_to_orig(
-            narr_netcdf_io.U_WIND_NAME) ==
+            processed_narr_io.U_WIND_NAME) ==
                         narr_netcdf_io.U_WIND_NAME_ORIG)
 
     def test_get_pathless_file_name(self):
