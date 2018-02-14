@@ -7,9 +7,15 @@ other words, all "forecasts" are zero-hour forecasts (analyses).
 """
 
 import os.path
+import numpy
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
+
+HOURS_TO_SECONDS = 3600
+NARR_ZERO_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
+    '1800-01-01-00', '%Y-%m-%d-%H')
 
 TIME_FORMAT_MONTH = '%Y%m'
 NETCDF_FILE_EXTENSION = '.nc'
@@ -36,6 +42,37 @@ V_WIND_NAME = 'v_wind_m_s01'
 FIELD_NAMES = [
     TEMPERATURE_NAME, HEIGHT_NAME, VERTICAL_VELOCITY_NAME,
     SPECIFIC_HUMIDITY_NAME, U_WIND_NAME, V_WIND_NAME]
+
+PRESSURE_LEVEL_NAME_ORIG = 'level'
+TIME_NAME_ORIG = 'time'
+X_COORD_NAME_ORIG = 'x'
+Y_COORD_NAME_ORIG = 'y'
+
+
+def _time_from_narr_to_unix(narr_time_hours):
+    """Converts time from NARR format to Unix format.
+
+    NARR format = hours since 0000 UTC 1 Jan 1800
+    Unix format = seconds since 0000 UTC 1 Jan 1970
+
+    :param narr_time_hours: Time in NARR format.
+    :return: unix_time_sec: Time in Unix format.
+    """
+
+    return NARR_ZERO_TIME_UNIX_SEC + narr_time_hours * HOURS_TO_SECONDS
+
+
+def _time_from_unix_to_narr(unix_time_sec):
+    """Converts time from Unix format to NARR format.
+
+    NARR format = hours since 0000 UTC 1 Jan 1800
+    Unix format = seconds since 0000 UTC 1 Jan 1970
+
+    :param unix_time_sec: Time in Unix format.
+    :return: narr_time_hours: Time in NARR format.
+    """
+
+    return (unix_time_sec - NARR_ZERO_TIME_UNIX_SEC) / HOURS_TO_SECONDS
 
 
 def _check_field_name_orig(field_name_orig):
@@ -180,3 +217,62 @@ def download_file(month_string, field_name, top_local_directory_name,
         online_file_names=[online_file_name],
         local_file_names=[local_file_name],
         raise_error_if_fails=raise_error_if_fails)
+
+
+def read_data_from_file(
+        netcdf_file_name, field_name, valid_time_unix_sec, pressure_level_mb,
+        raise_error_if_fails=True):
+    """Reads data from NetCDF file.
+
+    This file should contain a single variable at all pressure levels for one
+    month.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+
+    :param netcdf_file_name: Path to input file.
+    :param field_name: Field name in GewitterGefahr format.  Only this field
+        will be read.
+    :param valid_time_unix_sec: Field will be read only for this valid time.
+    :param pressure_level_mb: Field will be read only for this pressure level
+        (integer in millibars).
+    :param raise_error_if_fails: Boolean flag.  If file cannot be read and
+        raise_error_if_fails = True, this method will error out.  If file cannot
+        be read and raise_error_if_fails = False, this method will return None
+        for all output variables.
+    :return: field_matrix: M-by-N numpy array with values of `field_name`.
+    :return: grid_point_x_coords_metres: length-N numpy array with x-coordinates
+        of grid points.  grid_point_x_coords_metres[j] is the x-coordinate for
+        all points in field_matrix[:, j].
+    :return: grid_point_y_coords_metres: length-M numpy array with y-coordinates
+        of grid points.  grid_point_y_coords_metres[i] is the y-coordinate for
+        all points in field_matrix[i, :].
+    """
+
+    field_name_orig = field_name_new_to_orig(field_name)
+    valid_time_narr_hours = _time_from_unix_to_narr(valid_time_unix_sec)
+    error_checking.assert_is_integer(pressure_level_mb)
+
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
+                                           raise_error_if_fails)
+    if netcdf_dataset is None:
+        return None, None, None
+
+    all_times_narr_hours = netcdf_dataset.variables[TIME_NAME_ORIG]
+    all_pressure_levels_mb = netcdf_dataset.variables[PRESSURE_LEVEL_NAME_ORIG]
+    all_times_narr_hours = numpy.array(
+        all_times_narr_hours).astype(int).tolist()
+    all_pressure_levels_mb = numpy.array(
+        all_pressure_levels_mb).astype(int).tolist()
+
+    time_index = all_times_narr_hours.index(valid_time_narr_hours)
+    pressure_index = all_pressure_levels_mb.index(pressure_level_mb)
+    field_matrix = numpy.array(
+        netcdf_dataset.variables[field_name_orig][
+            time_index, pressure_index, :, :])
+
+    grid_point_x_coords_metres = numpy.array(
+        netcdf_dataset.variables[X_COORD_NAME_ORIG])
+    grid_point_y_coords_metres = numpy.array(
+        netcdf_dataset.variables[Y_COORD_NAME_ORIG])
+    return field_matrix, grid_point_x_coords_metres, grid_point_y_coords_metres

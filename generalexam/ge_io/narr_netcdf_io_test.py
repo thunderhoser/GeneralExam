@@ -5,6 +5,9 @@ from generalexam.ge_io import narr_netcdf_io
 
 FAKE_FIELD_NAME = 'poop'
 
+NARR_TIME_HOURS = 1884678  # 0600 UTC 2 Jan 2015
+UNIX_TIME_SEC = 1420178400  # 0600 UTC 2 Jan 2015
+
 MONTH_STRING = '201802'
 FIELD_NAME_FOR_FILES = narr_netcdf_io.SPECIFIC_HUMIDITY_NAME
 PATHLESS_FILE_NAME = 'shum.201802.nc'
@@ -14,6 +17,18 @@ FILE_NAME = 'narr_netcdf/shum.201802.nc'
 
 class NarrNetcdfIoTests(unittest.TestCase):
     """Each method is a unit test for narr_netcdf_io.py."""
+
+    def test_time_from_narr_to_unix(self):
+        """Ensures correct output from _time_from_narr_to_unix."""
+
+        self.assertTrue(narr_netcdf_io._time_from_narr_to_unix(NARR_TIME_HOURS)
+                        == UNIX_TIME_SEC)
+
+    def test_time_from_unix_to_narr(self):
+        """Ensures correct output from _time_from_unix_to_narr."""
+
+        self.assertTrue(narr_netcdf_io._time_from_unix_to_narr(UNIX_TIME_SEC) ==
+                        NARR_TIME_HOURS)
 
     def test_check_field_name_orig_valid(self):
         """Ensures correct output from _check_field_name_orig.
