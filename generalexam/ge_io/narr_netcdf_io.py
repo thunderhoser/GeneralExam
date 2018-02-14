@@ -14,6 +14,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 
+SENTINEL_VALUE = -9e36
 HOURS_TO_SECONDS = 3600
 NARR_ZERO_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
     '1800-01-01-00', '%Y-%m-%d-%H')
@@ -37,6 +38,21 @@ PRESSURE_LEVEL_NAME_ORIG = 'level'
 TIME_NAME_ORIG = 'time'
 X_COORD_NAME_ORIG = 'x'
 Y_COORD_NAME_ORIG = 'y'
+
+
+def _remove_sentinel_values(field_matrix):
+    """Removes sentinel values from field.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+
+    :param field_matrix: M-by-N numpy array (may include sentinel values).
+    :return: field_matrix: Same as input, except that sentinel values have been
+        changed to NaN.
+    """
+
+    field_matrix[field_matrix < SENTINEL_VALUE] = numpy.nan
+    return field_matrix
 
 
 def _time_from_narr_to_unix(narr_time_hours):
@@ -244,6 +260,7 @@ def read_data_from_file(
     field_matrix = numpy.array(
         netcdf_dataset.variables[field_name_orig][
             time_index, pressure_index, :, :])
+    field_matrix = _remove_sentinel_values(field_matrix)
 
     grid_point_x_coords_metres = numpy.array(
         netcdf_dataset.variables[X_COORD_NAME_ORIG])
