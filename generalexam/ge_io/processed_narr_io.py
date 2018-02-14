@@ -13,11 +13,13 @@ SPECIFIC_HUMIDITY_NAME = 'specific_humidity_kg_kg01'
 U_WIND_NAME = 'u_wind_m_s01'
 V_WIND_NAME = 'v_wind_m_s01'
 
-FIELD_NAMES = [
+STANDARD_FIELD_NAMES = [
     TEMPERATURE_NAME, HEIGHT_NAME, VERTICAL_VELOCITY_NAME,
     SPECIFIC_HUMIDITY_NAME, U_WIND_NAME, V_WIND_NAME]
 
 WET_BULB_THETA_NAME = 'wet_bulb_potential_temperature_kelvins'
+DERIVED_FIELD_NAMES = [WET_BULB_THETA_NAME]
+FIELD_NAMES = STANDARD_FIELD_NAMES + DERIVED_FIELD_NAMES
 
 
 def _check_model_fields(
@@ -35,7 +37,7 @@ def _check_model_fields(
     :param valid_times_unix_sec: length-T numpy array of valid times.
     """
 
-    check_field_name(field_name)
+    check_field_name(field_name, require_standard=False)
     error_checking.assert_is_integer(pressure_level_pascals)
 
     error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
@@ -52,18 +54,28 @@ def _check_model_fields(
             [num_times, num_grid_rows, num_grid_columns]))
 
 
-def check_field_name(field_name):
+def check_field_name(field_name, require_standard=False):
     """Ensures that name of model field is recognized.
 
     :param field_name: Field name in GewitterGefahr format (not the original
         NetCDF format).
+    :param require_standard: Boolean flag.  If True, `field_name` must be in
+        `STANDARD_FIELD_NAMES`.  If False, `field_name` must be in
+        `FIELD_NAMES`.
     :raises: ValueError: if field name is unrecognized.
     """
 
     error_checking.assert_is_string(field_name)
-    if field_name not in FIELD_NAMES:
+    error_checking.assert_is_boolean(require_standard)
+
+    if require_standard:
+        valid_field_names = STANDARD_FIELD_NAMES
+    else:
+        valid_field_names = FIELD_NAMES
+
+    if field_name not in valid_field_names:
         error_string = (
-            '\n\n' + str(FIELD_NAMES) +
+            '\n\n' + str(valid_field_names) +
             '\n\nValid field names (listed above) do not include "' +
             field_name + '".')
         raise ValueError(error_string)

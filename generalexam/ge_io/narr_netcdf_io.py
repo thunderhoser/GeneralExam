@@ -106,7 +106,7 @@ def _field_name_orig_to_new(field_name_orig):
     """
 
     _check_field_name_orig(field_name_orig)
-    return processed_narr_io.FIELD_NAMES[
+    return processed_narr_io.STANDARD_FIELD_NAMES[
         FIELD_NAMES_ORIG.index(field_name_orig)]
 
 
@@ -132,8 +132,9 @@ def field_name_new_to_orig(field_name):
     :return: field_name_orig: Field name in NetCDF format.
     """
 
-    processed_narr_io.check_field_name(field_name)
-    return FIELD_NAMES_ORIG[processed_narr_io.FIELD_NAMES.index(field_name)]
+    processed_narr_io.check_field_name(field_name, require_standard=True)
+    return FIELD_NAMES_ORIG[
+        processed_narr_io.STANDARD_FIELD_NAMES.index(field_name)]
 
 
 def find_file(month_string, field_name, top_directory_name,

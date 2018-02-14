@@ -10,14 +10,36 @@ FAKE_FIELD_NAME = 'poop'
 class ProcessedNarrIoTests(unittest.TestCase):
     """Each method is a unit test for processed_narr_io.py."""
 
-    def test_check_field_name_valid(self):
+    def test_check_field_name_any_valid(self):
         """Ensures correct output from check_field_name.
 
-        In this case, input is a valid field name in the new (GewitterGefahr)
-        format.
+        In this case, input may be any field name (standard or derived) and
+        input is a derived field name.
         """
 
-        processed_narr_io.check_field_name(processed_narr_io.TEMPERATURE_NAME)
+        processed_narr_io.check_field_name(
+            processed_narr_io.WET_BULB_THETA_NAME, require_standard=False)
+
+    def test_check_field_name_standard_valid(self):
+        """Ensures correct output from check_field_name.
+
+        In this case, input must be a standard field name and *is* a standard
+        field name.
+        """
+
+        processed_narr_io.check_field_name(
+            processed_narr_io.TEMPERATURE_NAME, require_standard=True)
+
+    def test_check_field_name_standard_invalid(self):
+        """Ensures correct output from check_field_name.
+
+        In this case, input must be a standard field name and is *not* a
+        standard field name.
+        """
+
+        with self.assertRaises(ValueError):
+            processed_narr_io.check_field_name(
+                processed_narr_io.WET_BULB_THETA_NAME, require_standard=True)
 
     def test_check_field_name_orig(self):
         """Ensures correct output from check_field_name.
