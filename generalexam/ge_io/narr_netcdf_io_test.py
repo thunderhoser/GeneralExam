@@ -65,15 +65,15 @@ class NarrNetcdfIoTests(unittest.TestCase):
         """Ensures correct output from _field_name_orig_to_new."""
 
         self.assertTrue(narr_netcdf_io._field_name_orig_to_new(
-            narr_netcdf_io.U_WIND_NAME_ORIG) ==
-                        processed_narr_io.U_WIND_NAME)
+            narr_netcdf_io.U_WIND_EARTH_RELATIVE_NAME_ORIG) ==
+                        processed_narr_io.U_WIND_EARTH_RELATIVE_NAME)
 
     def test_field_name_new_to_orig(self):
         """Ensures correct output from field_name_new_to_orig."""
 
         self.assertTrue(narr_netcdf_io.field_name_new_to_orig(
-            processed_narr_io.U_WIND_NAME) ==
-                        narr_netcdf_io.U_WIND_NAME_ORIG)
+            processed_narr_io.U_WIND_EARTH_RELATIVE_NAME) ==
+                        narr_netcdf_io.U_WIND_EARTH_RELATIVE_NAME_ORIG)
 
     def test_get_pathless_file_name(self):
         """Ensures correct output from _get_pathless_file_name."""
