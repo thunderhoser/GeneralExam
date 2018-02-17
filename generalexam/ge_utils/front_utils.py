@@ -409,6 +409,9 @@ def many_polylines_to_narr_grid(
             (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
 
         for j in these_front_indices:
+            print front_table[LATITUDES_COLUMN].values[j]
+            print front_table[LONGITUDES_COLUMN].values[j]
+            print
             this_binary_matrix = polyline_to_binary_narr_grid(
                 polyline_latitudes_deg=front_table[LATITUDES_COLUMN].values[j],
                 polyline_longitudes_deg=
