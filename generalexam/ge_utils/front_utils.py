@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
+TOLERANCE_DEG = 1e-3
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
 
 FRONT_TYPE_COLUMN = 'front_type'
@@ -409,16 +410,28 @@ def many_polylines_to_narr_grid(
             (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
 
         for j in these_front_indices:
-            try:
-                this_binary_matrix = polyline_to_binary_narr_grid(
-                    polyline_latitudes_deg=
-                    front_table[LATITUDES_COLUMN].values[j],
-                    polyline_longitudes_deg=
-                    front_table[LONGITUDES_COLUMN].values[j],
-                    dilation_half_width_in_grid_cells=
-                    dilation_half_width_in_grid_cells)
-            except ValueError:
+
+            # TODO(thunderhoser): This is a hack to account for very short
+            # polylines (where all points are essentially the same).  Should put
+            # this check in pre-processing.
+            these_latitudes_deg = front_table[LATITUDES_COLUMN].values[j]
+            these_longitudes_deg = front_table[LONGITUDES_COLUMN].values[j]
+
+            this_absolute_lat_diff_deg = numpy.absolute(
+                these_latitudes_deg[0] - these_latitudes_deg[-1])
+            this_absolute_lng_diff_deg = numpy.absolute(
+                these_longitudes_deg[0] - these_longitudes_deg[-1])
+            if (this_absolute_lat_diff_deg < TOLERANCE_DEG and
+                    this_absolute_lng_diff_deg < TOLERANCE_DEG):
                 continue
+
+            this_binary_matrix = polyline_to_binary_narr_grid(
+                polyline_latitudes_deg=
+                front_table[LATITUDES_COLUMN].values[j],
+                polyline_longitudes_deg=
+                front_table[LONGITUDES_COLUMN].values[j],
+                dilation_half_width_in_grid_cells=
+                dilation_half_width_in_grid_cells)
 
             if front_table[FRONT_TYPE_COLUMN].values[j] == WARM_FRONT_STRING_ID:
                 this_front_matrix[
