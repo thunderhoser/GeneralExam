@@ -390,7 +390,8 @@ def many_polylines_to_narr_grid(
 
     valid_times_unix_sec = numpy.unique(front_table[TIME_COLUMN].values)
     valid_time_strings = [
-        time_conversion.unix_sec_to_string(t) for t in valid_times_unix_sec]
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
+        for t in valid_times_unix_sec]
     num_valid_times = len(valid_times_unix_sec)
 
     warm_front_row_indices_by_time = [[]] * num_valid_times
