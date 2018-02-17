@@ -423,6 +423,8 @@ def many_polylines_to_narr_grid(
                 these_longitudes_deg[0] - these_longitudes_deg[-1])
             if (this_absolute_lat_diff_deg < TOLERANCE_DEG and
                     this_absolute_lng_diff_deg < TOLERANCE_DEG):
+                print ('SKIPPING front with {0:d} points.  First and last '
+                       'points touch.'.format(len(these_latitudes_deg)))
                 continue
 
             this_binary_matrix = polyline_to_binary_narr_grid(
