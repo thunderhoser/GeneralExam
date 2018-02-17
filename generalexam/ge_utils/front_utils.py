@@ -9,7 +9,10 @@ import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
+
+TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
 
 FRONT_TYPE_COLUMN = 'front_type'
 TIME_COLUMN = 'unix_time_sec'
@@ -386,6 +389,8 @@ def many_polylines_to_narr_grid(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
     valid_times_unix_sec = numpy.unique(front_table[TIME_COLUMN].values)
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t) for t in valid_times_unix_sec]
     num_valid_times = len(valid_times_unix_sec)
 
     warm_front_row_indices_by_time = [[]] * num_valid_times
@@ -394,6 +399,9 @@ def many_polylines_to_narr_grid(
     cold_front_column_indices_by_time = [[]] * num_valid_times
 
     for i in range(num_valid_times):
+        print ('Converting frontal polylines to image over NARR grid for '
+               '{0:s}...').format(valid_time_strings[i])
+
         these_front_indices = numpy.where(
             front_table[TIME_COLUMN].values == valid_times_unix_sec[i])[0]
         this_front_matrix = numpy.full(
