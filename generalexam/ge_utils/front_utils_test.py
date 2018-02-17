@@ -9,7 +9,6 @@ TOLERANCE = 1e-6
 
 GRID_SPACING_X_METRES = 1.
 GRID_SPACING_Y_METRES = 1.
-
 ONE_GRID_POINT_X_METRES = 1.
 ONE_GRID_POINT_Y_METRES = 2.
 ONE_GRID_VERTEX_COORDS_X_METRES = numpy.array([0.5, 1.5, 1.5, 0.5, 0.5])
@@ -40,13 +39,26 @@ POLYLINE_AS_BINARY_MATRIX = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
                                          [0, 1, 1, 0, 0, 0, 0, 0],
                                          [0, 0, 1, 1, 0, 0, 0, 0]])
 
-DILATION_HALF_WIDTH_IN_GRID_CELLS = 1
-DILATED_BINARY_MATRIX = numpy.array([[0, 1, 1, 1, 1, 0, 0, 0],
-                                     [1, 1, 1, 1, 0, 0, 0, 0],
-                                     [1, 1, 1, 0, 0, 0, 0, 0],
-                                     [1, 1, 1, 1, 0, 0, 0, 0],
-                                     [1, 1, 1, 1, 0, 0, 0, 0],
-                                     [0, 1, 1, 1, 1, 0, 0, 0]])
+BINARY_MATRIX_DILATED_HALFWIDTH1 = numpy.array([[0, 1, 1, 1, 1, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [1, 1, 1, 0, 0, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [0, 1, 1, 1, 1, 0, 0, 0]])
+
+ROWS_IN_POLYLINE_DILATED_HALFWIDTH1 = numpy.array(
+    [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5],
+    dtype=int)
+COLUMNS_IN_POLYLINE_DILATED_HALFWIDTH1 = numpy.array(
+    [1, 2, 3, 4, 0, 1, 2, 3, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 4],
+    dtype=int)
+
+BINARY_MATRIX_DILATED_HALFWIDTH2 = numpy.array([[1, 1, 1, 1, 1, 1, 0, 0],
+                                                [1, 1, 1, 1, 1, 0, 0, 0],
+                                                [1, 1, 1, 1, 0, 0, 0, 0],
+                                                [1, 1, 1, 1, 1, 0, 0, 0],
+                                                [1, 1, 1, 1, 1, 0, 0, 0],
+                                                [1, 1, 1, 1, 1, 1, 0, 0]])
 
 
 class FrontUtilsTests(unittest.TestCase):
@@ -112,16 +124,44 @@ class FrontUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_binary_matrix, POLYLINE_AS_BINARY_MATRIX))
 
-    def test_dilate_binary_image(self):
-        """Ensures correct output from _dilate_binary_image."""
+    def test_dilate_binary_image_half_width_1(self):
+        """Ensures correct output from _dilate_binary_image.
+
+        In this case, half-width of dilation window is one grid cell.
+        """
 
         this_input_matrix = copy.deepcopy(POLYLINE_AS_BINARY_MATRIX)
         this_dilated_matrix = front_utils._dilate_binary_image(
             binary_matrix=this_input_matrix,
-            dilation_half_width_in_grid_cells=DILATION_HALF_WIDTH_IN_GRID_CELLS)
+            dilation_half_width_in_grid_cells=1)
 
         self.assertTrue(numpy.array_equal(
-            this_dilated_matrix, DILATED_BINARY_MATRIX))
+            this_dilated_matrix, BINARY_MATRIX_DILATED_HALFWIDTH1))
+
+    def test_dilate_binary_image_half_width_2(self):
+        """Ensures correct output from _dilate_binary_image.
+
+        In this case, half-width of dilation window is 2 grid cells.
+        """
+
+        this_input_matrix = copy.deepcopy(POLYLINE_AS_BINARY_MATRIX)
+        this_dilated_matrix = front_utils._dilate_binary_image(
+            binary_matrix=this_input_matrix,
+            dilation_half_width_in_grid_cells=2)
+
+        self.assertTrue(numpy.array_equal(
+            this_dilated_matrix, BINARY_MATRIX_DILATED_HALFWIDTH2))
+
+    def test_binary_image_to_grid_points(self):
+        """Ensures correct output from _binary_image_to_grid_points."""
+
+        these_rows, these_columns = front_utils._binary_image_to_grid_points(
+            BINARY_MATRIX_DILATED_HALFWIDTH1)
+
+        self.assertTrue(numpy.array_equal(
+            these_rows, ROWS_IN_POLYLINE_DILATED_HALFWIDTH1))
+        self.assertTrue(numpy.array_equal(
+            these_columns, COLUMNS_IN_POLYLINE_DILATED_HALFWIDTH1))
 
 
 if __name__ == '__main__':

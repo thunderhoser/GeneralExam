@@ -3,37 +3,21 @@
 import pickle
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import front_utils
 
-FRONT_TYPE_COLUMN = 'front_type'
-TIME_COLUMN = 'unix_time_sec'
-LATITUDES_COLUMN = 'latitudes_deg'
-LONGITUDES_COLUMN = 'longitudes_deg'
-REQUIRED_COLUMNS = [
-    FRONT_TYPE_COLUMN, TIME_COLUMN, LATITUDES_COLUMN, LONGITUDES_COLUMN]
+REQUIRED_POLYLINE_COLUMNS = [
+    front_utils.FRONT_TYPE_COLUMN, front_utils.TIME_COLUMN,
+    front_utils.LATITUDES_COLUMN, front_utils.LONGITUDES_COLUMN]
 
-WARM_FRONT_TYPE = 'warm'
-COLD_FRONT_TYPE = 'cold'
-VALID_FRONT_TYPES = [WARM_FRONT_TYPE, COLD_FRONT_TYPE]
-
-
-def check_front_type(front_type):
-    """Ensures that front type is valid.
-
-    :param front_type: Front type (string).
-    :raises: ValueError: if front type is unrecognized.
-    """
-
-    error_checking.assert_is_string(front_type)
-    if front_type not in VALID_FRONT_TYPES:
-        error_string = (
-            '\n\n' + str(VALID_FRONT_TYPES) +
-            '\n\nValid front types (listed above) do not include "' +
-            front_type + '".')
-        raise ValueError(error_string)
+REQUIRED_GRID_COLUMNS = [
+    front_utils.TIME_COLUMN, front_utils.WARM_FRONT_ROW_INDICES_COLUMN,
+    front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN,
+    front_utils.COLD_FRONT_ROW_INDICES_COLUMN,
+    front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN]
 
 
-def write_file(front_table, pickle_file_name):
-    """Writes locations of one or more fronts to Pickle file.
+def write_polylines_to_file(front_table, pickle_file_name):
+    """Writes one or more frontal polylines to Pickle file.
 
     :param front_table: pandas DataFrame with the following columns.  Each row
         is one front.
@@ -45,24 +29,74 @@ def write_file(front_table, pickle_file_name):
     :param pickle_file_name: Path to output file.
     """
 
-    error_checking.assert_columns_in_dataframe(front_table, REQUIRED_COLUMNS)
+    error_checking.assert_columns_in_dataframe(
+        front_table, REQUIRED_POLYLINE_COLUMNS)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(front_table[REQUIRED_COLUMNS], pickle_file_handle)
+    pickle.dump(front_table[REQUIRED_POLYLINE_COLUMNS], pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_file(pickle_file_name):
-    """Reads locations of one or more fronts from Pickle file.
+def read_polylines_from_file(pickle_file_name):
+    """Reads one or more frontal polylines from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: front_table: See documentation for `write_file`.
+    :return: front_table: See documentation for `write_polylines_to_file`.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     front_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    error_checking.assert_columns_in_dataframe(front_table, REQUIRED_COLUMNS)
+    error_checking.assert_columns_in_dataframe(
+        front_table, REQUIRED_POLYLINE_COLUMNS)
     return front_table
+
+
+def write_narr_grids_to_file(frontal_grid_table, pickle_file_name):
+    """Writes one or more NARR* grids to file.
+
+    * NARR = North American Regional Reanalysis
+
+    :param frontal_grid_table: pandas DataFrame with the following columns.
+        Each row is one valid time.
+    frontal_grid_table.unix_time_sec: Valid time.
+    frontal_grid_table.warm_front_row_indices: length-W numpy array with row
+        indices (integers) of grid cells intersected by a warm front.
+    frontal_grid_table.warm_front_column_indices: Same as above, except for
+        columns.
+    frontal_grid_table.cold_front_row_indices: length-C numpy array with row
+        indices (integers) of grid cells intersected by a cold front.
+    frontal_grid_table.cold_front_column_indices: Same as above, except for
+        columns.
+
+    :param pickle_file_name: Path to output file.
+    """
+
+    error_checking.assert_columns_in_dataframe(
+        frontal_grid_table, REQUIRED_GRID_COLUMNS)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(frontal_grid_table[REQUIRED_GRID_COLUMNS], pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_narr_grids_from_file(pickle_file_name):
+    """Reads one or more NARR* grids from file.
+
+    * NARR = North American Regional Reanalysis
+
+    :param pickle_file_name: Path to input file.
+    :return: frontal_grid_table: See documentation for
+        `write_narr_grids_to_file`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    frontal_grid_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(
+        frontal_grid_table, REQUIRED_GRID_COLUMNS)
+    return frontal_grid_table

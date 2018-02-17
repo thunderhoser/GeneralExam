@@ -5,7 +5,7 @@ import os.path
 import warnings
 import numpy
 import pandas
-from generalexam.ge_io import fronts_io
+from generalexam.ge_utils import front_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
@@ -13,7 +13,8 @@ from gewittergefahr.gg_utils import error_checking
 PATHLESS_FILE_NAME_PREFIX = 'KWBCCODSUS_HIRES'
 TIME_FORMAT_IN_FILE_NAME = '%Y%m%d_%H00'
 TIME_FORMAT_IN_FILE_ITSELF = '%H%'
-VALID_FRONT_TYPES = [fronts_io.WARM_FRONT_TYPE, fronts_io.COLD_FRONT_TYPE]
+VALID_FRONT_TYPES = [
+    front_utils.WARM_FRONT_STRING_ID, front_utils.COLD_FRONT_STRING_ID]
 
 LATLNG_STRING_PATTERN_5CHARS = '[0-9][0-9][0-1][0-9][0-9]'
 LATLNG_STRING_PATTERN_7CHARS = '[0-9][0-9][0-9][0-1][0-9][0-9][0-9]'
@@ -172,9 +173,9 @@ def read_fronts_from_file(text_file_name):
         num_fronts, valid_time_unix_sec, dtype=int)
 
     front_dict = {
-        fronts_io.FRONT_TYPE_COLUMN: front_types,
-        fronts_io.TIME_COLUMN: valid_times_unix_sec,
-        fronts_io.LATITUDES_COLUMN: latitudes_2d_list_deg,
-        fronts_io.LONGITUDES_COLUMN: longitudes_2d_list_deg
+        front_utils.FRONT_TYPE_COLUMN: front_types,
+        front_utils.TIME_COLUMN: valid_times_unix_sec,
+        front_utils.LATITUDES_COLUMN: latitudes_2d_list_deg,
+        front_utils.LONGITUDES_COLUMN: longitudes_2d_list_deg
     }
     return pandas.DataFrame.from_dict(front_dict)

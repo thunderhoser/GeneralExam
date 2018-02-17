@@ -1,7 +1,7 @@
 """Plotting methods for warm and cold fronts."""
 
 import numpy
-from generalexam.ge_io import fronts_io
+from generalexam.ge_utils import front_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -41,8 +41,8 @@ def plot_front(
         longitudes_deg, exact_dimensions=numpy.array([num_points]))
 
     if line_colour is None:
-        fronts_io.check_front_type(front_type)
-        if front_type == fronts_io.WARM_FRONT_TYPE:
+        front_utils.check_front_type(front_type)
+        if front_type == front_utils.WARM_FRONT_STRING_ID:
             line_colour = DEFAULT_WARM_FRONT_COLOUR
         else:
             line_colour = DEFAULT_COLD_FRONT_COLOUR

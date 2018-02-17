@@ -4,11 +4,30 @@ A front may be represented as either a polyline or a set of grid points.
 """
 
 import numpy
+import pandas
 import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import error_checking
+
+FRONT_TYPE_COLUMN = 'front_type'
+TIME_COLUMN = 'unix_time_sec'
+LATITUDES_COLUMN = 'latitudes_deg'
+LONGITUDES_COLUMN = 'longitudes_deg'
+
+WARM_FRONT_ROW_INDICES_COLUMN = 'warm_front_row_indices'
+WARM_FRONT_COLUMN_INDICES_COLUMN = 'warm_front_column_indices'
+COLD_FRONT_ROW_INDICES_COLUMN = 'cold_front_row_indices'
+COLD_FRONT_COLUMN_INDICES_COLUMN = 'cold_front_column_indices'
+
+NO_FRONT_INTEGER_ID = 0
+WARM_FRONT_INTEGER_ID = 1
+COLD_FRONT_INTEGER_ID = 2
+
+WARM_FRONT_STRING_ID = 'warm'
+COLD_FRONT_STRING_ID = 'cold'
+VALID_STRING_IDS = [WARM_FRONT_STRING_ID, COLD_FRONT_STRING_ID]
 
 
 def _check_polyline(vertex_x_coords_metres, vertex_y_coords_metres):
@@ -210,7 +229,7 @@ def _grid_points_to_binary_image(
         rows_in_object, columns_in_object, num_grid_rows, num_grid_columns):
     """Converts set of grid points in object to a binary image matrix.
 
-    P = number of points in object
+    P = number of grid points in object
     M = number of grid rows (unique grid-point y-coordinates)
     N = number of grid columns (unique grid-point x-coordinates)
 
@@ -231,6 +250,25 @@ def _grid_points_to_binary_image(
     return binary_matrix
 
 
+def _binary_image_to_grid_points(binary_matrix):
+    """Converts binary image matrix to set of grid points in object.
+
+    P = number of grid points in object
+    M = number of grid rows (unique grid-point y-coordinates)
+    N = number of grid columns (unique grid-point x-coordinates)
+
+    :param binary_matrix: M-by-N numpy array of Boolean flags.  If
+        binary_matrix[i, j] = True, grid cell [i, j] is part of the object.
+        Otherwise, grid cell [i, j] is *not* part of the object.
+    :return: rows_in_object: length-P numpy array with indices (integers) of
+        rows in object.
+    :return: columns_in_object: length-P numpy array with indices (integers) of
+        columns in object.
+    """
+
+    return numpy.where(binary_matrix)
+
+
 def _dilate_binary_image(binary_matrix, dilation_half_width_in_grid_cells):
     """Dilates a binary image matrix.
 
@@ -247,6 +285,22 @@ def _dilate_binary_image(binary_matrix, dilation_half_width_in_grid_cells):
         border_value=0)
 
 
+def check_front_type(front_string_id):
+    """Ensures that front type is valid.
+
+    :param front_string_id: String ID for front type.
+    :raises: ValueError: if front type is unrecognized.
+    """
+
+    error_checking.assert_is_string(front_string_id)
+    if front_string_id not in VALID_STRING_IDS:
+        error_string = (
+            '\n\n' + str(VALID_STRING_IDS) +
+            '\n\nValid front types (listed above) do not include "' +
+            front_string_id + '".')
+        raise ValueError(error_string)
+
+
 def polyline_to_binary_narr_grid(
         polyline_latitudes_deg, polyline_longitudes_deg,
         dilation_half_width_in_grid_cells=1):
@@ -258,10 +312,6 @@ def polyline_to_binary_narr_grid(
     M = number of rows in NARR grid = 277
     N = number of columns in NARR grid = 349
 
-    This method assumes that `grid_point_x_coords_metres` and
-    `grid_point_y_coords_metres` are sorted in ascending order and equally
-    spaced.  In other words, the grid must be *regular* in x-y.
-
     :param polyline_latitudes_deg: length-P numpy array with latitudes (deg N)
         in polyline.
     :param polyline_longitudes_deg: length-P numpy array with longitudes (deg E)
@@ -272,6 +322,9 @@ def polyline_to_binary_narr_grid(
         binary_matrix[i, j] = True, the polyline passes through grid cell
         [i, j].  Otherwise, the polyline does not pass through grid cell [i, j].
     """
+
+    error_checking.assert_is_integer(dilation_half_width_in_grid_cells)
+    error_checking.assert_is_greater(dilation_half_width_in_grid_cells, 0)
 
     polyline_x_coords_metres, polyline_y_coords_metres = (
         nwp_model_utils.project_latlng_to_xy(
@@ -299,3 +352,82 @@ def polyline_to_binary_narr_grid(
     return _dilate_binary_image(
         binary_matrix=binary_matrix,
         dilation_half_width_in_grid_cells=dilation_half_width_in_grid_cells)
+
+
+def many_polylines_to_narr_grid(
+        front_table, dilation_half_width_in_grid_cells=1):
+    """For each time step, converts frontal polylines to image over NARR* grid.
+
+    * NARR = North American Regional Reanalysis
+
+    M = number of rows in NARR grid = 277
+    N = number of columns in NARR grid = 349
+    W = number of grid cells intersected by warm front at a given valid time
+    C = number of grid cells intersected by cold front at a given valid time
+
+    :param front_table: See documentation for
+        `fronts_io.write_polylines_to_file`.
+    :param dilation_half_width_in_grid_cells: Half-width of dilation window for
+        `_dilate_binary_image`.
+    :return: frontal_grid_table: pandas DataFrame with the following columns.
+        Each row is one valid time.
+    frontal_grid_table.unix_time_sec: Valid time.
+    frontal_grid_table.warm_front_row_indices: length-W numpy array with row
+        indices (integers) of grid cells intersected by a warm front.
+    frontal_grid_table.warm_front_column_indices: Same as above, except for
+        columns.
+    frontal_grid_table.cold_front_row_indices: length-C numpy array with row
+        indices (integers) of grid cells intersected by a cold front.
+    frontal_grid_table.cold_front_column_indices: Same as above, except for
+        columns.
+    """
+
+    num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+
+    valid_times_unix_sec = numpy.unique(front_table[TIME_COLUMN].values)
+    num_valid_times = len(valid_times_unix_sec)
+
+    warm_front_row_indices_by_time = [[]] * num_valid_times
+    warm_front_column_indices_by_time = [[]] * num_valid_times
+    cold_front_row_indices_by_time = [[]] * num_valid_times
+    cold_front_column_indices_by_time = [[]] * num_valid_times
+
+    for i in range(num_valid_times):
+        these_front_indices = numpy.where(
+            front_table[TIME_COLUMN].values == valid_times_unix_sec[i])[0]
+        this_front_matrix = numpy.full(
+            (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
+
+        for j in these_front_indices:
+            this_binary_matrix = polyline_to_binary_narr_grid(
+                polyline_latitudes_deg=front_table[LATITUDES_COLUMN].values[j],
+                polyline_longitudes_deg=
+                front_table[LONGITUDES_COLUMN].values[j],
+                dilation_half_width_in_grid_cells=
+                dilation_half_width_in_grid_cells)
+
+            if front_table[FRONT_TYPE_COLUMN].values[j] == WARM_FRONT_STRING_ID:
+                this_front_matrix[
+                    numpy.where(this_binary_matrix)] = WARM_FRONT_INTEGER_ID
+
+            elif (front_table[FRONT_TYPE_COLUMN].values[i] ==
+                  COLD_FRONT_STRING_ID):
+                this_front_matrix[
+                    numpy.where(this_binary_matrix)] = COLD_FRONT_INTEGER_ID
+
+        (warm_front_row_indices_by_time[i],
+         warm_front_column_indices_by_time[i]) = numpy.where(
+             this_front_matrix == WARM_FRONT_INTEGER_ID)
+        (cold_front_row_indices_by_time[i],
+         cold_front_column_indices_by_time[i]) = numpy.where(
+             this_front_matrix == COLD_FRONT_INTEGER_ID)
+
+    frontal_grid_dict = {
+        TIME_COLUMN: valid_times_unix_sec,
+        WARM_FRONT_ROW_INDICES_COLUMN: warm_front_row_indices_by_time,
+        WARM_FRONT_COLUMN_INDICES_COLUMN: warm_front_column_indices_by_time,
+        COLD_FRONT_ROW_INDICES_COLUMN: cold_front_row_indices_by_time,
+        COLD_FRONT_COLUMN_INDICES_COLUMN: cold_front_column_indices_by_time
+    }
+    return pandas.DataFrame.from_dict(frontal_grid_dict)
