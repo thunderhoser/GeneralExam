@@ -11,8 +11,8 @@ GRID_SPACING_X_METRES = 1.
 GRID_SPACING_Y_METRES = 1.
 ONE_GRID_POINT_X_METRES = 1.
 ONE_GRID_POINT_Y_METRES = 2.
-ONE_GRID_VERTEX_COORDS_X_METRES = numpy.array([0.5, 1.5, 1.5, 0.5, 0.5])
-ONE_GRID_VERTEX_COORDS_Y_METRES = numpy.array([1.5, 1.5, 2.5, 2.5, 1.5])
+ONE_GRID_POINT_VERTEX_COORDS_X_METRES = numpy.array([0.5, 1.5, 1.5, 0.5, 0.5])
+ONE_GRID_POINT_VERTEX_COORDS_Y_METRES = numpy.array([1.5, 1.5, 2.5, 2.5, 1.5])
 
 POLYLINE_X_COORDS_METRES = numpy.array(
     [3.3, 2.3, 1.8, 1.5, 1.3, 1.4, 1.7, 2.1, 2.6, 2.8])
@@ -60,6 +60,34 @@ BINARY_MATRIX_DILATED_HALFWIDTH2 = numpy.array([[1, 1, 1, 1, 1, 1, 0, 0],
                                                 [1, 1, 1, 1, 1, 0, 0, 0],
                                                 [1, 1, 1, 1, 1, 1, 0, 0]])
 
+CLOSED_POLYLINE_LATITUDES_DEG = numpy.array([51.1, 53.5, 53.5, 51.1])
+CLOSED_POLYLINE_LONGITUDES_DEG = numpy.array([246., 246.5, 246., 246.])
+OPEN_POLYLINE_LATITUDES_DEG = copy.deepcopy(POLYLINE_Y_COORDS_METRES)
+OPEN_POLYLINE_LONGITUDES_DEG = copy.deepcopy(POLYLINE_X_COORDS_METRES)
+
+WARM_FRONT_ROW_INDICES = numpy.array(
+    [0, 0, 0, 0, 1, 1, 1, 1, 2, 2], dtype=int)
+WARM_FRONT_COLUMN_INDICES = numpy.array(
+    [1, 2, 3, 4, 0, 1, 2, 3, 1, 2], dtype=int)
+COLD_FRONT_ROW_INDICES = numpy.array(
+    [2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5], dtype=int)
+COLD_FRONT_COLUMN_INDICES = numpy.array(
+    [0, 0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 4], dtype=int)
+
+FRONTAL_GRID_DICT = {
+    front_utils.WARM_FRONT_ROW_INDICES_COLUMN: WARM_FRONT_ROW_INDICES,
+    front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN: WARM_FRONT_COLUMN_INDICES,
+    front_utils.COLD_FRONT_ROW_INDICES_COLUMN: COLD_FRONT_ROW_INDICES,
+    front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN: COLD_FRONT_COLUMN_INDICES
+}
+
+FRONTAL_GRID_MATRIX = numpy.array([[0, 1, 1, 1, 1, 0, 0, 0],
+                                   [1, 1, 1, 1, 0, 0, 0, 0],
+                                   [2, 1, 1, 0, 0, 0, 0, 0],
+                                   [2, 2, 2, 2, 0, 0, 0, 0],
+                                   [2, 2, 2, 2, 0, 0, 0, 0],
+                                   [0, 2, 2, 2, 2, 0, 0, 0]])
+
 
 class FrontUtilsTests(unittest.TestCase):
     """Each method is a unit test for front_utils.py."""
@@ -94,10 +122,10 @@ class FrontUtilsTests(unittest.TestCase):
             this_polygon_object_xy_metres.exterior.xy[1])
 
         self.assertTrue(numpy.allclose(
-            these_vertex_x_metres, ONE_GRID_VERTEX_COORDS_X_METRES,
+            these_vertex_x_metres, ONE_GRID_POINT_VERTEX_COORDS_X_METRES,
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
-            these_vertex_y_metres, ONE_GRID_VERTEX_COORDS_Y_METRES,
+            these_vertex_y_metres, ONE_GRID_POINT_VERTEX_COORDS_Y_METRES,
             atol=TOLERANCE))
 
     def test_polyline_to_grid_points(self):
@@ -162,6 +190,49 @@ class FrontUtilsTests(unittest.TestCase):
             these_rows, ROWS_IN_POLYLINE_DILATED_HALFWIDTH1))
         self.assertTrue(numpy.array_equal(
             these_columns, COLUMNS_IN_POLYLINE_DILATED_HALFWIDTH1))
+
+    def test_is_polyline_closed_yes(self):
+        """Ensures correct output from _is_polyline_closed.
+
+        In this case, the answer is yes.
+        """
+
+        self.assertTrue(front_utils._is_polyline_closed(
+            vertex_latitudes_deg=CLOSED_POLYLINE_LATITUDES_DEG,
+            vertex_longitudes_deg=CLOSED_POLYLINE_LONGITUDES_DEG))
+
+    def test_is_polyline_closed_no(self):
+        """Ensures correct output from _is_polyline_closed.
+
+        In this case, the answer is no.
+        """
+
+        self.assertFalse(front_utils._is_polyline_closed(
+            vertex_latitudes_deg=OPEN_POLYLINE_LATITUDES_DEG,
+            vertex_longitudes_deg=OPEN_POLYLINE_LONGITUDES_DEG))
+
+    def test_frontal_grid_to_points(self):
+        """Ensures correct output from frontal_grid_to_points."""
+
+        this_frontal_grid_dict = front_utils.frontal_grid_to_points(
+            FRONTAL_GRID_MATRIX)
+
+        self.assertTrue(
+            set(this_frontal_grid_dict.keys()) == set(FRONTAL_GRID_DICT.keys()))
+
+        for this_key in FRONTAL_GRID_DICT.keys():
+            self.assertTrue(numpy.array_equal(
+                this_frontal_grid_dict[this_key], FRONTAL_GRID_DICT[this_key]))
+
+    def test_frontal_points_to_grid(self):
+        """Ensures correct output from frontal_points_to_grid."""
+
+        this_frontal_grid_matrix = front_utils.frontal_points_to_grid(
+            frontal_grid_dict=FRONTAL_GRID_DICT, num_grid_rows=NUM_GRID_ROWS,
+            num_grid_columns=NUM_GRID_COLUMNS)
+
+        self.assertTrue(numpy.array_equal(
+            this_frontal_grid_matrix, FRONTAL_GRID_MATRIX))
 
 
 if __name__ == '__main__':

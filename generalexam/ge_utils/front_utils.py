@@ -289,6 +289,28 @@ def _dilate_binary_image(binary_matrix, dilation_half_width_in_grid_cells):
         border_value=0)
 
 
+def _is_polyline_closed(vertex_latitudes_deg, vertex_longitudes_deg):
+    """Determines whether or not polyline is closed.
+
+    V = number of vertices
+
+    :param vertex_latitudes_deg: length-V numpy array with latitudes (deg N) of
+        vertices.
+    :param vertex_longitudes_deg: length-V numpy array with longitudes (deg E)
+        of vertices.
+    :return: closed_flag: Boolean flag, indicating whether or not polyline is
+        closed.
+    """
+
+    absolute_lat_diff_deg = numpy.absolute(
+        vertex_latitudes_deg[0] - vertex_latitudes_deg[-1])
+    absolute_lng_diff_deg = numpy.absolute(
+        vertex_longitudes_deg[0] - vertex_longitudes_deg[-1])
+
+    return (absolute_lat_diff_deg < TOLERANCE_DEG and
+            absolute_lng_diff_deg < TOLERANCE_DEG)
+
+
 def check_front_type(front_string_id):
     """Ensures that front type is valid.
 
@@ -303,6 +325,76 @@ def check_front_type(front_string_id):
             '\n\nValid front types (listed above) do not include "' +
             front_string_id + '".')
         raise ValueError(error_string)
+
+
+def frontal_grid_to_points(frontal_grid_matrix):
+    """Converts a frontal grid to lists of points.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    W = number of grid cells intersected by warm front
+    C = number of grid cells intersected by cold front
+
+    :param frontal_grid_matrix: M-by-N numpy array of integers.  If
+        frontal_grid_matrix[i, j] = 0, there is no front intersecting grid point
+        [i, j].  If frontal_grid_matrix[i, j] = 1, there is a warm front
+        intersecting grid point [i, j].  If frontal_grid_matrix[i, j] = 2, there
+        is a cold front intersecting grid point [i, j].
+    :return: frontal_grid_dict: Dictionary with the following keys.
+    frontal_grid_dict['warm_front_row_indices']: length-W numpy array with row
+        indices (integers) of grid cells intersected by a warm front.
+    frontal_grid_dict['warm_front_column_indices']: Same as above, except for
+        columns.
+    frontal_grid_dict['cold_front_row_indices']: length-C numpy array with row
+        indices (integers) of grid cells intersected by a cold front.
+    frontal_grid_dict['cold_front_column_indices']: Same as above, except for
+        columns.
+    """
+
+    error_checking.assert_is_integer_numpy_array(frontal_grid_matrix)
+    error_checking.assert_is_numpy_array(frontal_grid_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(
+        frontal_grid_matrix, NO_FRONT_INTEGER_ID)
+    error_checking.assert_is_leq_numpy_array(
+        frontal_grid_matrix, COLD_FRONT_INTEGER_ID)
+
+    warm_front_row_indices, warm_front_column_indices = numpy.where(
+        frontal_grid_matrix == WARM_FRONT_INTEGER_ID)
+    cold_front_row_indices, cold_front_column_indices = numpy.where(
+        frontal_grid_matrix == COLD_FRONT_INTEGER_ID)
+
+    return {
+        WARM_FRONT_ROW_INDICES_COLUMN: warm_front_row_indices,
+        WARM_FRONT_COLUMN_INDICES_COLUMN: warm_front_column_indices,
+        COLD_FRONT_ROW_INDICES_COLUMN: cold_front_row_indices,
+        COLD_FRONT_COLUMN_INDICES_COLUMN: cold_front_column_indices
+    }
+
+
+def frontal_points_to_grid(frontal_grid_dict, num_grid_rows, num_grid_columns):
+    """Converts lists of frontal points to a grid.
+
+    :param frontal_grid_dict: See documentation for `frontal_grid_to_points`.
+    :param num_grid_rows: Number of rows (unique grid-point y-coordinates).
+    :param num_grid_columns: Number of columns (unique grid-point
+        x-coordinates).
+    :return: frontal_grid_matrix: See documentation for
+        `frontal_grid_to_points`.
+    """
+
+    frontal_grid_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
+
+    frontal_grid_matrix[
+        frontal_grid_dict[WARM_FRONT_ROW_INDICES_COLUMN],
+        frontal_grid_dict[WARM_FRONT_COLUMN_INDICES_COLUMN]
+    ] = WARM_FRONT_INTEGER_ID
+    frontal_grid_matrix[
+        frontal_grid_dict[COLD_FRONT_ROW_INDICES_COLUMN],
+        frontal_grid_dict[COLD_FRONT_COLUMN_INDICES_COLUMN]
+    ] = COLD_FRONT_INTEGER_ID
+
+    return frontal_grid_matrix
 
 
 def polyline_to_binary_narr_grid(
@@ -406,25 +498,17 @@ def many_polylines_to_narr_grid(
 
         these_front_indices = numpy.where(
             front_table[TIME_COLUMN].values == valid_times_unix_sec[i])[0]
-        this_front_matrix = numpy.full(
+        this_frontal_grid_matrix = numpy.full(
             (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
 
         for j in these_front_indices:
-
-            # TODO(thunderhoser): This is a hack to account for very short
-            # polylines (where all points are essentially the same).  Should put
-            # this check in pre-processing.
-            these_latitudes_deg = front_table[LATITUDES_COLUMN].values[j]
-            these_longitudes_deg = front_table[LONGITUDES_COLUMN].values[j]
-
-            this_absolute_lat_diff_deg = numpy.absolute(
-                these_latitudes_deg[0] - these_latitudes_deg[-1])
-            this_absolute_lng_diff_deg = numpy.absolute(
-                these_longitudes_deg[0] - these_longitudes_deg[-1])
-            if (this_absolute_lat_diff_deg < TOLERANCE_DEG and
-                    this_absolute_lng_diff_deg < TOLERANCE_DEG):
-                print ('SKIPPING front with {0:d} points.  First and last '
-                       'points touch.'.format(len(these_latitudes_deg)))
+            skip_this_front = _is_polyline_closed(
+                vertex_latitudes_deg=front_table[LATITUDES_COLUMN].values[j],
+                vertex_longitudes_deg=front_table[LONGITUDES_COLUMN].values[j])
+            if skip_this_front:
+                this_num_points = len(front_table[LATITUDES_COLUMN].values[j])
+                print ('SKIPPING front with {0:d} points (closed '
+                       'polyline).').format(this_num_points)
                 continue
 
             this_binary_matrix = polyline_to_binary_narr_grid(
@@ -436,20 +520,24 @@ def many_polylines_to_narr_grid(
                 dilation_half_width_in_grid_cells)
 
             if front_table[FRONT_TYPE_COLUMN].values[j] == WARM_FRONT_STRING_ID:
-                this_front_matrix[
+                this_frontal_grid_matrix[
                     numpy.where(this_binary_matrix)] = WARM_FRONT_INTEGER_ID
 
             elif (front_table[FRONT_TYPE_COLUMN].values[i] ==
                   COLD_FRONT_STRING_ID):
-                this_front_matrix[
+                this_frontal_grid_matrix[
                     numpy.where(this_binary_matrix)] = COLD_FRONT_INTEGER_ID
 
-        (warm_front_row_indices_by_time[i],
-         warm_front_column_indices_by_time[i]) = numpy.where(
-             this_front_matrix == WARM_FRONT_INTEGER_ID)
-        (cold_front_row_indices_by_time[i],
-         cold_front_column_indices_by_time[i]) = numpy.where(
-             this_front_matrix == COLD_FRONT_INTEGER_ID)
+        this_frontal_grid_dict = frontal_grid_to_points(
+            this_frontal_grid_matrix)
+        warm_front_row_indices_by_time[i] = this_frontal_grid_dict[
+            WARM_FRONT_ROW_INDICES_COLUMN]
+        warm_front_column_indices_by_time[i] = this_frontal_grid_dict[
+            WARM_FRONT_COLUMN_INDICES_COLUMN]
+        cold_front_row_indices_by_time[i] = this_frontal_grid_dict[
+            COLD_FRONT_ROW_INDICES_COLUMN]
+        cold_front_column_indices_by_time[i] = this_frontal_grid_dict[
+            COLD_FRONT_COLUMN_INDICES_COLUMN]
 
     frontal_grid_dict = {
         TIME_COLUMN: valid_times_unix_sec,
