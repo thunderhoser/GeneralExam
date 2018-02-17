@@ -65,6 +65,7 @@ CLOSED_POLYLINE_LONGITUDES_DEG = numpy.array([246., 246.5, 246., 246.])
 OPEN_POLYLINE_LATITUDES_DEG = copy.deepcopy(POLYLINE_Y_COORDS_METRES)
 OPEN_POLYLINE_LONGITUDES_DEG = copy.deepcopy(POLYLINE_X_COORDS_METRES)
 
+NUM_FRONTS = 2
 WARM_FRONT_ROW_INDICES = numpy.array(
     [0, 0, 0, 0, 1, 1, 1, 1, 2, 2], dtype=int)
 WARM_FRONT_COLUMN_INDICES = numpy.array(
@@ -87,6 +88,20 @@ FRONTAL_GRID_MATRIX = numpy.array([[0, 1, 1, 1, 1, 0, 0, 0],
                                    [2, 2, 2, 2, 0, 0, 0, 0],
                                    [2, 2, 2, 2, 0, 0, 0, 0],
                                    [0, 2, 2, 2, 2, 0, 0, 0]])
+
+UNCLOSED_FRONTAL_GRID_MATRIX = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
+                                            [0, 0, 0, 1, 0, 1, 1, 1],
+                                            [0, 0, 0, 0, 0, 0, 1, 1],
+                                            [0, 0, 2, 2, 0, 0, 0, 0],
+                                            [0, 0, 0, 0, 0, 0, 0, 0],
+                                            [2, 2, 2, 0, 0, 0, 0, 0]])
+
+CLOSED_FRONTAL_GRID_MATRIX = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
+                                          [0, 0, 0, 1, 1, 1, 1, 1],
+                                          [0, 0, 0, 0, 0, 0, 1, 1],
+                                          [0, 0, 2, 2, 0, 0, 0, 0],
+                                          [0, 0, 2, 0, 0, 0, 0, 0],
+                                          [2, 2, 2, 0, 0, 0, 0, 0]])
 
 
 class FrontUtilsTests(unittest.TestCase):
@@ -211,6 +226,16 @@ class FrontUtilsTests(unittest.TestCase):
             vertex_latitudes_deg=OPEN_POLYLINE_LATITUDES_DEG,
             vertex_longitudes_deg=OPEN_POLYLINE_LONGITUDES_DEG))
 
+    def test_close_frontal_grid_matrix(self):
+        """Ensures correct output from _close_frontal_grid_matrix."""
+
+        this_input_matrix = copy.deepcopy(UNCLOSED_FRONTAL_GRID_MATRIX)
+        this_closed_matrix = front_utils._close_frontal_grid_matrix(
+            this_input_matrix)
+
+        self.assertTrue(numpy.array_equal(
+            this_closed_matrix, CLOSED_FRONTAL_GRID_MATRIX))
+
     def test_frontal_grid_to_points(self):
         """Ensures correct output from frontal_grid_to_points."""
 
@@ -233,6 +258,41 @@ class FrontUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             this_frontal_grid_matrix, FRONTAL_GRID_MATRIX))
+
+    def test_frontal_grid_to_regions(self):
+        """Ensures correct output from frontal_grid_to_regions."""
+
+        this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX)
+        this_frontal_region_dict = front_utils.frontal_grid_to_regions(
+            this_input_matrix)
+
+        this_num_fronts = len(
+            this_frontal_region_dict[front_utils.FRONT_TYPE_BY_REGION_KEY])
+        self.assertTrue(this_num_fronts == NUM_FRONTS)
+
+        for i in range(NUM_FRONTS):
+            this_front_type_string = this_frontal_region_dict[
+                front_utils.FRONT_TYPE_BY_REGION_KEY][i]
+
+            if this_front_type_string == front_utils.WARM_FRONT_STRING_ID:
+                self.assertTrue(numpy.array_equal(
+                    this_frontal_region_dict[
+                        front_utils.ROW_INDICES_BY_REGION_KEY][i],
+                    WARM_FRONT_ROW_INDICES))
+                self.assertTrue(numpy.array_equal(
+                    this_frontal_region_dict[
+                        front_utils.COLUMN_INDICES_BY_REGION_KEY][i],
+                    WARM_FRONT_COLUMN_INDICES))
+
+            else:
+                self.assertTrue(numpy.array_equal(
+                    this_frontal_region_dict[
+                        front_utils.ROW_INDICES_BY_REGION_KEY][i],
+                    COLD_FRONT_ROW_INDICES))
+                self.assertTrue(numpy.array_equal(
+                    this_frontal_region_dict[
+                        front_utils.COLUMN_INDICES_BY_REGION_KEY][i],
+                    COLD_FRONT_COLUMN_INDICES))
 
 
 if __name__ == '__main__':

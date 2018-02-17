@@ -7,6 +7,8 @@ import numpy
 import pandas
 import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
+from scipy.ndimage.morphology import binary_closing
+from skimage.measure import label as label_image
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
@@ -14,6 +16,8 @@ from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE_DEG = 1e-3
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
+
+STRUCTURE_MATRIX_FOR_BINARY_CLOSING = numpy.ones((3, 3))
 
 FRONT_TYPE_COLUMN = 'front_type'
 TIME_COLUMN = 'unix_time_sec'
@@ -24,6 +28,10 @@ WARM_FRONT_ROW_INDICES_COLUMN = 'warm_front_row_indices'
 WARM_FRONT_COLUMN_INDICES_COLUMN = 'warm_front_column_indices'
 COLD_FRONT_ROW_INDICES_COLUMN = 'cold_front_row_indices'
 COLD_FRONT_COLUMN_INDICES_COLUMN = 'cold_front_column_indices'
+
+ROW_INDICES_BY_REGION_KEY = 'row_indices_by_region'
+COLUMN_INDICES_BY_REGION_KEY = 'column_indices_by_region'
+FRONT_TYPE_BY_REGION_KEY = 'front_type_by_region'
 
 NO_FRONT_INTEGER_ID = 0
 WARM_FRONT_INTEGER_ID = 1
@@ -311,6 +319,75 @@ def _is_polyline_closed(vertex_latitudes_deg, vertex_longitudes_deg):
             absolute_lng_diff_deg < TOLERANCE_DEG)
 
 
+def _close_frontal_grid_matrix(frontal_grid_matrix):
+    """Performs binary closing on frontal grid.
+
+    :param frontal_grid_matrix: See documentation for `frontal_grid_to_points`.
+    :return: frontal_grid_matrix: Same as input, but after binary closing.
+    """
+
+    binary_warm_front_matrix = binary_closing(
+        frontal_grid_matrix == WARM_FRONT_INTEGER_ID,
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, iterations=1)
+    binary_cold_front_matrix = binary_closing(
+        frontal_grid_matrix == COLD_FRONT_INTEGER_ID,
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, iterations=1)
+
+    frontal_grid_matrix[
+        numpy.where(binary_warm_front_matrix)] = WARM_FRONT_INTEGER_ID
+    frontal_grid_matrix[
+        numpy.where(binary_cold_front_matrix)] = COLD_FRONT_INTEGER_ID
+
+    return frontal_grid_matrix
+
+
+def _close_frontal_grid_matrix_old(frontal_grid_matrix):
+    """Performs binary closing on frontal grid.
+
+    :param frontal_grid_matrix: See documentation for `frontal_grid_to_points`.
+    :return: frontal_grid_matrix: Same as input, but after binary closing.
+    """
+
+    closed_binary_matrix = binary_closing(
+        frontal_grid_matrix > NO_FRONT_INTEGER_ID,
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, iterations=1)
+
+    new_frontal_row_indices, new_frontal_column_indices = numpy.where(
+        numpy.logical_and(
+            closed_binary_matrix, frontal_grid_matrix == NO_FRONT_INTEGER_ID))
+
+    num_new_frontal_points = len(new_frontal_row_indices)
+    num_grid_rows = frontal_grid_matrix.shape[0]
+    num_grid_columns = frontal_grid_matrix.shape[1]
+
+    for i in range(num_new_frontal_points):
+        this_min_row = max([new_frontal_row_indices[i] - 1, 0])
+        this_max_row = min([new_frontal_row_indices[i] + 1, num_grid_rows - 1])
+        this_min_column = max([new_frontal_column_indices[i] - 1, 0])
+        this_max_column = min(
+            [new_frontal_column_indices[i] + 1, num_grid_columns - 1])
+
+        this_frontal_grid_submatrix = frontal_grid_matrix[
+            this_min_row:(this_max_row + 1),
+            this_min_column:(this_max_column + 1)]
+
+        this_num_warm_front_points = numpy.sum(
+            this_frontal_grid_submatrix == WARM_FRONT_INTEGER_ID)
+        this_num_cold_front_points = numpy.sum(
+            this_frontal_grid_submatrix == COLD_FRONT_INTEGER_ID)
+
+        if this_num_cold_front_points >= this_num_warm_front_points:
+            frontal_grid_matrix[
+                new_frontal_row_indices[i],
+                new_frontal_column_indices[i]] = COLD_FRONT_INTEGER_ID
+        else:
+            frontal_grid_matrix[
+                new_frontal_row_indices[i],
+                new_frontal_column_indices[i]] = WARM_FRONT_INTEGER_ID
+
+    return frontal_grid_matrix
+
+
 def check_front_type(front_string_id):
     """Ensures that front type is valid.
 
@@ -395,6 +472,50 @@ def frontal_points_to_grid(frontal_grid_dict, num_grid_rows, num_grid_columns):
     ] = COLD_FRONT_INTEGER_ID
 
     return frontal_grid_matrix
+
+
+def frontal_grid_to_regions(frontal_grid_matrix):
+    """Converts frontal grid to a list of connected regions (objects).
+
+    N = number of regions
+    P_i = number of grid points in the [i]th region
+
+    :param frontal_grid_matrix: See documentation for `frontal_grid_to_points`.
+    :return: frontal_region_dict: Dictionary with the following keys.
+    frontal_region_dict['row_indices_by_region']: length-N list, where the [i]th
+        element is a numpy array (length P_i) with indices of grid rows in the
+        [i]th region.
+    frontal_region_dict['column_indices_by_region']: Same as above, except for
+        columns.
+    frontal_region_dict['front_type_by_region']: length-N list, where each
+        element is a string (either "warm" or "cold") identifying the front
+        type.
+    """
+
+    frontal_grid_matrix = _close_frontal_grid_matrix(frontal_grid_matrix)
+    region_matrix = label_image(frontal_grid_matrix, connectivity=2)
+
+    num_regions = numpy.max(region_matrix)
+    row_indices_by_region = [[]] * num_regions
+    column_indices_by_region = [[]] * num_regions
+    front_type_by_region = [''] * num_regions
+
+    for i in range(num_regions):
+        row_indices_by_region[i], column_indices_by_region[i] = numpy.where(
+            region_matrix == i + 1)
+        this_integer_id = frontal_grid_matrix[
+            row_indices_by_region[i][0], column_indices_by_region[i][0]]
+
+        if this_integer_id == WARM_FRONT_INTEGER_ID:
+            front_type_by_region[i] = WARM_FRONT_STRING_ID
+        elif this_integer_id == COLD_FRONT_INTEGER_ID:
+            front_type_by_region[i] = COLD_FRONT_STRING_ID
+
+    return {
+        ROW_INDICES_BY_REGION_KEY: row_indices_by_region,
+        COLUMN_INDICES_BY_REGION_KEY: column_indices_by_region,
+        FRONT_TYPE_BY_REGION_KEY: front_type_by_region
+    }
 
 
 def polyline_to_binary_narr_grid(
