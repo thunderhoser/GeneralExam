@@ -1,7 +1,6 @@
 """Unit tests for skeleton_lines.py."""
 
 import copy
-import collections
 import unittest
 import numpy
 import pandas
@@ -90,7 +89,7 @@ TRIANGLE_TO_NODE_DICT = {
 }
 TRIANGLE_TO_NODE_TABLE = pandas.DataFrame.from_dict(TRIANGLE_TO_NODE_DICT)
 
-NODE_TO_LEFT_CHILD_INDICES = [[1, 4], [0, 5], [3, 6], [2, 4], [3, 0], [], []]
+NODE_TO_LEFT_CHILD_INDICES = [[1, 4], [0, 5], [3, 6], [2, 4], [3, 0], [1], [2]]
 NODE_TO_RIGHT_CHILD_INDICES = [[], [], [], [], [], [], []]
 THIS_DICT = {
     skeleton_lines.LEFT_CHILD_INDICES_KEY: NODE_TO_LEFT_CHILD_INDICES,
@@ -98,7 +97,31 @@ THIS_DICT = {
 }
 NODE_TABLE_WITH_CHILDREN = NODE_TABLE_SANS_CHILDREN.assign(**THIS_DICT)
 
-CONVEX_HULL_VERTEX_INDICES = copy.deepcopy(END_NODE_VERTEX_INDICES)
+USED_NODE_INDICES_BEFORE_BACKTRACK = [5, 1, 0]
+USED_TRIANGLE_INDICES_BEFORE_BACKTRACK = [4, 0]
+USED_NODE_INDICES_AFTER_BACKTRACK = [5, 1]
+USED_TRIANGLE_INDICES_AFTER_BACKTRACK = [4]
+
+NODE_TO_LEFT_CHILD_INDICES_AFTER_BACKTRACK = [
+    [1, 4], [5], [3, 6], [2, 4], [3, 0], [1], [2]]
+THIS_DICT = {
+    skeleton_lines.LEFT_CHILD_INDICES_KEY:
+        NODE_TO_LEFT_CHILD_INDICES_AFTER_BACKTRACK
+}
+NODE_TABLE_AFTER_BACKTRACK = NODE_TABLE_WITH_CHILDREN.assign(**THIS_DICT)
+
+START_NODE_INDEX_FOR_SKELETON_LINE = 5
+END_NODE_INDEX_FOR_SKELETON_LINE = 6
+SKELETON_LINE_X_COORDS = numpy.array([0., -0.5, -1.5, -1.5, -1.5, -0.5, 0.])
+SKELETON_LINE_Y_COORDS = numpy.array([1., 0.5, 1., 1.5, 2., 2.5, 2.])
+
+NODE_TO_LEFT_CHILD_INDICES_NO_ZERO = [
+    [1, 4], [5], [3, 6], [2, 4], [3], [1], [2]]
+THIS_DICT = {
+    skeleton_lines.LEFT_CHILD_INDICES_KEY:
+        NODE_TO_LEFT_CHILD_INDICES_NO_ZERO
+}
+NODE_TABLE_NO_ZERO_CHILDREN = NODE_TABLE_WITH_CHILDREN.assign(**THIS_DICT)
 
 
 def _compare_tables(expected_table, actual_table):
@@ -286,19 +309,65 @@ class SkeletonLinesTests(unittest.TestCase):
         self.assertTrue(_compare_tables(
             NODE_TABLE_WITH_CHILDREN, this_node_table))
 
-    def test_get_convex_hull_of_end_nodes(self):
-        """Ensures correct output from _get_convex_hull_of_end_nodes."""
+    def test_delete_last_node_added(self):
+        """Ensures correct output from _delete_last_node_added."""
+
+        this_node_table = copy.deepcopy(NODE_TABLE_WITH_CHILDREN)
+
+        (this_node_table,
+         these_used_node_indices,
+         these_used_triangle_indices) = skeleton_lines._delete_last_node_added(
+             node_table=this_node_table,
+             used_node_indices=USED_NODE_INDICES_BEFORE_BACKTRACK,
+             used_triangle_indices=USED_TRIANGLE_INDICES_BEFORE_BACKTRACK)
+
+        self.assertTrue(_compare_tables(
+            NODE_TABLE_AFTER_BACKTRACK, this_node_table))
+        self.assertTrue(
+            these_used_node_indices == USED_NODE_INDICES_AFTER_BACKTRACK)
+        self.assertTrue(these_used_triangle_indices ==
+                        USED_TRIANGLE_INDICES_AFTER_BACKTRACK)
+
+    def test_get_skeleton_line(self):
+        """Ensures correct output from _get_skeleton_line."""
+
+        these_x_coords, these_y_coords = skeleton_lines._get_skeleton_line(
+            node_table=NODE_TABLE_WITH_CHILDREN,
+            triangle_to_node_table=TRIANGLE_TO_NODE_TABLE,
+            start_node_index=START_NODE_INDEX_FOR_SKELETON_LINE,
+            end_node_index=END_NODE_INDEX_FOR_SKELETON_LINE)
+
+        self.assertTrue(numpy.allclose(
+            these_x_coords, SKELETON_LINE_X_COORDS, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_y_coords, SKELETON_LINE_Y_COORDS, atol=TOLERANCE))
+
+    def test_get_convex_hull(self):
+        """Ensures correct output from _get_convex_hull."""
 
         # TODO(thunderhoser): This is a trivial test, because there are only 2
-        # end nodes.  When there are < 3 end nodes, the method just returns the
-        # original end nodes and does not actually compute the convex hull.
+        # input vertices.  When there are < 3 input vertices, the method just
+        # returns the originals and does not actually compute the convex hull.
 
-        these_vertex_indices = skeleton_lines._get_convex_hull_of_end_nodes(
-            polygon_object_xy=POLYGON_OBJECT_XY,
-            end_node_vertex_indices=END_NODE_VERTEX_INDICES)
+        these_vertex_indices = skeleton_lines._get_convex_hull(
+            vertex_x_coords=VERTEX_X_COORDS[END_NODE_VERTEX_INDICES],
+            vertex_y_coords=VERTEX_Y_COORDS[END_NODE_VERTEX_INDICES])
 
+        expected_indices = numpy.linspace(
+            0, len(END_NODE_VERTEX_INDICES) - 1,
+            num=len(END_NODE_VERTEX_INDICES), dtype=int)
         self.assertTrue(numpy.array_equal(
-            these_vertex_indices, CONVEX_HULL_VERTEX_INDICES))
+            these_vertex_indices, expected_indices))
+
+    def test_remove_node_from_children(self):
+        """Ensures correct output from _remove_node_from_children."""
+
+        this_node_table = copy.deepcopy(NODE_TABLE_WITH_CHILDREN)
+        this_node_table = skeleton_lines._remove_node_from_children(
+            node_table=this_node_table, target_node_index=0)
+
+        self.assertTrue(_compare_tables(
+            NODE_TABLE_NO_ZERO_CHILDREN, this_node_table))
 
 
 if __name__ == '__main__':

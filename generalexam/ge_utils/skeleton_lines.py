@@ -496,8 +496,8 @@ def _find_and_classify_node_children(
                 parent_triangle_position = node_table[
                     TRIANGLE_POSITIONS_KEY].values[parent_index][j]
                 triangle_index_in_child_array = numpy.where(numpy.array(
-                    node_table[TRIANGLE_INDICES_KEY].values[child_index]) ==
-                    parent_triangle_indices[j])[0][0]
+                    node_table[TRIANGLE_INDICES_KEY].values[child_index]
+                ) == parent_triangle_indices[j])[0][0]
                 child_triangle_position = node_table[
                     TRIANGLE_POSITIONS_KEY].values[child_index][
                         triangle_index_in_child_array]
@@ -521,35 +521,6 @@ def _find_and_classify_node_children(
         RIGHT_CHILD_INDICES_KEY: node_to_right_child_indices
     }
     return node_table.assign(**argument_dict)
-
-
-def _get_convex_hull_of_end_nodes(polygon_object_xy, end_node_vertex_indices):
-    """Finds convex hull of end nodes.
-
-    :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
-        vertices in x-y (Cartesian) coordinates.
-    :param end_node_vertex_indices: 1-D numpy array with indices of polygon
-        vertices that are also end nodes.
-    :return: convex_hull_vertex_indices: 1-D numpy array with indices of polygon
-        vertices that are also in the convex hull of end nodes.
-    """
-
-    vertex_x_coords, vertex_y_coords = _polygon_to_vertex_arrays(
-        polygon_object_xy)
-
-    end_node_vertex_x_coords = vertex_x_coords[end_node_vertex_indices]
-    end_node_vertex_y_coords = vertex_y_coords[end_node_vertex_indices]
-    num_end_nodes = len(end_node_vertex_indices)
-
-    if num_end_nodes == 2:
-        return end_node_vertex_indices
-
-    end_node_vertex_matrix_xy = numpy.hstack((
-        numpy.reshape(end_node_vertex_x_coords, (num_end_nodes, 1)),
-        numpy.reshape(end_node_vertex_y_coords, (num_end_nodes, 1))))
-    convex_hull_object = scipy.spatial.ConvexHull(end_node_vertex_matrix_xy)
-
-    return end_node_vertex_indices[convex_hull_object.vertices]
 
 
 def _delete_last_node_added(
@@ -591,17 +562,17 @@ def _delete_last_node_added(
     return node_table, used_node_indices, used_triangle_indices
 
 
-def _find_skeleton_line(
+def _get_skeleton_line(
         node_table, triangle_to_node_table, start_node_index, end_node_index):
     """Finds one skeleton line through a polygon.
-    
+
     This method uses the "backtracking algorithm" of Wang et al. (2013).
 
     Keep in mind that, in Wang et al. (2013), both start and end nodes are
     called "end nodes".  They are also classified as such in `node_table`.
 
     P = number of points in resulting skeleton line
-    
+
     :param node_table: pandas DataFrame created by
         `_find_and_classify_node_children`.
     :param triangle_to_node_table: pandas DataFrame created by
@@ -634,7 +605,10 @@ def _find_skeleton_line(
             # Determine which triangle to cut across.
             candidate_triangle_indices = list(
                 node_table[TRIANGLE_INDICES_KEY].values[used_node_indices[-1]])
-            if used_triangle_indices[-1] in candidate_triangle_indices:
+
+            if (len(used_triangle_indices)
+                    and used_triangle_indices[-1] in
+                    candidate_triangle_indices):
                 candidate_triangle_indices.remove(used_triangle_indices[-1])
 
             if not len(candidate_triangle_indices):
@@ -651,6 +625,11 @@ def _find_skeleton_line(
             candidate_next_node_indices = list(
                 set(candidate_next_node_indices).difference(
                     set(used_node_indices)))
+
+            if not len(candidate_next_node_indices):
+                current_step_type = copy.deepcopy(ABNORMAL_STEP_TYPE)
+                force_delete_prev_node = True
+                continue
 
             # If desired end node is a candidate, go there and stop algorithm.
             if end_node_index in candidate_next_node_indices:
@@ -675,6 +654,12 @@ def _find_skeleton_line(
                     set(prev_left_child_indices)))
 
             if not len(candidate_next_node_indices):
+                # node_table, used_node_indices, used_triangle_indices = (
+                #     _delete_last_node_added(
+                #         node_table=node_table,
+                #         used_node_indices=used_node_indices,
+                #         used_triangle_indices=used_triangle_indices))
+
                 current_step_type = copy.deepcopy(ABNORMAL_STEP_TYPE)
                 force_delete_prev_node = True
                 continue
@@ -694,6 +679,10 @@ def _find_skeleton_line(
                         used_triangle_indices=used_triangle_indices))
 
                 force_delete_prev_node = False
+                continue
+
+            if len(used_node_indices) == 1:
+                current_step_type = copy.deepcopy(NORMAL_STEP_TYPE)
                 continue
 
             # Determine which triangle to cut across.
@@ -735,3 +724,147 @@ def _find_skeleton_line(
     used_node_indices = numpy.array(used_node_indices)
     return (node_table[NODE_X_COORDS_KEY].values[used_node_indices],
             node_table[NODE_Y_COORDS_KEY].values[used_node_indices])
+
+
+def _get_convex_hull(vertex_x_coords, vertex_y_coords):
+    """Finds convex hull of polygon.
+
+    V = number of vertices
+
+    :param vertex_x_coords: length-V numpy array with x-coordinates of vertices.
+    :param vertex_y_coords: length-V numpy array with y-coordinates of vertices.
+    :return: convex_hull_indices: 1-D numpy array with indices of vertices on
+        convex hull.
+    """
+
+    num_vertices = len(vertex_x_coords)
+    vertex_indices = numpy.linspace(
+        0, num_vertices - 1, num=num_vertices, dtype=int)
+
+    if num_vertices == 2:
+        return vertex_indices
+
+    vertex_matrix_xy = numpy.hstack((
+        numpy.reshape(vertex_x_coords, (num_vertices, 1)),
+        numpy.reshape(vertex_y_coords, (num_vertices, 1))))
+    convex_hull_object = scipy.spatial.ConvexHull(vertex_matrix_xy)
+
+    return vertex_indices[convex_hull_object.vertices]
+
+
+def _remove_node_from_children(node_table, target_node_index):
+    """Removes a single node from all child lists.
+
+    :param node_table: pandas DataFrame created by
+        `_find_and_classify_node_children`.
+    :param target_node_index: Index of node to remove from child lists.
+    :return: node_table: Same as input, except with different children.
+    """
+
+    num_nodes = len(node_table.index)
+
+    for i in range(num_nodes):
+        these_left_child_indices = list(
+            node_table[LEFT_CHILD_INDICES_KEY].values[i])
+        if target_node_index in these_left_child_indices:
+            these_left_child_indices.remove(target_node_index)
+            node_table[LEFT_CHILD_INDICES_KEY].values[
+                i] = these_left_child_indices
+
+        these_right_child_indices = list(
+            node_table[RIGHT_CHILD_INDICES_KEY].values[i])
+        if target_node_index in these_right_child_indices:
+            these_right_child_indices.remove(target_node_index)
+            node_table[RIGHT_CHILD_INDICES_KEY].values[
+                i] = these_right_child_indices
+
+    return node_table
+
+
+def get_main_skeleton_line(polygon_object_xy):
+    """Finds the main (longest) skeleton line passing through a polygon.
+
+    P = number of points in resulting skeleton line
+
+    :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
+        vertices in x-y (Cartesian) coordinates.
+    :return: skeleton_line_x_coords: length-P numpy array of x-coordinates along
+        skeleton line.
+    :return: skeleton_line_y_coords: length-P numpy array of y-coordinates along
+        skeleton line.
+    """
+
+    triangle_to_vertex_matrix = _get_delaunay_triangulation(polygon_object_xy)
+    new_edge_table, triangle_to_new_edge_table = (
+        _find_new_edges_from_triangulation(
+            polygon_object_xy=polygon_object_xy,
+            triangle_to_vertex_matrix=triangle_to_vertex_matrix))
+
+    end_node_vertex_indices = _find_end_nodes_of_triangulation(
+        triangle_to_vertex_matrix=triangle_to_vertex_matrix,
+        new_edge_table=new_edge_table)
+
+    node_table, triangle_to_node_table = _find_and_classify_nodes(
+        polygon_object_xy=polygon_object_xy, new_edge_table=new_edge_table,
+        triangle_to_new_edge_table=triangle_to_new_edge_table,
+        triangle_to_vertex_matrix=triangle_to_vertex_matrix,
+        end_node_vertex_indices=end_node_vertex_indices)
+
+    node_table = _find_and_classify_node_children(
+        node_table=node_table,
+        triangle_to_new_edge_table=triangle_to_new_edge_table,
+        triangle_to_node_table=triangle_to_node_table)
+
+    end_node_flags = numpy.array(
+        [s == END_NODE_TYPE for s in node_table[NODE_TYPE_KEY].values])
+    end_node_indices = numpy.where(end_node_flags)[0]
+
+    vertex_x_coords, vertex_y_coords = _polygon_to_vertex_arrays(
+        polygon_object_xy)
+
+    convex_hull_indices = _get_convex_hull(
+        vertex_x_coords[end_node_vertex_indices],
+        vertex_y_coords[end_node_vertex_indices])
+    end_node_in_convex_hull_indices = end_node_indices[convex_hull_indices]
+
+    num_end_nodes_in_convex_hull = len(end_node_in_convex_hull_indices)
+    max_skeleton_line_length = -1.
+    skeleton_line_x_coords = None
+    skeleton_line_y_coords = None
+
+    num_skeleton_lines = (
+        num_end_nodes_in_convex_hull * (num_end_nodes_in_convex_hull - 1) / 2)
+    num_skeleton_lines_done = 0
+
+    for i in range(num_end_nodes_in_convex_hull - 1):
+        for j in range(i + 1, num_end_nodes_in_convex_hull):
+            print 'Drawing skeleton line {0:d} of {1:d}...'.format(
+                num_skeleton_lines_done + 1, num_skeleton_lines)
+
+            this_node_table = copy.deepcopy(node_table)
+            this_node_table = _remove_node_from_children(
+                node_table=this_node_table,
+                target_node_index=end_node_in_convex_hull_indices[i])
+
+            these_x_coords, these_y_coords = _get_skeleton_line(
+                node_table=this_node_table,
+                triangle_to_node_table=triangle_to_node_table,
+                start_node_index=end_node_in_convex_hull_indices[i],
+                end_node_index=end_node_in_convex_hull_indices[j])
+            num_skeleton_lines_done += 1
+
+            this_vertex_list_xy = front_utils._vertex_arrays_to_list(
+                vertex_x_coords_metres=these_x_coords,
+                vertex_y_coords_metres=these_y_coords)
+            this_linestring_object_xy = shapely.geometry.LineString(
+                this_vertex_list_xy)
+            this_length = this_linestring_object_xy.length
+
+            if this_length <= max_skeleton_line_length:
+                continue
+
+            max_skeleton_line_length = copy.deepcopy(this_length)
+            skeleton_line_x_coords = copy.deepcopy(these_x_coords)
+            skeleton_line_y_coords = copy.deepcopy(these_y_coords)
+
+    return skeleton_line_x_coords, skeleton_line_y_coords

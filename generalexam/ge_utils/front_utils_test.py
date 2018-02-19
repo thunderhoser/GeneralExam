@@ -347,7 +347,7 @@ class FrontUtilsTests(unittest.TestCase):
                     this_frontal_region_dict[
                         front_utils.COLUMN_INDICES_BY_REGION_KEY][i],
                     COLD_FRONT_COLUMN_INDICES))
-                
+
     def test_get_frontal_types_over_grid(self):
         """Ensures correct output from get_frontal_types_over_grid."""
 
