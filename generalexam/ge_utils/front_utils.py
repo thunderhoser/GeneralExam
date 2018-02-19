@@ -388,6 +388,43 @@ def _close_frontal_grid_matrix_old(frontal_grid_matrix):
     return frontal_grid_matrix
 
 
+def _get_thermal_advection_over_grid(
+        grid_relative_u_wind_matrix_m_s01, grid_relative_v_wind_matrix_m_s01,
+        thermal_param_matrix_kelvins, grid_spacing_x_metres,
+        grid_spacing_y_metres):
+    """Computes instantaneous advection of thermal param at all points in grid.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+
+    :param grid_relative_u_wind_matrix_m_s01: M-by-N numpy array with grid-
+        relative u-wind components (in positive x-direction) (metres per
+        second).
+    :param grid_relative_v_wind_matrix_m_s01: Same as above, except for v-wind
+        (in positive y-direction).
+    :param thermal_param_matrix_kelvins: M-by-N numpy array with values of
+        thermal parameter (examples: temperature, potential temperature,
+        wet-bulb temperature, wet-bulb potential temperature, equivalent
+        potential temperature).
+    :param grid_spacing_x_metres: Distance between adjacent grid points in
+        x-direction.
+    :param grid_spacing_y_metres: Distance between adjacent grid points in
+        y-direction.
+    :return: advection_matrix_kelvins_s01: M-by-N numpy array with advection of
+        thermal parameter (Kelvins per second) at each grid point.
+    """
+
+    y_gradient_matrix_kelvins_m01, x_gradient_matrix_kelvins_m01 = (
+        numpy.gradient(
+            thermal_param_matrix_kelvins, grid_spacing_y_metres,
+            grid_spacing_x_metres))
+
+    advection_matrix_kelvins_s01 = -(
+        grid_relative_u_wind_matrix_m_s01 * x_gradient_matrix_kelvins_m01 +
+        grid_relative_v_wind_matrix_m_s01 * y_gradient_matrix_kelvins_m01)
+    return advection_matrix_kelvins_s01
+
+
 def check_front_type(front_string_id):
     """Ensures that front type is valid.
 
@@ -516,6 +553,58 @@ def frontal_grid_to_regions(frontal_grid_matrix):
         COLUMN_INDICES_BY_REGION_KEY: column_indices_by_region,
         FRONT_TYPE_BY_REGION_KEY: front_type_by_region
     }
+
+
+def get_frontal_types_over_grid(
+        grid_relative_u_wind_matrix_m_s01, grid_relative_v_wind_matrix_m_s01,
+        thermal_param_matrix_kelvins, binary_matrix, grid_spacing_x_metres,
+        grid_spacing_y_metres):
+    """Determines front type at each point in grid.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+
+    :param grid_relative_u_wind_matrix_m_s01: See documentation for
+        `_get_thermal_advection_over_grid`.
+    :param grid_relative_v_wind_matrix_m_s01: See doc for
+        `_get_thermal_advection_over_grid`.
+    :param thermal_param_matrix_kelvins: See doc for
+        `_get_thermal_advection_over_grid`.
+    :param binary_matrix: M-by-N numpy array of Boolean flags.  If
+        binary_matrix[i, j] = True, a front passes through grid point [i, j].
+    :param grid_spacing_x_metres: See doc for
+        `_get_thermal_advection_over_grid`.
+    :param grid_spacing_y_metres: See doc for
+        `_get_thermal_advection_over_grid`.
+    :return: frontal_grid_matrix: See doc for `frontal_grid_to_points`.
+    """
+
+    # TODO(thunderhoser): This is still primitive (advection calculation at each
+    # grid point is based on wind at said grid point and first-order finite
+    # difference of temperature).  Need to get fancier.
+
+    thermal_advection_matrix_kelvins_m01 = _get_thermal_advection_over_grid(
+        grid_relative_u_wind_matrix_m_s01, grid_relative_v_wind_matrix_m_s01,
+        thermal_param_matrix_kelvins, grid_spacing_x_metres,
+        grid_spacing_y_metres)
+
+    warm_front_row_indices, warm_front_column_indices = numpy.where(
+        numpy.logical_and(
+            thermal_advection_matrix_kelvins_m01 > 0., binary_matrix))
+    cold_front_row_indices, cold_front_column_indices = numpy.where(
+        numpy.logical_and(
+            thermal_advection_matrix_kelvins_m01 <= 0., binary_matrix))
+
+    num_grid_rows = binary_matrix.shape[0]
+    num_grid_columns = binary_matrix.shape[1]
+    frontal_grid_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
+
+    frontal_grid_matrix[warm_front_row_indices,
+                        warm_front_column_indices] = WARM_FRONT_INTEGER_ID
+    frontal_grid_matrix[cold_front_row_indices,
+                        cold_front_column_indices] = COLD_FRONT_INTEGER_ID
+    return frontal_grid_matrix
 
 
 def polyline_to_binary_narr_grid(

@@ -103,6 +103,43 @@ CLOSED_FRONTAL_GRID_MATRIX = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
                                           [0, 0, 2, 0, 0, 0, 0, 0],
                                           [2, 2, 2, 0, 0, 0, 0, 0]])
 
+# The following constants are used to test _get_thermal_advection_over_grid.
+GRID_RELATIVE_U_WIND_MATRIX_M_S01 = numpy.array([[1., 1., -1., -1., -1., -1.],
+                                                 [1., 1., -1., -1., 0., 0.],
+                                                 [1., 1., -1., -1., 0., 0.],
+                                                 [1., 1., -1., -1., 0., 0.]])
+GRID_RELATIVE_V_WIND_MATRIX_M_S01 = numpy.array([[-1., -1., -1., -1., -1., -1.],
+                                                 [-1., -1., 1., 1., 1., 1.],
+                                                 [-1., -1., 1., 1., 1., 1.],
+                                                 [-1., -1., 1., 1., 1., 1.]])
+THERMAL_PARAM_MATRIX_KELVINS = numpy.array([[0., 5., 7., 9., 10., 10.],
+                                            [0., 5., 15., 17., 18., 19.],
+                                            [0., 5., 15., 17., 18., 19.],
+                                            [0., 5., 15., 17., 18., 19.]])
+
+X_ADVECTION_MATRIX_KELVINS_S01 = numpy.array([[-5., -3.5, 2., 1.5, 0.5, 0.],
+                                              [-5., -7.5, 6., 1.5, 0., 0.],
+                                              [-5., -7.5, 6., 1.5, 0., 0.],
+                                              [-5., -7.5, 6., 1.5, 0., 0.]])
+Y_ADVECTION_MATRIX_KELVINS_S01 = numpy.array([[0., 0., 8., 8., 8., 9.],
+                                              [0., 0., -4., -4., -4., -4.5],
+                                              [0., 0., 0., 0., 0., 0.],
+                                              [0., 0., 0., 0., 0., 0.]])
+ADVECTION_MATRIX_KELVINS_S01 = (
+    X_ADVECTION_MATRIX_KELVINS_S01 + Y_ADVECTION_MATRIX_KELVINS_S01)
+
+# The following constants are used to test get_frontal_types_over_grid.
+BINARY_MATRIX_BEFORE_DISCRIMINATION = numpy.array(
+    [[0, 0, 1, 1, 1, 1],
+     [1, 1, 1, 0, 0, 0],
+     [1, 1, 0, 0, 0, 0],
+     [1, 0, 0, 0, 0, 0]], dtype=bool)
+FRONTAL_GRID_MATRIX_AFTER_DISCRIMINATION = numpy.array(
+    [[0, 0, 1, 1, 1, 1],
+     [2, 2, 1, 0, 0, 0],
+     [2, 2, 0, 0, 0, 0],
+     [2, 0, 0, 0, 0, 0]])
+
 
 class FrontUtilsTests(unittest.TestCase):
     """Each method is a unit test for front_utils.py."""
@@ -236,6 +273,23 @@ class FrontUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_closed_matrix, CLOSED_FRONTAL_GRID_MATRIX))
 
+    def test_get_thermal_advection_over_grid(self):
+        """Ensures correct output from _get_thermal_advection_over_grid."""
+
+        this_advection_matrix_kelvins_s01 = (
+            front_utils._get_thermal_advection_over_grid(
+                grid_relative_u_wind_matrix_m_s01=
+                GRID_RELATIVE_U_WIND_MATRIX_M_S01,
+                grid_relative_v_wind_matrix_m_s01=
+                GRID_RELATIVE_V_WIND_MATRIX_M_S01,
+                thermal_param_matrix_kelvins=THERMAL_PARAM_MATRIX_KELVINS,
+                grid_spacing_x_metres=GRID_SPACING_X_METRES,
+                grid_spacing_y_metres=GRID_SPACING_Y_METRES))
+
+        self.assertTrue(numpy.allclose(
+            this_advection_matrix_kelvins_s01, ADVECTION_MATRIX_KELVINS_S01,
+            atol=TOLERANCE))
+
     def test_frontal_grid_to_points(self):
         """Ensures correct output from frontal_grid_to_points."""
 
@@ -293,6 +347,20 @@ class FrontUtilsTests(unittest.TestCase):
                     this_frontal_region_dict[
                         front_utils.COLUMN_INDICES_BY_REGION_KEY][i],
                     COLD_FRONT_COLUMN_INDICES))
+                
+    def test_get_frontal_types_over_grid(self):
+        """Ensures correct output from get_frontal_types_over_grid."""
+
+        this_frontal_grid_matrix = front_utils.get_frontal_types_over_grid(
+            grid_relative_u_wind_matrix_m_s01=GRID_RELATIVE_U_WIND_MATRIX_M_S01,
+            grid_relative_v_wind_matrix_m_s01=GRID_RELATIVE_V_WIND_MATRIX_M_S01,
+            thermal_param_matrix_kelvins=THERMAL_PARAM_MATRIX_KELVINS,
+            binary_matrix=BINARY_MATRIX_BEFORE_DISCRIMINATION,
+            grid_spacing_x_metres=GRID_SPACING_X_METRES,
+            grid_spacing_y_metres=GRID_SPACING_Y_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_frontal_grid_matrix, FRONTAL_GRID_MATRIX_AFTER_DISCRIMINATION))
 
 
 if __name__ == '__main__':
