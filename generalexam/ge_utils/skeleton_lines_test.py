@@ -7,6 +7,12 @@ import pandas
 from gewittergefahr.gg_utils import polygons
 from generalexam.ge_utils import skeleton_lines
 
+# TODO(thunderhoser): need more challenging unit tests.  For example,
+# _find_and_classify_node_children is not tested very stringently, because in
+# this case there are no branch nodes.  Similarly, _get_convex_hull is not
+# tested stringently, because in this case there are only 2 input vertices, so
+# they are immediately returned (no convex hull is actually created).
+
 TOLERANCE = 1e-6
 
 INTEGER_ARRAY_COLUMNS = [
@@ -247,15 +253,6 @@ class SkeletonLinesTests(unittest.TestCase):
             vertex_indices=VERTEX_INDICES_ADJACENT_WRAPAROUND[::-1],
             num_vertices_in_polygon=NUM_VERTICES_FOR_ADJACENCY_TEST))
 
-    def test_get_delaunay_triangulation(self):
-        """Ensures correct output from _get_delaunay_triangulation."""
-
-        this_triangle_to_vertex_matrix = (
-            skeleton_lines._get_delaunay_triangulation(POLYGON_OBJECT_XY))
-
-        self.assertTrue(numpy.array_equal(
-            this_triangle_to_vertex_matrix, TRIANGLE_TO_VERTEX_MATRIX))
-
     def test_find_new_edges_from_triangulation(self):
         """Ensures correct output from _find_new_edges_from_triangulation."""
 
@@ -297,9 +294,6 @@ class SkeletonLinesTests(unittest.TestCase):
 
     def test_find_and_classify_node_children(self):
         """Ensures correct output from _find_and_classify_node_children."""
-
-        # TODO(thunderhoser): This is a somewhat trivial test, because there are
-        # only end/jumper nodes, no branch nodes.
 
         this_node_table = skeleton_lines._find_and_classify_node_children(
             node_table=NODE_TABLE_SANS_CHILDREN,
@@ -344,10 +338,6 @@ class SkeletonLinesTests(unittest.TestCase):
 
     def test_get_convex_hull(self):
         """Ensures correct output from _get_convex_hull."""
-
-        # TODO(thunderhoser): This is a trivial test, because there are only 2
-        # input vertices.  When there are < 3 input vertices, the method just
-        # returns the originals and does not actually compute the convex hull.
 
         these_vertex_indices = skeleton_lines._get_convex_hull(
             vertex_x_coords=VERTEX_X_COORDS[END_NODE_VERTEX_INDICES],

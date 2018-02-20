@@ -14,6 +14,7 @@ import numpy
 import pandas
 import scipy.spatial
 import shapely.geometry
+import tripy
 from generalexam.ge_utils import front_utils
 
 TOLERANCE = 1e-6
@@ -45,8 +46,8 @@ def _polygon_to_vertex_arrays(polygon_object_xy):
     """Converts polygon to vertex arrays.
 
     If the polygon is explicitly closed (i.e., first and last vertices are the
-    same), this method will remove the last vertex, since it confuses Delaunay
-    triangulation.
+    same), this method will remove the last vertex, since it confuses the
+    triangulation algorithm.
 
     V = number of vertices (after removing closure)
 
@@ -88,15 +89,13 @@ def _are_vertices_adjacent(vertex_indices, num_vertices_in_polygon):
             num_vertices_in_polygon - 1 in vertex_indices)
 
 
-def _remove_delaunay_triangles_outside_polygon(
-        polygon_object_xy, triangulation_object):
-    """Removes Delaunay triangles outside of original polygon.
+def _get_triangulation(polygon_object_xy):
+    """Returns triangulation of polygon.
 
-    N = number of triangles remaining
+    N = number of triangles
 
     :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
         vertices in x-y (Cartesian) coordinates.
-    :param triangulation_object: Instance of `scipy.spatial.qhull.Delaunay`.
     :return: triangle_to_vertex_matrix: N-by-3 numpy array, where
         triangle_to_vertex_matrix[i, j] is the index of the [j]th vertex in the
         [i]th triangle.  Thus, if triangle_to_vertex_matrix[i, j] = k, the [j]th
@@ -106,70 +105,38 @@ def _remove_delaunay_triangles_outside_polygon(
 
     vertex_x_coords, vertex_y_coords = _polygon_to_vertex_arrays(
         polygon_object_xy)
+    vertex_list_xy = front_utils._vertex_arrays_to_list(
+        vertex_x_coords_metres=vertex_x_coords,
+        vertex_y_coords_metres=vertex_y_coords)
+    triangle_list = tripy.earclip(vertex_list_xy)
 
-    triangle_to_vertex_matrix = triangulation_object.simplices
-    num_triangles = triangle_to_vertex_matrix.shape[0]
-    keep_triangle_flags = numpy.full(num_triangles, True, dtype=bool)
+    num_triangles = len(triangle_list)
+    triangle_to_vertex_matrix = None
 
     for i in range(num_triangles):
+        these_vertex_indices = numpy.full(3, -1, dtype=int)
+
         for j in range(3):
-            if j == 2:
-                these_vertex_indices = numpy.array(
-                    [triangle_to_vertex_matrix[i, j],
-                     triangle_to_vertex_matrix[i, 0]], dtype=int)
-            else:
-                these_vertex_indices = numpy.array(
-                    [triangle_to_vertex_matrix[i, j],
-                     triangle_to_vertex_matrix[i, j + 1]], dtype=int)
+            these_x_differences = numpy.absolute(
+                vertex_x_coords - triangle_list[i][j][0])
+            these_y_differences = numpy.absolute(
+                vertex_y_coords - triangle_list[i][j][1])
+            these_coord_diffs = these_x_differences + these_y_differences
+            these_vertex_indices[j] = numpy.argmin(these_coord_diffs)
 
-            if _are_vertices_adjacent(
-                    vertex_indices=these_vertex_indices,
-                    num_vertices_in_polygon=len(vertex_x_coords)):
-                continue
+        if triangle_to_vertex_matrix is None:
+            triangle_to_vertex_matrix = numpy.reshape(
+                these_vertex_indices, (1, 3))
+        else:
+            triangle_to_vertex_matrix = numpy.vstack((
+                triangle_to_vertex_matrix, these_vertex_indices))
 
-            # TODO(thunderhoser): stop using protected method.
-            this_vertex_list_xy = front_utils._vertex_arrays_to_list(
-                vertex_x_coords_metres=vertex_x_coords[these_vertex_indices],
-                vertex_y_coords_metres=vertex_y_coords[these_vertex_indices])
-
-            this_linestring_object_xy = shapely.geometry.LineString(
-                this_vertex_list_xy)
-            if polygon_object_xy.contains(this_linestring_object_xy):
-                continue
-
-            keep_triangle_flags[i] = False
-            break
-
-    keep_triangle_indices = numpy.where(keep_triangle_flags)[0]
-    return triangle_to_vertex_matrix[keep_triangle_indices, :]
-
-
-def _get_delaunay_triangulation(polygon_object_xy):
-    """Returns Delaunay triangulation of polygon.
-
-    :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
-        vertices in x-y (Cartesian) coordinates.
-    :return: triangulation_object: Instance of `scipy.spatial.qhull.Delaunay`.
-    """
-
-    vertex_x_coords, vertex_y_coords = _polygon_to_vertex_arrays(
-        polygon_object_xy)
-
-    num_vertices = len(vertex_x_coords)
-    vertex_matrix_xy = numpy.hstack((
-        numpy.reshape(vertex_x_coords, (num_vertices, 1)),
-        numpy.reshape(vertex_y_coords, (num_vertices, 1))))
-
-    triangulation_object = scipy.spatial.Delaunay(
-        vertex_matrix_xy, qhull_options='QJ')
-    return _remove_delaunay_triangles_outside_polygon(
-        polygon_object_xy=polygon_object_xy,
-        triangulation_object=triangulation_object)
+    return triangle_to_vertex_matrix
 
 
 def _find_new_edges_from_triangulation(
         polygon_object_xy, triangle_to_vertex_matrix):
-    """Finds new edges created by Delaunay triangulation.
+    """Finds new edges created by triangulation.
 
     A "new edge" does not coincide with an edge in the original polygon.  Wang
     et al. (2013) call these "jumper edges," and the midpoint of a jumper edge
@@ -180,7 +147,7 @@ def _find_new_edges_from_triangulation(
     :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
         vertices in x-y (Cartesian) coordinates.
     :param triangle_to_vertex_matrix: See documentation for
-        `_remove_delaunay_triangles_outside_polygon`.
+        `_get_triangulation`.
     :return: new_edge_table: pandas DataFrame with the following columns.  Each
         row is one new edge.
     new_edge_table.vertex_indices: Indices of polygon vertices that belong to
@@ -273,10 +240,10 @@ def _find_new_edges_from_triangulation(
 
 
 def _find_end_nodes_of_triangulation(triangle_to_vertex_matrix, new_edge_table):
-    """Finds end nodes of Delaunay triangulation.
+    """Finds end nodes of triangulation.
 
     :param triangle_to_vertex_matrix: See documentation for
-        `_remove_delaunay_triangles_outside_polygon`.
+        `_get_triangulation`.
     :param new_edge_table: See documentation for
         `_find_new_edges_from_triangulation`.
     :return: end_node_vertex_indices: 1-D numpy array with indices of polygon
@@ -338,7 +305,7 @@ def _classify_branch_or_jumper_node(
 def _find_and_classify_nodes(
         polygon_object_xy, new_edge_table, triangle_to_new_edge_table,
         triangle_to_vertex_matrix, end_node_vertex_indices):
-    """Finds and classifies all nodes in Delaunay triangulation.
+    """Finds and classifies all nodes in triangulation.
 
     :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
         vertices in x-y (Cartesian) coordinates.
@@ -346,8 +313,7 @@ def _find_and_classify_nodes(
         `_find_new_edges_from_triangulation`.
     :param triangle_to_new_edge_table: See doc for
         `_find_new_edges_from_triangulation`.
-    :param triangle_to_vertex_matrix: See doc for
-        `_remove_delaunay_triangles_outside_polygon`.
+    :param triangle_to_vertex_matrix: See doc for `_get_triangulation`.
     :param end_node_vertex_indices: See doc for
         `_find_end_nodes_of_triangulation`.
     :return: node_table: pandas DataFrame with the following columns.
@@ -563,7 +529,8 @@ def _delete_last_node_added(
 
 
 def _get_skeleton_line(
-        node_table, triangle_to_node_table, start_node_index, end_node_index):
+        node_table, triangle_to_node_table, start_node_index, end_node_index,
+        verbose=False):
     """Finds one skeleton line through a polygon.
 
     This method uses the "backtracking algorithm" of Wang et al. (2013).
@@ -581,35 +548,53 @@ def _get_skeleton_line(
         `node_table`.
     :param end_node_index: Index of end node.  This is a row index into
         `node_table`.
+    :param verbose: Boolean flag.  If True, will print info messages during
+        backtracking.  If False, will print nothing.
     :return: skeleton_line_x_coords: length-P numpy array of x-coordinates along
         skeleton line.
     :return: skeleton_line_y_coords: length-P numpy array of y-coordinates along
         skeleton line.
     """
 
-    # Go from start node to its left child.
-    previous_node_index = node_table[LEFT_CHILD_INDICES_KEY].values[
+    next_node_index = node_table[LEFT_CHILD_INDICES_KEY].values[
         start_node_index][0]
     last_triangle_used_index = node_table[TRIANGLE_INDICES_KEY].values[
         start_node_index][0]
 
-    used_node_indices = [start_node_index, previous_node_index]
+    if verbose:
+        print ('Going from start node (the {0:d}th) to left child (the '
+               '{1:d}th)...').format(start_node_index, next_node_index)
+
+    used_node_indices = [start_node_index, next_node_index]
     used_triangle_indices = [last_triangle_used_index]
 
     current_step_type = copy.deepcopy(NORMAL_STEP_TYPE)
     force_delete_prev_node = False
 
     while True:
-        if current_step_type == NORMAL_STEP_TYPE:
+        if verbose:
+            print ('\n{0:s}\nIndices of used nodes are listed above.  Current '
+                   'step type is "{1:s}".').format(
+                       used_node_indices, current_step_type)
 
-            # Determine which triangle to cut across.
+        if current_step_type == NORMAL_STEP_TYPE:
             candidate_triangle_indices = list(
                 node_table[TRIANGLE_INDICES_KEY].values[used_node_indices[-1]])
+
+            if verbose:
+                print ('Indices of candidate triangles (before removing last '
+                       'used triangle): {0:s}').format(
+                           candidate_triangle_indices)
 
             if (len(used_triangle_indices)
                     and used_triangle_indices[-1] in
                     candidate_triangle_indices):
                 candidate_triangle_indices.remove(used_triangle_indices[-1])
+
+            if verbose:
+                print ('Indices of candidate triangles (after removing last '
+                       'used triangle): {0:s}').format(
+                           candidate_triangle_indices)
 
             if not len(candidate_triangle_indices):
                 current_step_type = copy.deepcopy(ABNORMAL_STEP_TYPE)
@@ -617,35 +602,47 @@ def _get_skeleton_line(
                 continue
 
             current_triangle_index = candidate_triangle_indices[0]
+            if verbose:
+                print 'Will try cutting across the {0:d}th triangle.'.format(
+                    current_triangle_index)
 
-            # Find candidates for next node.
             candidate_next_node_indices = list(
                 triangle_to_node_table[NODE_INDICES_KEY].values[
                     current_triangle_index])
+
+            if verbose:
+                print ('Candidates for next node (before removing used ones): '
+                       '{0:s}').format(candidate_next_node_indices)
+
             candidate_next_node_indices = list(
                 set(candidate_next_node_indices).difference(
                     set(used_node_indices)))
 
-            if not len(candidate_next_node_indices):
-                current_step_type = copy.deepcopy(ABNORMAL_STEP_TYPE)
-                force_delete_prev_node = True
-                continue
+            if verbose:
+                print ('Candidates for next node (after removing used ones): '
+                       '{0:s}').format(candidate_next_node_indices)
 
-            # If desired end node is a candidate, go there and stop algorithm.
             if end_node_index in candidate_next_node_indices:
+                if verbose:
+                    print ('Desired end node (the {0:d}th) is a candidate.  '
+                           'The skeleton line is COMPLETE.').format(
+                               end_node_index)
+
                 used_node_indices.append(end_node_index)
                 used_triangle_indices.append(current_triangle_index)
                 break
 
-            # If undesired end node is a candidate, backtrack.
             candidate_next_node_types = node_table[NODE_TYPE_KEY].values[
-                numpy.array(candidate_next_node_indices)]
+                numpy.array(candidate_next_node_indices, dtype=int)]
             if END_NODE_TYPE in candidate_next_node_types:
+                if verbose:
+                    print ('Undesired end node is a candidate.  This means that'
+                           ' we must BACKTRACK.')
+
                 current_step_type = copy.deepcopy(ABNORMAL_STEP_TYPE)
                 force_delete_prev_node = True
                 continue
 
-            # Narrow down candidates to left children of previous node.
             prev_left_child_indices = list(
                 node_table[LEFT_CHILD_INDICES_KEY].values[
                     used_node_indices[-1]])
@@ -653,25 +650,35 @@ def _get_skeleton_line(
                 set(candidate_next_node_indices).intersection(
                     set(prev_left_child_indices)))
 
+            if verbose:
+                print ('Candidates for next node (after intersecting with '
+                       'children of the last used [{0:d}th] node): '
+                       '{1:s}').format(
+                           used_node_indices[-1], candidate_next_node_indices)
+
             if not len(candidate_next_node_indices):
-                # node_table, used_node_indices, used_triangle_indices = (
-                #     _delete_last_node_added(
-                #         node_table=node_table,
-                #         used_node_indices=used_node_indices,
-                #         used_triangle_indices=used_triangle_indices))
+                if verbose:
+                    print ('None of these candidates are left children of the '
+                           'last used ({0:d}th) node.  This means that we must '
+                           'BACKTRACK.').format(used_node_indices[-1])
 
                 current_step_type = copy.deepcopy(ABNORMAL_STEP_TYPE)
                 force_delete_prev_node = True
                 continue
 
+            if verbose:
+                print 'Adding {0:d}th node to the list...'.format(
+                    candidate_next_node_indices[0])
+
             used_node_indices.append(candidate_next_node_indices[0])
             used_triangle_indices.append(current_triangle_index)
 
         else:
-            previous_node_type = node_table[NODE_TYPE_KEY].values[
-                used_node_indices[-1]]
+            if force_delete_prev_node:
+                if verbose:
+                    print 'Deleting last used ({0:d}th) node...'.format(
+                        used_node_indices[-1])
 
-            if previous_node_type == JUMPER_NODE_TYPE or force_delete_prev_node:
                 node_table, used_node_indices, used_triangle_indices = (
                     _delete_last_node_added(
                         node_table=node_table,
@@ -682,40 +689,83 @@ def _get_skeleton_line(
                 continue
 
             if len(used_node_indices) == 1:
+                if verbose:
+                    print ('There is only one used node in the list.  '
+                           'Backtracking step is ABORTED.')
+
                 current_step_type = copy.deepcopy(NORMAL_STEP_TYPE)
                 continue
 
-            # Determine which triangle to cut across.
+            prev_right_child_indices = list(
+                node_table[RIGHT_CHILD_INDICES_KEY].values[
+                    used_node_indices[-1]])
+
+            if not len(prev_right_child_indices):
+                if verbose:
+                    print ('Last used ({0:d}th) node has no right children.  '
+                           'Backtracking step is ABORTED.').format(
+                               used_node_indices[-1])
+
+                current_step_type = copy.deepcopy(NORMAL_STEP_TYPE)
+                continue
+
             candidate_triangle_indices = list(
                 node_table[TRIANGLE_INDICES_KEY].values[used_node_indices[-1]])
+
+            if verbose:
+                print ('Indices of candidate triangles (before removing last '
+                       'used triangle): {0:s}').format(
+                           candidate_triangle_indices)
+
             if used_triangle_indices[-1] in candidate_triangle_indices:
                 candidate_triangle_indices.remove(used_triangle_indices[-1])
+
+            if verbose:
+                print ('Indices of candidate triangles (after removing last '
+                       'used triangle): {0:s}').format(
+                           candidate_triangle_indices)
 
             if not len(candidate_triangle_indices):
                 force_delete_prev_node = True
                 continue
 
             current_triangle_index = candidate_triangle_indices[0]
+            if verbose:
+                print 'Will try cutting across the {0:d}th triangle.'.format(
+                    current_triangle_index)
 
-            # Find candidates for next node.
             candidate_next_node_indices = list(
                 triangle_to_node_table[NODE_INDICES_KEY].values[
                     current_triangle_index])
+
+            if verbose:
+                print ('Candidates for next node (before removing used ones): '
+                       '{0:s}').format(candidate_next_node_indices)
+
             candidate_next_node_indices = list(
                 set(candidate_next_node_indices).difference(
                     set(used_node_indices)))
 
-            # Narrow down candidates to right children of previous node.
-            prev_right_child_indices = list(
-                node_table[RIGHT_CHILD_INDICES_KEY].values[
-                    used_node_indices[-1]])
+            if verbose:
+                print ('Candidates for next node (after removing used ones): '
+                       '{0:s}').format(candidate_next_node_indices)
+
             candidate_next_node_indices = list(
                 set(candidate_next_node_indices).intersection(
                     set(prev_right_child_indices)))
 
             if not len(candidate_next_node_indices):
+                if verbose:
+                    print ('None of these candidates are left children of the '
+                           'last used ({0:d}th) node.  This means that we must '
+                           'BACKTRACK again.').format(used_node_indices[-1])
+
                 force_delete_prev_node = True
                 continue
+
+            if verbose:
+                print 'Adding {0:d}th node to the list...'.format(
+                    candidate_next_node_indices[0])
 
             used_node_indices.append(candidate_next_node_indices[0])
             used_triangle_indices.append(current_triangle_index)
@@ -747,8 +797,8 @@ def _get_convex_hull(vertex_x_coords, vertex_y_coords):
     vertex_matrix_xy = numpy.hstack((
         numpy.reshape(vertex_x_coords, (num_vertices, 1)),
         numpy.reshape(vertex_y_coords, (num_vertices, 1))))
-    convex_hull_object = scipy.spatial.ConvexHull(vertex_matrix_xy)
 
+    convex_hull_object = scipy.spatial.ConvexHull(vertex_matrix_xy)
     return vertex_indices[convex_hull_object.vertices]
 
 
@@ -781,20 +831,24 @@ def _remove_node_from_children(node_table, target_node_index):
     return node_table
 
 
-def get_main_skeleton_line(polygon_object_xy):
+def get_main_skeleton_line(polygon_object_xy, verbose=False):
     """Finds the main (longest) skeleton line passing through a polygon.
 
     P = number of points in resulting skeleton line
 
     :param polygon_object_xy: Instance of `shapely.geometry.Polygon` with
         vertices in x-y (Cartesian) coordinates.
+    :param verbose: Boolean flag.  If True, will print info messages during
+        backtracking.  If False, will print only one message before the creation
+        of each skeleton line.
     :return: skeleton_line_x_coords: length-P numpy array of x-coordinates along
         skeleton line.
     :return: skeleton_line_y_coords: length-P numpy array of y-coordinates along
         skeleton line.
     """
 
-    triangle_to_vertex_matrix = _get_delaunay_triangulation(polygon_object_xy)
+    triangle_to_vertex_matrix = _get_triangulation(polygon_object_xy)
+
     new_edge_table, triangle_to_new_edge_table = (
         _find_new_edges_from_triangulation(
             polygon_object_xy=polygon_object_xy,
@@ -838,20 +892,30 @@ def get_main_skeleton_line(polygon_object_xy):
 
     for i in range(num_end_nodes_in_convex_hull - 1):
         for j in range(i + 1, num_end_nodes_in_convex_hull):
-            print 'Drawing skeleton line {0:d} of {1:d}...'.format(
-                num_skeleton_lines_done + 1, num_skeleton_lines)
+            print ('Drawing skeleton line {0:d} of {1:d} (desired start node = '
+                   '{2:d}th, desired end node = {3:d}th)...').format(
+                       num_skeleton_lines_done + 1, num_skeleton_lines,
+                       end_node_in_convex_hull_indices[i],
+                       end_node_in_convex_hull_indices[j])
 
             this_node_table = copy.deepcopy(node_table)
             this_node_table = _remove_node_from_children(
                 node_table=this_node_table,
                 target_node_index=end_node_in_convex_hull_indices[i])
-
-            these_x_coords, these_y_coords = _get_skeleton_line(
-                node_table=this_node_table,
-                triangle_to_node_table=triangle_to_node_table,
-                start_node_index=end_node_in_convex_hull_indices[i],
-                end_node_index=end_node_in_convex_hull_indices[j])
             num_skeleton_lines_done += 1
+
+            # TODO(thunderhoser): This try-except is a hack.  I could get rid of
+            # it by finding a better triangulation algorithm, but this hasn't
+            # happened yet.
+            try:
+                these_x_coords, these_y_coords = _get_skeleton_line(
+                    node_table=this_node_table,
+                    triangle_to_node_table=triangle_to_node_table,
+                    start_node_index=end_node_in_convex_hull_indices[i],
+                    end_node_index=end_node_in_convex_hull_indices[j],
+                    verbose=verbose)
+            except:
+                pass
 
             this_vertex_list_xy = front_utils._vertex_arrays_to_list(
                 vertex_x_coords_metres=these_x_coords,
