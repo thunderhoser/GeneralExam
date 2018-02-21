@@ -83,6 +83,39 @@ SMALL_GRID_MATRIX_MIDDLE = numpy.array([[11, 12, 13, 14, 15, 16, 17],
                                         [47, 48, 49, 50, 51, 52, 53]],
                                        dtype=numpy.float32)
 
+FULL_GRID_MATRIX_3D = numpy.stack(
+    (FULL_GRID_MATRIX, FULL_GRID_MATRIX), axis=0)
+FULL_GRID_MATRIX_4D = numpy.stack(
+    (FULL_GRID_MATRIX_3D, FULL_GRID_MATRIX_3D), axis=-1)
+
+SMALL_GRID_MATRIX_TOP_LEFT_3D = numpy.stack(
+    (SMALL_GRID_MATRIX_TOP_LEFT, SMALL_GRID_MATRIX_TOP_LEFT), axis=0)
+SMALL_GRID_MATRIX_TOP_LEFT_4D = numpy.stack(
+    (SMALL_GRID_MATRIX_TOP_LEFT_3D, SMALL_GRID_MATRIX_TOP_LEFT_3D), axis=-1)
+
+SMALL_GRID_MATRIX_BOTTOM_LEFT_3D = numpy.stack(
+    (SMALL_GRID_MATRIX_BOTTOM_LEFT, SMALL_GRID_MATRIX_BOTTOM_LEFT), axis=0)
+SMALL_GRID_MATRIX_BOTTOM_LEFT_4D = numpy.stack(
+    (SMALL_GRID_MATRIX_BOTTOM_LEFT_3D, SMALL_GRID_MATRIX_BOTTOM_LEFT_3D),
+    axis=-1)
+
+SMALL_GRID_MATRIX_TOP_RIGHT_3D = numpy.stack(
+    (SMALL_GRID_MATRIX_TOP_RIGHT, SMALL_GRID_MATRIX_TOP_RIGHT), axis=0)
+SMALL_GRID_MATRIX_TOP_RIGHT_4D = numpy.stack(
+    (SMALL_GRID_MATRIX_TOP_RIGHT_3D, SMALL_GRID_MATRIX_TOP_RIGHT_3D), axis=-1)
+
+SMALL_GRID_MATRIX_BOTTOM_RIGHT_3D = numpy.stack(
+    (SMALL_GRID_MATRIX_BOTTOM_RIGHT, SMALL_GRID_MATRIX_BOTTOM_RIGHT), axis=0)
+SMALL_GRID_MATRIX_BOTTOM_RIGHT_4D = numpy.stack(
+    (SMALL_GRID_MATRIX_BOTTOM_RIGHT_3D, SMALL_GRID_MATRIX_BOTTOM_RIGHT_3D),
+    axis=-1)
+
+SMALL_GRID_MATRIX_MIDDLE_3D = numpy.stack(
+    (SMALL_GRID_MATRIX_MIDDLE, SMALL_GRID_MATRIX_MIDDLE), axis=0)
+SMALL_GRID_MATRIX_MIDDLE_4D = numpy.stack(
+    (SMALL_GRID_MATRIX_MIDDLE_3D, SMALL_GRID_MATRIX_MIDDLE_3D), axis=-1)
+
+# The following constants are used to test front_table_to_matrices.
 NUM_GRID_ROWS = 6
 NUM_GRID_COLUMNS = 8
 THESE_WF_ROW_INDICES = [numpy.array([0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=int)]
@@ -132,6 +165,7 @@ FRONTAL_GRID_MATRIX2 = numpy.array([[0, 0, 2, 2, 0, 0, 0, 0],
 FRONTAL_GRID_MATRIX = numpy.stack(
     (FRONTAL_GRID_MATRIX1, FRONTAL_GRID_MATRIX2), axis=0)
 
+# The following constants are used to test binarize_front_labels.
 FRONTAL_GRID_MATRIX1_BINARY = numpy.array([[0, 1, 1, 0, 0, 0, 0, 1],
                                            [0, 1, 1, 1, 1, 1, 1, 1],
                                            [0, 1, 0, 0, 0, 0, 0, 0],
@@ -149,6 +183,10 @@ FRONTAL_GRID_MATRIX2_BINARY = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
 FRONTAL_GRID_MATRIX_BINARY = numpy.stack(
     (FRONTAL_GRID_MATRIX1_BINARY, FRONTAL_GRID_MATRIX2_BINARY), axis=0)
 
+# The following constants are used to test stack_predictor_variables.
+TUPLE_OF_PREDICTOR_MATRICES = (PREDICTOR_MATRIX_3D, PREDICTOR_MATRIX_3D)
+
+# The following constants are used to test remove_nans_from_narr_grid.
 NUM_NARR_ROWS, NUM_NARR_COLUMNS = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
 
@@ -165,6 +203,59 @@ NARR_MATRIX_3D_WITHOUT_NAN = numpy.stack(
 NARR_MATRIX_4D = numpy.stack((NARR_MATRIX_3D, NARR_MATRIX_3D), axis=-1)
 NARR_MATRIX_4D_WITHOUT_NAN = numpy.stack(
     (NARR_MATRIX_3D_WITHOUT_NAN, NARR_MATRIX_3D_WITHOUT_NAN), axis=-1)
+
+# The following constants are used to test subset_grids_around_each_point.
+FULL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.array([[1, 3, 5, 7],
+                                                 [2, 4, 6, 8]],
+                                                dtype=numpy.float32)
+
+FULL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.stack(
+    (FULL_PREDICTOR_MATRIX_TOY_EXAMPLE,), axis=0)
+FULL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.stack(
+    (FULL_PREDICTOR_MATRIX_TOY_EXAMPLE, FULL_PREDICTOR_MATRIX_TOY_EXAMPLE,
+     FULL_PREDICTOR_MATRIX_TOY_EXAMPLE), axis=-1)
+
+SMALL_PREDICTOR_MATRIX_R1_C1 = numpy.array([[1, 1, 3],
+                                            [1, 1, 3],
+                                            [2, 2, 4]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R1_C2 = numpy.array([[1, 3, 5],
+                                            [1, 3, 5],
+                                            [2, 4, 6]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R1_C3 = numpy.array([[3, 5, 7],
+                                            [3, 5, 7],
+                                            [4, 6, 8]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R1_C4 = numpy.array([[5, 7, 7],
+                                            [5, 7, 7],
+                                            [6, 8, 8]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R2_C1 = numpy.array([[1, 1, 3],
+                                            [2, 2, 4],
+                                            [2, 2, 4]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R2_C2 = numpy.array([[1, 3, 5],
+                                            [2, 4, 6],
+                                            [2, 4, 6]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R2_C3 = numpy.array([[3, 5, 7],
+                                            [4, 6, 8],
+                                            [4, 6, 8]], dtype=numpy.float32)
+SMALL_PREDICTOR_MATRIX_R2_C4 = numpy.array([[5, 7, 7],
+                                            [6, 8, 8],
+                                            [6, 8, 8]], dtype=numpy.float32)
+
+SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.stack((
+    SMALL_PREDICTOR_MATRIX_R1_C1, SMALL_PREDICTOR_MATRIX_R1_C2,
+    SMALL_PREDICTOR_MATRIX_R1_C3, SMALL_PREDICTOR_MATRIX_R1_C4,
+    SMALL_PREDICTOR_MATRIX_R2_C1, SMALL_PREDICTOR_MATRIX_R2_C2,
+    SMALL_PREDICTOR_MATRIX_R2_C3, SMALL_PREDICTOR_MATRIX_R2_C4), axis=0)
+SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.stack(
+    (SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE, SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE,
+     SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE), axis=-1)
+
+TARGET_MATRIX_TOY_EXAMPLE = numpy.array([[0, 0, 1, 1],
+                                         [2, 2, 0, 0]], dtype=int)
+TARGET_MATRIX_TOY_EXAMPLE = numpy.stack((TARGET_MATRIX_TOY_EXAMPLE,), axis=0)
+
+TARGET_VECTOR_TOY_EXAMPLE = numpy.array([0, 0, 1, 1, 2, 2, 0, 0], dtype=int)
+NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE = 1
+NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE = 1
 
 
 class MachineLearningUtilsTests(unittest.TestCase):
@@ -233,85 +324,173 @@ class MachineLearningUtilsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ml_utils._check_predictor_matrix(PREDICTOR_MATRIX_5D)
 
-    def test_subset_grid_top_left(self):
+    def test_subset_grid_top_left_3d(self):
         """Ensures correct output from _subset_grid.
 
-        In this case, center point for extraction is at top-left of original
-        matrix.
+        In this case, input matrix is 3-D; center point for extraction is at
+        top-left of input matrix.
         """
 
         this_matrix = ml_utils._subset_grid(
-            full_matrix=FULL_GRID_MATRIX, center_row=CENTER_ROW_TOP_LEFT,
+            full_grid_matrix=FULL_GRID_MATRIX_3D,
+            center_row=CENTER_ROW_TOP_LEFT,
             center_column=CENTER_COLUMN_TOP_LEFT,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
 
         self.assertTrue(numpy.allclose(
-            this_matrix, SMALL_GRID_MATRIX_TOP_LEFT, atol=TOLERANCE))
+            this_matrix, SMALL_GRID_MATRIX_TOP_LEFT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_bottom_left(self):
+    def test_subset_grid_top_left_4d(self):
         """Ensures correct output from _subset_grid.
 
-        In this case, center point for extraction is at bottom-left of original
-        matrix.
+        In this case, input matrix is 4-D; center point for extraction is at
+        top-left of input matrix.
         """
 
         this_matrix = ml_utils._subset_grid(
-            full_matrix=FULL_GRID_MATRIX, center_row=CENTER_ROW_BOTTOM_LEFT,
+            full_grid_matrix=FULL_GRID_MATRIX_4D,
+            center_row=CENTER_ROW_TOP_LEFT,
+            center_column=CENTER_COLUMN_TOP_LEFT,
+            num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
+            num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, SMALL_GRID_MATRIX_TOP_LEFT_4D, atol=TOLERANCE))
+
+    def test_subset_grid_bottom_left_3d(self):
+        """Ensures correct output from _subset_grid.
+
+        In this case, input matrix is 3-D; center point for extraction is at
+        bottom-left of input matrix.
+        """
+
+        this_matrix = ml_utils._subset_grid(
+            full_grid_matrix=FULL_GRID_MATRIX_3D,
+            center_row=CENTER_ROW_BOTTOM_LEFT,
             center_column=CENTER_COLUMN_BOTTOM_LEFT,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
 
         self.assertTrue(numpy.allclose(
-            this_matrix, SMALL_GRID_MATRIX_BOTTOM_LEFT, atol=TOLERANCE))
+            this_matrix, SMALL_GRID_MATRIX_BOTTOM_LEFT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_top_right(self):
+    def test_subset_grid_bottom_left_4d(self):
         """Ensures correct output from _subset_grid.
 
-        In this case, center point for extraction is at top-right of original
-        matrix.
+        In this case, input matrix is 4-D; center point for extraction is at
+        bottom-left of input matrix.
         """
 
         this_matrix = ml_utils._subset_grid(
-            full_matrix=FULL_GRID_MATRIX, center_row=CENTER_ROW_TOP_RIGHT,
+            full_grid_matrix=FULL_GRID_MATRIX_4D,
+            center_row=CENTER_ROW_BOTTOM_LEFT,
+            center_column=CENTER_COLUMN_BOTTOM_LEFT,
+            num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
+            num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, SMALL_GRID_MATRIX_BOTTOM_LEFT_4D, atol=TOLERANCE))
+
+    def test_subset_grid_top_right_3d(self):
+        """Ensures correct output from _subset_grid.
+
+        In this case, input matrix is 3-D; center point for extraction is at
+        top-right of input matrix.
+        """
+
+        this_matrix = ml_utils._subset_grid(
+            full_grid_matrix=FULL_GRID_MATRIX_3D,
+            center_row=CENTER_ROW_TOP_RIGHT,
             center_column=CENTER_COLUMN_TOP_RIGHT,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
 
         self.assertTrue(numpy.allclose(
-            this_matrix, SMALL_GRID_MATRIX_TOP_RIGHT, atol=TOLERANCE))
+            this_matrix, SMALL_GRID_MATRIX_TOP_RIGHT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_bottom_right(self):
+    def test_subset_grid_top_right_4d(self):
         """Ensures correct output from _subset_grid.
 
-        In this case, center point for extraction is at bottom-right of original
-        matrix.
+        In this case, input matrix is 4-D; center point for extraction is at
+        top-right of input matrix.
         """
 
         this_matrix = ml_utils._subset_grid(
-            full_matrix=FULL_GRID_MATRIX, center_row=CENTER_ROW_BOTTOM_RIGHT,
+            full_grid_matrix=FULL_GRID_MATRIX_4D,
+            center_row=CENTER_ROW_TOP_RIGHT,
+            center_column=CENTER_COLUMN_TOP_RIGHT,
+            num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
+            num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, SMALL_GRID_MATRIX_TOP_RIGHT_4D, atol=TOLERANCE))
+
+    def test_subset_grid_bottom_right_3d(self):
+        """Ensures correct output from _subset_grid.
+
+        In this case, input matrix is 3-D; center point for extraction is at
+        bottom-right of input matrix.
+        """
+
+        this_matrix = ml_utils._subset_grid(
+            full_grid_matrix=FULL_GRID_MATRIX_3D,
+            center_row=CENTER_ROW_BOTTOM_RIGHT,
             center_column=CENTER_COLUMN_BOTTOM_RIGHT,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
 
         self.assertTrue(numpy.allclose(
-            this_matrix, SMALL_GRID_MATRIX_BOTTOM_RIGHT, atol=TOLERANCE))
+            this_matrix, SMALL_GRID_MATRIX_BOTTOM_RIGHT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_middle(self):
+    def test_subset_grid_bottom_right_4d(self):
         """Ensures correct output from _subset_grid.
 
-        In this case, center point for extraction is in middle of original
-        matrix.
+        In this case, input matrix is 4-D; center point for extraction is at
+        bottom-right of input matrix.
         """
 
         this_matrix = ml_utils._subset_grid(
-            full_matrix=FULL_GRID_MATRIX, center_row=CENTER_ROW_MIDDLE,
-            center_column=CENTER_COLUMN_MIDDLE,
+            full_grid_matrix=FULL_GRID_MATRIX_4D,
+            center_row=CENTER_ROW_BOTTOM_RIGHT,
+            center_column=CENTER_COLUMN_BOTTOM_RIGHT,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
 
         self.assertTrue(numpy.allclose(
-            this_matrix, SMALL_GRID_MATRIX_MIDDLE, atol=TOLERANCE))
+            this_matrix, SMALL_GRID_MATRIX_BOTTOM_RIGHT_4D, atol=TOLERANCE))
+
+    def test_subset_grid_middle_3d(self):
+        """Ensures correct output from _subset_grid.
+
+        In this case, input matrix is 3-D; center point for extraction is in
+        middle of input matrix.
+        """
+
+        this_matrix = ml_utils._subset_grid(
+            full_grid_matrix=FULL_GRID_MATRIX_3D,
+            center_row=CENTER_ROW_MIDDLE, center_column=CENTER_COLUMN_MIDDLE,
+            num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
+            num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, SMALL_GRID_MATRIX_MIDDLE_3D, atol=TOLERANCE))
+
+    def test_subset_grid_middle_4d(self):
+        """Ensures correct output from _subset_grid.
+
+        In this case, input matrix is 4-D; center point for extraction is in
+        middle of input matrix.
+        """
+
+        this_matrix = ml_utils._subset_grid(
+            full_grid_matrix=FULL_GRID_MATRIX_4D,
+            center_row=CENTER_ROW_MIDDLE, center_column=CENTER_COLUMN_MIDDLE,
+            num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
+            num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW)
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, SMALL_GRID_MATRIX_MIDDLE_4D, atol=TOLERANCE))
 
     def test_front_table_to_matrices(self):
         """Ensures correct output from front_table_to_matrices."""
@@ -332,6 +511,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_binary_matrix, FRONTAL_GRID_MATRIX_BINARY))
 
+    def test_stack_predictor_variables(self):
+        """Ensures correct output from stack_predictor_variables."""
+
+        this_matrix = ml_utils.stack_predictor_variables(
+            TUPLE_OF_PREDICTOR_MATRICES)
+        self.assertTrue(numpy.allclose(
+            this_matrix, PREDICTOR_MATRIX_4D, atol=TOLERANCE, equal_nan=True))
+
     def test_remove_nans_from_narr_grid_3d(self):
         """Ensures correct output from remove_nans_from_narr_grid.
 
@@ -351,6 +538,26 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_matrix = ml_utils.remove_nans_from_narr_grid(NARR_MATRIX_4D)
         self.assertTrue(numpy.allclose(
             this_matrix, NARR_MATRIX_4D_WITHOUT_NAN, atol=TOLERANCE))
+
+    def test_subset_grids_around_each_point(self):
+        """Ensures correct output from subset_grids_around_each_point."""
+
+        this_full_predictor_matrix = copy.deepcopy(
+            FULL_PREDICTOR_MATRIX_TOY_EXAMPLE)
+
+        this_small_predictor_matrix, this_target_vector = (
+            ml_utils.subset_grids_around_each_point(
+                predictor_matrix=this_full_predictor_matrix,
+                target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
+                num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
+                num_columns_in_half_window=
+                NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE, test_mode=True))
+
+        self.assertTrue(numpy.allclose(
+            this_small_predictor_matrix, SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.array_equal(
+            this_target_vector, TARGET_VECTOR_TOY_EXAMPLE))
 
 
 if __name__ == '__main__':

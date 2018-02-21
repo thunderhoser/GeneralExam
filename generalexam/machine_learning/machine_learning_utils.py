@@ -22,8 +22,8 @@ def _check_predictor_matrix(predictor_matrix, allow_nan=False):
     N = number of columns (unique grid-point x-coordinates)
     C = number of image channels (variables)
 
-    :param predictor_matrix: numpy array.  Dimensions must be either T-by-M-by-N
-        or T-by-M-by-N-by-C.
+    :param predictor_matrix: numpy array with predictor variables.  Dimensions
+        may be either T-by-M-by-N or T-by-M-by-N-by-C.
     :param allow_nan: Boolean flag.  If True, will allow some elements to be
         NaN.
     """
@@ -38,14 +38,23 @@ def _check_predictor_matrix(predictor_matrix, allow_nan=False):
     error_checking.assert_is_leq(num_dimensions, 4)
 
 
-def _check_target_matrix(target_matrix):
+def _check_target_matrix(target_matrix, assert_binary=False):
     """Checks target matrix (containing labels, or "ground truth") for errors.
 
     T = number of time steps
     M = number of rows (unique grid-point y-coordinates)
     N = number of columns (unique grid-point x-coordinates)
 
-    :param target_matrix: T-by-M-by-N numpy array of labels.
+    :param target_matrix: T-by-M-by-N numpy array of front labels.  If
+        target_matrix[i, j, k] = `front_utils.NO_FRONT_INTEGER_ID`, there is no
+        front at grid point [j, k] and the [i]th time step.  If
+        `front_utils.ANY_FRONT_INTEGER_ID`, there is a front, the type of which
+        is not specified.  If `front_utils.WARM_FRONT_INTEGER_ID`, there is a
+        warm front; if `front_utils.COLD_FRONT_INTEGER_ID`, there is a cold
+        front.
+    :param assert_binary: Boolean flag.  If True, the matrix must be binary,
+        which means that the only valid entries are
+        `front_utils.NO_FRONT_INTEGER_ID` and `front_utils.ANY_FRONT_INTEGER_ID`.
     """
 
     error_checking.assert_is_integer_numpy_array(target_matrix)
@@ -53,63 +62,72 @@ def _check_target_matrix(target_matrix):
 
     error_checking.assert_is_geq_numpy_array(
         target_matrix, front_utils.NO_FRONT_INTEGER_ID)
-    error_checking.assert_is_leq_numpy_array(
-        target_matrix, front_utils.COLD_FRONT_INTEGER_ID)
+
+    if assert_binary:
+        error_checking.assert_is_leq_numpy_array(
+            target_matrix, front_utils.ANY_FRONT_INTEGER_ID)
+    else:
+        max_entry = max([front_utils.COLD_FRONT_INTEGER_ID,
+                         front_utils.WARM_FRONT_INTEGER_ID])
+
+        error_checking.assert_is_leq_numpy_array(target_matrix, max_entry)
 
 
 def _check_predictor_and_target_matrices(
-        predictor_matrix, target_matrix, allow_nan_predictors=False):
+        predictor_matrix, target_matrix, allow_nan_predictors=False,
+        assert_binary_target_matrix=False):
     """Checks both predictor and target matrices together.
 
-    T = number of time steps
-    M = number of rows (unique grid-point y-coordinates)
-    N = number of columns (unique grid-point x-coordinates)
-    C = number of image channels (variables)
-
-    :param predictor_matrix: numpy array.  Dimensions must be either T-by-M-by-N
-        or T-by-M-by-N-by-C.
-    :param target_matrix: T-by-M-by-N numpy array of labels.
+    :param predictor_matrix: See documentation for `_check_predictor_matrix`.
+    :param target_matrix: See documentation for `_check_target_matrix`.
     :param allow_nan_predictors: Boolean flag.  If True, will allow some
         predictor values to be NaN.
+    :param assert_binary_target_matrix: See documentation for
+        `_check_target_matrix`.
     """
 
     _check_predictor_matrix(predictor_matrix, allow_nan=allow_nan_predictors)
-    _check_target_matrix(target_matrix)
+    _check_target_matrix(
+        target_matrix, assert_binary=assert_binary_target_matrix)
 
-    expected_dimensions = numpy.array([predictor_matrix.shape])[:-1]
+    expected_dimensions = numpy.array(predictor_matrix.shape)[:-1]
     error_checking.assert_is_numpy_array(
         target_matrix, exact_dimensions=expected_dimensions)
 
 
 def _subset_grid(
-        full_matrix, center_row, center_column, num_rows_in_half_window,
+        full_grid_matrix, center_row, center_column, num_rows_in_half_window,
         num_columns_in_half_window):
     """Takes smaller grid ("window") from the original grid.
 
-    M = number of rows in full grid (unique y-coordinates)
-    N = number of columns in full grid (unique x-coordinates)
+    M = number of rows in full grid (unique grid-point y-coordinates)
+    N = number of columns in full grid (unique grid-point x-coordinates)
 
     m = number of rows in window = 2 * `num_rows_in_half_window` + 1
     n = number of columns in window = 2 * `num_columns_in_half_window` + 1
 
-    If the center point is too near an edge of the full grid, edge padding will
-    be done (i.e., the edge value will be repeated as many times as necessary).
+    If the window runs off the edge of the grid, edge padding will be used
+    (i.e., values from the edge of the full grid will repeated to fill the
+    window).
 
-    :param full_matrix: M-by-N numpy array.
+    In this case, "rows" correspond to the second dimension (axis = 1) and
+    "columns" correspond to the third dimensions (axis = 2).
+
+    :param full_grid_matrix: Input matrix (numpy array) defined over the full
+        grid.  The second dimension should have length M; the third should have
+        length N.
     :param center_row: Row at center of window.
     :param center_column: Column at center of window.
     :param num_rows_in_half_window: Number of rows in half-window (on both top
         and bottom of center point).
     :param num_columns_in_half_window: Number of columns in half-window (to both
         left and right of center point).
-    :return: small_matrix: m-by-n numpy array, created by sampling from
-        `full_matrix`.
+    :return: small_grid_matrix: Subset version of input array, where the second
+        dimension has length m; third dimension has length n.
     """
 
-    # TODO(thunderhoser): make this work for more than 2-D matrices.
-
-    num_rows_in_full_grid = full_matrix.shape[0]
-    num_columns_in_full_grid = full_matrix.shape[1]
+    num_rows_in_full_grid = full_grid_matrix.shape[1]
+    num_columns_in_full_grid = full_grid_matrix.shape[2]
 
     first_row = center_row - num_rows_in_half_window
     last_row = center_row + num_rows_in_half_window
@@ -141,13 +159,25 @@ def _subset_grid(
     else:
         num_padding_columns_at_right = 0
 
-    small_matrix = full_matrix[
-        first_row:(last_row + 1), first_column:(last_column + 1)]
+    these_rows = numpy.linspace(
+        first_row, last_row, num=last_row - first_row + 1, dtype=int)
+    these_columns = numpy.linspace(
+        first_column, last_column, num=last_column - first_column + 1,
+        dtype=int)
+
+    small_grid_matrix = numpy.take(full_grid_matrix, these_rows, axis=1)
+    small_grid_matrix = numpy.take(small_grid_matrix, these_columns, axis=2)
+
+    pad_width_input_arg = (
+        (0, 0), (num_padding_rows_at_top, num_padding_rows_at_bottom),
+        (num_padding_columns_at_left, num_padding_columns_at_right))
+
+    num_dimensions = len(full_grid_matrix.shape)
+    for _ in range(3, num_dimensions):
+        pad_width_input_arg += ((0, 0), )
+
     return numpy.pad(
-        small_matrix, pad_width=
-        ((num_padding_rows_at_top, num_padding_rows_at_bottom),
-         (num_padding_columns_at_left, num_padding_columns_at_right)),
-        mode='edge')
+        small_grid_matrix, pad_width=pad_width_input_arg, mode='edge')
 
 
 def front_table_to_matrices(
@@ -162,11 +192,8 @@ def front_table_to_matrices(
         `fronts_io.write_narr_grids_to_file`.
     :param num_grid_rows: Number of rows in grid.
     :param num_grid_columns: Number of columns in grid.
-    :return: frontal_grid_matrix: T-by-M-by-N numpy array.  If
-        frontal_grid_matrix[i, j, k] = `front_utils.NO_FRONT_INTEGER_ID`, there
-        is no front at grid point [j, k] at the [i]th time step.  If
-        `front_utils.WARM_FRONT_INTEGER_ID`, there is a warm front; if
-        `front_utils.COLD_FRONT_INTEGER_ID`, there is a cold front.
+    :return: frontal_grid_matrix: T-by-M-by-N numpy array with 3 possible
+        entries.  See documentation for `_check_target_matrix`.
     """
 
     error_checking.assert_is_integer(num_grid_rows)
@@ -215,18 +242,13 @@ def binarize_front_labels(frontal_grid_matrix):
     M = number of rows (unique grid-point y-coordinates)
     N = number of columns (unique grid-point x-coordinates)
 
-    :param frontal_grid_matrix: T-by-M-by-N numpy array.  If
-        frontal_grid_matrix[i, j, k] = `front_utils.NO_FRONT_INTEGER_ID`, there
-        is no front at grid point [j, k] at the [i]th time step.  If
-        `front_utils.WARM_FRONT_INTEGER_ID`, there is a warm front; if
-        `front_utils.COLD_FRONT_INTEGER_ID`, there is a cold front.
-    :return: frontal_grid_matrix: T-by-M-by-N numpy array.  If
-        frontal_grid_matrix[i, j, k] = `front_utils.ANY_FRONT_INTEGER_ID`, there
-        is a front at grid point [j, k] at the [i]th time step.  Otherwise,
-        there is none.
+    :param frontal_grid_matrix: T-by-M-by-N numpy array with 3 possible
+        entries.  See documentation for `_check_target_matrix`.
+    :return: frontal_grid_matrix: T-by-M-by-N numpy array with 2 possible
+        entries.  See documentation for `_check_target_matrix`.
     """
 
-    _check_target_matrix(frontal_grid_matrix)
+    _check_target_matrix(frontal_grid_matrix, assert_binary=False)
 
     frontal_grid_matrix[
         frontal_grid_matrix == front_utils.WARM_FRONT_INTEGER_ID
@@ -238,7 +260,25 @@ def binarize_front_labels(frontal_grid_matrix):
     return frontal_grid_matrix
 
 
-def remove_nans_from_narr_grid(data_matrix):
+def stack_predictor_variables(tuple_of_predictor_matrices):
+    """Stacks matrices with different predictor variables.
+
+    T = number of time steps
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    C = number of image channels (variables)
+
+    :param tuple_of_predictor_matrices: length-C tuple, where each element is a
+        T-by-M-by-N numpy array with values of one predictor variable.
+    :return: predictor_matrix: T-by-M-by-N-by-C numpy array.
+    """
+
+    predictor_matrix = numpy.stack(tuple_of_predictor_matrices, axis=-1)
+    _check_predictor_matrix(predictor_matrix, allow_nan=True)
+    return predictor_matrix
+
+
+def remove_nans_from_narr_grid(narr_matrix):
     """Removes all grid rows and columns with at least one NaN.
 
     These rows and columns are always the same in NARR data.
@@ -251,17 +291,17 @@ def remove_nans_from_narr_grid(data_matrix):
     m = new number of rows (after removing NaN's)
     n = new number of columns (after removing NaN's)
 
-    :param data_matrix: Input matrix (numpy array).  May be either T-by-M-by-N
+    :param narr_matrix: Input matrix (numpy array).  May be either T-by-M-by-N
         or T-by-M-by-N-by-C.
-    :return: data_matrix: Same as input, except without NaN's.  If original
+    :return: narr_matrix: Same as input, except without NaN's.  If original
         dimensions were T-by-M-by-N, new dimensions are T-by-m-by-n.  If
         original dimensions were T-by-M-by-N-by-C, new dimensions are
         T-by-m-by-n-by-C.
     """
 
-    error_checking.assert_is_numpy_array(data_matrix)
+    error_checking.assert_is_numpy_array(narr_matrix)
 
-    num_dimensions = len(data_matrix.shape)
+    num_dimensions = len(narr_matrix.shape)
     error_checking.assert_is_geq(num_dimensions, 3)
     error_checking.assert_is_leq(num_dimensions, 4)
 
@@ -269,143 +309,90 @@ def remove_nans_from_narr_grid(data_matrix):
         model_name=nwp_model_utils.NARR_MODEL_NAME)
     if num_dimensions == 3:
         expected_dimensions = numpy.array(
-            [data_matrix.shape[0], num_grid_rows, num_grid_columns])
+            [narr_matrix.shape[0], num_grid_rows, num_grid_columns])
     else:
         expected_dimensions = numpy.array(
-            [data_matrix.shape[0], num_grid_rows, num_grid_columns,
-             data_matrix.shape[3]])
+            [narr_matrix.shape[0], num_grid_rows, num_grid_columns,
+             narr_matrix.shape[3]])
 
     error_checking.assert_is_numpy_array(
-        data_matrix, exact_dimensions=expected_dimensions)
+        narr_matrix, exact_dimensions=expected_dimensions)
 
-    return numpy.take(data_matrix, NARR_COLUMNS_WITHOUT_NAN, axis=2)
+    return numpy.take(narr_matrix, NARR_COLUMNS_WITHOUT_NAN, axis=2)
 
 
-def subdivide_grids(predictor_matrix, target_matrix, num_rows_per_subgrid,
-                    num_columns_per_subgrid):
-    """Subdivides grids (with both predictors and target) into many subgrids.
+def subset_grids_around_each_point(
+        predictor_matrix, target_matrix, num_rows_in_half_window,
+        num_columns_in_half_window, test_mode=False):
+    """At each point P in full grid, takes smaller grid ("window") around P.
+
+    For more details, see `subset_grid`, which is called by this method for each
+    point in the full grid.
 
     T = number of time steps
     M = number of rows in full grid (unique grid-point y-coordinates)
     N = number of columns in full grid (unique grid-point x-coordinates)
     C = number of image channels (variables)
 
-    m = number of rows in each subgrid
-    n = number of columns in each subgrid
-    G = T * M * N = number of resulting subgrids
+    m = number of rows in window = 2 * `num_rows_in_half_window` + 1
+    n = number of columns in window = 2 * `num_columns_in_half_window` + 1
+    G = T * M * N = number of resulting subgrids.
 
-    :param predictor_matrix: Matrix with predictor variables (numpy array).  May
-        be either T-by-M-by-N or T-by-M-by-N-by-C.
-    :param target_matrix: T-by-M-by-N numpy array with target variable.
-    :param num_rows_per_subgrid: Number of rows in each subgrid.  Must be an odd
-        number.
-    :param num_columns_per_subgrid: Number of columns in each subgrid.  Must be
-        an odd number.
-    :return: predictor_matrix: Same as input, but with different dimensions.  If
-        original dimensions were T-by-M-by-N, new dimensions are G-by-m-by-n.
-        If original dimensions were T-by-M-by-N-by-C, new dimensions are
-        G-by-m-by-n-by-C.
-    :return: target_values: Same as input, but with different dimensions.  Now a
-        length-G numpy array.
+    :param predictor_matrix: numpy array with predictor variables.  Dimensions
+        may be either T-by-M-by-N or T-by-M-by-N-by-C.
+    :param target_matrix: T-by-M-by-N numpy array with labels ("ground truth").
+    :param num_rows_in_half_window: Determines number of rows in each subgrid
+        (see general discussion above).
+    :param num_columns_in_half_window: Determines number of columns in each
+        subgrid (see general discussion above).
+    :param test_mode: Boolean flag.  Always leave this False.
+    :return: predictor_matrix: numpy array with predictor variables.  Dimensions
+        may be either G-by-m-by-n or G-by-m-by-n-by-C.
+    :return: target_values: length-G numpy array of corresponding labels.
     """
 
-    # TODO(thunderhoser): Fix this after unit tests on the private subdividing
-    # method.
+    _check_predictor_and_target_matrices(
+        predictor_matrix=predictor_matrix, target_matrix=target_matrix,
+        allow_nan_predictors=False, assert_binary_target_matrix=False)
+    error_checking.assert_is_boolean(test_mode)
 
-    error_checking.assert_is_numpy_array(predictor_matrix)
+    num_rows_in_full_grid = predictor_matrix.shape[1]
+    num_columns_in_full_grid = predictor_matrix.shape[2]
 
-    num_dimensions = len(predictor_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 3)
-    error_checking.assert_is_leq(num_dimensions, 4)
+    error_checking.assert_is_integer(num_rows_in_half_window)
+    error_checking.assert_is_greater(num_rows_in_half_window, 0)
+    num_rows_in_subgrid = 2 * num_rows_in_half_window + 1
 
-    error_checking.assert_is_integer_numpy_array(target_matrix)
-    expected_dimensions = numpy.array([predictor_matrix.shape])[:-1]
-    error_checking.assert_is_numpy_array(
-        target_matrix, exact_dimensions=expected_dimensions)
+    if not test_mode:
+        error_checking.assert_is_less_than(
+            num_rows_in_subgrid, num_rows_in_full_grid)
 
-    num_grid_rows = predictor_matrix.shape[1]
-    error_checking.assert_is_integer(num_rows_per_subgrid)
-    error_checking.assert_is_greater(num_rows_per_subgrid, 0)
+    error_checking.assert_is_integer(num_columns_in_half_window)
+    error_checking.assert_is_greater(num_columns_in_half_window, 0)
+    num_columns_in_subgrid = 2 * num_columns_in_half_window + 1
 
-    num_rows_per_half_subgrid = int(
-        numpy.floor(float(num_rows_per_subgrid) / 2))
-    num_rows_per_subgrid = 2 * num_rows_per_half_subgrid + 1
-    error_checking.assert_is_less_than(num_rows_per_subgrid, num_grid_rows)
+    if not test_mode:
+        error_checking.assert_is_less_than(
+            num_columns_in_subgrid, num_columns_in_full_grid)
 
-    num_grid_columns = predictor_matrix.shape[2]
-    error_checking.assert_is_integer(num_columns_per_subgrid)
-    error_checking.assert_is_greater(num_columns_per_subgrid, 0)
-
-    num_columns_per_half_subgrid = int(
-        numpy.floor(float(num_columns_per_subgrid) / 2))
-    num_columns_per_subgrid = 2 * num_columns_per_half_subgrid + 1
-    error_checking.assert_is_less_than(
-        num_columns_per_subgrid, num_grid_columns)
-
-    num_times = predictor_matrix.shape[0]
     new_predictor_matrix = None
     target_values = numpy.array([], dtype=int)
 
-    for j in range(num_grid_rows):
-        this_min_row = j - num_rows_per_half_subgrid
-        this_max_row = j + num_rows_per_half_subgrid
-
-        if this_min_row < 0:
-            this_top_padding = this_min_row - 0
-            this_min_row = 0
-        else:
-            this_top_padding = 0
-
-        if this_max_row > num_grid_rows - 1:
-            this_bottom_padding = this_max_row - (num_grid_rows - 1)
-            this_max_row = num_grid_rows - 1
-        else:
-            this_bottom_padding = 0
-
-        these_rows = numpy.linspace(
-            this_min_row, this_max_row, num=this_max_row - this_min_row + 1,
-            dtype=int)
-
-        for k in range(num_grid_columns):
-            this_min_column = k - num_columns_per_half_subgrid
-            this_max_column = k + num_columns_per_half_subgrid
-
-            if this_min_column < 0:
-                this_left_padding = this_min_column - 0
-                this_min_column = 0
-            else:
-                this_left_padding = 0
-
-            if this_max_column > num_grid_columns - 1:
-                this_right_padding = this_max_column - (num_grid_columns - 1)
-                this_max_column = num_grid_columns - 1
-            else:
-                this_right_padding = 0
-
-            these_columns = numpy.linspace(
-                this_min_column, this_max_column,
-                num=this_max_column - this_min_column + 1, dtype=int)
-
-            this_predictor_matrix = numpy.take(
-                predictor_matrix, these_rows, axis=1)
-            this_predictor_matrix = numpy.take(
-                this_predictor_matrix, these_columns, axis=2)
-            this_predictor_matrix = numpy.pad(
-                this_predictor_matrix, pad_width=
-                ((this_top_padding, this_bottom_padding),
-                 (this_left_padding, this_right_padding)),
-                mode='edge')
+    for j in range(num_rows_in_full_grid):
+        for k in range(num_columns_in_full_grid):
+            this_new_predictor_matrix = _subset_grid(
+                full_grid_matrix=predictor_matrix, center_row=j,
+                center_column=k,
+                num_rows_in_half_window=num_rows_in_half_window,
+                num_columns_in_half_window=num_columns_in_half_window)
 
             if new_predictor_matrix is None:
-                new_predictor_matrix = copy.deepcopy(this_predictor_matrix)
+                new_predictor_matrix = copy.deepcopy(this_new_predictor_matrix)
             else:
                 new_predictor_matrix = numpy.concatenate(
-                    (new_predictor_matrix, this_predictor_matrix), axis=0)
+                    (new_predictor_matrix, this_new_predictor_matrix), axis=0)
 
-            these_target_values = numpy.linspace(
-                target_matrix[j, k], target_matrix[j, k], num=num_times,
-                dtype=int)
             target_values = numpy.concatenate((
-                target_values, these_target_values))
+                target_values, target_matrix[:, j, k]))
 
     return new_predictor_matrix, target_values
