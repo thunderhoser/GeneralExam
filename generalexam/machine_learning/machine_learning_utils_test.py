@@ -24,7 +24,7 @@ PREDICTOR_MATRIX_4D = numpy.stack(
 PREDICTOR_MATRIX_5D = numpy.stack(
     (PREDICTOR_MATRIX_4D, PREDICTOR_MATRIX_4D), axis=-1)
 
-# The following constants are used to test _subset_grid.
+# The following constants are used to test _downsize_grid.
 FULL_GRID_MATRIX = numpy.array([[1, 2, 3, 4, 5, 6, 7, 8, 9],
                                 [10, 11, 12, 13, 14, 15, 16, 17, 18],
                                 [19, 20, 21, 22, 23, 24, 25, 26, 27],
@@ -183,6 +183,46 @@ FRONTAL_GRID_MATRIX2_BINARY = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
 FRONTAL_GRID_MATRIX_BINARY = numpy.stack(
     (FRONTAL_GRID_MATRIX1_BINARY, FRONTAL_GRID_MATRIX2_BINARY), axis=0)
 
+# The following constants are used to test _sample_target_points.
+POSITIVE_FRACTION_FOR_SAMPLING = 0.5
+POSITIVE_ROW_INDICES_TIME1 = numpy.array(
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5])
+POSITIVE_COLUMN_INDICES_TIME1 = numpy.array(
+    [1, 2, 7, 1, 2, 3, 4, 5, 6, 7, 1, 1, 0, 1, 0])
+
+THESE_ROW_INDICES_TIME2 = numpy.array(
+    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5], dtype=int)
+THESE_COLUMN_INDICES_TIME2 = numpy.array(
+    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6, 0, 1, 6, 7, 0, 1, 1], dtype=int)
+
+NEGATIVE_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 0, 0,
+                                          1,
+                                          2, 2, 2, 2, 2, 2, 2,
+                                          3, 3, 3, 3, 3, 3, 3,
+                                          4, 4, 4, 4, 4, 4,
+                                          5, 5, 5, 5, 5, 5])
+NEGATIVE_COLUMN_INDICES_TIME1 = numpy.array([0, 3, 4, 5, 6,
+                                             0,
+                                             0, 2, 3, 4, 5, 6, 7,
+                                             0, 2, 3, 4, 5, 6, 7,
+                                             2, 3, 4, 5, 6, 7,
+                                             1, 2, 3, 4, 5, 6])
+
+THESE_ROW_INDICES_TIME1 = numpy.concatenate((
+    POSITIVE_ROW_INDICES_TIME1, NEGATIVE_ROW_INDICES_TIME1)).astype(int)
+THESE_COLUMN_INDICES_TIME1 = numpy.concatenate((
+    POSITIVE_COLUMN_INDICES_TIME1, NEGATIVE_COLUMN_INDICES_TIME1)).astype(int)
+
+THESE_ROW_INDICES_BY_TIME = [
+    THESE_ROW_INDICES_TIME1, THESE_ROW_INDICES_TIME2]
+THESE_COLUMN_INDICES_BY_TIME = [
+    THESE_COLUMN_INDICES_TIME1, THESE_COLUMN_INDICES_TIME2]
+
+SAMPLED_TARGET_POINT_DICT = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY: THESE_ROW_INDICES_BY_TIME,
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY: THESE_COLUMN_INDICES_BY_TIME
+}
+
 # The following constants are used to test stack_predictor_variables.
 TUPLE_OF_PREDICTOR_MATRICES = (PREDICTOR_MATRIX_3D, PREDICTOR_MATRIX_3D)
 
@@ -204,7 +244,7 @@ NARR_MATRIX_4D = numpy.stack((NARR_MATRIX_3D, NARR_MATRIX_3D), axis=-1)
 NARR_MATRIX_4D_WITHOUT_NAN = numpy.stack(
     (NARR_MATRIX_3D_WITHOUT_NAN, NARR_MATRIX_3D_WITHOUT_NAN), axis=-1)
 
-# The following constants are used to test subset_grids_around_each_point.
+# The following constants are used to test downsize_grids_around_each_point.
 FULL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.array([[1, 3, 5, 7],
                                                  [2, 4, 6, 8]],
                                                 dtype=numpy.float32)
@@ -256,6 +296,21 @@ TARGET_MATRIX_TOY_EXAMPLE = numpy.stack((TARGET_MATRIX_TOY_EXAMPLE,), axis=0)
 TARGET_VECTOR_TOY_EXAMPLE = numpy.array([0, 0, 1, 1, 2, 2, 0, 0], dtype=int)
 NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE = 1
 NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE = 1
+
+TARGET_POINT_DICT_FOR_DOWNSIZING = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY: [numpy.array([0, 0, 1, 1], dtype=int)],
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY: [numpy.array([2, 1, 3, 0], dtype=int)]
+}
+
+SMALL_PREDICTOR_MATRIX_SELECTED_POINTS = numpy.stack((
+    SMALL_PREDICTOR_MATRIX_R1_C3, SMALL_PREDICTOR_MATRIX_R1_C2,
+    SMALL_PREDICTOR_MATRIX_R2_C4, SMALL_PREDICTOR_MATRIX_R2_C1), axis=0)
+SMALL_PREDICTOR_MATRIX_SELECTED_POINTS = numpy.stack(
+    (SMALL_PREDICTOR_MATRIX_SELECTED_POINTS,
+     SMALL_PREDICTOR_MATRIX_SELECTED_POINTS,
+     SMALL_PREDICTOR_MATRIX_SELECTED_POINTS), axis=-1)
+
+TARGET_VECTOR_SELECTED_POINTS = numpy.array([1, 0, 0, 2], dtype=int)
 
 
 class MachineLearningUtilsTests(unittest.TestCase):
@@ -324,14 +379,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ml_utils._check_predictor_matrix(PREDICTOR_MATRIX_5D)
 
-    def test_subset_grid_top_left_3d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_top_left_3d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 3-D; center point for extraction is at
         top-left of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_3D,
             center_row=CENTER_ROW_TOP_LEFT,
             center_column=CENTER_COLUMN_TOP_LEFT,
@@ -341,14 +396,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_TOP_LEFT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_top_left_4d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_top_left_4d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 4-D; center point for extraction is at
         top-left of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_4D,
             center_row=CENTER_ROW_TOP_LEFT,
             center_column=CENTER_COLUMN_TOP_LEFT,
@@ -358,14 +413,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_TOP_LEFT_4D, atol=TOLERANCE))
 
-    def test_subset_grid_bottom_left_3d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_bottom_left_3d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 3-D; center point for extraction is at
         bottom-left of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_3D,
             center_row=CENTER_ROW_BOTTOM_LEFT,
             center_column=CENTER_COLUMN_BOTTOM_LEFT,
@@ -375,14 +430,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_BOTTOM_LEFT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_bottom_left_4d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_bottom_left_4d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 4-D; center point for extraction is at
         bottom-left of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_4D,
             center_row=CENTER_ROW_BOTTOM_LEFT,
             center_column=CENTER_COLUMN_BOTTOM_LEFT,
@@ -392,14 +447,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_BOTTOM_LEFT_4D, atol=TOLERANCE))
 
-    def test_subset_grid_top_right_3d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_top_right_3d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 3-D; center point for extraction is at
         top-right of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_3D,
             center_row=CENTER_ROW_TOP_RIGHT,
             center_column=CENTER_COLUMN_TOP_RIGHT,
@@ -409,14 +464,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_TOP_RIGHT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_top_right_4d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_top_right_4d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 4-D; center point for extraction is at
         top-right of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_4D,
             center_row=CENTER_ROW_TOP_RIGHT,
             center_column=CENTER_COLUMN_TOP_RIGHT,
@@ -426,14 +481,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_TOP_RIGHT_4D, atol=TOLERANCE))
 
-    def test_subset_grid_bottom_right_3d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_bottom_right_3d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 3-D; center point for extraction is at
         bottom-right of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_3D,
             center_row=CENTER_ROW_BOTTOM_RIGHT,
             center_column=CENTER_COLUMN_BOTTOM_RIGHT,
@@ -443,14 +498,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_BOTTOM_RIGHT_3D, atol=TOLERANCE))
 
-    def test_subset_grid_bottom_right_4d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_bottom_right_4d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 4-D; center point for extraction is at
         bottom-right of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_4D,
             center_row=CENTER_ROW_BOTTOM_RIGHT,
             center_column=CENTER_COLUMN_BOTTOM_RIGHT,
@@ -460,14 +515,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_BOTTOM_RIGHT_4D, atol=TOLERANCE))
 
-    def test_subset_grid_middle_3d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_middle_3d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 3-D; center point for extraction is in
         middle of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_3D,
             center_row=CENTER_ROW_MIDDLE, center_column=CENTER_COLUMN_MIDDLE,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
@@ -476,14 +531,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_MIDDLE_3D, atol=TOLERANCE))
 
-    def test_subset_grid_middle_4d(self):
-        """Ensures correct output from _subset_grid.
+    def test_downsize_grid_middle_4d(self):
+        """Ensures correct output from _downsize_grid.
 
         In this case, input matrix is 4-D; center point for extraction is in
         middle of input matrix.
         """
 
-        this_matrix = ml_utils._subset_grid(
+        this_matrix = ml_utils._downsize_grid(
             full_grid_matrix=FULL_GRID_MATRIX_4D,
             center_row=CENTER_ROW_MIDDLE, center_column=CENTER_COLUMN_MIDDLE,
             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
@@ -491,6 +546,31 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_MIDDLE_4D, atol=TOLERANCE))
+
+    def test_sample_target_points(self):
+        """Ensures correct output from _sample_target_points."""
+
+        this_target_point_dict = ml_utils._sample_target_points(
+            binary_target_matrix=FRONTAL_GRID_MATRIX_BINARY,
+            positive_fraction=POSITIVE_FRACTION_FOR_SAMPLING, test_mode=True)
+
+        self.assertTrue(set(this_target_point_dict.keys()) ==
+                        set(SAMPLED_TARGET_POINT_DICT.keys()))
+
+        this_num_times = len(
+            this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
+        expected_num_times = len(
+            SAMPLED_TARGET_POINT_DICT[ml_utils.ROW_INDICES_BY_TIME_KEY])
+        self.assertTrue(this_num_times == expected_num_times)
+
+        for i in range(expected_num_times):
+            self.assertTrue(numpy.array_equal(
+                this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY][i],
+                SAMPLED_TARGET_POINT_DICT[ml_utils.ROW_INDICES_BY_TIME_KEY][i]))
+            self.assertTrue(numpy.array_equal(
+                this_target_point_dict[ml_utils.COLUMN_INDICES_BY_TIME_KEY][i],
+                SAMPLED_TARGET_POINT_DICT[
+                    ml_utils.COLUMN_INDICES_BY_TIME_KEY][i]))
 
     def test_front_table_to_matrices(self):
         """Ensures correct output from front_table_to_matrices."""
@@ -539,14 +619,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, NARR_MATRIX_4D_WITHOUT_NAN, atol=TOLERANCE))
 
-    def test_subset_grids_around_each_point(self):
-        """Ensures correct output from subset_grids_around_each_point."""
+    def test_downsize_grids_around_each_point(self):
+        """Ensures correct output from downsize_grids_around_each_point."""
 
         this_full_predictor_matrix = copy.deepcopy(
             FULL_PREDICTOR_MATRIX_TOY_EXAMPLE)
 
         this_small_predictor_matrix, this_target_vector = (
-            ml_utils.subset_grids_around_each_point(
+            ml_utils.downsize_grids_around_each_point(
                 predictor_matrix=this_full_predictor_matrix,
                 target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
                 num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
@@ -558,6 +638,28 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE))
         self.assertTrue(numpy.array_equal(
             this_target_vector, TARGET_VECTOR_TOY_EXAMPLE))
+
+    def test_downsize_grids_around_selected_points(self):
+        """Ensures correct output from downsize_grids_around_selected_points."""
+
+        this_full_predictor_matrix = copy.deepcopy(
+            FULL_PREDICTOR_MATRIX_TOY_EXAMPLE)
+
+        this_small_predictor_matrix, this_target_vector = (
+            ml_utils.downsize_grids_around_selected_points(
+                predictor_matrix=this_full_predictor_matrix,
+                target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
+                num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
+                num_columns_in_half_window=
+                NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE,
+                target_point_dict=TARGET_POINT_DICT_FOR_DOWNSIZING,
+                test_mode=True))
+
+        self.assertTrue(numpy.allclose(
+            this_small_predictor_matrix, SMALL_PREDICTOR_MATRIX_SELECTED_POINTS,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.array_equal(
+            this_target_vector, TARGET_VECTOR_SELECTED_POINTS))
 
 
 if __name__ == '__main__':

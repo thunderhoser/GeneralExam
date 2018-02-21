@@ -13,6 +13,9 @@ NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(
     num=LAST_NARR_COLUMN_WITHOUT_NAN - FIRST_NARR_COLUMN_WITHOUT_NAN + 1,
     dtype=int)
 
+ROW_INDICES_BY_TIME_KEY = 'row_indices_by_time'
+COLUMN_INDICES_BY_TIME_KEY = 'column_indices_by_time'
+
 
 def _check_predictor_matrix(predictor_matrix, allow_nan=False):
     """Checks predictor matrix for errors.
@@ -90,12 +93,60 @@ def _check_predictor_and_target_matrices(
     _check_target_matrix(
         target_matrix, assert_binary=assert_binary_target_matrix)
 
-    expected_dimensions = numpy.array(predictor_matrix.shape)[:-1]
+    num_predictor_dimensions = len(predictor_matrix.shape)
+    if num_predictor_dimensions == 4:
+        expected_target_dimensions = numpy.array(predictor_matrix.shape)[:-1]
+    else:
+        expected_target_dimensions = numpy.array(predictor_matrix.shape)
+
     error_checking.assert_is_numpy_array(
-        target_matrix, exact_dimensions=expected_dimensions)
+        target_matrix, exact_dimensions=expected_target_dimensions)
 
 
-def _subset_grid(
+def _check_downsizing_args(
+        predictor_matrix, target_matrix, num_rows_in_half_window,
+        num_columns_in_half_window, test_mode=False):
+    """Checks downsizing arguments for errors.
+
+    :param predictor_matrix: See documentation for
+        `downsize_grids_around_each_point` or
+        `downsize_grids_around_selected_points`.
+    :param target_matrix: Same.
+    :param num_rows_in_half_window: Same.
+    :param num_columns_in_half_window: Same.
+    :param test_mode: Same.
+    :return: num_rows_in_subgrid: Number of rows in each subgrid.
+    :return: num_columns_in_subgrid: Number of columns in each subgrid.
+    """
+
+    _check_predictor_and_target_matrices(
+        predictor_matrix=predictor_matrix, target_matrix=target_matrix,
+        allow_nan_predictors=False, assert_binary_target_matrix=False)
+    error_checking.assert_is_boolean(test_mode)
+
+    num_rows_in_full_grid = predictor_matrix.shape[1]
+    num_columns_in_full_grid = predictor_matrix.shape[2]
+
+    error_checking.assert_is_integer(num_rows_in_half_window)
+    error_checking.assert_is_greater(num_rows_in_half_window, 0)
+    num_rows_in_subgrid = 2 * num_rows_in_half_window + 1
+
+    if not test_mode:
+        error_checking.assert_is_less_than(
+            num_rows_in_subgrid, num_rows_in_full_grid)
+
+    error_checking.assert_is_integer(num_columns_in_half_window)
+    error_checking.assert_is_greater(num_columns_in_half_window, 0)
+    num_columns_in_subgrid = 2 * num_columns_in_half_window + 1
+
+    if not test_mode:
+        error_checking.assert_is_less_than(
+            num_columns_in_subgrid, num_columns_in_full_grid)
+
+    return num_rows_in_subgrid, num_columns_in_subgrid
+
+
+def _downsize_grid(
         full_grid_matrix, center_row, center_column, num_rows_in_half_window,
         num_columns_in_half_window):
     """Takes smaller grid ("window") from the original grid.
@@ -178,6 +229,93 @@ def _subset_grid(
 
     return numpy.pad(
         small_grid_matrix, pad_width=pad_width_input_arg, mode='edge')
+
+
+def _sample_target_points(
+        binary_target_matrix, positive_fraction, test_mode=False):
+    """Samples target pts (this helps to balance positive vs. negative cases).
+
+    In the above description, a "positive case" is the existence of a front at
+    some grid point and time step; a "negative case" is no front.
+
+    T = number of time steps
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    P_i = number of grid points selected at the [i]th time
+
+    :param binary_target_matrix: See documentation for `_check_target_matrix`.
+    :param positive_fraction: Fraction of positive cases in final sample.  This
+        method will select all positive cases, then add negative cases until the
+        fraction of positive cases decreases to `positive_fraction`.
+    :param test_mode: Boolean flag.  Always leave this False.
+    :return: target_point_dict: Dictionary with the following keys.
+    target_point_dict['row_indices_by_time']: length-T list, where the [i]th
+        element is a numpy array (length P_i) with row indices of grid points
+        selected at the [i]th time.
+    target_point_dict['column_indices_by_time']: Same as above, except for
+        columns.
+    :raises: ValueError: if `positive_fraction` <= fraction of positive cases in
+        the full dataset.  In this case, downsampling cannot be done.
+    """
+
+    # TODO(thunderhoser): Allow this method to work on non-binary targets.
+    _check_target_matrix(binary_target_matrix, assert_binary=True)
+
+    orig_positive_fraction = numpy.mean(binary_target_matrix)
+    if positive_fraction <= orig_positive_fraction:
+        error_string = (
+            '`positive_fraction` ({0:f}) should be > fraction of positive cases'
+            ' in the full dataset ({1:f}).').format(
+                positive_fraction, orig_positive_fraction)
+        raise ValueError(error_string)
+
+    positive_flags_linear = (
+        numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
+        front_utils.ANY_FRONT_INTEGER_ID)
+    positive_indices_linear = numpy.where(positive_flags_linear)[0]
+
+    num_positive_cases = len(positive_indices_linear)
+    num_negative_cases = int(numpy.round(
+        num_positive_cases * (1. - positive_fraction) / positive_fraction))
+
+    negative_indices_linear = numpy.where(
+        numpy.invert(positive_flags_linear))[0]
+
+    if test_mode:
+        negative_indices_linear = negative_indices_linear[:num_negative_cases]
+    else:
+        negative_indices_linear = numpy.random.choice(
+            negative_indices_linear, size=num_negative_cases, replace=False)
+
+    positive_time_indices, positive_row_indices, positive_column_indices = (
+        numpy.unravel_index(
+            positive_indices_linear, binary_target_matrix.shape))
+    negative_time_indices, negative_row_indices, negative_column_indices = (
+        numpy.unravel_index(
+            negative_indices_linear, binary_target_matrix.shape))
+
+    num_times = binary_target_matrix.shape[0]
+    row_indices_by_time = [numpy.array([], dtype=int)] * num_times
+    column_indices_by_time = [numpy.array([], dtype=int)] * num_times
+
+    for i in range(num_times):
+        these_positive_indices = numpy.where(positive_time_indices == i)[0]
+        row_indices_by_time[i] = positive_row_indices[these_positive_indices]
+        column_indices_by_time[i] = positive_column_indices[
+            these_positive_indices]
+
+        these_negative_indices = numpy.where(negative_time_indices == i)[0]
+        row_indices_by_time[i] = numpy.concatenate((
+            row_indices_by_time[i],
+            negative_row_indices[these_negative_indices]))
+        column_indices_by_time[i] = numpy.concatenate((
+            column_indices_by_time[i],
+            negative_column_indices[these_negative_indices]))
+
+    return {
+        ROW_INDICES_BY_TIME_KEY: row_indices_by_time,
+        COLUMN_INDICES_BY_TIME_KEY: column_indices_by_time
+    }
 
 
 def front_table_to_matrices(
@@ -321,13 +459,13 @@ def remove_nans_from_narr_grid(narr_matrix):
     return numpy.take(narr_matrix, NARR_COLUMNS_WITHOUT_NAN, axis=2)
 
 
-def subset_grids_around_each_point(
+def downsize_grids_around_each_point(
         predictor_matrix, target_matrix, num_rows_in_half_window,
         num_columns_in_half_window, test_mode=False):
     """At each point P in full grid, takes smaller grid ("window") around P.
 
-    For more details, see `subset_grid`, which is called by this method for each
-    point in the full grid.
+    For more details, see `downsize_grid`, which is called by this method for
+    each point in the full grid.
 
     T = number of time steps
     M = number of rows in full grid (unique grid-point y-coordinates)
@@ -336,7 +474,7 @@ def subset_grids_around_each_point(
 
     m = number of rows in window = 2 * `num_rows_in_half_window` + 1
     n = number of columns in window = 2 * `num_columns_in_half_window` + 1
-    G = T * M * N = number of resulting subgrids.
+    G = T * M * N = number of resulting subgrids
 
     :param predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either T-by-M-by-N or T-by-M-by-N-by-C.
@@ -351,48 +489,115 @@ def subset_grids_around_each_point(
     :return: target_values: length-G numpy array of corresponding labels.
     """
 
-    _check_predictor_and_target_matrices(
+    num_rows_in_subgrid, num_columns_in_subgrid = _check_downsizing_args(
         predictor_matrix=predictor_matrix, target_matrix=target_matrix,
-        allow_nan_predictors=False, assert_binary_target_matrix=False)
-    error_checking.assert_is_boolean(test_mode)
+        num_rows_in_half_window=num_rows_in_half_window,
+        num_columns_in_half_window=num_columns_in_half_window,
+        test_mode=test_mode)
 
+    num_times = predictor_matrix.shape[0]
     num_rows_in_full_grid = predictor_matrix.shape[1]
     num_columns_in_full_grid = predictor_matrix.shape[2]
 
-    error_checking.assert_is_integer(num_rows_in_half_window)
-    error_checking.assert_is_greater(num_rows_in_half_window, 0)
-    num_rows_in_subgrid = 2 * num_rows_in_half_window + 1
+    num_subgrids = num_times * num_rows_in_full_grid * num_columns_in_full_grid
+    new_dimensions = (num_subgrids, num_rows_in_subgrid, num_columns_in_subgrid)
+    new_dimensions += predictor_matrix.shape[3:]
 
-    if not test_mode:
-        error_checking.assert_is_less_than(
-            num_rows_in_subgrid, num_rows_in_full_grid)
-
-    error_checking.assert_is_integer(num_columns_in_half_window)
-    error_checking.assert_is_greater(num_columns_in_half_window, 0)
-    num_columns_in_subgrid = 2 * num_columns_in_half_window + 1
-
-    if not test_mode:
-        error_checking.assert_is_less_than(
-            num_columns_in_subgrid, num_columns_in_full_grid)
-
-    new_predictor_matrix = None
-    target_values = numpy.array([], dtype=int)
+    new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
+    target_values = numpy.full(num_subgrids, -1, dtype=int)
 
     for j in range(num_rows_in_full_grid):
         for k in range(num_columns_in_full_grid):
-            this_new_predictor_matrix = _subset_grid(
+            print ('Downsizing grids around {0:d}th of {1:d} rows, {0:d}th of '
+                   '{1:d} columns...').format(
+                       j + 1, num_rows_in_full_grid, k + 1,
+                       num_columns_in_full_grid)
+
+            this_first_subgrid_index = num_times * (
+                j * num_columns_in_full_grid + k)
+            this_last_subgrid_index = this_first_subgrid_index + num_times - 1
+
+            new_predictor_matrix[
+                this_first_subgrid_index:(this_last_subgrid_index + 1), ...
+            ] = _downsize_grid(
                 full_grid_matrix=predictor_matrix, center_row=j,
                 center_column=k,
                 num_rows_in_half_window=num_rows_in_half_window,
                 num_columns_in_half_window=num_columns_in_half_window)
 
-            if new_predictor_matrix is None:
-                new_predictor_matrix = copy.deepcopy(this_new_predictor_matrix)
-            else:
-                new_predictor_matrix = numpy.concatenate(
-                    (new_predictor_matrix, this_new_predictor_matrix), axis=0)
+            target_values[
+                this_first_subgrid_index:(this_last_subgrid_index + 1)
+            ] = target_matrix[:, j, k]
 
-            target_values = numpy.concatenate((
-                target_values, target_matrix[:, j, k]))
+    return new_predictor_matrix, target_values
+
+
+def downsize_grids_around_selected_points(
+        predictor_matrix, target_matrix, num_rows_in_half_window,
+        num_columns_in_half_window, target_point_dict, test_mode=False):
+    """Takes smaller grid ("window") around each selected point in full grid.
+
+    For more details, see `downsize_grid`, which is called by this method for
+    each selected point.
+
+    T = number of time steps
+    M = number of rows in full grid (unique grid-point y-coordinates)
+    N = number of columns in full grid (unique grid-point x-coordinates)
+    C = number of image channels (variables)
+
+    m = number of rows in window = 2 * `num_rows_in_half_window` + 1
+    n = number of columns in window = 2 * `num_columns_in_half_window` + 1
+    P = number of selected grid-point-and-time-pairs
+
+    :param predictor_matrix: numpy array with predictor variables.  Dimensions
+        may be either T x M x N or T x M x N x C.
+    :param target_matrix: T-by-M-by-N numpy array with labels ("ground truth").
+    :param num_rows_in_half_window: Determines number of rows in each subgrid
+        (see general discussion above).
+    :param num_columns_in_half_window: Determines number of columns in each
+        subgrid (see general discussion above).
+    :param target_point_dict: Dictionary created by `_sample_target_points`.
+    :param test_mode: Boolean flag.  Always leave this False.
+    :return: predictor_matrix: numpy array with predictor variables.  Dimensions
+        may be either P x m x n x C or P x m x n.
+    """
+
+    num_rows_in_subgrid, num_columns_in_subgrid = _check_downsizing_args(
+        predictor_matrix=predictor_matrix, target_matrix=target_matrix,
+        num_rows_in_half_window=num_rows_in_half_window,
+        num_columns_in_half_window=num_columns_in_half_window,
+        test_mode=test_mode)
+
+    num_times = predictor_matrix.shape[0]
+    num_subgrids = 0
+    for i in range(num_times):
+        num_subgrids += len(target_point_dict[ROW_INDICES_BY_TIME_KEY][i])
+
+    new_dimensions = (num_subgrids, num_rows_in_subgrid, num_columns_in_subgrid)
+    new_dimensions += predictor_matrix.shape[3:]
+    new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
+    target_values = numpy.full(num_subgrids, -1, dtype=int)
+
+    last_row_added = -1
+    for i in range(num_times):
+        print ('Downsizing grids around selected points at {0:d}th of {1:d} '
+               'times...').format(i + 1, num_times)
+
+        these_target_point_rows = target_point_dict[ROW_INDICES_BY_TIME_KEY][i]
+        these_target_point_columns = target_point_dict[
+            COLUMN_INDICES_BY_TIME_KEY][i]
+
+        this_num_target_points = len(these_target_point_rows)
+        for j in range(this_num_target_points):
+            new_predictor_matrix[[last_row_added + 1], ...] = _downsize_grid(
+                full_grid_matrix=predictor_matrix[[i], ...],
+                center_row=these_target_point_rows[j],
+                center_column=these_target_point_columns[j],
+                num_rows_in_half_window=num_rows_in_half_window,
+                num_columns_in_half_window=num_columns_in_half_window)
+
+            target_values[last_row_added + 1] = target_matrix[
+                i, these_target_point_rows[j], these_target_point_columns[j]]
+            last_row_added += 1
 
     return new_predictor_matrix, target_values
