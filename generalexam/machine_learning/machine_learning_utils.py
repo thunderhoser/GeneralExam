@@ -2,12 +2,16 @@
 
 import copy
 import numpy
-import pandas
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
-NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(7, 264, num=264 - 7 + 1, dtype=int)
+FIRST_NARR_COLUMN_WITHOUT_NAN = 7
+LAST_NARR_COLUMN_WITHOUT_NAN = 264
+NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(
+    FIRST_NARR_COLUMN_WITHOUT_NAN, LAST_NARR_COLUMN_WITHOUT_NAN,
+    num=LAST_NARR_COLUMN_WITHOUT_NAN - FIRST_NARR_COLUMN_WITHOUT_NAN + 1,
+    dtype=int)
 
 
 def _check_predictor_matrix(predictor_matrix, allow_nan=False):
@@ -174,8 +178,19 @@ def front_table_to_matrices(
     frontal_grid_matrix = None
 
     for i in range(num_times):
+        this_frontal_grid_dict = {
+            front_utils.WARM_FRONT_ROW_INDICES_COLUMN: frontal_grid_table[
+                front_utils.WARM_FRONT_ROW_INDICES_COLUMN].values[i],
+            front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN: frontal_grid_table[
+                front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN].values[i],
+            front_utils.COLD_FRONT_ROW_INDICES_COLUMN: frontal_grid_table[
+                front_utils.COLD_FRONT_ROW_INDICES_COLUMN].values[i],
+            front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN: frontal_grid_table[
+                front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN].values[i]
+        }
+
         this_frontal_grid_matrix = front_utils.frontal_points_to_grid(
-            frontal_grid_dict=frontal_grid_table.iloc[[i]].to_dict(),
+            frontal_grid_dict=this_frontal_grid_dict,
             num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
         this_frontal_grid_matrix = numpy.reshape(
