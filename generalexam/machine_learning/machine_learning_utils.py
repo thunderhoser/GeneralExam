@@ -331,20 +331,22 @@ def _sample_target_points(
 
 
 def check_downsized_examples(
-        predictor_matrix, target_values, center_grid_rows, center_grid_columns,
-        predictor_names, assert_binary_target_matrix=False):
+        predictor_matrix, target_values, unix_times_sec, center_grid_rows,
+        center_grid_columns, predictor_names, assert_binary_target_matrix=False):
     """Checks downsized machine-learning examples for errors.
 
     Downsized ML examples can be created by `downsize_grids_around_each_point`
     or `downsize_grids_around_selected_points`.
 
+    T = number of time steps
     C = number of predictor variables (image channels)
 
     :param predictor_matrix: See documentation for
         `downsize_grids_around_each_point` or
         `downsize_grids_around_selected_points`.
     :param target_values: Same.
-    :param center_grid_rows: Same.
+    :param unix_times_sec: length-T numpy array of valid times.
+    :param center_grid_rows: Same as `predictor_matrix`.
     :param center_grid_columns: Same.
     :param predictor_names: length-C list with names of predictor variables.
     :param assert_binary_target_matrix: Boolean flag.  If True, the target
@@ -363,6 +365,10 @@ def check_downsized_examples(
         num_predictor_variables = predictor_matrix.shape[3]
     else:
         num_predictor_variables = 1
+
+    error_checking.assert_is_integer_numpy_array(unix_times_sec)
+    error_checking.assert_is_numpy_array(
+        unix_times_sec, exact_dimensions=numpy.array([num_subgrids]))
 
     error_checking.assert_is_integer_numpy_array(center_grid_rows)
     error_checking.assert_is_geq_numpy_array(center_grid_rows, 0)
@@ -549,8 +555,10 @@ def downsize_grids_around_each_point(
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either G-by-m-by-n or G-by-m-by-n-by-C.
     :return: target_values: length-G numpy array of corresponding labels.
+    :return: time_indices: length-G numpy array with time index for each small
+        grid.  This can be used to map back to the original time steps.
     :return: center_grid_rows: length-G numpy array with row index at center of
-        each small grid.  These can be used to map back to the full grid.  For
+        each small grid.  This can be used to map back to the full grid.  For
         example, if center_grid_rows[i] = j, the center row of the [i]th subgrid
         is the [j]th row of the full grid.
     :return: center_grid_columns: Same as above, except for columns.
@@ -572,8 +580,12 @@ def downsize_grids_around_each_point(
 
     new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
     target_values = numpy.full(num_subgrids, -1, dtype=int)
+    time_indices = numpy.full(num_subgrids, -1, dtype=int)
     center_grid_rows = numpy.full(num_subgrids, -1, dtype=int)
     center_grid_columns = numpy.full(num_subgrids, -1, dtype=int)
+
+    orig_time_indices = numpy.linspace(
+        0, num_times - 1, num=num_times, dtype=int)
 
     for j in range(num_rows_in_full_grid):
         for k in range(num_columns_in_full_grid):
@@ -597,6 +609,9 @@ def downsize_grids_around_each_point(
             target_values[
                 this_first_subgrid_index:(this_last_subgrid_index + 1)
             ] = target_matrix[:, j, k]
+            time_indices[
+                this_first_subgrid_index:(this_last_subgrid_index + 1)
+            ] = orig_time_indices
             center_grid_rows[
                 this_first_subgrid_index:(this_last_subgrid_index + 1)
             ] = j
@@ -604,7 +619,7 @@ def downsize_grids_around_each_point(
                 this_first_subgrid_index:(this_last_subgrid_index + 1)
             ] = k
 
-    return (new_predictor_matrix, target_values, center_grid_rows,
+    return (new_predictor_matrix, target_values, time_indices, center_grid_rows,
             center_grid_columns)
 
 
@@ -637,6 +652,8 @@ def downsize_grids_around_selected_points(
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either P x m x n x C or P x m x n.
     :return: target_values: length-P numpy array of corresponding labels.
+    :return: time_indices: length-P numpy array with time index for each small
+        grid.  This can be used to map back to the original time steps.
     :return: center_grid_rows: length-P numpy array with row index at center of
         each small grid.  These can be used to map back to the full grid.  For
         example, if center_grid_rows[i] = j, the center row of the [i]th subgrid
@@ -660,6 +677,7 @@ def downsize_grids_around_selected_points(
     new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
 
     target_values = numpy.full(num_subgrids, -1, dtype=int)
+    time_indices = numpy.full(num_subgrids, -1, dtype=int)
     center_grid_rows = numpy.full(num_subgrids, -1, dtype=int)
     center_grid_columns = numpy.full(num_subgrids, -1, dtype=int)
     last_row_added = -1
@@ -683,11 +701,12 @@ def downsize_grids_around_selected_points(
 
             target_values[last_row_added + 1] = target_matrix[
                 i, these_target_point_rows[j], these_target_point_columns[j]]
+            time_indices[last_row_added + 1] = i
             center_grid_rows[last_row_added + 1] = these_target_point_rows[j]
             center_grid_columns[
                 last_row_added + 1] = these_target_point_columns[j]
 
             last_row_added += 1
 
-    return (new_predictor_matrix, target_values, center_grid_rows,
+    return (new_predictor_matrix, target_values, time_indices, center_grid_rows,
             center_grid_columns)

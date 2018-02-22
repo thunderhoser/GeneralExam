@@ -289,6 +289,8 @@ SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.stack(
     (SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE, SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE,
      SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE), axis=-1)
 
+SMALL_GRID_TIME_INDICES_TOY_EXAMPLE = numpy.array(
+    [0, 0, 0, 0, 0, 0, 0, 0], dtype=int)
 CENTER_ROWS_TOY_EXAMPLE = numpy.array([0, 0, 0, 0, 1, 1, 1, 1], dtype=int)
 CENTER_COLUMNS_TOY_EXAMPLE = numpy.array([0, 1, 2, 3, 0, 1, 2, 3], dtype=int)
 
@@ -314,6 +316,7 @@ SMALL_PREDICTOR_MATRIX_SELECTED_POINTS = numpy.stack(
      SMALL_PREDICTOR_MATRIX_SELECTED_POINTS), axis=-1)
 
 TARGET_VECTOR_SELECTED_POINTS = numpy.array([1, 0, 0, 2], dtype=int)
+SMALL_GRID_TIME_INDICES_SELECTED_POINTS = numpy.array([0, 0, 0, 0], dtype=int)
 CENTER_ROWS_SELECTED_POINTS = numpy.array([0, 0, 1, 1], dtype=int)
 CENTER_COLUMNS_SELECTED_POINTS = numpy.array([2, 1, 3, 0], dtype=int)
 
@@ -632,6 +635,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         (this_small_predictor_matrix,
          this_target_vector,
+         these_time_indices,
          these_center_rows,
          these_center_columns) = ml_utils.downsize_grids_around_each_point(
              predictor_matrix=this_full_predictor_matrix,
@@ -646,6 +650,8 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_target_vector, TARGET_VECTOR_TOY_EXAMPLE))
         self.assertTrue(numpy.array_equal(
+            these_time_indices, SMALL_GRID_TIME_INDICES_TOY_EXAMPLE))
+        self.assertTrue(numpy.array_equal(
             these_center_rows, CENTER_ROWS_TOY_EXAMPLE))
         self.assertTrue(numpy.array_equal(
             these_center_columns, CENTER_COLUMNS_TOY_EXAMPLE))
@@ -658,6 +664,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         (this_small_predictor_matrix,
          this_target_vector,
+         these_time_indices,
          these_center_rows,
          these_center_columns) = ml_utils.downsize_grids_around_selected_points(
              predictor_matrix=this_full_predictor_matrix,
@@ -671,6 +678,8 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE))
         self.assertTrue(numpy.array_equal(
             this_target_vector, TARGET_VECTOR_SELECTED_POINTS))
+        self.assertTrue(numpy.array_equal(
+            these_time_indices, SMALL_GRID_TIME_INDICES_SELECTED_POINTS))
         self.assertTrue(numpy.array_equal(
             these_center_rows, CENTER_ROWS_SELECTED_POINTS))
         self.assertTrue(numpy.array_equal(
