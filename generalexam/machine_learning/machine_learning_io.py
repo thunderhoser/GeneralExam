@@ -1,9 +1,13 @@
 """IO methods for machine learning."""
 
+import os.path
 import pickle
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
+TIME_FORMAT_MONTH = '%Y%m'
+TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
 
 def write_downsized_examples_to_file(
         predictor_matrix, target_values, unix_times_sec, center_grid_rows,
@@ -75,3 +79,38 @@ def read_downsized_examples_from_file(pickle_file_name):
 
     return (predictor_matrix, target_values, unix_times_sec, center_grid_rows,
             center_grid_columns, predictor_names)
+
+
+def find_downsized_example_file(
+        top_directory_name, valid_time_unix_sec, pressure_level_mb,
+        raise_error_if_missing=True):
+    """Finds file with downsized examples (defined over subgrid, not full grid).
+
+    :param top_directory_name: Name of top-level directory containing files with
+        downsized machine-learning examples.
+    :param valid_time_unix_sec: Valid time.
+    :param pressure_level_mb: Pressure level (millibars).
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.  If file is
+        missing and raise_error_if_missing = False, this method will return the
+        *expected* path to the file.
+    :return: downsized_example_file_name: Path to file.
+    """
+
+    month_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, TIME_FORMAT_MONTH)
+    time_string = time_conversion.unix_sec_to_string(
+        valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAME)
+
+    downsized_example_file_name = (
+        '{0:s}/{1:s}/downsized_ml_examples_{2:04d}mb_{3:s}.p'.format(
+            top_directory_name, month_string, pressure_level_mb, time_string))
+
+    if raise_error_if_missing and not os.path.isfile(
+            downsized_example_file_name):
+        error_string = (
+            'Cannot find file.  Expected at location: "{0:s}"'.format(
+                downsized_example_file_name))
+        raise ValueError(error_string)
+
+    return downsized_example_file_name
