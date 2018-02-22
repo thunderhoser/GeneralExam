@@ -97,7 +97,8 @@ def _check_predictor_and_target_matrices(
 
     _check_predictor_matrix(predictor_matrix, allow_nan=allow_nan_predictors)
     _check_target_matrix(
-        target_matrix, assert_binary=assert_binary_target_matrix)
+        target_matrix, assert_binary=assert_binary_target_matrix,
+        num_dimensions=num_target_dimensions)
 
     if num_target_dimensions == 3:
         expected_target_dimensions = numpy.array(predictor_matrix.shape)[:3]
@@ -352,14 +353,10 @@ def check_downsized_examples(
         `front_utils.ANY_FRONT_INTEGER_ID`.
     """
 
-    print 'FOO'
-
     _check_predictor_and_target_matrices(
         predictor_matrix=predictor_matrix, target_matrix=target_values,
         allow_nan_predictors=False, num_target_dimensions=1,
         assert_binary_target_matrix=assert_binary_target_matrix)
-
-    print 'BAR'
 
     num_subgrids = predictor_matrix.shape[0]
     if len(predictor_matrix.shape) == 4:
