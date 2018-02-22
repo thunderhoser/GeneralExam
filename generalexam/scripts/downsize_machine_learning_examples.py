@@ -311,13 +311,17 @@ def _downsize_ml_examples(
             predictor_times_unix_sec)]
     frontal_grid_table.sort_values(
         [front_utils.TIME_COLUMN], axis=0, ascending=[True], inplace=True)
+    print frontal_grid_table
 
     print 'Converting target labels to grids...'
     num_grid_rows = predictor_matrix.shape[1]
     num_grid_columns = predictor_matrix.shape[2]
+    print num_grid_rows
+    print num_grid_columns
     frontal_grid_matrix = ml_utils.front_table_to_matrices(
         frontal_grid_table=frontal_grid_table, num_grid_rows=num_grid_rows,
         num_grid_columns=num_grid_columns)
+    print frontal_grid_matrix
 
     print 'Binarizing target labels...'
     frontal_grid_matrix = ml_utils.binarize_front_labels(frontal_grid_matrix)

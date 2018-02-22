@@ -314,6 +314,9 @@ def sample_target_points(
     N = number of columns (unique grid-point x-coordinates)
     P_i = number of grid points selected at the [i]th time
 
+    If the input matrix has either no positive cases or no negative cases, this
+    method will return None.
+
     :param binary_target_matrix: See documentation for `_check_target_matrix`.
     :param positive_fraction: Fraction of positive cases in resulting sample.
     :param num_points_per_time: Number of points to sample (on average) from
@@ -349,15 +352,26 @@ def sample_target_points(
         numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
         front_utils.ANY_FRONT_INTEGER_ID)
     positive_indices_linear = numpy.where(positive_flags_linear)[0]
+    negative_indices_linear = numpy.where(
+        numpy.invert(positive_flags_linear))[0]
+
+    if not len(positive_indices_linear):
+        return None
+    if not len(negative_indices_linear):
+        return None
+
+    if len(positive_indices_linear) < num_positive_cases:
+        num_positive_cases = len(positive_indices_linear)
+        num_negative_cases = copy.deepcopy(num_positive_cases)
+    if len(negative_indices_linear) < num_negative_cases:
+        num_negative_cases = len(negative_indices_linear)
+        num_positive_cases = copy.deepcopy(num_negative_cases)
 
     if test_mode:
         positive_indices_linear = positive_indices_linear[:num_positive_cases]
     else:
         positive_indices_linear = numpy.random.choice(
             positive_indices_linear, size=num_positive_cases, replace=False)
-
-    negative_indices_linear = numpy.where(
-        numpy.invert(positive_flags_linear))[0]
 
     if test_mode:
         negative_indices_linear = negative_indices_linear[:num_negative_cases]

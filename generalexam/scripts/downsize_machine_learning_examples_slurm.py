@@ -12,7 +12,7 @@ TIME_INTERVAL_SECONDS = 10800
 
 PYTHON_EXE_NAME = '/home/ralager/anaconda2/bin/python2.7'
 PYTHON_SCRIPT_NAME = (
-    '/condo/swatwork/ralager/generalexam_master/generalexam/'
+    '/condo/swatwork/ralager/generalexam_master/generalexam/scripts/'
     'downsize_machine_learning_examples.py')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
