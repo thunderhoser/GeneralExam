@@ -352,10 +352,14 @@ def check_downsized_examples(
         `front_utils.ANY_FRONT_INTEGER_ID`.
     """
 
+    print 'FOO'
+
     _check_predictor_and_target_matrices(
         predictor_matrix=predictor_matrix, target_matrix=target_values,
         allow_nan_predictors=False, num_target_dimensions=1,
         assert_binary_target_matrix=assert_binary_target_matrix)
+
+    print 'BAR'
 
     num_subgrids = predictor_matrix.shape[0]
     if len(predictor_matrix.shape) == 4:
