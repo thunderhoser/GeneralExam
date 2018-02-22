@@ -39,12 +39,19 @@ POLYLINE_AS_BINARY_MATRIX = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
                                          [0, 1, 1, 0, 0, 0, 0, 0],
                                          [0, 0, 1, 1, 0, 0, 0, 0]])
 
-BINARY_MATRIX_DILATED_HALFWIDTH1 = numpy.array([[0, 1, 1, 1, 1, 0, 0, 0],
-                                                [1, 1, 1, 1, 0, 0, 0, 0],
-                                                [1, 1, 1, 0, 0, 0, 0, 0],
-                                                [1, 1, 1, 1, 0, 0, 0, 0],
-                                                [1, 1, 1, 1, 0, 0, 0, 0],
-                                                [0, 1, 1, 1, 1, 0, 0, 0]])
+BINARY_MATRIX_DILATED_HW1_DIAGONAL_NO = numpy.array([[0, 1, 1, 1, 1, 0, 0, 0],
+                                                     [1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [1, 1, 1, 0, 0, 0, 0, 0],
+                                                     [1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [0, 1, 1, 1, 1, 0, 0, 0]])
+
+BINARY_MATRIX_DILATED_HW1_DIAGONAL_YES = numpy.array([[1, 1, 1, 1, 1, 0, 0, 0],
+                                                      [1, 1, 1, 1, 1, 0, 0, 0],
+                                                      [1, 1, 1, 1, 0, 0, 0, 0],
+                                                      [1, 1, 1, 1, 0, 0, 0, 0],
+                                                      [1, 1, 1, 1, 1, 0, 0, 0],
+                                                      [1, 1, 1, 1, 1, 0, 0, 0]])
 
 ROWS_IN_POLYLINE_DILATED_HALFWIDTH1 = numpy.array(
     [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5],
@@ -53,12 +60,19 @@ COLUMNS_IN_POLYLINE_DILATED_HALFWIDTH1 = numpy.array(
     [1, 2, 3, 4, 0, 1, 2, 3, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 4],
     dtype=int)
 
-BINARY_MATRIX_DILATED_HALFWIDTH2 = numpy.array([[1, 1, 1, 1, 1, 1, 0, 0],
-                                                [1, 1, 1, 1, 1, 0, 0, 0],
-                                                [1, 1, 1, 1, 0, 0, 0, 0],
-                                                [1, 1, 1, 1, 1, 0, 0, 0],
-                                                [1, 1, 1, 1, 1, 0, 0, 0],
-                                                [1, 1, 1, 1, 1, 1, 0, 0]])
+BINARY_MATRIX_DILATED_HW2_DIAGONAL_NO = numpy.array([[1, 1, 1, 1, 1, 1, 0, 0],
+                                                     [1, 1, 1, 1, 1, 0, 0, 0],
+                                                     [1, 1, 1, 1, 0, 0, 0, 0],
+                                                     [1, 1, 1, 1, 1, 0, 0, 0],
+                                                     [1, 1, 1, 1, 1, 0, 0, 0],
+                                                     [1, 1, 1, 1, 1, 1, 0, 0]])
+
+BINARY_MATRIX_DILATED_HW2_DIAGONAL_YES = numpy.array([[1, 1, 1, 1, 1, 1, 0, 0],
+                                                      [1, 1, 1, 1, 1, 1, 0, 0],
+                                                      [1, 1, 1, 1, 1, 1, 0, 0],
+                                                      [1, 1, 1, 1, 1, 1, 0, 0],
+                                                      [1, 1, 1, 1, 1, 1, 0, 0],
+                                                      [1, 1, 1, 1, 1, 1, 0, 0]])
 
 CLOSED_POLYLINE_LATITUDES_DEG = numpy.array([51.1, 53.5, 53.5, 51.1])
 CLOSED_POLYLINE_LONGITUDES_DEG = numpy.array([246., 246.5, 246., 246.])
@@ -204,39 +218,75 @@ class FrontUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_binary_matrix, POLYLINE_AS_BINARY_MATRIX))
 
-    def test_dilate_binary_image_half_width_1(self):
+    def test_dilate_binary_image_halfwidth1_no_diagonal(self):
         """Ensures correct output from _dilate_binary_image.
 
-        In this case, half-width of dilation window is one grid cell.
+        In this case, half-width of window = 1 grid cell and diagonal neighbours
+        are *not* considered connected.
         """
 
         this_input_matrix = copy.deepcopy(POLYLINE_AS_BINARY_MATRIX)
-        this_dilated_matrix = front_utils._dilate_binary_image(
+        this_dilated_matrix = front_utils.dilate_binary_image(
             binary_matrix=this_input_matrix,
-            dilation_half_width_in_grid_cells=1)
+            dilation_half_width_in_grid_cells=1,
+            include_diagonal_neighbours=False)
 
         self.assertTrue(numpy.array_equal(
-            this_dilated_matrix, BINARY_MATRIX_DILATED_HALFWIDTH1))
+            this_dilated_matrix, BINARY_MATRIX_DILATED_HW1_DIAGONAL_NO))
 
-    def test_dilate_binary_image_half_width_2(self):
+    def test_dilate_binary_image_halfwidth1_with_diagonal(self):
         """Ensures correct output from _dilate_binary_image.
 
-        In this case, half-width of dilation window is 2 grid cells.
+        In this case, half-width of window = 1 grid cell and diagonal neighbours
+        are considered connected.
         """
 
         this_input_matrix = copy.deepcopy(POLYLINE_AS_BINARY_MATRIX)
-        this_dilated_matrix = front_utils._dilate_binary_image(
+        this_dilated_matrix = front_utils.dilate_binary_image(
             binary_matrix=this_input_matrix,
-            dilation_half_width_in_grid_cells=2)
+            dilation_half_width_in_grid_cells=1,
+            include_diagonal_neighbours=True)
 
         self.assertTrue(numpy.array_equal(
-            this_dilated_matrix, BINARY_MATRIX_DILATED_HALFWIDTH2))
+            this_dilated_matrix, BINARY_MATRIX_DILATED_HW1_DIAGONAL_YES))
+
+    def test_dilate_binary_image_halfwidth2_no_diagonal(self):
+        """Ensures correct output from _dilate_binary_image.
+
+        In this case, half-width of window = 2 grid cell and diagonal neighbours
+        are *not* considered connected.
+        """
+
+        this_input_matrix = copy.deepcopy(POLYLINE_AS_BINARY_MATRIX)
+        this_dilated_matrix = front_utils.dilate_binary_image(
+            binary_matrix=this_input_matrix,
+            dilation_half_width_in_grid_cells=2,
+            include_diagonal_neighbours=False)
+
+        self.assertTrue(numpy.array_equal(
+            this_dilated_matrix, BINARY_MATRIX_DILATED_HW2_DIAGONAL_NO))
+
+    def test_dilate_binary_image_halfwidth2_with_diagonal(self):
+        """Ensures correct output from _dilate_binary_image.
+
+        In this case, half-width of window = 2 grid cell and diagonal neighbours
+        are considered connected.
+        """
+
+        this_input_matrix = copy.deepcopy(POLYLINE_AS_BINARY_MATRIX)
+        this_dilated_matrix = front_utils.dilate_binary_image(
+            binary_matrix=this_input_matrix,
+            dilation_half_width_in_grid_cells=2,
+            include_diagonal_neighbours=True)
+
+        self.assertTrue(numpy.array_equal(
+            this_dilated_matrix, BINARY_MATRIX_DILATED_HW2_DIAGONAL_YES))
 
     def test_binary_image_to_grid_points(self):
         """Ensures correct output from _binary_image_to_grid_points."""
 
         these_rows, these_columns = front_utils._binary_image_to_grid_points(
-            BINARY_MATRIX_DILATED_HALFWIDTH1)
+            BINARY_MATRIX_DILATED_HW1_DIAGONAL_NO)
 
         self.assertTrue(numpy.array_equal(
             these_rows, ROWS_IN_POLYLINE_DILATED_HALFWIDTH1))

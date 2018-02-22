@@ -181,32 +181,53 @@ FRONTAL_GRID_MATRIX2_BINARY = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
                                            [0, 1, 0, 0, 0, 0, 0, 0]])
 
 FRONTAL_GRID_MATRIX_BINARY = numpy.stack(
-    (FRONTAL_GRID_MATRIX1_BINARY, FRONTAL_GRID_MATRIX2_BINARY), axis=0)
+    (FRONTAL_GRID_MATRIX1_BINARY, FRONTAL_GRID_MATRIX2_BINARY),
+    axis=0).astype(int)
 
-# The following constants are used to test _sample_target_points.
+# The following constants are used to test dilate_target_grids.
+FRONTAL_GRID_MATRIX1_DILATED = numpy.array([[1, 1, 1, 1, 1, 1, 1, 1],
+                                            [1, 1, 1, 1, 1, 1, 1, 1],
+                                            [1, 1, 1, 1, 1, 1, 1, 1],
+                                            [1, 1, 1, 0, 0, 0, 0, 0],
+                                            [1, 1, 1, 0, 0, 0, 0, 0],
+                                            [1, 1, 1, 0, 0, 0, 0, 0]])
+
+FRONTAL_GRID_MATRIX2_DILATED = numpy.array([[1, 1, 1, 1, 1, 1, 1, 0],
+                                            [1, 1, 1, 1, 1, 1, 1, 1],
+                                            [1, 1, 1, 1, 1, 1, 1, 1],
+                                            [1, 1, 1, 0, 1, 1, 1, 1],
+                                            [1, 1, 1, 0, 0, 1, 1, 1],
+                                            [1, 1, 1, 0, 0, 0, 0, 0]])
+
+DILATION_HALF_WIDTH_IN_GRID_CELLS = 1
+FRONTAL_GRID_MATRIX_DILATED = numpy.stack(
+    (FRONTAL_GRID_MATRIX1_DILATED, FRONTAL_GRID_MATRIX2_DILATED),
+    axis=0).astype(int)
+
+# The following constants are used to test sample_target_points.
 POSITIVE_FRACTION_FOR_SAMPLING = 0.5
+NUM_POINTS_TO_SAMPLE_PER_TIME = 25
+
 POSITIVE_ROW_INDICES_TIME1 = numpy.array(
     [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5])
 POSITIVE_COLUMN_INDICES_TIME1 = numpy.array(
     [1, 2, 7, 1, 2, 3, 4, 5, 6, 7, 1, 1, 0, 1, 0])
 
 THESE_ROW_INDICES_TIME2 = numpy.array(
-    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5], dtype=int)
+    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], dtype=int)
 THESE_COLUMN_INDICES_TIME2 = numpy.array(
-    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6, 0, 1, 6, 7, 0, 1, 1], dtype=int)
+    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6], dtype=int)
 
 NEGATIVE_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 0, 0,
                                           1,
                                           2, 2, 2, 2, 2, 2, 2,
                                           3, 3, 3, 3, 3, 3, 3,
-                                          4, 4, 4, 4, 4, 4,
-                                          5, 5, 5, 5, 5, 5])
+                                          4, 4, 4, 4, 4])
 NEGATIVE_COLUMN_INDICES_TIME1 = numpy.array([0, 3, 4, 5, 6,
                                              0,
                                              0, 2, 3, 4, 5, 6, 7,
                                              0, 2, 3, 4, 5, 6, 7,
-                                             2, 3, 4, 5, 6, 7,
-                                             1, 2, 3, 4, 5, 6])
+                                             2, 3, 4, 5, 6])
 
 THESE_ROW_INDICES_TIME1 = numpy.concatenate((
     POSITIVE_ROW_INDICES_TIME1, NEGATIVE_ROW_INDICES_TIME1)).astype(int)
@@ -558,9 +579,10 @@ class MachineLearningUtilsTests(unittest.TestCase):
     def test_sample_target_points(self):
         """Ensures correct output from _sample_target_points."""
 
-        this_target_point_dict = ml_utils._sample_target_points(
+        this_target_point_dict = ml_utils.sample_target_points(
             binary_target_matrix=FRONTAL_GRID_MATRIX_BINARY,
-            positive_fraction=POSITIVE_FRACTION_FOR_SAMPLING, test_mode=True)
+            positive_fraction=POSITIVE_FRACTION_FOR_SAMPLING,
+            num_points_per_time=NUM_POINTS_TO_SAMPLE_PER_TIME, test_mode=True)
 
         self.assertTrue(set(this_target_point_dict.keys()) ==
                         set(SAMPLED_TARGET_POINT_DICT.keys()))
@@ -598,6 +620,17 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             this_binary_matrix, FRONTAL_GRID_MATRIX_BINARY))
+
+    def test_dilate_target_grids(self):
+        """Ensures correct output from dilate_target_grids."""
+
+        this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX_BINARY)
+        this_dilated_matrix = ml_utils.dilate_target_grids(
+            binary_target_matrix=this_input_matrix,
+            num_grid_cells_in_half_window=DILATION_HALF_WIDTH_IN_GRID_CELLS)
+
+        self.assertTrue(numpy.array_equal(
+            this_dilated_matrix, FRONTAL_GRID_MATRIX_DILATED))
 
     def test_stack_predictor_variables(self):
         """Ensures correct output from stack_predictor_variables."""

@@ -6,6 +6,8 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
+DEFAULT_NUM_SAMPLE_PTS_PER_TIME = 1000
+
 FIRST_NARR_COLUMN_WITHOUT_NAN = 7
 LAST_NARR_COLUMN_WITHOUT_NAN = 264
 NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(
@@ -243,93 +245,6 @@ def _downsize_grid(
         small_grid_matrix, pad_width=pad_width_input_arg, mode='edge')
 
 
-def _sample_target_points(
-        binary_target_matrix, positive_fraction, test_mode=False):
-    """Samples target pts (this helps to balance positive vs. negative cases).
-
-    In the above description, a "positive case" is the existence of a front at
-    some grid point and time step; a "negative case" is no front.
-
-    T = number of time steps
-    M = number of rows (unique grid-point y-coordinates)
-    N = number of columns (unique grid-point x-coordinates)
-    P_i = number of grid points selected at the [i]th time
-
-    :param binary_target_matrix: See documentation for `_check_target_matrix`.
-    :param positive_fraction: Fraction of positive cases in final sample.  This
-        method will select all positive cases, then add negative cases until the
-        fraction of positive cases decreases to `positive_fraction`.
-    :param test_mode: Boolean flag.  Always leave this False.
-    :return: target_point_dict: Dictionary with the following keys.
-    target_point_dict['row_indices_by_time']: length-T list, where the [i]th
-        element is a numpy array (length P_i) with row indices of grid points
-        selected at the [i]th time.
-    target_point_dict['column_indices_by_time']: Same as above, except for
-        columns.
-    :raises: ValueError: if `positive_fraction` <= fraction of positive cases in
-        the full dataset.  In this case, downsampling cannot be done.
-    """
-
-    # TODO(thunderhoser): Allow this method to work on non-binary targets.
-    _check_target_matrix(binary_target_matrix, assert_binary=True)
-
-    orig_positive_fraction = numpy.mean(binary_target_matrix)
-    if positive_fraction <= orig_positive_fraction:
-        error_string = (
-            '`positive_fraction` ({0:f}) should be > fraction of positive cases'
-            ' in the full dataset ({1:f}).').format(
-                positive_fraction, orig_positive_fraction)
-        raise ValueError(error_string)
-
-    positive_flags_linear = (
-        numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
-        front_utils.ANY_FRONT_INTEGER_ID)
-    positive_indices_linear = numpy.where(positive_flags_linear)[0]
-
-    num_positive_cases = len(positive_indices_linear)
-    num_negative_cases = int(numpy.round(
-        num_positive_cases * (1. - positive_fraction) / positive_fraction))
-
-    negative_indices_linear = numpy.where(
-        numpy.invert(positive_flags_linear))[0]
-
-    if test_mode:
-        negative_indices_linear = negative_indices_linear[:num_negative_cases]
-    else:
-        negative_indices_linear = numpy.random.choice(
-            negative_indices_linear, size=num_negative_cases, replace=False)
-
-    positive_time_indices, positive_row_indices, positive_column_indices = (
-        numpy.unravel_index(
-            positive_indices_linear, binary_target_matrix.shape))
-    negative_time_indices, negative_row_indices, negative_column_indices = (
-        numpy.unravel_index(
-            negative_indices_linear, binary_target_matrix.shape))
-
-    num_times = binary_target_matrix.shape[0]
-    row_indices_by_time = [numpy.array([], dtype=int)] * num_times
-    column_indices_by_time = [numpy.array([], dtype=int)] * num_times
-
-    for i in range(num_times):
-        these_positive_indices = numpy.where(positive_time_indices == i)[0]
-        row_indices_by_time[i] = positive_row_indices[these_positive_indices]
-        column_indices_by_time[i] = positive_column_indices[
-            these_positive_indices]
-
-        these_negative_indices = numpy.where(negative_time_indices == i)[0]
-        row_indices_by_time[i] = numpy.concatenate((
-            row_indices_by_time[i],
-            negative_row_indices[these_negative_indices]))
-        column_indices_by_time[i] = numpy.concatenate((
-            column_indices_by_time[i],
-            negative_column_indices[these_negative_indices]))
-
-    return {
-        ROW_INDICES_BY_TIME_KEY: row_indices_by_time,
-        COLUMN_INDICES_BY_TIME_KEY: column_indices_by_time
-    }
-
-
 def check_downsized_examples(
         predictor_matrix, target_values, unix_times_sec, center_grid_rows,
         center_grid_columns, predictor_names, assert_binary_target_matrix=False):
@@ -384,6 +299,100 @@ def check_downsized_examples(
     error_checking.assert_is_numpy_array(
         numpy.array(predictor_names),
         exact_dimensions=numpy.array([num_predictor_variables]))
+
+
+def sample_target_points(
+        binary_target_matrix, positive_fraction,
+        num_points_per_time=DEFAULT_NUM_SAMPLE_PTS_PER_TIME, test_mode=False):
+    """Samples target pts (this helps to balance positive vs. negative cases).
+
+    In the above description, a "positive case" is the existence of a front at
+    some grid point and time step; a "negative case" is no front.
+
+    T = number of time steps
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    P_i = number of grid points selected at the [i]th time
+
+    :param binary_target_matrix: See documentation for `_check_target_matrix`.
+    :param positive_fraction: Fraction of positive cases in resulting sample.
+    :param num_points_per_time: Number of points to sample (on average) from
+        each time step.
+    :param test_mode: Boolean flag.  Always leave this False.
+    :return: target_point_dict: Dictionary with the following keys.
+    target_point_dict['row_indices_by_time']: length-T list, where the [i]th
+        element is a numpy array (length P_i) with row indices of grid points
+        selected at the [i]th time.
+    target_point_dict['column_indices_by_time']: Same as above, except for
+        columns.
+    """
+
+    # TODO(thunderhoser): Allow this method to work on non-binary targets.
+    _check_target_matrix(binary_target_matrix, assert_binary=True)
+
+    error_checking.assert_is_greater(positive_fraction, 0.)
+    error_checking.assert_is_less_than(positive_fraction, 1.)
+    error_checking.assert_is_integer(num_points_per_time)
+    error_checking.assert_is_boolean(test_mode)
+
+    num_times = binary_target_matrix.shape[0]
+    num_points_to_sample = num_points_per_time * num_times
+    error_checking.assert_is_geq(num_points_to_sample, 2)
+
+    num_positive_cases = int(
+        numpy.round(positive_fraction * num_points_to_sample))
+    num_positive_cases = max([num_positive_cases, 0])
+    num_positive_cases = min([num_positive_cases, num_points_to_sample - 1])
+    num_negative_cases = num_points_to_sample - num_positive_cases
+
+    positive_flags_linear = (
+        numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
+        front_utils.ANY_FRONT_INTEGER_ID)
+    positive_indices_linear = numpy.where(positive_flags_linear)[0]
+
+    if test_mode:
+        positive_indices_linear = positive_indices_linear[:num_positive_cases]
+    else:
+        positive_indices_linear = numpy.random.choice(
+            positive_indices_linear, size=num_positive_cases, replace=False)
+
+    negative_indices_linear = numpy.where(
+        numpy.invert(positive_flags_linear))[0]
+
+    if test_mode:
+        negative_indices_linear = negative_indices_linear[:num_negative_cases]
+    else:
+        negative_indices_linear = numpy.random.choice(
+            negative_indices_linear, size=num_negative_cases, replace=False)
+
+    positive_time_indices, positive_row_indices, positive_column_indices = (
+        numpy.unravel_index(
+            positive_indices_linear, binary_target_matrix.shape))
+    negative_time_indices, negative_row_indices, negative_column_indices = (
+        numpy.unravel_index(
+            negative_indices_linear, binary_target_matrix.shape))
+
+    row_indices_by_time = [numpy.array([], dtype=int)] * num_times
+    column_indices_by_time = [numpy.array([], dtype=int)] * num_times
+
+    for i in range(num_times):
+        these_positive_indices = numpy.where(positive_time_indices == i)[0]
+        row_indices_by_time[i] = positive_row_indices[these_positive_indices]
+        column_indices_by_time[i] = positive_column_indices[
+            these_positive_indices]
+
+        these_negative_indices = numpy.where(negative_time_indices == i)[0]
+        row_indices_by_time[i] = numpy.concatenate((
+            row_indices_by_time[i],
+            negative_row_indices[these_negative_indices]))
+        column_indices_by_time[i] = numpy.concatenate((
+            column_indices_by_time[i],
+            negative_column_indices[these_negative_indices]))
+
+    return {
+        ROW_INDICES_BY_TIME_KEY: row_indices_by_time,
+        COLUMN_INDICES_BY_TIME_KEY: column_indices_by_time
+    }
 
 
 def front_table_to_matrices(
@@ -464,6 +473,34 @@ def binarize_front_labels(frontal_grid_matrix):
     ] = front_utils.ANY_FRONT_INTEGER_ID
 
     return frontal_grid_matrix
+
+
+def dilate_target_grids(binary_target_matrix, num_grid_cells_in_half_window):
+    """Dilates target grid at each time step.
+
+    :param binary_target_matrix: See documentation for `_check_target_matrix`.
+    :param num_grid_cells_in_half_window: Number of grid cells in dilation half-
+        window.
+    :return: binary_target_matrix: Same as input, except dilated.
+    """
+
+    # TODO(thunderhoser): Dilation is used in this module only for
+    # `sample_target_points`, `downsize_grids_around_each_point`, and
+    # `downsize_grids_around_selected_points`.  I should find a better way of
+    # building it into these methods.
+
+    _check_target_matrix(binary_target_matrix, assert_binary=True)
+
+    num_times = binary_target_matrix.shape[0]
+    for i in range(num_times):
+        print 'Dilating target grid at {0:d}th time step...'.format(i)
+
+        binary_target_matrix[i, :, :] = front_utils.dilate_binary_image(
+            binary_matrix=binary_target_matrix[i, :, :],
+            dilation_half_width_in_grid_cells=num_grid_cells_in_half_window,
+            include_diagonal_neighbours=True)
+
+    return binary_target_matrix
 
 
 def stack_predictor_variables(tuple_of_predictor_matrices):
@@ -647,7 +684,7 @@ def downsize_grids_around_selected_points(
         (see general discussion above).
     :param num_columns_in_half_window: Determines number of columns in each
         subgrid (see general discussion above).
-    :param target_point_dict: Dictionary created by `_sample_target_points`.
+    :param target_point_dict: Dictionary created by `sample_target_points`.
     :param test_mode: Boolean flag.  Always leave this False.
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either P x m x n x C or P x m x n.

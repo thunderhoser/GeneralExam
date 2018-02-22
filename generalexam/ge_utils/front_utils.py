@@ -8,6 +8,7 @@ import pandas
 import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
 from scipy.ndimage.morphology import binary_closing
+from scipy.ndimage import generate_binary_structure
 from skimage.measure import label as label_image
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
@@ -282,22 +283,6 @@ def _binary_image_to_grid_points(binary_matrix):
     return numpy.where(binary_matrix)
 
 
-def _dilate_binary_image(binary_matrix, dilation_half_width_in_grid_cells):
-    """Dilates a binary image matrix.
-
-    M = number of grid rows (unique grid-point y-coordinates)
-    N = number of grid columns (unique grid-point x-coordinates)
-
-    :param binary_matrix: M-by-N numpy array of Boolean flags.
-    :param dilation_half_width_in_grid_cells: Half-width of dilation window.
-    :return: binary_matrix: Same as input, except dilated.
-    """
-
-    return binary_dilation(
-        binary_matrix, iterations=dilation_half_width_in_grid_cells, origin=0,
-        border_value=0)
-
-
 def _is_polyline_closed(vertex_latitudes_deg, vertex_longitudes_deg):
     """Determines whether or not polyline is closed.
 
@@ -440,6 +425,36 @@ def check_front_type(front_string_id):
             '\n\nValid front types (listed above) do not include "' +
             front_string_id + '".')
         raise ValueError(error_string)
+
+
+def dilate_binary_image(
+        binary_matrix, dilation_half_width_in_grid_cells,
+        include_diagonal_neighbours):
+    """Dilates a binary image.
+
+    M = number of grid rows (unique grid-point y-coordinates)
+    N = number of grid columns (unique grid-point x-coordinates)
+
+    :param binary_matrix: M-by-N numpy array of Boolean flags.
+    :param dilation_half_width_in_grid_cells: Half-width of dilation window.
+    :param include_diagonal_neighbours: Boolean flag.  If True, diagonally
+        adjacent grid cells (those sharing only a corner) are considered
+        connected.  If False, only grid cells sharing an edge are considered
+        connected.
+    :return: binary_matrix: Same as input, except dilated.
+    """
+
+    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(include_diagonal_neighbours)
+
+    if include_diagonal_neighbours:
+        structuring_element = generate_binary_structure(rank=2, connectivity=2)
+    else:
+        structuring_element = generate_binary_structure(rank=2, connectivity=1)
+
+    return binary_dilation(
+        binary_matrix, structure=structuring_element,
+        iterations=dilation_half_width_in_grid_cells, origin=0, border_value=0)
 
 
 def frontal_grid_to_points(frontal_grid_matrix):
@@ -624,7 +639,7 @@ def polyline_to_binary_narr_grid(
     :param polyline_longitudes_deg: length-P numpy array with longitudes (deg E)
         in polyline.
     :param dilation_half_width_in_grid_cells: Half-width of dilation window for
-        `_dilate_binary_image`.
+        `dilate_binary_image`.
     :return: binary_matrix: M-by-N numpy array of Boolean flags.  If
         binary_matrix[i, j] = True, the polyline passes through grid cell
         [i, j].  Otherwise, the polyline does not pass through grid cell [i, j].
@@ -656,9 +671,10 @@ def polyline_to_binary_narr_grid(
         rows_in_object=rows_in_polyline, columns_in_object=columns_in_polyline,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
-    return _dilate_binary_image(
+    return dilate_binary_image(
         binary_matrix=binary_matrix,
-        dilation_half_width_in_grid_cells=dilation_half_width_in_grid_cells)
+        dilation_half_width_in_grid_cells=dilation_half_width_in_grid_cells,
+        include_diagonal_neighbours=False)
 
 
 def many_polylines_to_narr_grid(
@@ -675,7 +691,7 @@ def many_polylines_to_narr_grid(
     :param front_table: See documentation for
         `fronts_io.write_polylines_to_file`.
     :param dilation_half_width_in_grid_cells: Half-width of dilation window for
-        `_dilate_binary_image`.
+        `dilate_binary_image`.
     :return: frontal_grid_table: pandas DataFrame with the following columns.
         Each row is one valid time.
     frontal_grid_table.unix_time_sec: Valid time.
