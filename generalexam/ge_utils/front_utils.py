@@ -646,7 +646,7 @@ def polyline_to_binary_narr_grid(
     """
 
     error_checking.assert_is_integer(dilation_half_width_in_grid_cells)
-    error_checking.assert_is_greater(dilation_half_width_in_grid_cells, 0)
+    error_checking.assert_is_geq(dilation_half_width_in_grid_cells, 0)
 
     polyline_x_coords_metres, polyline_y_coords_metres = (
         nwp_model_utils.project_latlng_to_xy(
@@ -670,6 +670,9 @@ def polyline_to_binary_narr_grid(
     binary_matrix = _grid_points_to_binary_image(
         rows_in_object=rows_in_polyline, columns_in_object=columns_in_polyline,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
+
+    if dilation_half_width_in_grid_cells == 0:
+        return binary_matrix
 
     return dilate_binary_image(
         binary_matrix=binary_matrix,

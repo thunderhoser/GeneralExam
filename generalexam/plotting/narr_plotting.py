@@ -22,7 +22,7 @@ NUM_ROWS_IN_NARR_GRID, NUM_COLUMNS_IN_NARR_GRID = (
         model_name=nwp_model_utils.NARR_MODEL_NAME))
 
 
-def _get_xy_grid_point_matrices(
+def get_xy_grid_point_matrices(
         first_row_in_narr_grid, last_row_in_narr_grid,
         first_column_in_narr_grid, last_column_in_narr_grid,
         basemap_object=None):
@@ -32,7 +32,7 @@ def _get_xy_grid_point_matrices(
     "subset" could be the full NARR grid.
 
     This method generates different x- and y-coordinates than
-    `nwp_model_utils._get_xy_grid_point_matrices`, because (like
+    `nwp_model_utils.get_xy_grid_point_matrices`, because (like
     `mpl_toolkits.basemap.Basemap`) this method assumes that false easting and
     northing are zero.
 
@@ -116,10 +116,10 @@ def init_basemap(
         intermediate, "h" for high, and "f" for full.  Keep in mind that higher-
         resolution boundaries take much longer to draw.
     :param first_row_in_narr_grid: See documentation for
-        `_get_xy_grid_point_matrices`.
-    :param last_row_in_narr_grid: See doc for `_get_xy_grid_point_matrices`.
-    :param first_column_in_narr_grid: See doc for `_get_xy_grid_point_matrices`.
-    :param last_column_in_narr_grid: See doc for `_get_xy_grid_point_matrices`.
+        `get_xy_grid_point_matrices`.
+    :param last_row_in_narr_grid: See doc for `get_xy_grid_point_matrices`.
+    :param first_column_in_narr_grid: See doc for `get_xy_grid_point_matrices`.
+    :param last_column_in_narr_grid: See doc for `get_xy_grid_point_matrices`.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -130,7 +130,7 @@ def init_basemap(
     error_checking.assert_is_string(resolution_string)
 
     grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
-        _get_xy_grid_point_matrices(
+        get_xy_grid_point_matrices(
             first_row_in_narr_grid=first_row_in_narr_grid,
             last_row_in_narr_grid=last_row_in_narr_grid,
             first_column_in_narr_grid=first_column_in_narr_grid,
@@ -158,7 +158,8 @@ def init_basemap(
 
 def plot_xy_grid(
         data_matrix, axes_object, basemap_object, colour_map, colour_minimum,
-        colour_maximum, first_row_in_narr_grid=0, first_column_in_narr_grid=0):
+        colour_maximum, first_row_in_narr_grid=0, first_column_in_narr_grid=0,
+        opacity=1.):
     """Plots data over a contiguous subset of the NARR grid.
 
     However, this subset need not be *strictly* a subset.  In other words, the
@@ -174,8 +175,9 @@ def plot_xy_grid(
     :param colour_minimum: Minimum value for colour map.
     :param colour_maximum: Maximum value for colour map.
     :param first_row_in_narr_grid: See documentation for
-        `_get_xy_grid_point_matrices`.
-    :param first_column_in_narr_grid: See doc for `_get_xy_grid_point_matrices`.
+        `get_xy_grid_point_matrices`.
+    :param first_column_in_narr_grid: See doc for `get_xy_grid_point_matrices`.
+    :param opacity: Opacity for colour map (in range 0...1).
     """
 
     error_checking.assert_is_real_numpy_array(data_matrix)
@@ -186,7 +188,7 @@ def plot_xy_grid(
     num_columns = data_matrix.shape[1]
 
     grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
-        _get_xy_grid_point_matrices(
+        get_xy_grid_point_matrices(
             first_row_in_narr_grid=first_row_in_narr_grid,
             last_row_in_narr_grid=first_row_in_narr_grid + num_rows - 1,
             first_column_in_narr_grid=first_column_in_narr_grid,
@@ -216,4 +218,4 @@ def plot_xy_grid(
         grid_cell_edge_x_metres, grid_cell_edge_y_metres,
         data_matrix_at_edges, cmap=colour_map, vmin=colour_minimum,
         vmax=colour_maximum, shading='flat', edgecolors='None',
-        axes=axes_object, zorder=-1e9)
+        axes=axes_object, zorder=-1e9, alpha=opacity)

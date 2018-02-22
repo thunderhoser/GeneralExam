@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
 from generalexam.ge_utils import front_utils
+from generalexam.plotting import narr_plotting
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -91,50 +92,42 @@ def plot_polyline(
         linestyle=line_style, linewidth=line_width)
 
 
-def plot_frontal_grid(
-        frontal_grid_matrix, basemap_object, axes_object,
-        model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=None,
+def plot_narr_grid(
+        frontal_grid_matrix, axes_object, basemap_object,
+        first_row_in_narr_grid=0, first_column_in_narr_grid=0,
         opacity=DEFAULT_GRID_OPACITY):
-    """Plots grid points intersected by a warm front or cold front.
+    """Plots NARR grid points intersected by a warm front or cold front.
+
+    This method plots data over a contiguous subset of the NARR grid, which need
+    not be *strictly* a subset.  In other words, the "subset" could be the full
+    NARR grid.
 
     :param frontal_grid_matrix: See documentation for
         `front_utils.frontal_grid_to_points`.
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param model_name: Name of NWP (numerical weather prediction) model whose
-        grid is being used.
-    :param grid_id: String ID for model grid.
+    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param first_row_in_narr_grid: Row 0 in the subgrid is row
+        `first_row_in_narr_grid` in the full NARR grid.
+    :param first_column_in_narr_grid: Column 0 in the subgrid is row
+        `first_column_in_narr_grid` in the full NARR grid.
     :param opacity: Opacity for colour map (in range 0...1).
     """
 
-    nw_latitude_deg_as_array, nw_longitude_deg_as_array = (
-        nwp_model_utils.project_xy_to_latlng(
-            numpy.array([nwp_model_utils.MIN_GRID_POINT_X_METRES]),
-            numpy.array([nwp_model_utils.MIN_GRID_POINT_Y_METRES]),
-            projection_object=None, model_name=model_name, grid_id=grid_id))
+    error_checking.assert_is_integer_numpy_array(frontal_grid_matrix)
+    error_checking.assert_is_numpy_array(frontal_grid_matrix, num_dimensions=2)
 
-    x_min_in_basemap_proj_metres, y_min_in_basemap_proj_metres = basemap_object(
-        nw_longitude_deg_as_array[0], nw_latitude_deg_as_array[0])
-
-    x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
-        model_name=model_name, grid_id=grid_id)
-
-    (frontal_grid_matrix_at_edges,
-     grid_cell_edge_x_metres,
-     grid_cell_edge_y_metres) = grids.xy_field_grid_points_to_edges(
-         field_matrix=frontal_grid_matrix,
-         x_min_metres=x_min_in_basemap_proj_metres,
-         y_min_metres=y_min_in_basemap_proj_metres,
-         x_spacing_metres=x_spacing_metres,
-         y_spacing_metres=y_spacing_metres)
-
-    frontal_grid_matrix_at_edges = numpy.ma.masked_where(
-        numpy.isnan(frontal_grid_matrix_at_edges), frontal_grid_matrix_at_edges)
+    error_checking.assert_is_geq_numpy_array(
+        frontal_grid_matrix, front_utils.NO_FRONT_INTEGER_ID)
+    error_checking.assert_is_leq_numpy_array(
+        frontal_grid_matrix, max(
+            [front_utils.COLD_FRONT_INTEGER_ID,
+             front_utils.WARM_FRONT_INTEGER_ID]))
 
     colour_map_object, _, colour_bounds = _get_colour_map_for_grid()
 
-    basemap_object.pcolormesh(
-        grid_cell_edge_x_metres, grid_cell_edge_y_metres,
-        frontal_grid_matrix_at_edges, cmap=colour_map_object,
-        vmin=colour_bounds[1], vmax=colour_bounds[-2], shading='flat',
-        edgecolors='None', axes=axes_object, zorder=-1e9, alpha=opacity)
+    narr_plotting.plot_xy_grid(
+        data_matrix=frontal_grid_matrix, axes_object=axes_object,
+        basemap_object=basemap_object, colour_map=colour_map_object,
+        colour_minimum=colour_bounds[1], colour_maximum=colour_bounds[-2],
+        first_row_in_narr_grid=first_row_in_narr_grid,
+        first_column_in_narr_grid=first_column_in_narr_grid, opacity=opacity)
