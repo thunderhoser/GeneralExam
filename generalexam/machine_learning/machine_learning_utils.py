@@ -41,7 +41,7 @@ def _check_predictor_matrix(predictor_matrix, allow_nan=False):
     error_checking.assert_is_leq(num_dimensions, 4)
 
 
-def _check_target_matrix(target_matrix, assert_binary=False):
+def _check_target_matrix(target_matrix, assert_binary=False, num_dimensions=3):
     """Checks target matrix (containing labels, or "ground truth") for errors.
 
     T = number of time steps
@@ -57,11 +57,15 @@ def _check_target_matrix(target_matrix, assert_binary=False):
         front.
     :param assert_binary: Boolean flag.  If True, the matrix must be binary,
         which means that the only valid entries are
-        `front_utils.NO_FRONT_INTEGER_ID` and `front_utils.ANY_FRONT_INTEGER_ID`.
+        `front_utils.NO_FRONT_INTEGER_ID` and
+        `front_utils.ANY_FRONT_INTEGER_ID`.
+    :param num_dimensions: Expected number of matrix dimensions.  May be either
+        3 or 1.
     """
 
     error_checking.assert_is_integer_numpy_array(target_matrix)
-    error_checking.assert_is_numpy_array(target_matrix, num_dimensions=3)
+    error_checking.assert_is_numpy_array(
+        target_matrix, num_dimensions=num_dimensions)
 
     error_checking.assert_is_geq_numpy_array(
         target_matrix, front_utils.NO_FRONT_INTEGER_ID)
@@ -78,7 +82,7 @@ def _check_target_matrix(target_matrix, assert_binary=False):
 
 def _check_predictor_and_target_matrices(
         predictor_matrix, target_matrix, allow_nan_predictors=False,
-        assert_binary_target_matrix=False):
+        assert_binary_target_matrix=False, num_target_dimensions=3):
     """Checks both predictor and target matrices together.
 
     :param predictor_matrix: See documentation for `_check_predictor_matrix`.
@@ -87,17 +91,18 @@ def _check_predictor_and_target_matrices(
         predictor values to be NaN.
     :param assert_binary_target_matrix: See documentation for
         `_check_target_matrix`.
+    :param num_target_dimensions: Expected number of dimensions in target
+        matrix.  Must be either 3 or 1.
     """
 
     _check_predictor_matrix(predictor_matrix, allow_nan=allow_nan_predictors)
     _check_target_matrix(
         target_matrix, assert_binary=assert_binary_target_matrix)
 
-    num_predictor_dimensions = len(predictor_matrix.shape)
-    if num_predictor_dimensions == 4:
-        expected_target_dimensions = numpy.array(predictor_matrix.shape)[:-1]
+    if num_target_dimensions == 3:
+        expected_target_dimensions = numpy.array(predictor_matrix.shape)[:3]
     else:
-        expected_target_dimensions = numpy.array(predictor_matrix.shape)
+        expected_target_dimensions = numpy.array([predictor_matrix.shape[0]])
 
     error_checking.assert_is_numpy_array(
         target_matrix, exact_dimensions=expected_target_dimensions)
@@ -176,6 +181,12 @@ def _downsize_grid(
     :return: small_grid_matrix: Subset version of input array, where the second
         dimension has length m; third dimension has length n.
     """
+
+    # :return: small_grid_rows: length-m numpy array with row indices in small
+    # grid (these are row indices into the full grid, which allow the small
+    # grid to be mapped back to the full grid).
+    # :return: small_grid_columns: Same as above, except for columns.  Array has
+    #     length n.
 
     num_rows_in_full_grid = full_grid_matrix.shape[1]
     num_columns_in_full_grid = full_grid_matrix.shape[2]
@@ -316,6 +327,56 @@ def _sample_target_points(
         ROW_INDICES_BY_TIME_KEY: row_indices_by_time,
         COLUMN_INDICES_BY_TIME_KEY: column_indices_by_time
     }
+
+
+def check_downsized_examples(
+        predictor_matrix, target_values, center_grid_rows, center_grid_columns,
+        predictor_names, assert_binary_target_matrix=False):
+    """Checks downsized machine-learning examples for errors.
+
+    Downsized ML examples can be created by `downsize_grids_around_each_point`
+    or `downsize_grids_around_selected_points`.
+
+    C = number of predictor variables (image channels)
+
+    :param predictor_matrix: See documentation for
+        `downsize_grids_around_each_point` or
+        `downsize_grids_around_selected_points`.
+    :param target_values: Same.
+    :param center_grid_rows: Same.
+    :param center_grid_columns: Same.
+    :param predictor_names: length-C list with names of predictor variables.
+    :param assert_binary_target_matrix: Boolean flag.  If True, the target
+        matrix must be binary, which means that the only valid entries are
+        `front_utils.NO_FRONT_INTEGER_ID` and
+        `front_utils.ANY_FRONT_INTEGER_ID`.
+    """
+
+    _check_predictor_and_target_matrices(
+        predictor_matrix=predictor_matrix, target_matrix=target_values,
+        allow_nan_predictors=False, num_target_dimensions=1,
+        assert_binary_target_matrix=assert_binary_target_matrix)
+
+    num_subgrids = predictor_matrix.shape[0]
+    if len(predictor_matrix.shape) == 4:
+        num_predictor_variables = predictor_matrix.shape[3]
+    else:
+        num_predictor_variables = 1
+
+    error_checking.assert_is_integer_numpy_array(center_grid_rows)
+    error_checking.assert_is_geq_numpy_array(center_grid_rows, 0)
+    error_checking.assert_is_numpy_array(
+        center_grid_rows, exact_dimensions=numpy.array([num_subgrids]))
+
+    error_checking.assert_is_integer_numpy_array(center_grid_columns)
+    error_checking.assert_is_geq_numpy_array(center_grid_columns, 0)
+    error_checking.assert_is_numpy_array(
+        center_grid_columns, exact_dimensions=numpy.array([num_subgrids]))
+
+    error_checking.assert_is_string_list(predictor_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(predictor_names),
+        exact_dimensions=numpy.array([num_predictor_variables]))
 
 
 def front_table_to_matrices(
@@ -487,6 +548,11 @@ def downsize_grids_around_each_point(
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either G-by-m-by-n or G-by-m-by-n-by-C.
     :return: target_values: length-G numpy array of corresponding labels.
+    :return: center_grid_rows: length-G numpy array with row index at center of
+        each small grid.  These can be used to map back to the full grid.  For
+        example, if center_grid_rows[i] = j, the center row of the [i]th subgrid
+        is the [j]th row of the full grid.
+    :return: center_grid_columns: Same as above, except for columns.
     """
 
     num_rows_in_subgrid, num_columns_in_subgrid = _check_downsizing_args(
@@ -505,6 +571,8 @@ def downsize_grids_around_each_point(
 
     new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
     target_values = numpy.full(num_subgrids, -1, dtype=int)
+    center_grid_rows = numpy.full(num_subgrids, -1, dtype=int)
+    center_grid_columns = numpy.full(num_subgrids, -1, dtype=int)
 
     for j in range(num_rows_in_full_grid):
         for k in range(num_columns_in_full_grid):
@@ -528,8 +596,15 @@ def downsize_grids_around_each_point(
             target_values[
                 this_first_subgrid_index:(this_last_subgrid_index + 1)
             ] = target_matrix[:, j, k]
+            center_grid_rows[
+                this_first_subgrid_index:(this_last_subgrid_index + 1)
+            ] = j
+            center_grid_columns[
+                this_first_subgrid_index:(this_last_subgrid_index + 1)
+            ] = k
 
-    return new_predictor_matrix, target_values
+    return (new_predictor_matrix, target_values, center_grid_rows,
+            center_grid_columns)
 
 
 def downsize_grids_around_selected_points(
@@ -560,6 +635,12 @@ def downsize_grids_around_selected_points(
     :param test_mode: Boolean flag.  Always leave this False.
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either P x m x n x C or P x m x n.
+    :return: target_values: length-P numpy array of corresponding labels.
+    :return: center_grid_rows: length-P numpy array with row index at center of
+        each small grid.  These can be used to map back to the full grid.  For
+        example, if center_grid_rows[i] = j, the center row of the [i]th subgrid
+        is the [j]th row of the full grid.
+    :return: center_grid_columns: Same as above, except for columns.
     """
 
     num_rows_in_subgrid, num_columns_in_subgrid = _check_downsizing_args(
@@ -576,9 +657,12 @@ def downsize_grids_around_selected_points(
     new_dimensions = (num_subgrids, num_rows_in_subgrid, num_columns_in_subgrid)
     new_dimensions += predictor_matrix.shape[3:]
     new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
-    target_values = numpy.full(num_subgrids, -1, dtype=int)
 
+    target_values = numpy.full(num_subgrids, -1, dtype=int)
+    center_grid_rows = numpy.full(num_subgrids, -1, dtype=int)
+    center_grid_columns = numpy.full(num_subgrids, -1, dtype=int)
     last_row_added = -1
+
     for i in range(num_times):
         print ('Downsizing grids around selected points at {0:d}th of {1:d} '
                'times...').format(i + 1, num_times)
@@ -598,6 +682,11 @@ def downsize_grids_around_selected_points(
 
             target_values[last_row_added + 1] = target_matrix[
                 i, these_target_point_rows[j], these_target_point_columns[j]]
+            center_grid_rows[last_row_added + 1] = these_target_point_rows[j]
+            center_grid_columns[
+                last_row_added + 1] = these_target_point_columns[j]
+
             last_row_added += 1
 
-    return new_predictor_matrix, target_values
+    return (new_predictor_matrix, target_values, center_grid_rows,
+            center_grid_columns)

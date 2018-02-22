@@ -289,6 +289,9 @@ SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE = numpy.stack(
     (SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE, SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE,
      SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE), axis=-1)
 
+CENTER_ROWS_TOY_EXAMPLE = numpy.array([0, 0, 0, 0, 1, 1, 1, 1], dtype=int)
+CENTER_COLUMNS_TOY_EXAMPLE = numpy.array([0, 1, 2, 3, 0, 1, 2, 3], dtype=int)
+
 TARGET_MATRIX_TOY_EXAMPLE = numpy.array([[0, 0, 1, 1],
                                          [2, 2, 0, 0]], dtype=int)
 TARGET_MATRIX_TOY_EXAMPLE = numpy.stack((TARGET_MATRIX_TOY_EXAMPLE,), axis=0)
@@ -311,6 +314,8 @@ SMALL_PREDICTOR_MATRIX_SELECTED_POINTS = numpy.stack(
      SMALL_PREDICTOR_MATRIX_SELECTED_POINTS), axis=-1)
 
 TARGET_VECTOR_SELECTED_POINTS = numpy.array([1, 0, 0, 2], dtype=int)
+CENTER_ROWS_SELECTED_POINTS = numpy.array([0, 0, 1, 1], dtype=int)
+CENTER_COLUMNS_SELECTED_POINTS = numpy.array([2, 1, 3, 0], dtype=int)
 
 
 class MachineLearningUtilsTests(unittest.TestCase):
@@ -625,19 +630,25 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_full_predictor_matrix = copy.deepcopy(
             FULL_PREDICTOR_MATRIX_TOY_EXAMPLE)
 
-        this_small_predictor_matrix, this_target_vector = (
-            ml_utils.downsize_grids_around_each_point(
-                predictor_matrix=this_full_predictor_matrix,
-                target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
-                num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
-                num_columns_in_half_window=
-                NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE, test_mode=True))
+        (this_small_predictor_matrix,
+         this_target_vector,
+         these_center_rows,
+         these_center_columns) = ml_utils.downsize_grids_around_each_point(
+             predictor_matrix=this_full_predictor_matrix,
+             target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
+             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
+             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE,
+             test_mode=True)
 
         self.assertTrue(numpy.allclose(
             this_small_predictor_matrix, SMALL_PREDICTOR_MATRIX_TOY_EXAMPLE,
             atol=TOLERANCE))
         self.assertTrue(numpy.array_equal(
             this_target_vector, TARGET_VECTOR_TOY_EXAMPLE))
+        self.assertTrue(numpy.array_equal(
+            these_center_rows, CENTER_ROWS_TOY_EXAMPLE))
+        self.assertTrue(numpy.array_equal(
+            these_center_columns, CENTER_COLUMNS_TOY_EXAMPLE))
 
     def test_downsize_grids_around_selected_points(self):
         """Ensures correct output from downsize_grids_around_selected_points."""
@@ -645,21 +656,25 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_full_predictor_matrix = copy.deepcopy(
             FULL_PREDICTOR_MATRIX_TOY_EXAMPLE)
 
-        this_small_predictor_matrix, this_target_vector = (
-            ml_utils.downsize_grids_around_selected_points(
-                predictor_matrix=this_full_predictor_matrix,
-                target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
-                num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
-                num_columns_in_half_window=
-                NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE,
-                target_point_dict=TARGET_POINT_DICT_FOR_DOWNSIZING,
-                test_mode=True))
+        (this_small_predictor_matrix,
+         this_target_vector,
+         these_center_rows,
+         these_center_columns) = ml_utils.downsize_grids_around_selected_points(
+             predictor_matrix=this_full_predictor_matrix,
+             target_matrix=TARGET_MATRIX_TOY_EXAMPLE,
+             num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW_TOY_EXAMPLE,
+             num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW_TOY_EXAMPLE,
+             target_point_dict=TARGET_POINT_DICT_FOR_DOWNSIZING, test_mode=True)
 
         self.assertTrue(numpy.allclose(
             this_small_predictor_matrix, SMALL_PREDICTOR_MATRIX_SELECTED_POINTS,
             atol=TOLERANCE))
         self.assertTrue(numpy.array_equal(
             this_target_vector, TARGET_VECTOR_SELECTED_POINTS))
+        self.assertTrue(numpy.array_equal(
+            these_center_rows, CENTER_ROWS_SELECTED_POINTS))
+        self.assertTrue(numpy.array_equal(
+            these_center_columns, CENTER_COLUMNS_SELECTED_POINTS))
 
 
 if __name__ == '__main__':
