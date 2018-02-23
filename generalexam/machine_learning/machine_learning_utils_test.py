@@ -16,7 +16,7 @@ PREDICTOR_MATRIX_2D = numpy.array([[1, 2, 3, 4],
                                    [5, 6, 7, 8]], dtype=numpy.float32)
 
 PREDICTOR_MATRIX_3D = numpy.stack(
-    (PREDICTOR_MATRIX_2D, PREDICTOR_MATRIX_2D), axis=-1)
+    (PREDICTOR_MATRIX_2D, PREDICTOR_MATRIX_2D), axis=0)
 PREDICTOR_MATRIX_3D[0, 0, 0] = numpy.nan
 
 PREDICTOR_MATRIX_4D = numpy.stack(
@@ -114,6 +114,33 @@ SMALL_GRID_MATRIX_MIDDLE_3D = numpy.stack(
     (SMALL_GRID_MATRIX_MIDDLE, SMALL_GRID_MATRIX_MIDDLE), axis=0)
 SMALL_GRID_MATRIX_MIDDLE_4D = numpy.stack(
     (SMALL_GRID_MATRIX_MIDDLE_3D, SMALL_GRID_MATRIX_MIDDLE_3D), axis=-1)
+
+# The following constants are used to test normalize_predictor_matrix.
+PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
+THIS_PREDICTOR_MATRIX1 = numpy.array([[0, 1, 2, 3],
+                                      [4, 5, 6, 7]], dtype=numpy.float32)
+THIS_PREDICTOR_MATRIX2 = numpy.array([[numpy.nan, 1, 2, 3],
+                                      [4, 5, 6, 7]], dtype=numpy.float32)
+THIS_PREDICTOR_MATRIX_3D = numpy.stack(
+    (THIS_PREDICTOR_MATRIX1, THIS_PREDICTOR_MATRIX2), axis=-1)
+PREDICTOR_MATRIX_4D_UNNORMALIZED = numpy.stack(
+    (THIS_PREDICTOR_MATRIX_3D, THIS_PREDICTOR_MATRIX_3D), axis=0)
+
+THIS_PREDICTOR_MATRIX_3D = numpy.stack(
+    (THIS_PREDICTOR_MATRIX1 / 7, (THIS_PREDICTOR_MATRIX2 - 1) / 6), axis=-1)
+PREDICTOR_MATRIX_4D_NORMALIZED_BY_IMAGE = numpy.stack(
+    (THIS_PREDICTOR_MATRIX_3D, THIS_PREDICTOR_MATRIX_3D), axis=0)
+
+PREDICTOR_NAMES = ['foo', 'bar']
+PREDICTOR_NORMALIZATION_DICT = {
+    'foo': numpy.array([0., 10.]),
+    'bar': numpy.array([-5., 5.])
+}
+
+THIS_PREDICTOR_MATRIX_3D = numpy.stack(
+    (THIS_PREDICTOR_MATRIX1 / 10, (THIS_PREDICTOR_MATRIX2 + 5) / 10), axis=-1)
+PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT = numpy.stack(
+    (THIS_PREDICTOR_MATRIX_3D, THIS_PREDICTOR_MATRIX_3D), axis=0)
 
 # The following constants are used to test front_table_to_matrices.
 NUM_GRID_ROWS = 6
@@ -575,6 +602,37 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_MIDDLE_4D, atol=TOLERANCE))
+
+    def test_normalize_predictor_matrix_by_image(self):
+        """Ensures correct output from normalize_predictor_matrix.
+
+        In this case, normalize_by_image = True.
+        """
+
+        this_input_matrix = copy.deepcopy(PREDICTOR_MATRIX_4D_UNNORMALIZED)
+        this_normalized_matrix = ml_utils.normalize_predictor_matrix(
+            predictor_matrix=this_input_matrix, normalize_by_image=True,
+            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
+
+        self.assertTrue(numpy.allclose(
+            this_normalized_matrix, PREDICTOR_MATRIX_4D_NORMALIZED_BY_IMAGE,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_normalize_predictor_matrix_by_dict(self):
+        """Ensures correct output from normalize_predictor_matrix.
+
+        In this case, normalize_by_image = False.
+        """
+
+        this_input_matrix = copy.deepcopy(PREDICTOR_MATRIX_4D_UNNORMALIZED)
+        this_normalized_matrix = ml_utils.normalize_predictor_matrix(
+            predictor_matrix=this_input_matrix, normalize_by_image=False,
+            predictor_names=PREDICTOR_NAMES,
+            normalization_dict=PREDICTOR_NORMALIZATION_DICT)
+
+        self.assertTrue(numpy.allclose(
+            this_normalized_matrix, PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT,
+            atol=TOLERANCE, equal_nan=True))
 
     def test_sample_target_points(self):
         """Ensures correct output from _sample_target_points."""
