@@ -4,6 +4,7 @@ import copy
 import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_io import processed_narr_io
 from generalexam.ge_utils import front_utils
 
 DEFAULT_NUM_SAMPLE_PTS_PER_TIME = 1000
@@ -17,6 +18,12 @@ NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(
 
 ROW_INDICES_BY_TIME_KEY = 'row_indices_by_time'
 COLUMN_INDICES_BY_TIME_KEY = 'column_indices_by_time'
+
+DEFAULT_PREDICTOR_NORMALIZATION_DICT = {
+    processed_narr_io.WET_BULB_TEMP_NAME: numpy.array([240., 305.]),
+    processed_narr_io.U_WIND_GRID_RELATIVE_NAME: numpy.array([-20., 20.]),
+    processed_narr_io.V_WIND_GRID_RELATIVE_NAME: numpy.array([-20., 20.])
+}
 
 
 def _check_predictor_matrix(predictor_matrix, allow_nan=False):
@@ -243,6 +250,64 @@ def _downsize_grid(
 
     return numpy.pad(
         small_grid_matrix, pad_width=pad_width_input_arg, mode='edge')
+
+
+def normalize_predictor_matrix(
+        predictor_matrix, normalize_by_image=False, predictor_names=None,
+        normalization_dict=DEFAULT_PREDICTOR_NORMALIZATION_DICT,
+        percentile_offset=1.):
+    """Normalizes predictor matrix.
+
+    Specifically, each value will be normalized as follows.
+
+    new_value = (old_value - min_value) / (max_value - min_value)
+
+    If normalize_by_image = False, min_value and max_value will always be the
+    same (taken from normalization_dict).
+
+    If normalize_by_image = True, min_value and max_value will be different for
+    each image and each predictor variable.  Specifically, for the [i]th image
+    and [j]th predictor variable, they will be the [k]th and [100 - k]th
+    percentiles of the [j]th predictor in the [i]th image, where
+    k = percentile_offset.
+
+    :param predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
+    :param normalize_by_image: Boolean flag (see general discussion above).
+    :param predictor_names: [used only if normalize_by_image = False]
+        length-C list of predictor names (strings).
+    :param normalization_dict: [used only if normalize_by_image = False]
+        Dictionary, where each key is the name of a predictor (from
+        `predictor_names`) and each value is a length-2 numpy array with
+        (min_value, max_value).
+    :param percentile_offset: [used only if normalize_by_image = True]
+        See k in the general discussion above.
+    :return: predictor_matrix: Same as input, except normalized.
+    """
+
+    num_predictors = predictor_matrix.shape[-1]
+
+    if normalize_by_image:
+        num_images = predictor_matrix.shape[0]
+        for i in range(num_images):
+            for m in range(num_predictors):
+                this_min_value = numpy.nanpercentile(
+                    predictor_matrix[i, :, :, m], percentile_offset)
+                this_max_value = numpy.nanpercentile(
+                    predictor_matrix[i, :, :, m], 100. - percentile_offset)
+
+                predictor_matrix[i, :, :, m] = (
+                    (predictor_matrix[i, :, :, m] - this_min_value) /
+                    (this_max_value - this_min_value))
+
+    else:
+        for m in range(num_predictors):
+            this_min_value = normalization_dict[predictor_names[m]][0]
+            this_max_value = normalization_dict[predictor_names[m]][1]
+            predictor_matrix[..., m] = (
+                (predictor_matrix[..., m] - this_min_value) /
+                (this_max_value - this_min_value))
+
+    return predictor_matrix
 
 
 def check_downsized_examples(

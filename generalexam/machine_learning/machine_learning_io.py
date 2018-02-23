@@ -193,6 +193,11 @@ def downsized_example_generator(input_file_pattern, num_examples_per_batch):
 
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
+        predictor_matrix_to_return = (
+            ml_utils.normalize_predictor_matrix(
+                predictor_matrix=predictor_matrix_to_return,
+                normalize_by_image=True))
+
         target_values_to_return = keras.utils.to_categorical(
             target_values[batch_indices], NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
 
