@@ -1,13 +1,20 @@
 """IO methods for machine learning."""
 
+import glob
+import random
 import os.path
 import pickle
+import numpy
+import keras
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
+
+NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES = 2
+
 
 def write_downsized_examples_to_file(
         predictor_matrix, target_values, unix_times_sec, center_grid_rows,
@@ -114,3 +121,83 @@ def find_downsized_example_file(
         raise ValueError(error_string)
 
     return downsized_example_file_name
+
+
+def downsized_example_generator(input_file_pattern, num_examples_per_batch):
+    """Generates downsized input examples for a Keras model.
+
+    This function fits the template specified by `keras.models.*.fit_generator`.
+    Thus, when training a Keras model with the `fit_generator` method, the input
+    argument "generator" should be this function.  For example:
+
+    model_object.fit_generator(
+        generator=machine_learning_io.downsized_example_generator(
+            training_file_pattern, batch_size),
+        ...)
+
+    B = batch size (number of examples per batch)
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    C = number of channels (predictor variables)
+
+    :param input_file_pattern: Glob pattern for input files (example:
+        "ml_examples/downsized/201712/*.p").  All files matching this pattern
+        will be used.
+    :param num_examples_per_batch: Number of examples per batch.  This argument
+        is just known as "batch_size" in Keras.
+    :return: predictor_matrix: B-by-M-by-N-by-C numpy array of predictor values.
+    :return: target_values: length-B numpy array of corresponding targets
+        (labels).
+    """
+
+    input_file_names = glob.glob(input_file_pattern)
+    random.shuffle(input_file_names)
+    num_files = len(input_file_names)
+
+    batch_indices = numpy.linspace(
+        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
+
+    file_index = 0
+    num_examples_in_memory = 0
+    predictor_matrix = None
+    target_values = None
+
+    while True:
+        while num_examples_in_memory < num_examples_per_batch:
+            if target_values is None:
+                predictor_matrix, target_values, _, _, _, _ = (
+                    read_downsized_examples_from_file(
+                        input_file_names[file_index]))
+            else:
+                this_predictor_matrix, these_target_values, _, _, _, _ = (
+                    read_downsized_examples_from_file(
+                        input_file_names[file_index]))
+
+                predictor_matrix = numpy.concatenate(
+                    (predictor_matrix, this_predictor_matrix), axis=0)
+                target_values = numpy.concatenate(
+                    (target_values, these_target_values))
+
+            num_examples_in_memory = len(target_values)
+            file_index += 1
+            if file_index >= num_files:
+                file_index = 0
+
+        example_indices = numpy.linspace(
+            0, num_examples_in_memory - 1, num=num_examples_in_memory,
+            dtype=int)
+
+        numpy.random.shuffle(example_indices)
+        predictor_matrix = predictor_matrix[example_indices, ...]
+        target_values = target_values[example_indices]
+
+        predictor_matrix_to_return = predictor_matrix[
+            batch_indices, ...].astype('float32')
+        target_values_to_return = keras.utils.to_categorical(
+            target_values[batch_indices], NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
+
+        predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
+        target_values = numpy.delete(target_values, batch_indices, axis=0)
+        num_examples_in_memory = len(target_values)
+
+        yield (predictor_matrix_to_return, target_values_to_return)
