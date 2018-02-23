@@ -1,9 +1,21 @@
 """IO methods for warm and cold fronts."""
 
+import os.path
 import pickle
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
+
+TIME_FORMAT_MONTH = '%Y%m'
+TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
+
+POLYLINE_FILE_TYPE = 'polylines'
+GRIDDED_FILE_TYPE = 'narr_grids'
+VALID_FILE_TYPES = [POLYLINE_FILE_TYPE, GRIDDED_FILE_TYPE]
+
+PATHLESS_PREFIX_FOR_POLYLINE_FILES = 'front_locations'
+PATHLESS_PREFIX_FOR_GRIDDED_FILES = 'narr_frontal_grids'
 
 REQUIRED_POLYLINE_COLUMNS = [
     front_utils.FRONT_TYPE_COLUMN, front_utils.TIME_COLUMN,
@@ -14,6 +26,20 @@ REQUIRED_GRID_COLUMNS = [
     front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN,
     front_utils.COLD_FRONT_ROW_INDICES_COLUMN,
     front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN]
+
+
+def _check_file_type(file_type):
+    """Ensures that proposed file type is valid.
+
+    :param file_type: File type (must be in list `VALID_FILE_TYPES`).
+    :raises: ValueError: if `file_type not in VALID_FILE_TYPES`.
+    """
+
+    error_checking.assert_is_string(file_type)
+    if file_type not in VALID_FILE_TYPES:
+        error_string = ('\n\n{0:s}\nValid file types (listed above) do not '
+                        'include "{1:s}".').format(VALID_FILE_TYPES, file_type)
+        raise ValueError(error_string)
 
 
 def write_polylines_to_file(front_table, pickle_file_name):
@@ -100,3 +126,88 @@ def read_narr_grids_from_file(pickle_file_name):
     error_checking.assert_columns_in_dataframe(
         frontal_grid_table, REQUIRED_GRID_COLUMNS)
     return frontal_grid_table
+
+
+def find_file_for_time_period(
+        directory_name, file_type, start_time_unix_sec, end_time_unix_sec,
+        raise_error_if_missing=True):
+    """Finds file with fronts for a contiguous time period.
+
+    Specifically, this file should contain EITHER polylines or NARR grids,
+    defining warm and cold fronts, at all 3-hour time steps in the given period.
+
+    :param directory_name: Name of directory.
+    :param file_type: Type of file (either "polylines" or "narr_grids").
+    :param start_time_unix_sec: Start of contiguous time period.
+    :param end_time_unix_sec: End of contiguous time period.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.  If file is
+        missing and raise_error_if_missing = False, this method will return the
+        *expected* path to the file.
+    :return: front_file_name: Path to file.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    _check_file_type(file_type)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if file_type == POLYLINE_FILE_TYPE:
+        this_pathless_file_prefix = PATHLESS_PREFIX_FOR_POLYLINE_FILES
+    else:
+        this_pathless_file_prefix = PATHLESS_PREFIX_FOR_GRIDDED_FILES
+
+    front_file_name = '{0:s}/{1:s}_{2:s}-{3:s}.p'.format(
+        directory_name, this_pathless_file_prefix,
+        time_conversion.unix_sec_to_string(
+            start_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
+        time_conversion.unix_sec_to_string(
+            end_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES))
+
+    if raise_error_if_missing and not os.path.isfile(front_file_name):
+        error_string = (
+            'Cannot find file.  Expected at location: "{0:s}"'.format(
+                front_file_name))
+        raise ValueError(error_string)
+
+    return front_file_name
+
+
+def find_file_for_one_time(
+        top_directory_name, file_type, valid_time_unix_sec,
+        raise_error_if_missing=True):
+    """Finds file with fronts for a single time step.
+
+    Specifically, this file should contain EITHER polylines or NARR grids,
+    defining warm and cold fronts, at one time step.
+
+    :param top_directory_name: Name of top-level directory with polyline files.
+    :param file_type: Type of file (either "polylines" or "narr_grids").
+    :param valid_time_unix_sec: Valid time.
+    :param raise_error_if_missing: See documentation for
+        `find_file_for_time_period`.
+    :return: front_file_name: Path to file.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    _check_file_type(file_type)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if file_type == POLYLINE_FILE_TYPE:
+        this_pathless_file_prefix = PATHLESS_PREFIX_FOR_POLYLINE_FILES
+    else:
+        this_pathless_file_prefix = PATHLESS_PREFIX_FOR_GRIDDED_FILES
+
+    front_file_name = '{0:s}/{1:s}/{2:s}_{3:s}.p'.format(
+        top_directory_name,
+        time_conversion.unix_sec_to_string(
+            valid_time_unix_sec, TIME_FORMAT_MONTH), this_pathless_file_prefix,
+        time_conversion.unix_sec_to_string(
+            valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES))
+
+    if raise_error_if_missing and not os.path.isfile(front_file_name):
+        error_string = (
+            'Cannot find file.  Expected at location: "{0:s}"'.format(
+                front_file_name))
+        raise ValueError(error_string)
+
+    return front_file_name
