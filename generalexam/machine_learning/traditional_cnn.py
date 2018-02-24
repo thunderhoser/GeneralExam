@@ -15,9 +15,9 @@ Throughout this module, the following letters will be used to denote matrix
 dimensions.
 
 E = number of examples (images)
-    M = number of image rows (unique y-coordinates at pixel centers)
-    N = number of image columns (unique x-coordinates at pixel centers)
-    C = number of image channels (predictor variables)
+M = number of image rows (unique y-coordinates at pixel centers)
+N = number of image columns (unique x-coordinates at pixel centers)
+C = number of image channels (predictor variables)
 """
 
 import keras
