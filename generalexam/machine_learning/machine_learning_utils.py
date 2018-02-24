@@ -495,6 +495,9 @@ def front_table_to_matrices(
     error_checking.assert_is_integer(num_grid_columns)
     error_checking.assert_is_greater(num_grid_columns, 0)
 
+    if frontal_grid_table.empty:
+        return numpy.full((1, num_grid_rows, num_grid_columns), 0, dtype=int)
+
     num_times = len(frontal_grid_table.index)
     frontal_grid_matrix = None
 

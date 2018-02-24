@@ -439,22 +439,24 @@ def downsized_example_generator_on_the_fly(
                 tuple_of_full_predictor_matrices += (
                     this_field_full_predictor_matrix,)
 
-            print 'Creating downsized machine-learning examples...'
+            print 'Reading data from: "{0:s}"...'.format(
+                frontal_grid_file_names[time_index])
+            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
+                frontal_grid_file_names[time_index])
 
             time_index += 1
             if time_index >= num_times:
                 time_index = 0
+            if this_frontal_grid_table.empty:
+                continue
+
+            print 'Creating downsized machine-learning examples...'
 
             this_full_predictor_matrix = ml_utils.stack_predictor_variables(
                 tuple_of_full_predictor_matrices)
             this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
                 predictor_matrix=this_full_predictor_matrix,
                 normalize_by_image=True)
-
-            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[time_index])
-            if this_frontal_grid_table.empty:
-                continue
 
             this_frontal_grid_matrix = ml_utils.front_table_to_matrices(
                 frontal_grid_table=this_frontal_grid_table,
@@ -621,19 +623,21 @@ def full_size_example_generator(
 
                 tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
-            print 'Processing full-size machine-learning example...'
+            print 'Reading data from: "{0:s}"...'.format(
+                frontal_grid_file_names[time_index])
+            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
+                frontal_grid_file_names[time_index])
 
             time_index += 1
             if time_index >= num_times:
                 time_index = 0
 
+            print 'Processing full-size machine-learning example...'
+
             this_predictor_matrix = ml_utils.stack_predictor_variables(
                 tuple_of_predictor_matrices)
             this_predictor_matrix = ml_utils.normalize_predictor_matrix(
                 predictor_matrix=this_predictor_matrix, normalize_by_image=True)
-
-            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[time_index])
 
             this_frontal_grid_matrix = ml_utils.front_table_to_matrices(
                 frontal_grid_table=this_frontal_grid_table,
@@ -664,9 +668,12 @@ def full_size_example_generator(
 
             num_examples_in_memory = target_matrix.shape[0]
 
-        predictor_matrix_to_return = predictor_matrix.astype('float32')
-        target_matrix_to_return = keras.utils.to_categorical(
-            target_matrix, NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
+        predictor_matrix_to_return = predictor_matrix[:, :272, :256, :].astype(
+            'float32')
+        target_matrix_to_return = target_matrix[:, :272, :256].astype('bool')
+        print numpy.mean(target_matrix_to_return)
+        target_matrix_to_return = numpy.expand_dims(
+            target_matrix_to_return, axis=-1)
 
         predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
         target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)
