@@ -19,7 +19,9 @@ TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
 
 NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES = 2
-NARR_TIME_INTERVAL_SECONDS = nwp_model_utils.get_time_steps(
+
+HOURS_TO_SECONDS = 3600
+NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
     nwp_model_utils.NARR_MODEL_NAME)[1]
 
 
@@ -85,8 +87,8 @@ def _find_files_for_otf_generator(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :return: narr_file_names_by_predictor: P-by-T list of paths to NARR files,
-        each containing the grid for one predictor field at one time step.
+    :return: narr_file_names_by_time: T-by-P list of paths to NARR files, each
+        containing the grid for one predictor field at one time step.
     :return: frontal_grid_file_names: length-T list of paths to frontal-grid
         files.  Each contains the indices of all NARR grid points intersected by
         a front (warm or cold) at one time step.
@@ -100,12 +102,13 @@ def _find_files_for_otf_generator(
 
     num_times = len(valid_times_unix_sec)
     num_predictors = len(narr_predictor_names)
-    narr_file_names_by_predictor = [[] * num_times] * num_predictors
-    frontal_grid_file_names = [] * num_times
+    frontal_grid_file_names = [''] * num_times
+    narr_file_name_matrix = numpy.full(
+        (num_times, num_predictors), '', dtype=numpy.object)
 
     for i in range(num_times):
         for j in range(num_predictors):
-            narr_file_names_by_predictor[j][i] = (
+            narr_file_name_matrix[i, j] = (
                 processed_narr_io.find_file_for_one_time(
                     top_directory_name=top_narr_directory_name,
                     field_name=narr_predictor_names[j],
@@ -119,7 +122,7 @@ def _find_files_for_otf_generator(
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=True)
 
-    return narr_file_names_by_predictor, frontal_grid_file_names
+    return narr_file_name_matrix, frontal_grid_file_names
 
 
 def write_downsized_examples_to_file(
@@ -275,8 +278,13 @@ def downsized_example_generator_from_files(
     target_values = None
 
     while True:
+        print '\n'
+
         while num_examples_in_memory < num_examples_per_batch:
-            if target_values is None:
+            print 'Reading data from: "{0:s}"...'.format(
+                input_file_names[file_index])
+
+            if target_values is None or len(target_values) == 0:
                 predictor_matrix, target_values, _, _, _, _ = (
                     read_downsized_examples_from_file(
                         input_file_names[file_index]))
@@ -305,10 +313,10 @@ def downsized_example_generator_from_files(
 
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
-        predictor_matrix_to_return = (
-            ml_utils.normalize_predictor_matrix(
-                predictor_matrix=predictor_matrix_to_return,
-                normalize_by_image=True))
+        # predictor_matrix_to_return = (
+        #     ml_utils.normalize_predictor_matrix(
+        #         predictor_matrix=predictor_matrix_to_return,
+        #         normalize_by_image=True))  # Should already be done in file.
 
         target_values_to_return = keras.utils.to_categorical(
             target_values[batch_indices], NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
@@ -385,7 +393,7 @@ def downsized_example_generator_on_the_fly(
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid)
 
-    narr_file_names_by_predictor, frontal_grid_file_names = (
+    narr_file_name_matrix, frontal_grid_file_names = (
         _find_files_for_otf_generator(
             start_time_unix_sec=start_time_unix_sec,
             end_time_unix_sec=end_time_unix_sec,
@@ -406,15 +414,20 @@ def downsized_example_generator_on_the_fly(
 
     while True:
         while num_examples_in_memory < num_examples_per_batch:
+            print '\n'
             tuple_of_full_predictor_matrices = ()
 
             for j in range(num_predictors):
+                print 'Reading data from: "{0:s}"...'.format(
+                    narr_file_name_matrix[time_index, j])
                 this_field_full_predictor_matrix, _, _, _ = (
                     processed_narr_io.read_fields_from_file(
-                        narr_file_names_by_predictor[j][time_index]))
+                        narr_file_name_matrix[time_index, j]))
 
                 tuple_of_full_predictor_matrices += (
                     this_field_full_predictor_matrix,)
+
+            print 'Creating downsized machine-learning examples...'
 
             time_index += 1
             if time_index >= num_times:
@@ -448,7 +461,7 @@ def downsized_example_generator_on_the_fly(
             this_frontal_grid_matrix = ml_utils.dilate_target_grids(
                 binary_target_matrix=this_frontal_grid_matrix,
                 num_grid_cells_in_half_window=
-                dilation_half_width_for_target)
+                dilation_half_width_for_target, verbose=False)
 
             this_sampled_target_point_dict = ml_utils.sample_target_points(
                 binary_target_matrix=this_frontal_grid_matrix,
@@ -457,19 +470,31 @@ def downsized_example_generator_on_the_fly(
             if this_sampled_target_point_dict is None:
                 continue
 
-            (this_downsized_predictor_matrix, these_target_values,
-             _, _, _) = ml_utils.downsize_grids_around_selected_points(
-                 predictor_matrix=this_full_predictor_matrix,
-                 target_matrix=this_frontal_grid_matrix,
-                 num_rows_in_half_window=num_rows_in_half_grid,
-                 num_columns_in_half_window=num_columns_in_half_grid,
-                 target_point_dict=this_sampled_target_point_dict)
+            if target_values is None or len(target_values) == 0:
+                downsized_predictor_matrix, target_values, _, _, _ = (
+                    ml_utils.downsize_grids_around_selected_points(
+                        predictor_matrix=this_full_predictor_matrix,
+                        target_matrix=this_frontal_grid_matrix,
+                        num_rows_in_half_window=num_rows_in_half_grid,
+                        num_columns_in_half_window=num_columns_in_half_grid,
+                        target_point_dict=this_sampled_target_point_dict,
+                        verbose=False))
+            else:
+                (this_downsized_predictor_matrix, these_target_values,
+                 _, _, _) = ml_utils.downsize_grids_around_selected_points(
+                     predictor_matrix=this_full_predictor_matrix,
+                     target_matrix=this_frontal_grid_matrix,
+                     num_rows_in_half_window=num_rows_in_half_grid,
+                     num_columns_in_half_window=num_columns_in_half_grid,
+                     target_point_dict=this_sampled_target_point_dict,
+                     verbose=False)
 
-            downsized_predictor_matrix = numpy.concatenate(
-                (downsized_predictor_matrix, this_downsized_predictor_matrix),
-                axis=0)
-            target_values = numpy.concatenate(
-                (target_values, these_target_values))
+                downsized_predictor_matrix = numpy.concatenate(
+                    (downsized_predictor_matrix,
+                     this_downsized_predictor_matrix), axis=0)
+                target_values = numpy.concatenate(
+                    (target_values, these_target_values))
+
             num_examples_in_memory = len(target_values)
 
         example_indices = numpy.linspace(

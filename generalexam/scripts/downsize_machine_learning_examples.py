@@ -297,6 +297,8 @@ def _downsize_ml_examples(
 
     predictor_matrix = ml_utils.stack_predictor_variables(
         tuple_of_predictor_matrices)
+    predictor_matrix = ml_utils.normalize_predictor_matrix(
+        predictor_matrix, normalize_by_image=True)
 
     frontal_grid_file_name = _find_frontal_grid_file(
         directory_name=input_frontal_grid_dir_name, year_string=time_string[:4])

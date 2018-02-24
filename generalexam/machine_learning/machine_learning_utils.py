@@ -554,12 +554,15 @@ def binarize_front_labels(frontal_grid_matrix):
     return frontal_grid_matrix
 
 
-def dilate_target_grids(binary_target_matrix, num_grid_cells_in_half_window):
+def dilate_target_grids(
+        binary_target_matrix, num_grid_cells_in_half_window, verbose=True):
     """Dilates target grid at each time step.
 
     :param binary_target_matrix: See documentation for `_check_target_matrix`.
     :param num_grid_cells_in_half_window: Number of grid cells in dilation half-
         window.
+    :param verbose: Boolean flag.  If True, this method will print progress
+        messages.
     :return: binary_target_matrix: Same as input, except dilated.
     """
 
@@ -569,10 +572,12 @@ def dilate_target_grids(binary_target_matrix, num_grid_cells_in_half_window):
     # building it into these methods.
 
     _check_target_matrix(binary_target_matrix, assert_binary=True)
+    error_checking.assert_is_boolean(verbose)
 
     num_times = binary_target_matrix.shape[0]
     for i in range(num_times):
-        print 'Dilating target grid at {0:d}th time step...'.format(i)
+        if verbose:
+            print 'Dilating target grid at {0:d}th time step...'.format(i)
 
         binary_target_matrix[i, :, :] = front_utils.dilate_binary_image(
             binary_matrix=binary_target_matrix[i, :, :],
@@ -645,7 +650,7 @@ def remove_nans_from_narr_grid(narr_matrix):
 
 def downsize_grids_around_each_point(
         predictor_matrix, target_matrix, num_rows_in_half_window,
-        num_columns_in_half_window, test_mode=False):
+        num_columns_in_half_window, verbose=True, test_mode=False):
     """At each point P in full grid, takes smaller grid ("window") around P.
 
     For more details, see `downsize_grid`, which is called by this method for
@@ -667,6 +672,8 @@ def downsize_grids_around_each_point(
         (see general discussion above).
     :param num_columns_in_half_window: Determines number of columns in each
         subgrid (see general discussion above).
+    :param verbose: Boolean flag.  If True, this method will print progress
+        messages.
     :param test_mode: Boolean flag.  Always leave this False.
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either G-by-m-by-n or G-by-m-by-n-by-C.
@@ -705,10 +712,11 @@ def downsize_grids_around_each_point(
 
     for j in range(num_rows_in_full_grid):
         for k in range(num_columns_in_full_grid):
-            print ('Downsizing grids around {0:d}th of {1:d} rows, {0:d}th of '
-                   '{1:d} columns...').format(
-                       j + 1, num_rows_in_full_grid, k + 1,
-                       num_columns_in_full_grid)
+            if verbose:
+                print ('Downsizing grids around {0:d}th of {1:d} rows, {0:d}th '
+                       'of {1:d} columns...').format(
+                           j + 1, num_rows_in_full_grid, k + 1,
+                           num_columns_in_full_grid)
 
             this_first_subgrid_index = num_times * (
                 j * num_columns_in_full_grid + k)
@@ -741,7 +749,8 @@ def downsize_grids_around_each_point(
 
 def downsize_grids_around_selected_points(
         predictor_matrix, target_matrix, num_rows_in_half_window,
-        num_columns_in_half_window, target_point_dict, test_mode=False):
+        num_columns_in_half_window, target_point_dict, verbose=True,
+        test_mode=False):
     """Takes smaller grid ("window") around each selected point in full grid.
 
     For more details, see `downsize_grid`, which is called by this method for
@@ -764,6 +773,8 @@ def downsize_grids_around_selected_points(
     :param num_columns_in_half_window: Determines number of columns in each
         subgrid (see general discussion above).
     :param target_point_dict: Dictionary created by `sample_target_points`.
+    :param verbose: Boolean flag.  If True, this method will print progress
+        messages.
     :param test_mode: Boolean flag.  Always leave this False.
     :return: predictor_matrix: numpy array with predictor variables.  Dimensions
         may be either P x m x n x C or P x m x n.
@@ -799,8 +810,9 @@ def downsize_grids_around_selected_points(
     last_row_added = -1
 
     for i in range(num_times):
-        print ('Downsizing grids around selected points at {0:d}th of {1:d} '
-               'times...').format(i + 1, num_times)
+        if verbose:
+            print ('Downsizing grids around selected points at {0:d}th of '
+                   '{1:d} times...').format(i + 1, num_times)
 
         these_target_point_rows = target_point_dict[ROW_INDICES_BY_TIME_KEY][i]
         these_target_point_columns = target_point_dict[
