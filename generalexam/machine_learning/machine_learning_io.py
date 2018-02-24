@@ -1,5 +1,6 @@
 """IO methods for machine learning."""
 
+import copy
 import glob
 import random
 import os.path
@@ -26,16 +27,19 @@ NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
 
 
 def _check_input_args_for_otf_generator(
-        num_examples_per_batch, num_examples_per_time, narr_predictor_names,
-        dilation_half_width_for_target, num_rows_in_half_grid,
-        num_columns_in_half_grid):
-    """Error-checks input args for `downsized_example_generator_on_the_fly`.
+        num_examples_per_batch, narr_predictor_names,
+        dilation_half_width_for_target, num_examples_per_time=None,
+        num_rows_in_half_grid=None, num_columns_in_half_grid=None):
+    """Error-checks input arguments for on-the-fly input-generator.
+
+    Examples of on-the-fly input generators:
+    `downsized_example_generator_on_the_fly`, `full_size_example_generator`
 
     :param num_examples_per_batch: See documentation for
         `downsized_example_generator_on_the_fly`.
-    :param num_examples_per_time: Same.
     :param narr_predictor_names: Same.
     :param dilation_half_width_for_target: Same.
+    :param num_examples_per_time: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :raises: ValueError: if `dilation_half_width_for_target` >=
@@ -44,14 +48,19 @@ def _check_input_args_for_otf_generator(
 
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 2)
-    error_checking.assert_is_integer(num_examples_per_time)
-    error_checking.assert_is_geq(num_examples_per_time, 2)
     error_checking.assert_is_string_list(narr_predictor_names)
     error_checking.assert_is_numpy_array(
         numpy.asarray(narr_predictor_names), num_dimensions=1)
 
     error_checking.assert_is_integer(dilation_half_width_for_target)
     error_checking.assert_is_greater(dilation_half_width_for_target, 0)
+    if (num_examples_per_time is None or num_rows_in_half_grid is None or
+            num_columns_in_half_grid is None):
+        return
+
+    error_checking.assert_is_integer(num_examples_per_time)
+    error_checking.assert_is_geq(num_examples_per_time, 2)
+
     error_checking.assert_is_integer(num_rows_in_half_grid)
     error_checking.assert_is_greater(num_rows_in_half_grid, 0)
     error_checking.assert_is_integer(num_columns_in_half_grid)
@@ -75,7 +84,10 @@ def _check_input_args_for_otf_generator(
 def _find_files_for_otf_generator(
         start_time_unix_sec, end_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb):
-    """Finds input files for `downsized_example_generator_on_the_fly`.
+    """Finds input files for on-the-fly input-generator.
+
+    Examples of on-the-fly input generators:
+    `downsized_example_generator_on_the_fly`, `full_size_example_generator`
 
     T = number of time steps
     P = number of predictor variables
@@ -245,7 +257,7 @@ def downsized_example_generator_from_files(
     Thus, when training a Keras model with the `fit_generator` method, the input
     argument "generator" should be this function.  For example:
 
-    model_object.fit_generator(
+    model_object.downsized_example_generator_from_files(
         generator=machine_learning_io.downsized_example_generator(
             training_file_pattern, batch_size),
         ...)
@@ -344,7 +356,7 @@ def downsized_example_generator_on_the_fly(
     Thus, when training a Keras model with the `fit_generator` method, the input
     argument "generator" should be this function.  For example:
 
-    model_object.fit_generator(
+    model_object.downsized_example_generator_on_the_fly(
         generator=machine_learning_io.downsized_example_generator(
             training_file_pattern, batch_size),
         ...)
@@ -517,3 +529,147 @@ def downsized_example_generator_on_the_fly(
         num_examples_in_memory = len(target_values)
 
         yield (predictor_matrix_to_return, target_values_to_return)
+
+
+def full_size_example_generator(
+        num_examples_per_batch, start_time_unix_sec, end_time_unix_sec,
+        top_narr_directory_name, top_frontal_grid_dir_name,
+        narr_predictor_names, pressure_level_mb,
+        dilation_half_width_for_target):
+    """Generates full-size input examples for a Keras model.
+
+    A "full-size" examples covers the entire NARR grid (as opposed to downsized
+    examples, created by either `downsized_example_generator_from_files` or
+    `downsized_example_generator_on_the_fly`, which cover only a portion of the
+    NARR grid).
+
+    This function creates examples on the fly (by reading and processing raw
+    data, instead of reading examples from pre-existing files).  As yet, this
+    function has no counterpart that reads from files.
+
+    This function fits the template specified by `keras.models.*.fit_generator`.
+    Thus, when training a Keras model with the `fit_generator` method, the input
+    argument "generator" should be this function.  For example:
+
+    model_object.full_size_example_generator(
+        generator=machine_learning_io.downsized_example_generator(
+            training_file_pattern, batch_size),
+        ...)
+
+    B = batch size (number of examples per batch)
+    M = number of grid rows (unique grid-point y-coordinates)
+    N = number of grid columns (unique grid-point x-coordinates)
+    C = number of channels (predictor variables)
+
+    :param num_examples_per_batch: Number of examples per batch.  This argument
+        is just known as "batch_size" in Keras.
+    :param start_time_unix_sec: Start of time period (from which examples will
+        be randomly chosen).
+    :param end_time_unix_sec: End of time period (from which examples will
+        be randomly chosen).
+    :param top_narr_directory_name: Name of top-level directory with NARR data
+        (one file for each variable, pressure level, and time step).
+    :param top_frontal_grid_dir_name: Name of top-level directory with frontal
+        grids (one file per time step).
+    :param narr_predictor_names: length-C list of NARR fields to use as
+        predictors.
+    :param pressure_level_mb: Pressure level (millibars).
+    :param dilation_half_width_for_target: Half-width of dilation window for
+        target variable.  For each time step t and grid cell [j, k], if a front
+        occurs within `dilation_half_width_for_target` of [j, k] at time t, the
+        label at [t, j, k] will be positive.
+    :return: predictor_matrix: B-by-M-by-N-by-C numpy array of predictor values.
+    :return: target_matrix: B-by-M-by-N numpy array of target labels (all
+        integers, 0 or 1).
+    """
+
+    _check_input_args_for_otf_generator(
+        num_examples_per_batch=num_examples_per_batch,
+        narr_predictor_names=narr_predictor_names,
+        dilation_half_width_for_target=dilation_half_width_for_target)
+
+    narr_file_name_matrix, frontal_grid_file_names = (
+        _find_files_for_otf_generator(
+            start_time_unix_sec=start_time_unix_sec,
+            end_time_unix_sec=end_time_unix_sec,
+            top_narr_directory_name=top_narr_directory_name,
+            top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+            narr_predictor_names=narr_predictor_names,
+            pressure_level_mb=pressure_level_mb))
+
+    num_times = len(frontal_grid_file_names)
+    num_predictors = len(narr_predictor_names)
+    batch_indices = numpy.linspace(
+        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
+
+    time_index = 0
+    num_examples_in_memory = 0
+    predictor_matrix = None
+    target_matrix = None
+
+    while True:
+        while num_examples_in_memory < num_examples_per_batch:
+            print '\n'
+            tuple_of_predictor_matrices = ()
+
+            for j in range(num_predictors):
+                print 'Reading data from: "{0:s}"...'.format(
+                    narr_file_name_matrix[time_index, j])
+                this_field_predictor_matrix, _, _, _ = (
+                    processed_narr_io.read_fields_from_file(
+                        narr_file_name_matrix[time_index, j]))
+
+                tuple_of_predictor_matrices += (this_field_predictor_matrix,)
+
+            print 'Processing full-size machine-learning example...'
+
+            time_index += 1
+            if time_index >= num_times:
+                time_index = 0
+
+            this_predictor_matrix = ml_utils.stack_predictor_variables(
+                tuple_of_predictor_matrices)
+            this_predictor_matrix = ml_utils.normalize_predictor_matrix(
+                predictor_matrix=this_predictor_matrix, normalize_by_image=True)
+
+            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
+                frontal_grid_file_names[time_index])
+
+            this_frontal_grid_matrix = ml_utils.front_table_to_matrices(
+                frontal_grid_table=this_frontal_grid_table,
+                num_grid_rows=this_predictor_matrix.shape[1],
+                num_grid_columns=this_predictor_matrix.shape[2])
+
+            this_frontal_grid_matrix = ml_utils.binarize_front_labels(
+                this_frontal_grid_matrix)
+
+            this_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
+                this_predictor_matrix)
+            this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
+                this_frontal_grid_matrix)
+
+            this_frontal_grid_matrix = ml_utils.dilate_target_grids(
+                binary_target_matrix=this_frontal_grid_matrix,
+                num_grid_cells_in_half_window=
+                dilation_half_width_for_target, verbose=False)
+
+            if target_matrix is None or target_matrix.size == 0:
+                predictor_matrix = copy.deepcopy(this_predictor_matrix)
+                target_matrix = copy.deepcopy(this_frontal_grid_matrix)
+            else:
+                predictor_matrix = numpy.concatenate(
+                    (predictor_matrix, this_predictor_matrix), axis=0)
+                target_matrix = numpy.concatenate(
+                    (target_matrix, this_frontal_grid_matrix), axis=0)
+
+            num_examples_in_memory = target_matrix.shape[0]
+
+        predictor_matrix_to_return = predictor_matrix.astype('float32')
+        target_matrix_to_return = keras.utils.to_categorical(
+            target_matrix, NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
+
+        predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
+        target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)
+        num_examples_in_memory = target_matrix.shape[0]
+
+        yield (predictor_matrix_to_return, target_matrix_to_return)
