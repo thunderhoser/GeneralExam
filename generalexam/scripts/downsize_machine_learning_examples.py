@@ -298,7 +298,7 @@ def _downsize_ml_examples(
     predictor_matrix = ml_utils.stack_predictor_variables(
         tuple_of_predictor_matrices)
     predictor_matrix = ml_utils.normalize_predictor_matrix(
-        predictor_matrix, normalize_by_image=True)
+        predictor_matrix, normalize_by_example=True)
 
     frontal_grid_file_name = _find_frontal_grid_file(
         directory_name=input_frontal_grid_dir_name, year_string=time_string[:4])
@@ -326,12 +326,12 @@ def _downsize_ml_examples(
     print 'Converting target labels to grids...'
     num_grid_rows = predictor_matrix.shape[1]
     num_grid_columns = predictor_matrix.shape[2]
-    frontal_grid_matrix = ml_utils.front_table_to_matrices(
-        frontal_grid_table=frontal_grid_table, num_grid_rows=num_grid_rows,
-        num_grid_columns=num_grid_columns)
+    frontal_grid_matrix = ml_utils.front_table_to_images(
+        frontal_grid_table=frontal_grid_table, num_rows_per_image=num_grid_rows,
+        num_columns_per_image=num_grid_columns)
 
     print 'Binarizing target labels...'
-    frontal_grid_matrix = ml_utils.binarize_front_labels(frontal_grid_matrix)
+    frontal_grid_matrix = ml_utils.binarize_front_images(frontal_grid_matrix)
 
     print 'Removing NaN''s from predictor and target grids...'
     predictor_matrix = ml_utils.remove_nans_from_narr_grid(predictor_matrix)
@@ -339,9 +339,9 @@ def _downsize_ml_examples(
         frontal_grid_matrix)
     print SEPARATOR_STRING
 
-    frontal_grid_matrix = ml_utils.dilate_target_grids(
+    frontal_grid_matrix = ml_utils.dilate_target_images(
         binary_target_matrix=frontal_grid_matrix,
-        num_grid_cells_in_half_window=dilation_half_width_in_grid_cells)
+        num_pixels_in_half_window=dilation_half_width_in_grid_cells)
 
     print ('Downsampling target points (so that fraction of positive cases = '
            '{0:f})...').format(positive_fraction)
@@ -374,18 +374,20 @@ def _downsize_ml_examples(
 
     output_file_name = ml_io.find_downsized_example_file(
         top_directory_name=output_dir_name,
-        valid_time_unix_sec=
-        time_conversion.string_to_unix_sec(time_string, INPUT_TIME_FORMAT),
+        target_time_unix_sec=time_conversion.string_to_unix_sec(
+            time_string, INPUT_TIME_FORMAT),
         pressure_level_mb=pressure_level_mb, raise_error_if_missing=False)
 
     print 'Writing downsized examples to: "{0:s}"...'.format(output_file_name)
     print downsized_predictor_matrix.shape
     ml_io.write_downsized_examples_to_file(
         predictor_matrix=downsized_predictor_matrix,
-        target_values=target_values, unix_times_sec=downsized_times_unix_sec,
+        target_values=target_values,
+        target_times_unix_sec=downsized_times_unix_sec,
         center_grid_rows=center_grid_rows,
         center_grid_columns=center_grid_columns,
-        predictor_names=narr_predictor_names, pickle_file_name=output_file_name)
+        predictor_names=narr_predictor_names,
+        pickle_file_name=output_file_name)
 
 
 def add_input_arguments(argument_parser_object):

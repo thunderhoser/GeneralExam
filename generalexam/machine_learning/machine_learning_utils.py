@@ -339,8 +339,7 @@ def check_downsized_examples(
         predictor_time_matrix_unix_sec=None, assert_binary_target_matrix=False):
     """Checks downsized machine-learning examples for errors.
 
-    Downsized ML examples may be created by either
-    `downsize_grids_around_each_point` or
+    Downsized ML examples are created by
     `downsize_grids_around_selected_points`.
 
     :param predictor_matrix: numpy array of predictor images.  Dimensions may be

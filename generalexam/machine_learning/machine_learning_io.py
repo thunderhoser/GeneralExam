@@ -1,4 +1,16 @@
-"""IO methods for machine learning."""
+"""IO methods for machine learning.
+
+--- NOTATION ---
+
+Throughout this module, the following letters will be used to denote matrix
+dimensions.
+
+E = number of examples.  Each example is one image or a time sequence of images.
+T = number of time steps per example (i.e., number of images in each sequence)
+M = number of pixel rows in each image
+N = number of pixel columns in each image
+C = number of channels (predictor variables) in each image
+"""
 
 import copy
 import glob
@@ -28,22 +40,21 @@ NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
 
 def _check_input_args_for_otf_generator(
         num_examples_per_batch, narr_predictor_names,
-        dilation_half_width_for_target, num_examples_per_time=None,
-        num_rows_in_half_grid=None, num_columns_in_half_grid=None):
-    """Error-checks input arguments for on-the-fly input-generator.
-
-    Examples of on-the-fly input generators:
-    `downsized_example_generator_on_the_fly`, `full_size_example_generator`
+        dilation_half_width_for_target, num_downsized_examples_per_time=None,
+        num_rows_in_downsized_half_grid=None,
+        num_columns_in_downsized_half_grid=None):
+    """Checks input arguments for on-the-fly input-generator.
 
     :param num_examples_per_batch: See documentation for
         `downsized_example_generator_on_the_fly`.
     :param narr_predictor_names: Same.
     :param dilation_half_width_for_target: Same.
-    :param num_examples_per_time: Same.
-    :param num_rows_in_half_grid: Same.
-    :param num_columns_in_half_grid: Same.
+    :param num_downsized_examples_per_time: Same.
+    :param num_rows_in_downsized_half_grid: Same.
+    :param num_columns_in_downsized_half_grid: Same.
     :raises: ValueError: if `dilation_half_width_for_target` >=
-        `num_rows_in_half_grid` or `num_columns_in_half_grid`.
+        `num_rows_in_downsized_half_grid` or
+        `num_columns_in_downsized_half_grid`.
     """
 
     error_checking.assert_is_integer(num_examples_per_batch)
@@ -54,169 +65,251 @@ def _check_input_args_for_otf_generator(
 
     error_checking.assert_is_integer(dilation_half_width_for_target)
     error_checking.assert_is_greater(dilation_half_width_for_target, 0)
-    if (num_examples_per_time is None or num_rows_in_half_grid is None or
-            num_columns_in_half_grid is None):
+    if (num_downsized_examples_per_time is None or
+            num_rows_in_downsized_half_grid is None or
+            num_columns_in_downsized_half_grid is None):
         return
 
-    error_checking.assert_is_integer(num_examples_per_time)
-    error_checking.assert_is_geq(num_examples_per_time, 2)
+    error_checking.assert_is_integer(num_downsized_examples_per_time)
+    error_checking.assert_is_geq(num_downsized_examples_per_time, 2)
 
-    error_checking.assert_is_integer(num_rows_in_half_grid)
-    error_checking.assert_is_greater(num_rows_in_half_grid, 0)
-    error_checking.assert_is_integer(num_columns_in_half_grid)
-    error_checking.assert_is_greater(num_columns_in_half_grid, 0)
+    error_checking.assert_is_integer(num_rows_in_downsized_half_grid)
+    error_checking.assert_is_greater(num_rows_in_downsized_half_grid, 0)
+    error_checking.assert_is_integer(num_columns_in_downsized_half_grid)
+    error_checking.assert_is_greater(num_columns_in_downsized_half_grid, 0)
 
-    if dilation_half_width_for_target >= num_rows_in_half_grid:
+    if dilation_half_width_for_target >= num_rows_in_downsized_half_grid:
         error_string = (
             'dilation_half_width_for_target ({0:d}) should be < '
-            'num_rows_in_half_grid ({1:d}).').format(
-                dilation_half_width_for_target, num_rows_in_half_grid)
+            'num_rows_in_downsized_half_grid ({1:d}).').format(
+                dilation_half_width_for_target, num_rows_in_downsized_half_grid)
         raise ValueError(error_string)
 
-    if dilation_half_width_for_target >= num_columns_in_half_grid:
+    if dilation_half_width_for_target >= num_columns_in_downsized_half_grid:
         error_string = (
             'dilation_half_width_for_target ({0:d}) should be < '
-            'num_columns_in_half_grid ({1:d}).').format(
-                dilation_half_width_for_target, num_columns_in_half_grid)
+            'num_columns_in_downsized_half_grid ({1:d}).').format(
+                dilation_half_width_for_target,
+                num_columns_in_downsized_half_grid)
         raise ValueError(error_string)
 
 
-def _find_files_for_otf_generator(
-        start_time_unix_sec, end_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb):
-    """Finds input files for on-the-fly input-generator.
+def _find_files_for_3d_example_generator(
+        first_target_time_unix_sec, last_target_time_unix_sec,
+        top_narr_directory_name, top_frontal_grid_dir_name,
+        narr_predictor_names, pressure_level_mb):
+    """Finds input files for 3-D machine-learning examples.
 
-    Examples of on-the-fly input generators:
-    `downsized_example_generator_on_the_fly`, `full_size_example_generator`
+    E = number of target times
+    C = number of image channels (predictor variables)
 
-    T = number of time steps
-    P = number of predictor variables
-
-    :param start_time_unix_sec: See documentation for
-        `downsized_example_generator_on_the_fly`.
-    :param end_time_unix_sec: Same.
+    :param first_target_time_unix_sec: See documentation for
+        `full_size_3d_example_generator`.
+    :param last_target_time_unix_sec: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :return: narr_file_names_by_time: T-by-P list of paths to NARR files, each
+    :return: narr_file_name_matrix: E-by-C list of paths to NARR files, each
         containing the grid for one predictor field at one time step.
-    :return: frontal_grid_file_names: length-T list of paths to frontal-grid
-        files.  Each contains the indices of all NARR grid points intersected by
-        a front (warm or cold) at one time step.
+    :return: frontal_grid_file_names: length-E list of paths to frontal-grid
+        files, each containing a list of NARR grid points intersected by a front
+        at one time step.
     """
 
-    valid_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=start_time_unix_sec,
-        end_time_unix_sec=end_time_unix_sec,
+    target_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_target_time_unix_sec,
+        end_time_unix_sec=last_target_time_unix_sec,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
-    numpy.random.shuffle(valid_times_unix_sec)
+    numpy.random.shuffle(target_times_unix_sec)
 
-    num_times = len(valid_times_unix_sec)
+    num_target_times = len(target_times_unix_sec)
     num_predictors = len(narr_predictor_names)
-    frontal_grid_file_names = [''] * num_times
+    frontal_grid_file_names = [''] * num_target_times
     narr_file_name_matrix = numpy.full(
-        (num_times, num_predictors), '', dtype=numpy.object)
+        (num_target_times, num_predictors), '', dtype=numpy.object)
 
-    for i in range(num_times):
+    for i in range(num_target_times):
         for j in range(num_predictors):
             narr_file_name_matrix[i, j] = (
                 processed_narr_io.find_file_for_one_time(
                     top_directory_name=top_narr_directory_name,
                     field_name=narr_predictor_names[j],
                     pressure_level_mb=pressure_level_mb,
-                    valid_time_unix_sec=valid_times_unix_sec[i],
+                    valid_time_unix_sec=target_times_unix_sec[i],
                     raise_error_if_missing=True))
 
         frontal_grid_file_names[i] = fronts_io.find_file_for_one_time(
             top_directory_name=top_frontal_grid_dir_name,
             file_type=fronts_io.GRIDDED_FILE_TYPE,
-            valid_time_unix_sec=valid_times_unix_sec[i],
+            valid_time_unix_sec=target_times_unix_sec[i],
             raise_error_if_missing=True)
 
     return narr_file_name_matrix, frontal_grid_file_names
 
 
-def write_downsized_examples_to_file(
-        predictor_matrix, target_values, unix_times_sec, center_grid_rows,
-        center_grid_columns, predictor_names, pickle_file_name):
-    """Writes downsized examples (defined over subgrid, not full grid) to file.
+def _find_files_for_4d_example_generator(
+        first_target_time_unix_sec, last_target_time_unix_sec,
+        num_predictor_time_steps, num_lead_time_steps, top_narr_directory_name,
+        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb):
+    """Finds input files for `full_size_4d_example_generator`.
 
-    Downsized ML examples can be created by
-    `machine_learning_utils.downsize_grids_around_each_point` or
+    E = number of target times
+    T = number of predictor times per batch
+    C = number of image channels (predictor variables)
+
+    :param first_target_time_unix_sec: See documentation for
+        `full_size_4d_example_generator`.
+    :param last_target_time_unix_sec: Same.
+    :param num_predictor_time_steps: Same.
+    :param num_lead_time_steps: Same.
+    :param top_narr_directory_name: Same.
+    :param top_frontal_grid_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
+    :return: narr_file_name_matrix: E-by-T-by-C list of paths to NARR files,
+        each containing the grid for one predictor field at one time step.
+    :return: frontal_grid_file_names: length-E list of paths to frontal-grid
+        files, each containing a list of NARR grid points intersected by a front
+        at one time step.
+    """
+
+    target_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_target_time_unix_sec,
+        end_time_unix_sec=last_target_time_unix_sec,
+        time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
+    numpy.random.shuffle(target_times_unix_sec)
+
+    num_target_times = len(target_times_unix_sec)
+    num_predictors = len(narr_predictor_names)
+    frontal_grid_file_names = [''] * num_target_times
+    narr_file_name_matrix = numpy.full(
+        (num_target_times, num_predictor_time_steps, num_predictors), '',
+        dtype=numpy.object)
+
+    for i in range(num_target_times):
+        frontal_grid_file_names[i] = fronts_io.find_file_for_one_time(
+            top_directory_name=top_frontal_grid_dir_name,
+            file_type=fronts_io.GRIDDED_FILE_TYPE,
+            valid_time_unix_sec=target_times_unix_sec[i],
+            raise_error_if_missing=True)
+
+        this_last_narr_time_unix_sec = target_times_unix_sec[i] - (
+            num_lead_time_steps * NARR_TIME_INTERVAL_SECONDS)
+        this_first_narr_time_unix_sec = this_last_narr_time_unix_sec - (
+            (num_predictor_time_steps - 1) * NARR_TIME_INTERVAL_SECONDS)
+        these_narr_times_unix_sec = time_periods.range_and_interval_to_list(
+            start_time_unix_sec=this_first_narr_time_unix_sec,
+            end_time_unix_sec=this_last_narr_time_unix_sec,
+            time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
+
+        for j in range(num_predictor_time_steps):
+            for k in range(num_predictors):
+                narr_file_name_matrix[i, j, k] = (
+                    processed_narr_io.find_file_for_one_time(
+                        top_directory_name=top_narr_directory_name,
+                        field_name=narr_predictor_names[k],
+                        pressure_level_mb=pressure_level_mb,
+                        valid_time_unix_sec=these_narr_times_unix_sec[j],
+                        raise_error_if_missing=True))
+
+    return narr_file_name_matrix, frontal_grid_file_names
+
+
+def write_downsized_examples_to_file(
+        predictor_matrix, target_values, target_times_unix_sec,
+        center_grid_rows, center_grid_columns, predictor_names,
+        pickle_file_name, predictor_time_matrix_unix_sec=None):
+    """Writes downsized machine-learning examples to file.
+
+    Downsized ML examples are created by
     `machine_learning_utils.downsize_grids_around_selected_points`.
 
-    C = number of predictor variables (image channels)
-
     :param predictor_matrix: See documentation for
-        `downsize_grids_around_each_point` or
-        `downsize_grids_around_selected_points`.
+        `machine_learning_utils.check_downsized_examples`.
     :param target_values: Same.
-    :param unix_times_sec: Same.
+    :param target_times_unix_sec: Same.
     :param center_grid_rows: Same.
     :param center_grid_columns: Same.
-    :param predictor_names: length-C list with names of predictor variables.
+    :param predictor_names: Same.
     :param pickle_file_name: Path to output file.
+    :param predictor_time_matrix_unix_sec: See documentation for
+        `machine_learning_utils.check_downsized_examples`.
     """
 
     ml_utils.check_downsized_examples(
         predictor_matrix=predictor_matrix, target_values=target_values,
-        unix_times_sec=unix_times_sec, center_grid_rows=center_grid_rows,
+        target_times_unix_sec=target_times_unix_sec,
+        center_grid_rows=center_grid_rows,
         center_grid_columns=center_grid_columns,
-        predictor_names=predictor_names, assert_binary_target_matrix=False)
+        predictor_names=predictor_names,
+        predictor_time_matrix_unix_sec=predictor_time_matrix_unix_sec,
+        assert_binary_target_matrix=False)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(predictor_matrix, pickle_file_handle)
     pickle.dump(target_values, pickle_file_handle)
-    pickle.dump(unix_times_sec, pickle_file_handle)
+    pickle.dump(target_times_unix_sec, pickle_file_handle)
     pickle.dump(center_grid_rows, pickle_file_handle)
     pickle.dump(center_grid_columns, pickle_file_handle)
     pickle.dump(predictor_names, pickle_file_handle)
+    pickle.dump(predictor_time_matrix_unix_sec, pickle_file_handle)
     pickle_file_handle.close()
 
 
 def read_downsized_examples_from_file(pickle_file_name):
-    """Reads downsized examples (defined over subgrid, not full grid) from file.
+    """Reads downsized machine-learning examples from file.
+
+    Downsized ML examples are created by
+    `machine_learning_utils.downsize_grids_around_selected_points`.
 
     :param pickle_file_name: Path to input file.
     :return: predictor_matrix: See documentation for
-        `write_downsized_examples_to_file`.
-    :return: target_values: See doc for `write_downsized_examples_to_file`.
-    :return: unix_times_sec: See doc for `write_downsized_examples_to_file`.
-    :return: center_grid_rows: See doc for `write_downsized_examples_to_file`.
-    :return: center_grid_columns: See doc for
-        `write_downsized_examples_to_file`.
-    :return: predictor_names: See doc for `write_downsized_examples_to_file`.
+        `machine_learning_utils.check_downsized_examples`.
+    :return: target_values: Same.
+    :return: target_times_unix_sec: Same.
+    :return: center_grid_rows: Same.
+    :return: center_grid_columns: Same.
+    :return: predictor_names: Same.
+    :return: predictor_time_matrix_unix_sec: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     predictor_matrix = pickle.load(pickle_file_handle)
     target_values = pickle.load(pickle_file_handle)
-    unix_times_sec = pickle.load(pickle_file_handle)
+    target_times_unix_sec = pickle.load(pickle_file_handle)
     center_grid_rows = pickle.load(pickle_file_handle)
     center_grid_columns = pickle.load(pickle_file_handle)
     predictor_names = pickle.load(pickle_file_handle)
+    predictor_time_matrix_unix_sec = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
     ml_utils.check_downsized_examples(
         predictor_matrix=predictor_matrix, target_values=target_values,
-        unix_times_sec=unix_times_sec, center_grid_rows=center_grid_rows,
+        target_times_unix_sec=target_times_unix_sec,
+        center_grid_rows=center_grid_rows,
         center_grid_columns=center_grid_columns,
-        predictor_names=predictor_names, assert_binary_target_matrix=False)
+        predictor_names=predictor_names,
+        predictor_time_matrix_unix_sec=predictor_time_matrix_unix_sec,
+        assert_binary_target_matrix=False)
 
-    return (predictor_matrix, target_values, unix_times_sec, center_grid_rows,
-            center_grid_columns, predictor_names)
+    return (predictor_matrix, target_values, target_times_unix_sec,
+            center_grid_rows, center_grid_columns, predictor_names,
+            predictor_time_matrix_unix_sec)
 
 
 def find_downsized_example_file(
-        top_directory_name, valid_time_unix_sec, pressure_level_mb,
+        top_directory_name, target_time_unix_sec, pressure_level_mb,
         raise_error_if_missing=True):
-    """Finds file with downsized examples (defined over subgrid, not full grid).
+    """Finds file with downsized machine-learning examples.
 
-    :param top_directory_name: Name of top-level directory containing files with
-        downsized machine-learning examples.
-    :param valid_time_unix_sec: Valid time.
+    Downsized ML examples are created by
+    `machine_learning_utils.downsize_grids_around_selected_points`.
+
+    :param top_directory_name: Name of top-level directory with downsized ML
+        examples.
+    :param target_time_unix_sec: Target time.
     :param pressure_level_mb: Pressure level (millibars).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         raise_error_if_missing = True, this method will error out.  If file is
@@ -226,9 +319,9 @@ def find_downsized_example_file(
     """
 
     month_string = time_conversion.unix_sec_to_string(
-        valid_time_unix_sec, TIME_FORMAT_MONTH)
+        target_time_unix_sec, TIME_FORMAT_MONTH)
     time_string = time_conversion.unix_sec_to_string(
-        valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAME)
+        target_time_unix_sec, TIME_FORMAT_IN_FILE_NAME)
 
     downsized_example_file_name = (
         '{0:s}/{1:s}/downsized_ml_examples_{2:04d}mb_{3:s}.p'.format(
@@ -244,36 +337,34 @@ def find_downsized_example_file(
     return downsized_example_file_name
 
 
-def downsized_example_generator_from_files(
+def downsized_3d_example_generator_from_files(
         input_file_pattern, num_examples_per_batch):
-    """Generates downsized input examples for a Keras model.
+    """Generates downsized 3-D input examples for a Keras model.
 
-    This function creates examples by reading them from pre-existing files
-    (rather than "on the fly" -- i.e., by reading and processing raw data at
-    training time).  If you want to create examples on the fly, use
-    `downsized_example_generator_on_the_fly`.
+    A "downsized" example covers only a portion of the NARR grid (as opposed to
+    a full-size example, which covers the entire NARR grid).
+
+    This function reads examples from pre-existing files.  If you want to create
+    examples on the fly, use `downsized_3d_example_generator`.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
     Thus, when training a Keras model with the `fit_generator` method, the input
     argument "generator" should be this function.  For example:
 
-    model_object.downsized_example_generator_from_files(
-        generator=machine_learning_io.downsized_example_generator(
+    model_object.fit_generator(
+        generator=machine_learning_io.downsized_3d_example_generator_from_files(
             training_file_pattern, batch_size),
         ...)
 
-    B = batch size (number of examples per batch)
-    M = number of rows (unique grid-point y-coordinates)
-    N = number of columns (unique grid-point x-coordinates)
-    C = number of channels (predictor variables)
+    E = number of examples per batch = batch size
 
     :param input_file_pattern: Glob pattern for input files (example:
         "ml_examples/downsized/201712/*.p").  All files matching this pattern
         will be used.
     :param num_examples_per_batch: Number of examples per batch.  This argument
-        is just known as "batch_size" in Keras.
-    :return: predictor_matrix: B-by-M-by-N-by-C numpy array of predictor values.
-    :return: target_values: length-B numpy array of corresponding targets
+        is known as "batch_size" in Keras.
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
+    :return: target_values: length-E numpy array of corresponding targets
         (labels).
     """
 
@@ -297,11 +388,11 @@ def downsized_example_generator_from_files(
                 input_file_names[file_index])
 
             if target_values is None or len(target_values) == 0:
-                predictor_matrix, target_values, _, _, _, _ = (
+                predictor_matrix, target_values, _, _, _, _, _ = (
                     read_downsized_examples_from_file(
                         input_file_names[file_index]))
             else:
-                this_predictor_matrix, these_target_values, _, _, _, _ = (
+                this_predictor_matrix, these_target_values, _, _, _, _, _ = (
                     read_downsized_examples_from_file(
                         input_file_names[file_index]))
 
@@ -340,75 +431,69 @@ def downsized_example_generator_from_files(
         yield (predictor_matrix_to_return, target_values_to_return)
 
 
-def downsized_example_generator_on_the_fly(
-        num_examples_per_batch, num_examples_per_time, start_time_unix_sec,
-        end_time_unix_sec, top_narr_directory_name, top_frontal_grid_dir_name,
+def downsized_3d_example_generator(
+        num_examples_per_batch, num_examples_per_target_time,
+        first_target_time_unix_sec, last_target_time_unix_sec,
+        top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
         positive_fraction, num_rows_in_half_grid, num_columns_in_half_grid):
-    """Generates downsized input examples for a Keras model.
+    """Generates downsized 3-D input examples for a Keras model.
+
+    A "downsized" example covers only a portion of the NARR grid (as opposed to
+    a full-size example, which covers the entire NARR grid).
 
     This function creates examples on the fly (by reading and processing raw
     data, instead of reading examples from pre-existing files).  If you want to
     read examples from pre-existing files, use
-    `downsized_example_generator_from_files`.
+    `downsized_3d_example_generator_from_files`.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
     Thus, when training a Keras model with the `fit_generator` method, the input
     argument "generator" should be this function.  For example:
 
-    model_object.downsized_example_generator_on_the_fly(
-        generator=machine_learning_io.downsized_example_generator(
+    model_object.fit_generator(
+        generator=machine_learning_io.downsized_3d_example_generator(
             training_file_pattern, batch_size),
         ...)
 
-    B = batch size (number of examples per batch)
-    M = number of rows (unique grid-point y-coordinates)
-      = 2 * num_rows_in_half_grid + 1
-    N = number of columns (unique grid-point x-coordinates)
-      = 2 * num_columns_in_half_grid + 1
+    E = number of examples per batch = batch size
+    M = number of pixel rows = 2 * num_rows_in_half_grid + 1
+    N = number of pixel columns = 2 * num_columns_in_half_grid + 1
     C = number of channels (predictor variables)
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
-        is just known as "batch_size" in Keras.
-    :param num_examples_per_time: Number of examples to draw from each time
-        step.
-    :param start_time_unix_sec: Start of time period (from which examples will
-        be randomly chosen).
-    :param end_time_unix_sec: End of time period (from which examples will
-        be randomly chosen).
-    :param top_narr_directory_name: Name of top-level directory with NARR data
-        (one file for each variable, pressure level, and time step).
-    :param top_frontal_grid_dir_name: Name of top-level directory with frontal
-        grids (one file per time step).
-    :param narr_predictor_names: length-C list of NARR fields to use as
-        predictors.
-    :param pressure_level_mb: Pressure level (millibars).
-    :param dilation_half_width_for_target: Half-width of dilation window for
-        target variable.  For each downsized example, if a front occurs within
-        `dilation_half_width_for_target` grid cells of the middle, the label
-        will be positive (= 1 = yes).
-    :param positive_fraction: Fraction of examples with positive labels.
-    :param num_rows_in_half_grid: Number of rows in half-grid for each downsized
-        example.
-    :param num_columns_in_half_grid: Number of columns in half-grid for each
-        downsized example.
-    :return: predictor_matrix: B-by-M-by-N-by-C numpy array of predictor values.
-    :return: target_values: length-B numpy array of corresponding targets
+        is known as "batch_size" in Keras.
+    :param num_examples_per_target_time: Number of downsized examples to create
+        per target time.
+    :param first_target_time_unix_sec: See documentation for
+        `full_size_3d_example_generator`.
+    :param last_target_time_unix_sec: Same.
+    :param top_narr_directory_name: Same.
+    :param top_frontal_grid_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
+    :param dilation_half_width_for_target: Same.
+    :param positive_fraction: Fraction of examples with positive labels
+        (front = yes).
+    :param num_rows_in_half_grid: See general discussion above.
+    :param num_columns_in_half_grid: See general discussion above.
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
+    :return: target_values: length-E numpy array of corresponding targets
         (labels).
     """
 
     _check_input_args_for_otf_generator(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_time=num_examples_per_time,
         narr_predictor_names=narr_predictor_names,
         dilation_half_width_for_target=dilation_half_width_for_target,
-        num_rows_in_half_grid=num_rows_in_half_grid,
-        num_columns_in_half_grid=num_columns_in_half_grid)
+        num_downsized_examples_per_time=num_examples_per_target_time,
+        num_rows_in_downsized_half_grid=num_rows_in_half_grid,
+        num_columns_in_downsized_half_grid=num_columns_in_half_grid)
 
     narr_file_name_matrix, frontal_grid_file_names = (
-        _find_files_for_otf_generator(
-            start_time_unix_sec=start_time_unix_sec,
-            end_time_unix_sec=end_time_unix_sec,
+        _find_files_for_3d_example_generator(
+            first_target_time_unix_sec=first_target_time_unix_sec,
+            last_target_time_unix_sec=last_target_time_unix_sec,
             top_narr_directory_name=top_narr_directory_name,
             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
             narr_predictor_names=narr_predictor_names,
@@ -456,14 +541,14 @@ def downsized_example_generator_on_the_fly(
                 tuple_of_full_predictor_matrices)
             this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
                 predictor_matrix=this_full_predictor_matrix,
-                normalize_by_image=True)
+                normalize_by_example=True)
 
-            this_frontal_grid_matrix = ml_utils.front_table_to_matrices(
+            this_frontal_grid_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
-                num_grid_rows=this_full_predictor_matrix.shape[1],
-                num_grid_columns=this_full_predictor_matrix.shape[2])
+                num_rows_per_image=this_full_predictor_matrix.shape[1],
+                num_columns_per_image=this_full_predictor_matrix.shape[2])
 
-            this_frontal_grid_matrix = ml_utils.binarize_front_labels(
+            this_frontal_grid_matrix = ml_utils.binarize_front_images(
                 this_frontal_grid_matrix)
 
             this_full_predictor_matrix = (
@@ -472,15 +557,15 @@ def downsized_example_generator_on_the_fly(
             this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
                 this_frontal_grid_matrix)
 
-            this_frontal_grid_matrix = ml_utils.dilate_target_grids(
+            this_frontal_grid_matrix = ml_utils.dilate_target_images(
                 binary_target_matrix=this_frontal_grid_matrix,
-                num_grid_cells_in_half_window=
+                num_pixels_in_half_window=
                 dilation_half_width_for_target, verbose=False)
 
             this_sampled_target_point_dict = ml_utils.sample_target_points(
                 binary_target_matrix=this_frontal_grid_matrix,
                 positive_fraction=positive_fraction,
-                num_points_per_time=num_examples_per_time)
+                num_points_per_time=num_examples_per_target_time)
             if this_sampled_target_point_dict is None:
                 continue
 
@@ -514,8 +599,8 @@ def downsized_example_generator_on_the_fly(
         example_indices = numpy.linspace(
             0, num_examples_in_memory - 1, num=num_examples_in_memory,
             dtype=int)
-
         numpy.random.shuffle(example_indices)
+
         downsized_predictor_matrix = downsized_predictor_matrix[
             example_indices, ...]
         target_values = target_values[example_indices]
@@ -533,17 +618,15 @@ def downsized_example_generator_on_the_fly(
         yield (predictor_matrix_to_return, target_values_to_return)
 
 
-def full_size_example_generator(
-        num_examples_per_batch, start_time_unix_sec, end_time_unix_sec,
-        top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb,
+def full_size_3d_example_generator(
+        num_examples_per_batch, first_target_time_unix_sec,
+        last_target_time_unix_sec, top_narr_directory_name,
+        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_half_width_for_target):
-    """Generates full-size input examples for a Keras model.
+    """Generates full-size 3-D input examples for a Keras model.
 
-    A "full-size" examples covers the entire NARR grid (as opposed to downsized
-    examples, created by either `downsized_example_generator_from_files` or
-    `downsized_example_generator_on_the_fly`, which cover only a portion of the
-    NARR grid).
+    A "full-size" example covers the entire NARR grid (as opposed to a downsized
+    example, which covers only a portion of the NARR grid).
 
     This function creates examples on the fly (by reading and processing raw
     data, instead of reading examples from pre-existing files).  As yet, this
@@ -553,36 +636,32 @@ def full_size_example_generator(
     Thus, when training a Keras model with the `fit_generator` method, the input
     argument "generator" should be this function.  For example:
 
-    model_object.full_size_example_generator(
-        generator=machine_learning_io.downsized_example_generator(
+    model_object.fit_generator(
+        generator=machine_learning_io.full_size_3d_example_generator(
             training_file_pattern, batch_size),
         ...)
 
-    B = batch size (number of examples per batch)
-    M = number of grid rows (unique grid-point y-coordinates)
-    N = number of grid columns (unique grid-point x-coordinates)
-    C = number of channels (predictor variables)
+    E = number of examples per batch = batch size
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
-        is just known as "batch_size" in Keras.
-    :param start_time_unix_sec: Start of time period (from which examples will
-        be randomly chosen).
-    :param end_time_unix_sec: End of time period (from which examples will
-        be randomly chosen).
+        is known as "batch_size" in Keras.
+    :param first_target_time_unix_sec: First target time.  Examples will be
+        randomly chosen from the time period `first_target_time_unix_sec`...
+        `last_target_time_unix_sec`.
+    :param last_target_time_unix_sec: See above.
     :param top_narr_directory_name: Name of top-level directory with NARR data
         (one file for each variable, pressure level, and time step).
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
         grids (one file per time step).
-    :param narr_predictor_names: length-C list of NARR fields to use as
-        predictors.
+    :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
     :param pressure_level_mb: Pressure level (millibars).
     :param dilation_half_width_for_target: Half-width of dilation window for
         target variable.  For each time step t and grid cell [j, k], if a front
         occurs within `dilation_half_width_for_target` of [j, k] at time t, the
         label at [t, j, k] will be positive.
-    :return: predictor_matrix: B-by-M-by-N-by-C numpy array of predictor values.
-    :return: target_matrix: B-by-M-by-N numpy array of target labels (all
-        integers, 0 or 1).
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
+    :return: target_matrix: E-by-M-by-N numpy array of binary target images (all
+        elements are 0 or 1).
     """
 
     _check_input_args_for_otf_generator(
@@ -591,20 +670,20 @@ def full_size_example_generator(
         dilation_half_width_for_target=dilation_half_width_for_target)
 
     narr_file_name_matrix, frontal_grid_file_names = (
-        _find_files_for_otf_generator(
-            start_time_unix_sec=start_time_unix_sec,
-            end_time_unix_sec=end_time_unix_sec,
+        _find_files_for_3d_example_generator(
+            first_target_time_unix_sec=first_target_time_unix_sec,
+            last_target_time_unix_sec=last_target_time_unix_sec,
             top_narr_directory_name=top_narr_directory_name,
             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
             narr_predictor_names=narr_predictor_names,
             pressure_level_mb=pressure_level_mb))
 
-    num_times = len(frontal_grid_file_names)
+    num_target_times = len(frontal_grid_file_names)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
 
-    time_index = 0
+    target_time_index = 0
     num_examples_in_memory = 0
     predictor_matrix = None
     target_matrix = None
@@ -616,35 +695,36 @@ def full_size_example_generator(
 
             for j in range(num_predictors):
                 print 'Reading data from: "{0:s}"...'.format(
-                    narr_file_name_matrix[time_index, j])
+                    narr_file_name_matrix[target_time_index, j])
                 this_field_predictor_matrix, _, _, _ = (
                     processed_narr_io.read_fields_from_file(
-                        narr_file_name_matrix[time_index, j]))
+                        narr_file_name_matrix[target_time_index, j]))
 
                 tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
             print 'Reading data from: "{0:s}"...'.format(
-                frontal_grid_file_names[time_index])
+                frontal_grid_file_names[target_time_index])
             this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[time_index])
+                frontal_grid_file_names[target_time_index])
 
-            time_index += 1
-            if time_index >= num_times:
-                time_index = 0
+            target_time_index += 1
+            if target_time_index >= num_target_times:
+                target_time_index = 0
 
             print 'Processing full-size machine-learning example...'
 
             this_predictor_matrix = ml_utils.stack_predictor_variables(
                 tuple_of_predictor_matrices)
             this_predictor_matrix = ml_utils.normalize_predictor_matrix(
-                predictor_matrix=this_predictor_matrix, normalize_by_image=True)
+                predictor_matrix=this_predictor_matrix,
+                normalize_by_example=True)
 
-            this_frontal_grid_matrix = ml_utils.front_table_to_matrices(
+            this_frontal_grid_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
-                num_grid_rows=this_predictor_matrix.shape[1],
-                num_grid_columns=this_predictor_matrix.shape[2])
+                num_rows_per_image=this_predictor_matrix.shape[1],
+                num_columns_per_image=this_predictor_matrix.shape[2])
 
-            this_frontal_grid_matrix = ml_utils.binarize_front_labels(
+            this_frontal_grid_matrix = ml_utils.binarize_front_images(
                 this_frontal_grid_matrix)
 
             this_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
@@ -652,9 +732,9 @@ def full_size_example_generator(
             this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
                 this_frontal_grid_matrix)
 
-            this_frontal_grid_matrix = ml_utils.dilate_target_grids(
+            this_frontal_grid_matrix = ml_utils.dilate_target_images(
                 binary_target_matrix=this_frontal_grid_matrix,
-                num_grid_cells_in_half_window=
+                num_pixels_in_half_window=
                 dilation_half_width_for_target, verbose=False)
 
             if target_matrix is None or target_matrix.size == 0:
@@ -668,10 +748,170 @@ def full_size_example_generator(
 
             num_examples_in_memory = target_matrix.shape[0]
 
-        predictor_matrix_to_return = predictor_matrix[:, :272, :256, :].astype(
-            'float32')
-        target_matrix_to_return = target_matrix[:, :272, :256].astype('bool')
+        predictor_matrix_to_return = predictor_matrix[
+            batch_indices, :272, :256, :].astype('float32')
+        target_matrix_to_return = target_matrix[
+            batch_indices, :272, :256].astype('bool')
         print numpy.mean(target_matrix_to_return)
+
+        target_matrix_to_return = numpy.expand_dims(
+            target_matrix_to_return, axis=-1)
+
+        predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
+        target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)
+        num_examples_in_memory = target_matrix.shape[0]
+
+        yield (predictor_matrix_to_return, target_matrix_to_return)
+
+
+def full_size_4d_example_generator(
+        num_examples_per_batch, first_target_time_unix_sec,
+        last_target_time_unix_sec, num_predictor_time_steps,
+        num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
+        narr_predictor_names, pressure_level_mb,
+        dilation_half_width_for_target):
+    """Generates full-size 4-D input examples for a Keras model.
+
+    For definitions of a "full-size" example and "on-the-fly" generation, see
+    documentation for `full_size_3d_example_generator`.
+
+    This function fits the template specified by `keras.models.*.fit_generator`.
+    Thus, when training a Keras model with the `fit_generator` method, the input
+    argument "generator" should be this function.  For example:
+
+    model_object.fit_generator(
+        generator=machine_learning_io.full_size_4d_example_generator(
+            training_file_pattern, batch_size),
+        ...)
+
+    E = number of examples per batch = batch size
+    T = number of predictor times per batch
+
+    :param num_examples_per_batch: See documentation for
+        `full_size_3d_example_generator`.
+    :param first_target_time_unix_sec: See doc for
+        `full_size_3d_example_generator`.
+    :param last_target_time_unix_sec: See doc for
+        `full_size_3d_example_generator`.
+    :param num_predictor_time_steps: Number of predictor times per batch.
+    :param num_lead_time_steps: Number of time steps separating latest predictor
+        time from target time.
+    :param top_narr_directory_name: See doc for
+        `full_size_3d_example_generator`.
+    :param top_frontal_grid_dir_name: See doc for
+        `full_size_3d_example_generator`.
+    :param narr_predictor_names: See doc for `full_size_3d_example_generator`.
+    :param pressure_level_mb: See doc for `full_size_3d_example_generator`.
+    :param dilation_half_width_for_target: See doc for
+        `full_size_3d_example_generator`.
+    :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
+        images.
+    :return: target_matrix: E-by-M-by-N numpy array of binary target images (all
+        elements are 0 or 1).
+    """
+
+    _check_input_args_for_otf_generator(
+        num_examples_per_batch=num_examples_per_batch,
+        narr_predictor_names=narr_predictor_names,
+        dilation_half_width_for_target=dilation_half_width_for_target)
+
+    narr_file_name_matrix, frontal_grid_file_names = (
+        _find_files_for_4d_example_generator(
+            first_target_time_unix_sec=first_target_time_unix_sec,
+            last_target_time_unix_sec=last_target_time_unix_sec,
+            num_predictor_time_steps=num_predictor_time_steps,
+            num_lead_time_steps=num_lead_time_steps,
+            top_narr_directory_name=top_narr_directory_name,
+            top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+            narr_predictor_names=narr_predictor_names,
+            pressure_level_mb=pressure_level_mb))
+
+    num_target_times = len(frontal_grid_file_names)
+    num_predictors = len(narr_predictor_names)
+    batch_indices = numpy.linspace(
+        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
+
+    target_time_index = 0
+    num_examples_in_memory = 0
+    predictor_matrix = None
+    target_matrix = None
+
+    while True:
+        while num_examples_in_memory < num_examples_per_batch:
+            print '\n'
+            tuple_of_4d_predictor_matrices = ()
+
+            for i in range(num_predictor_time_steps):
+                tuple_of_3d_predictor_matrices = ()
+
+                for j in range(num_predictors):
+                    print 'Reading data from: "{0:s}"...'.format(
+                        narr_file_name_matrix[target_time_index, i, j])
+                    this_field_predictor_matrix, _, _, _ = (
+                        processed_narr_io.read_fields_from_file(
+                            narr_file_name_matrix[target_time_index, i, j]))
+
+                    tuple_of_3d_predictor_matrices += (
+                        this_field_predictor_matrix,)
+
+                tuple_of_4d_predictor_matrices += (
+                    ml_utils.stack_predictor_variables(
+                        tuple_of_3d_predictor_matrices),)
+
+            this_predictor_matrix = ml_utils.stack_time_steps(
+                tuple_of_4d_predictor_matrices)
+
+            print 'Reading data from: "{0:s}"...'.format(
+                frontal_grid_file_names[target_time_index])
+            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
+                frontal_grid_file_names[target_time_index])
+
+            target_time_index += 1
+            if target_time_index >= num_target_times:
+                target_time_index = 0
+
+            print 'Processing full-size 4-D machine-learning example...'
+
+            this_predictor_matrix = ml_utils.normalize_predictor_matrix(
+                predictor_matrix=this_predictor_matrix,
+                normalize_by_example=True)
+
+            this_frontal_grid_matrix = ml_utils.front_table_to_images(
+                frontal_grid_table=this_frontal_grid_table,
+                num_rows_per_image=this_predictor_matrix.shape[1],
+                num_columns_per_image=this_predictor_matrix.shape[2])
+
+            this_frontal_grid_matrix = ml_utils.binarize_front_images(
+                this_frontal_grid_matrix)
+
+            this_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
+                this_predictor_matrix)
+            this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
+                this_frontal_grid_matrix)
+
+            this_frontal_grid_matrix = ml_utils.dilate_target_images(
+                binary_target_matrix=this_frontal_grid_matrix,
+                num_pixels_in_half_window=
+                dilation_half_width_for_target, verbose=False)
+
+            if target_matrix is None or target_matrix.size == 0:
+                predictor_matrix = copy.deepcopy(this_predictor_matrix)
+                target_matrix = copy.deepcopy(this_frontal_grid_matrix)
+            else:
+                predictor_matrix = numpy.concatenate(
+                    (predictor_matrix, this_predictor_matrix), axis=0)
+                target_matrix = numpy.concatenate(
+                    (target_matrix, this_frontal_grid_matrix), axis=0)
+
+            num_examples_in_memory = target_matrix.shape[0]
+
+        predictor_matrix_to_return = predictor_matrix[
+            batch_indices, ...].astype('float32')
+        target_matrix_to_return = target_matrix[
+            batch_indices, ...].astype('bool')
+        print numpy.mean(target_matrix_to_return)
+
+        # Expands target matrix to 4-D.  Might have to expand to 5-D.
         target_matrix_to_return = numpy.expand_dims(
             target_matrix_to_return, axis=-1)
 
