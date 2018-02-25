@@ -1,13 +1,4 @@
-"""Methods for training and testing a traditional CNN.
-
---- DEFINITIONS ---
-
-CNN = convolutional neural network
-
-Traditional CNN = CNN for which the output (prediction) is not spatially
-explicit (or "spatially dense").  There is only one label for each image, and
-the job of the CNN is to predict this label, rather than predicting some value
-at each pixel.
+"""Helper methods for a CNN (convolutional neural network).
 
 --- NOTATION ---
 

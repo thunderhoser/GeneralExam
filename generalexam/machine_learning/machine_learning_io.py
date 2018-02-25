@@ -19,6 +19,7 @@ import os.path
 import pickle
 import numpy
 import keras
+from keras.models import load_model
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
@@ -335,6 +336,28 @@ def find_downsized_example_file(
         raise ValueError(error_string)
 
     return downsized_example_file_name
+
+
+def write_keras_model(keras_model_object, hdf5_file_name):
+    """Writes Keras model to HDF5 file.
+
+    :param keras_model_object: Instance of `keras.models.Model`.
+    :param hdf5_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=hdf5_file_name)
+    keras_model_object.save(hdf5_file_name)
+
+
+def read_keras_model(hdf5_file_name):
+    """Reads Keras model from HDF5 file.
+
+    :param hdf5_file_name: Path to input file.
+    :return: keras_model_object: Instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_file_exists(hdf5_file_name)
+    return load_model(hdf5_file_name)
 
 
 def downsized_3d_example_generator_from_files(
