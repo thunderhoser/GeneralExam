@@ -95,7 +95,7 @@ def _check_input_args_for_otf_generator(
         raise ValueError(error_string)
 
 
-def _find_files_for_3d_example_generator(
+def find_input_files_for_3d_examples(
         first_target_time_unix_sec, last_target_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb):
@@ -104,13 +104,16 @@ def _find_files_for_3d_example_generator(
     E = number of target times
     C = number of image channels (predictor variables)
 
-    :param first_target_time_unix_sec: See documentation for
-        `full_size_3d_example_generator`.
-    :param last_target_time_unix_sec: Same.
-    :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
-    :param narr_predictor_names: Same.
-    :param pressure_level_mb: Same.
+    :param first_target_time_unix_sec: First target time.  Files will be
+        returned for all target times from `first_target_time_unix_sec`...
+        `last_target_time_unix_sec`.
+    :param last_target_time_unix_sec: See above.
+    :param top_narr_directory_name: Name of top-level directory with NARR data
+        (one file for each variable, pressure level, and time step).
+    :param top_frontal_grid_dir_name: Name of top-level directory with frontal
+        grids (one file per time step).
+    :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
+    :param pressure_level_mb: Pressure level (millibars).
     :return: narr_file_name_matrix: E-by-C list of paths to NARR files, each
         containing the grid for one predictor field at one time step.
     :return: frontal_grid_file_names: length-E list of paths to frontal-grid
@@ -149,21 +152,22 @@ def _find_files_for_3d_example_generator(
     return narr_file_name_matrix, frontal_grid_file_names
 
 
-def _find_files_for_4d_example_generator(
+def find_input_files_for_4d_examples(
         first_target_time_unix_sec, last_target_time_unix_sec,
         num_predictor_time_steps, num_lead_time_steps, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb):
-    """Finds input files for `full_size_4d_example_generator`.
+    """Finds input files for 4-D machine-learning examples.
 
     E = number of target times
     T = number of predictor times per batch
     C = number of image channels (predictor variables)
 
     :param first_target_time_unix_sec: See documentation for
-        `full_size_4d_example_generator`.
+        `find_input_files_for_4d_examples`.
     :param last_target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Same.
-    :param num_lead_time_steps: Same.
+    :param num_predictor_time_steps: Number of predictor times per batch.
+    :param num_lead_time_steps: Number of time steps separating latest
+        predictor time from target time.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
@@ -455,7 +459,7 @@ def downsized_3d_example_generator_from_files(
 
 
 def downsized_3d_example_generator(
-        num_examples_per_batch, num_examples_per_target_time,
+        num_examples_per_batch, num_examples_per_time,
         first_target_time_unix_sec, last_target_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
@@ -476,7 +480,7 @@ def downsized_3d_example_generator(
 
     model_object.fit_generator(
         generator=machine_learning_io.downsized_3d_example_generator(
-            training_file_pattern, batch_size),
+            num_examples_per_batch, num_examples_per_time, ...),
         ...)
 
     E = number of examples per batch = batch size
@@ -486,16 +490,19 @@ def downsized_3d_example_generator(
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
-    :param num_examples_per_target_time: Number of downsized examples to create
-        per target time.
+    :param num_examples_per_time: Number of downsized examples to create per
+        target time.
     :param first_target_time_unix_sec: See documentation for
-        `full_size_3d_example_generator`.
+        `find_input_files_for_3d_examples`.
     :param last_target_time_unix_sec: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_half_width_for_target: Half-width of dilation window for
+        target variable.  For each time step t and grid cell [j, k], if a front
+        occurs within `dilation_half_width_for_target` of [j, k] at time t, the
+        label at [t, j, k] will be positive.
     :param positive_fraction: Fraction of examples with positive labels
         (front = yes).
     :param num_rows_in_half_grid: See general discussion above.
@@ -505,16 +512,16 @@ def downsized_3d_example_generator(
         (labels).
     """
 
+
     _check_input_args_for_otf_generator(
         num_examples_per_batch=num_examples_per_batch,
         narr_predictor_names=narr_predictor_names,
         dilation_half_width_for_target=dilation_half_width_for_target,
-        num_downsized_examples_per_time=num_examples_per_target_time,
+        num_downsized_examples_per_time=num_examples_per_time,
         num_rows_in_downsized_half_grid=num_rows_in_half_grid,
         num_columns_in_downsized_half_grid=num_columns_in_half_grid)
-
     narr_file_name_matrix, frontal_grid_file_names = (
-        _find_files_for_3d_example_generator(
+        find_input_files_for_3d_examples(
             first_target_time_unix_sec=first_target_time_unix_sec,
             last_target_time_unix_sec=last_target_time_unix_sec,
             top_narr_directory_name=top_narr_directory_name,
@@ -588,7 +595,7 @@ def downsized_3d_example_generator(
             this_sampled_target_point_dict = ml_utils.sample_target_points(
                 binary_target_matrix=this_frontal_grid_matrix,
                 positive_fraction=positive_fraction,
-                num_points_per_time=num_examples_per_target_time)
+                num_points_per_time=num_examples_per_time)
             if this_sampled_target_point_dict is None:
                 continue
 
@@ -661,23 +668,20 @@ def full_size_3d_example_generator(
 
     model_object.fit_generator(
         generator=machine_learning_io.full_size_3d_example_generator(
-            training_file_pattern, batch_size),
+            num_examples_per_batch, first_target_time_unix_sec, ...),
         ...)
 
     E = number of examples per batch = batch size
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
-    :param first_target_time_unix_sec: First target time.  Examples will be
-        randomly chosen from the time period `first_target_time_unix_sec`...
-        `last_target_time_unix_sec`.
-    :param last_target_time_unix_sec: See above.
-    :param top_narr_directory_name: Name of top-level directory with NARR data
-        (one file for each variable, pressure level, and time step).
-    :param top_frontal_grid_dir_name: Name of top-level directory with frontal
-        grids (one file per time step).
-    :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
-    :param pressure_level_mb: Pressure level (millibars).
+    :param first_target_time_unix_sec: See documentation for
+        `find_input_files_for_3d_examples`.
+    :param last_target_time_unix_sec: Same.
+    :param top_narr_directory_name: Same.
+    :param top_frontal_grid_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
     :param dilation_half_width_for_target: Half-width of dilation window for
         target variable.  For each time step t and grid cell [j, k], if a front
         occurs within `dilation_half_width_for_target` of [j, k] at time t, the
@@ -693,7 +697,7 @@ def full_size_3d_example_generator(
         dilation_half_width_for_target=dilation_half_width_for_target)
 
     narr_file_name_matrix, frontal_grid_file_names = (
-        _find_files_for_3d_example_generator(
+        find_input_files_for_3d_examples(
             first_target_time_unix_sec=first_target_time_unix_sec,
             last_target_time_unix_sec=last_target_time_unix_sec,
             top_narr_directory_name=top_narr_directory_name,
@@ -804,27 +808,25 @@ def full_size_4d_example_generator(
 
     model_object.fit_generator(
         generator=machine_learning_io.full_size_4d_example_generator(
-            training_file_pattern, batch_size),
+            num_examples_per_batch, first_target_time_unix_sec, ...),
         ...)
 
     E = number of examples per batch = batch size
     T = number of predictor times per batch
 
-    :param num_examples_per_batch: See documentation for
-        `full_size_3d_example_generator`.
-    :param first_target_time_unix_sec: See doc for
-        `full_size_3d_example_generator`.
-    :param last_target_time_unix_sec: See doc for
-        `full_size_3d_example_generator`.
+    :param num_examples_per_batch: Number of examples per batch.  This argument
+        is known as "batch_size" in Keras.
+    :param first_target_time_unix_sec: See documentation for
+        `find_input_files_for_4d_examples`.
+    :param last_target_time_unix_sec: Same.
     :param num_predictor_time_steps: Number of predictor times per batch.
     :param num_lead_time_steps: Number of time steps separating latest predictor
         time from target time.
-    :param top_narr_directory_name: See doc for
-        `full_size_3d_example_generator`.
-    :param top_frontal_grid_dir_name: See doc for
-        `full_size_3d_example_generator`.
-    :param narr_predictor_names: See doc for `full_size_3d_example_generator`.
-    :param pressure_level_mb: See doc for `full_size_3d_example_generator`.
+    :param top_narr_directory_name: See documentation for
+        `find_input_files_for_4d_examples`.
+    :param top_frontal_grid_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
     :param dilation_half_width_for_target: See doc for
         `full_size_3d_example_generator`.
     :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
@@ -839,7 +841,7 @@ def full_size_4d_example_generator(
         dilation_half_width_for_target=dilation_half_width_for_target)
 
     narr_file_name_matrix, frontal_grid_file_names = (
-        _find_files_for_4d_example_generator(
+        find_input_files_for_4d_examples(
             first_target_time_unix_sec=first_target_time_unix_sec,
             last_target_time_unix_sec=last_target_time_unix_sec,
             num_predictor_time_steps=num_predictor_time_steps,

@@ -455,10 +455,13 @@ def sample_target_points(
 
     if len(positive_indices_linear) < num_positive_cases:
         num_positive_cases = len(positive_indices_linear)
-        num_negative_cases = len(positive_indices_linear)
+        num_negative_cases = int(numpy.round(
+            num_positive_cases * (1. - positive_fraction) / positive_fraction))
+
     if len(negative_indices_linear) < num_negative_cases:
         num_negative_cases = len(negative_indices_linear)
-        num_positive_cases = len(negative_indices_linear)
+        num_positive_cases = int(numpy.round(
+            num_negative_cases * positive_fraction / (1. - positive_fraction)))
 
     if test_mode:
         positive_indices_linear = positive_indices_linear[:num_positive_cases]
