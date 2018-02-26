@@ -13,7 +13,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
-from generalexam.machine_learning import machine_learning_io as ml_io
+from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 # TODO(thunderhoser): This file contains a lot of methods (the helper methods)
@@ -372,7 +372,7 @@ def _downsize_ml_examples(
 
     downsized_times_unix_sec = predictor_times_unix_sec[time_indices]
 
-    output_file_name = ml_io.find_downsized_example_file(
+    output_file_name = training_validation_io.find_downsized_example_file(
         top_directory_name=output_dir_name,
         target_time_unix_sec=time_conversion.string_to_unix_sec(
             time_string, INPUT_TIME_FORMAT),
@@ -380,7 +380,7 @@ def _downsize_ml_examples(
 
     print 'Writing downsized examples to: "{0:s}"...'.format(output_file_name)
     print downsized_predictor_matrix.shape
-    ml_io.write_downsized_examples_to_file(
+    training_validation_io.write_downsized_examples_to_file(
         predictor_matrix=downsized_predictor_matrix,
         target_values=target_values,
         target_times_unix_sec=downsized_times_unix_sec,

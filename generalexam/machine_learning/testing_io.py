@@ -8,7 +8,7 @@ dimensions.
 E = number of examples.  Each example is one image or a time sequence of images.
 M = number of pixel rows in each image
 N = number of pixel columns in each image
-T = number of time steps per example (i.e., number of images in each sequence)
+T = number of predictor times per example (images per sequence)
 C = number of channels (predictor variables) in each image
 
 --- DEFINITIONS ---
@@ -27,7 +27,7 @@ import numpy
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
-from generalexam.machine_learning import machine_learning_io as ml_io
+from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 NUM_CLASSES = 2
@@ -150,7 +150,7 @@ def create_downsized_3d_examples(
             num_columns_in_downsized_half_grid=num_columns_in_half_grid)
 
         narr_file_name_matrix, frontal_grid_file_names = (
-            ml_io.find_input_files_for_3d_examples(
+            training_validation_io.find_input_files_for_3d_examples(
                 first_target_time_unix_sec=target_time_unix_sec,
                 last_target_time_unix_sec=target_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
@@ -256,7 +256,7 @@ def create_full_size_3d_example(
         dilation_half_width_for_target=dilation_half_width_for_target)
 
     narr_file_name_matrix, frontal_grid_file_names = (
-        ml_io.find_input_files_for_3d_examples(
+        training_validation_io.find_input_files_for_3d_examples(
             first_target_time_unix_sec=target_time_unix_sec,
             last_target_time_unix_sec=target_time_unix_sec,
             top_narr_directory_name=top_narr_directory_name,
@@ -345,7 +345,7 @@ def create_full_size_4d_example(
         dilation_half_width_for_target=dilation_half_width_for_target)
 
     narr_file_name_matrix, frontal_grid_file_names = (
-        ml_io.find_input_files_for_4d_examples(
+        training_validation_io.find_input_files_for_4d_examples(
             first_target_time_unix_sec=target_time_unix_sec,
             last_target_time_unix_sec=target_time_unix_sec,
             num_predictor_time_steps=num_predictor_time_steps,

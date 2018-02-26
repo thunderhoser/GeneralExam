@@ -39,7 +39,7 @@ from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
-from generalexam.machine_learning import machine_learning_io as ml_io
+from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
@@ -331,7 +331,7 @@ def train_model_with_3d_examples(
             save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=ml_io.full_size_3d_example_generator(
+            generator=training_validation_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
@@ -353,7 +353,7 @@ def train_model_with_3d_examples(
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=ml_io.full_size_3d_example_generator(
+            generator=training_validation_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
@@ -365,7 +365,8 @@ def train_model_with_3d_examples(
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1,
             callbacks=[checkpoint_object],
-            validation_data=ml_io.full_size_3d_example_generator(
+            validation_data=
+            training_validation_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
                 last_target_time_unix_sec=validation_end_time_unix_sec,
@@ -424,7 +425,7 @@ def train_model_with_4d_examples(
             save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=ml_io.full_size_4d_example_generator(
+            generator=training_validation_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
@@ -447,7 +448,7 @@ def train_model_with_4d_examples(
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=ml_io.full_size_4d_example_generator(
+            generator=training_validation_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
@@ -460,7 +461,8 @@ def train_model_with_4d_examples(
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, callbacks=[checkpoint_object],
-            validation_data=ml_io.full_size_4d_example_generator(
+            validation_data=
+            training_validation_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
                 last_target_time_unix_sec=validation_end_time_unix_sec,

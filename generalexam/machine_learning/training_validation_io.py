@@ -1,4 +1,4 @@
-"""IO methods for machine learning.
+"""IO methods for training or validation of a machine-learning model.
 
 --- NOTATION ---
 
@@ -6,10 +6,21 @@ Throughout this module, the following letters will be used to denote matrix
 dimensions.
 
 E = number of examples.  Each example is one image or a time sequence of images.
-T = number of time steps per example (i.e., number of images in each sequence)
 M = number of pixel rows in each image
 N = number of pixel columns in each image
+T = number of predictor times per example (images per sequence)
 C = number of channels (predictor variables) in each image
+
+--- DEFINITIONS ---
+
+A "downsized" example covers only a portion of the NARR grid (as opposed to
+a full-size example, which covers the entire NARR grid).
+
+For a 3-D example, the dimensions are M x N x C (M rows, N columns, C predictor
+variables).
+
+For a 4-D example, the dimensions are M x N x T x C (M rows, N columns, T time
+steps, C predictor variables).
 """
 
 import copy
@@ -32,22 +43,26 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
 
-NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES = 2
+NUM_CLASSES = 2
 
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
     nwp_model_utils.NARR_MODEL_NAME)[1]
 
 
-def _check_input_args_for_otf_generator(
+def _check_input_args_for_generator(
         num_examples_per_batch, narr_predictor_names,
         dilation_half_width_for_target, num_downsized_examples_per_time=None,
         num_rows_in_downsized_half_grid=None,
         num_columns_in_downsized_half_grid=None):
-    """Checks input arguments for on-the-fly input-generator.
+    """Checks input arguments for any of the generators listed below.
+
+    - downsized_3d_example_generator
+    - full_size_3d_example_generator
+    - full_size_4d_example_generator
 
     :param num_examples_per_batch: See documentation for
-        `downsized_example_generator_on_the_fly`.
+        `downsized_3d_example_generator`.
     :param narr_predictor_names: Same.
     :param dilation_half_width_for_target: Same.
     :param num_downsized_examples_per_time: Same.
@@ -101,8 +116,8 @@ def find_input_files_for_3d_examples(
         narr_predictor_names, pressure_level_mb):
     """Finds input files for 3-D machine-learning examples.
 
-    E = number of target times
-    C = number of image channels (predictor variables)
+    Q = number of target times
+    C = number of channels (predictor variables) in each image
 
     :param first_target_time_unix_sec: First target time.  Files will be
         returned for all target times from `first_target_time_unix_sec`...
@@ -114,9 +129,9 @@ def find_input_files_for_3d_examples(
         grids (one file per time step).
     :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
     :param pressure_level_mb: Pressure level (millibars).
-    :return: narr_file_name_matrix: E-by-C list of paths to NARR files, each
+    :return: narr_file_name_matrix: Q-by-C list of paths to NARR files, each
         containing the grid for one predictor field at one time step.
-    :return: frontal_grid_file_names: length-E list of paths to frontal-grid
+    :return: frontal_grid_file_names: length-Q list of paths to frontal-grid
         files, each containing a list of NARR grid points intersected by a front
         at one time step.
     """
@@ -158,23 +173,25 @@ def find_input_files_for_4d_examples(
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb):
     """Finds input files for 4-D machine-learning examples.
 
-    E = number of target times
-    T = number of predictor times per batch
-    C = number of image channels (predictor variables)
+    Q = number of target times
+    T = num_predictor_time_steps
+    C = number of channels (predictor variables) in each image
 
     :param first_target_time_unix_sec: See documentation for
-        `find_input_files_for_4d_examples`.
+        `find_input_files_for_3d_examples`.
     :param last_target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Number of predictor times per batch.
+    :param num_predictor_time_steps: Number of predictor times per example
+        (images per sequence).  This is T in the general discussion above.
     :param num_lead_time_steps: Number of time steps separating latest
         predictor time from target time.
-    :param top_narr_directory_name: Same.
+    :param top_narr_directory_name: See documentation for
+        `find_input_files_for_3d_examples`.
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :return: narr_file_name_matrix: E-by-T-by-C list of paths to NARR files,
+    :return: narr_file_name_matrix: Q-by-T-by-C list of paths to NARR files,
         each containing the grid for one predictor field at one time step.
-    :return: frontal_grid_file_names: length-E list of paths to frontal-grid
+    :return: frontal_grid_file_names: length-Q list of paths to frontal-grid
         files, each containing a list of NARR grid points intersected by a front
         at one time step.
     """
@@ -366,13 +383,11 @@ def read_keras_model(hdf5_file_name):
 
 def downsized_3d_example_generator_from_files(
         input_file_pattern, num_examples_per_batch):
-    """Generates downsized 3-D input examples for a Keras model.
+    """Generates downsized 3-D examples for a Keras model.
 
-    A "downsized" example covers only a portion of the NARR grid (as opposed to
-    a full-size example, which covers the entire NARR grid).
-
-    This function reads examples from pre-existing files.  If you want to create
-    examples on the fly, use `downsized_3d_example_generator`.
+    This function reads examples from pre-existing files, rather than creating
+    them on the fly.  If you want to create examples on the fly, use
+    `downsized_3d_example_generator`.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
     Thus, when training a Keras model with the `fit_generator` method, the input
@@ -383,7 +398,7 @@ def downsized_3d_example_generator_from_files(
             training_file_pattern, batch_size),
         ...)
 
-    E = number of examples per batch = batch size
+    E = num_examples_per_batch
 
     :param input_file_pattern: Glob pattern for input files (example:
         "ml_examples/downsized/201712/*.p").  All files matching this pattern
@@ -449,7 +464,7 @@ def downsized_3d_example_generator_from_files(
         #         normalize_by_image=True))  # Should already be done in file.
 
         target_values_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
+            target_values[batch_indices], NUM_CLASSES)
 
         predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
         target_values = numpy.delete(target_values, batch_indices, axis=0)
@@ -464,15 +479,11 @@ def downsized_3d_example_generator(
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
         positive_fraction, num_rows_in_half_grid, num_columns_in_half_grid):
-    """Generates downsized 3-D input examples for a Keras model.
+    """Generates downsized 3-D examples for a Keras model.
 
-    A "downsized" example covers only a portion of the NARR grid (as opposed to
-    a full-size example, which covers the entire NARR grid).
-
-    This function creates examples on the fly (by reading and processing raw
-    data, instead of reading examples from pre-existing files).  If you want to
-    read examples from pre-existing files, use
-    `downsized_3d_example_generator_from_files`.
+    This function creates examples on the fly, rather than reading them from
+    pre-existing files.  If you want to read examples from pre-existing files,
+    use `downsized_3d_example_generator_from_files`.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
     Thus, when training a Keras model with the `fit_generator` method, the input
@@ -483,15 +494,15 @@ def downsized_3d_example_generator(
             num_examples_per_batch, num_examples_per_time, ...),
         ...)
 
-    E = number of examples per batch = batch size
+    E = num_examples_per_batch
     M = number of pixel rows = 2 * num_rows_in_half_grid + 1
     N = number of pixel columns = 2 * num_columns_in_half_grid + 1
-    C = number of channels (predictor variables)
+    C = number of channels (predictor variables) in each image
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
-    :param num_examples_per_time: Number of downsized examples to create per
-        target time.
+    :param num_examples_per_time: Number of downsized examples to create for
+        each target time.
     :param first_target_time_unix_sec: See documentation for
         `find_input_files_for_3d_examples`.
     :param last_target_time_unix_sec: Same.
@@ -503,8 +514,8 @@ def downsized_3d_example_generator(
         target variable.  For each time step t and grid cell [j, k], if a front
         occurs within `dilation_half_width_for_target` of [j, k] at time t, the
         label at [t, j, k] will be positive.
-    :param positive_fraction: Fraction of examples with positive labels
-        (front = yes).
+    :param positive_fraction: Fraction of positive examples generated by this
+        function.  A "positive example" is one labeled as frontal.
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
@@ -512,7 +523,7 @@ def downsized_3d_example_generator(
         (labels).
     """
 
-    _check_input_args_for_otf_generator(
+    _check_input_args_for_generator(
         num_examples_per_batch=num_examples_per_batch,
         narr_predictor_names=narr_predictor_names,
         dilation_half_width_for_target=dilation_half_width_for_target,
@@ -638,7 +649,7 @@ def downsized_3d_example_generator(
         predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
         target_values_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], NUM_CLASSES_FOR_DOWNSIZED_EXAMPLES)
+            target_values[batch_indices], NUM_CLASSES)
 
         downsized_predictor_matrix = numpy.delete(
             downsized_predictor_matrix, batch_indices, axis=0)
@@ -653,14 +664,11 @@ def full_size_3d_example_generator(
         last_target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_half_width_for_target):
-    """Generates full-size 3-D input examples for a Keras model.
+    """Generates full-size 3-D examples for a Keras model.
 
-    A "full-size" example covers the entire NARR grid (as opposed to a downsized
-    example, which covers only a portion of the NARR grid).
-
-    This function creates examples on the fly (by reading and processing raw
-    data, instead of reading examples from pre-existing files).  As yet, this
-    function has no counterpart that reads from files.
+    This function creates examples on the fly, rather than reading them from
+    pre-existing files.  As yet, this function has no counterpart that reads
+    from files.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
     Thus, when training a Keras model with the `fit_generator` method, the input
@@ -671,7 +679,7 @@ def full_size_3d_example_generator(
             num_examples_per_batch, first_target_time_unix_sec, ...),
         ...)
 
-    E = number of examples per batch = batch size
+    E = num_examples_per_batch
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
@@ -682,16 +690,13 @@ def full_size_3d_example_generator(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Half-width of dilation window for
-        target variable.  For each time step t and grid cell [j, k], if a front
-        occurs within `dilation_half_width_for_target` of [j, k] at time t, the
-        label at [t, j, k] will be positive.
+    :param dilation_half_width_for_target: See documentation for
+        `downsized_3d_example_generator`.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
-    :return: target_matrix: E-by-M-by-N numpy array of binary target images (all
-        elements are 0 or 1).
+    :return: target_matrix: E-by-M-by-N numpy array of binary target images.
     """
 
-    _check_input_args_for_otf_generator(
+    _check_input_args_for_generator(
         num_examples_per_batch=num_examples_per_batch,
         narr_predictor_names=narr_predictor_names,
         dilation_half_width_for_target=dilation_half_width_for_target)
@@ -797,10 +802,11 @@ def full_size_4d_example_generator(
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_half_width_for_target):
-    """Generates full-size 4-D input examples for a Keras model.
+    """Generates full-size 4-D examples for a Keras model.
 
-    For definitions of a "full-size" example and "on-the-fly" generation, see
-    documentation for `full_size_3d_example_generator`.
+    This function creates examples on the fly, rather than reading them from
+    pre-existing files.  As yet, this function has no counterpart that reads
+    from files.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
     Thus, when training a Keras model with the `fit_generator` method, the input
@@ -811,31 +817,28 @@ def full_size_4d_example_generator(
             num_examples_per_batch, first_target_time_unix_sec, ...),
         ...)
 
-    E = number of examples per batch = batch size
-    T = number of predictor times per batch
+    E = num_examples_per_batch
+    T = num_predictor_time_steps
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :param first_target_time_unix_sec: See documentation for
         `find_input_files_for_4d_examples`.
     :param last_target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Number of predictor times per batch.
-    :param num_lead_time_steps: Number of time steps separating latest predictor
-        time from target time.
-    :param top_narr_directory_name: See documentation for
-        `find_input_files_for_4d_examples`.
+    :param num_predictor_time_steps: Same.
+    :param num_lead_time_steps: Same.
+    :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: See doc for
-        `full_size_3d_example_generator`.
+    :param dilation_half_width_for_target: See documentation for
+        `downsized_3d_example_generator`.
     :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
         images.
-    :return: target_matrix: E-by-M-by-N numpy array of binary target images (all
-        elements are 0 or 1).
+    :return: target_matrix: E-by-M-by-N numpy array of binary target images.
     """
 
-    _check_input_args_for_otf_generator(
+    _check_input_args_for_generator(
         num_examples_per_batch=num_examples_per_batch,
         narr_predictor_names=narr_predictor_names,
         dilation_half_width_for_target=dilation_half_width_for_target)
