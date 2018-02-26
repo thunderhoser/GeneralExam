@@ -684,9 +684,12 @@ def dilate_target_images(
     """
 
     _check_target_matrix(binary_target_matrix, assert_binary=True)
-    error_checking.assert_is_boolean(verbose)
+    if num_pixels_in_half_window == 0:
+        return binary_target_matrix
 
+    error_checking.assert_is_boolean(verbose)
     num_times = binary_target_matrix.shape[0]
+
     for i in range(num_times):
         if verbose:
             print ('Dilating target grid at {0:d}th of {1:d} time '

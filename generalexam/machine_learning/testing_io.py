@@ -58,7 +58,7 @@ def _check_input_args(
         numpy.asarray(narr_predictor_names), num_dimensions=1)
 
     error_checking.assert_is_integer(dilation_half_width_for_target)
-    error_checking.assert_is_greater(dilation_half_width_for_target, 0)
+    error_checking.assert_is_geq(dilation_half_width_for_target, 0)
     if (num_rows_in_downsized_half_grid is None or
             num_columns_in_downsized_half_grid is None):
         return

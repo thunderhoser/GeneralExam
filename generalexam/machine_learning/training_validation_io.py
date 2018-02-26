@@ -80,7 +80,7 @@ def _check_input_args_for_generator(
         numpy.asarray(narr_predictor_names), num_dimensions=1)
 
     error_checking.assert_is_integer(dilation_half_width_for_target)
-    error_checking.assert_is_greater(dilation_half_width_for_target, 0)
+    error_checking.assert_is_geq(dilation_half_width_for_target, 0)
     if (num_downsized_examples_per_time is None or
             num_rows_in_downsized_half_grid is None or
             num_columns_in_downsized_half_grid is None):
@@ -458,6 +458,8 @@ def downsized_3d_example_generator_from_files(
 
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
+        print 'Fraction of positive examples = {0:.4f}'.format(
+            numpy.mean(target_values[batch_indices]))
         # predictor_matrix_to_return = (
         #     ml_utils.normalize_predictor_matrix(
         #         predictor_matrix=predictor_matrix_to_return,
@@ -648,6 +650,8 @@ def downsized_3d_example_generator(
 
         predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
+        print 'Fraction of positive examples = {0:.4f}'.format(
+            numpy.mean(target_values[batch_indices]))
         target_values_to_return = keras.utils.to_categorical(
             target_values[batch_indices], NUM_CLASSES)
 
@@ -784,7 +788,8 @@ def full_size_3d_example_generator(
             batch_indices, ...].astype('float32')
         target_matrix_to_return = target_matrix[
             batch_indices, ...].astype('bool')
-        print numpy.mean(target_matrix_to_return)
+        print 'Fraction of positive examples = {0:.4f}'.format(
+            numpy.mean(target_matrix_to_return))
 
         target_matrix_to_return = numpy.expand_dims(
             target_matrix_to_return, axis=-1)
@@ -937,7 +942,8 @@ def full_size_4d_example_generator(
             batch_indices, ...].astype('float32')
         target_matrix_to_return = target_matrix[
             batch_indices, ...].astype('bool')
-        print numpy.mean(target_matrix_to_return)
+        print 'Fraction of positive examples = {0:.4f}'.format(
+            numpy.mean(target_matrix_to_return))
 
         # Expands target matrix to 4-D.  Might have to expand to 5-D.
         target_matrix_to_return = numpy.expand_dims(
