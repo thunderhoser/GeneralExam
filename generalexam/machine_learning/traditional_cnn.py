@@ -1,9 +1,10 @@
 """Training and testing methods for traditional CNN (convolutional neural net).
 
 A "traditional CNN" is one for which the output (prediction) is not spatially
-explicit.  The opposite is a "spatially dense" CNN, or fully connected CNN.  For
-a traditional CNN, there is one output (prediction) per image, rather than one
-per pixel.  Thus, a traditional CNN may predict whether or not the image
+explicit.  The opposite is a fully convolutional net (FCN; see fcn.py).
+
+For a traditional CNN, there is one output (prediction) per image, rather than
+one per pixel.  Thus, a traditional CNN may predict whether or not the image
 contains some feature (e.g., atmospheric front), but it may *not* predict where
 said features are in the image.
 
@@ -178,8 +179,10 @@ def train_model_from_on_the_fly_examples(
     :param positive_fraction: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
-    :param num_validation_batches_per_epoch: Same.
-    :param validation_start_time_unix_sec: Same.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
+    :param validation_start_time_unix_sec: See documentation for
+        `machine_learning_io.downsized_3d_example_generator`.
     :param validation_end_time_unix_sec: Same.
     """
 
@@ -207,6 +210,9 @@ def train_model_from_on_the_fly_examples(
             verbose=1)
 
     else:
+        error_checking.assert_is_integer(num_validation_batches_per_epoch)
+        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
+
         model_object.fit_generator(
             generator=ml_io.downsized_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -248,7 +254,7 @@ def apply_model_one_target_time(
 
     :param model_object: Instance of `keras.models.Sequential`.
     :param target_time_unix_sec: See documentation for
-        `testing_io.downsized_3d_example_generator`.
+        `testing_io.create_downsized_3d_examples`.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
@@ -301,9 +307,5 @@ def apply_model_one_target_time(
             this_downsized_predictor_matrix,
             batch_size=NUM_NARR_COLUMNS_WITHOUT_NAN)
         predicted_target_matrix[:, i, :] = this_prediction_matrix[:, 1]
-
-    print numpy.min(predicted_target_matrix)
-    print numpy.mean(predicted_target_matrix)
-    print numpy.max(predicted_target_matrix)
 
     return predicted_target_matrix, actual_target_matrix
