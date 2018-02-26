@@ -29,6 +29,12 @@ from generalexam.machine_learning import cnn_utils
 from generalexam.machine_learning import machine_learning_io as ml_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
+from generalexam.machine_learning import keras_metrics
+
+LIST_OF_METRIC_FUNCTIONS = [
+    keras_metrics.accuracy, keras_metrics.csi, keras_metrics.frequency_bias,
+    keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
+    keras_metrics.focn]
 
 NUM_CLASSES = 2
 DEFAULT_NUM_PIXEL_ROWS = 65
@@ -97,7 +103,7 @@ def get_cnn_with_mnist_architecture():
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=['accuracy'])
+        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
     return model_object
 
 
@@ -123,10 +129,19 @@ def train_model_from_files(
         epoch.
     """
 
+    # TODO(thunderhoser): Somehow incorporate class weights into this method.
+    # Or maybe just drop this method altogether, since I haven't trained from
+    # file in a long time.
+
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_geq(num_epochs, 1)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
+
+    # class_weight_dict = {
+    #     0: 1. / (1. - positive_fraction),
+    #     1: 1. / positive_fraction
+    # }
 
     if validation_file_pattern is None:
         model_object.fit_generator(
@@ -191,6 +206,9 @@ def train_model_from_on_the_fly_examples(
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
+    class_frequencies = numpy.array([1. - positive_fraction, positive_fraction])
+    class_weight_dict = ml_utils.get_class_weight_dict(class_frequencies)
+
     if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=ml_io.downsized_3d_example_generator(
@@ -207,7 +225,7 @@ def train_model_from_on_the_fly_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1)
+            class_weight=class_weight_dict, verbose=1)
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -228,7 +246,7 @@ def train_model_from_on_the_fly_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1,
+            class_weight=class_weight_dict, verbose=1,
             validation_data=ml_io.downsized_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_time=num_examples_per_time,
