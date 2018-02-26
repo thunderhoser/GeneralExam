@@ -33,6 +33,8 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
 
+DEFAULT_ASSUMED_POSITIVE_FRACTION = 0.935
+
 LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.accuracy, keras_metrics.csi, keras_metrics.frequency_bias,
     keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
@@ -112,6 +114,7 @@ def get_cnn_with_mnist_architecture():
 def train_model_from_files(
         model_object, output_file_name, num_examples_per_batch,
         training_file_pattern, num_epochs, num_training_batches_per_epoch,
+        assumed_positive_fraction=DEFAULT_ASSUMED_POSITIVE_FRACTION,
         validation_file_pattern=None, num_validation_batches_per_epoch=None):
     """Trains CNN, using examples read from pre-existing files.
 
@@ -125,6 +128,8 @@ def train_model_from_files(
         be used for training data.
     :param num_epochs: Number of epochs.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
+    :param assumed_positive_fraction: Assumed fraction of positive cases.  This
+        will be used to weight classes in the loss function.
     :param validation_file_pattern: Glob pattern for validation files (example:
         "downsized_examples/20171*/*.p").  All files matching this pattern will
         be used for validation data.  If you want no validation data, leave this
@@ -133,16 +138,16 @@ def train_model_from_files(
         epoch.
     """
 
-    # TODO(thunderhoser): Somehow incorporate class weights into this method.
-    # Or maybe just drop this method altogether, since I haven't trained from
-    # file in a long time.
-
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_geq(num_epochs, 1)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
+    class_frequencies = numpy.array(
+        [1. - assumed_positive_fraction, assumed_positive_fraction])
+    class_weight_dict = ml_utils.get_class_weight_dict(class_frequencies)
 
     if validation_file_pattern is None:
         checkpoint_object = ModelCheckpoint(
@@ -154,7 +159,8 @@ def train_model_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object])
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object])
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
@@ -168,7 +174,8 @@ def train_model_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object],
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object],
             validation_data=ml_io.downsized_3d_example_generator_from_files(
                 input_file_pattern=validation_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),

@@ -42,11 +42,10 @@ def _get_num_true_positives(true_labels, forecast_probabilities):
     """Returns number of true positives (defined in docstring).
 
     Number of true positives = `a` in contingency table
-    E = number of examples
 
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: tensor of true labels (integers).
+    :param forecast_probabilities: equivalent-sized tensor of forecast
+        probabilities (in range 0...1).
     :return: num_true_positives: Number of true positives.
     """
 
@@ -63,11 +62,9 @@ def _get_num_false_positives(true_labels, forecast_probabilities):
     """Returns number of false positives (defined in docstring).
 
     Number of false positives = `b` in contingency table
-    E = number of examples
 
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: num_false_positives: Number of false positives.
     """
 
@@ -84,11 +81,9 @@ def _get_num_false_negatives(true_labels, forecast_probabilities):
     """Returns number of false negatives (defined in docstring).
 
     Number of false negatives = `c` in contingency table
-    E = number of examples
 
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: num_false_negatives: Number of false negatives.
     """
 
@@ -105,11 +100,9 @@ def _get_num_true_negatives(true_labels, forecast_probabilities):
     """Returns number of true negatives (defined in docstring).
 
     Number of true negatives = `d` in contingency table
-    E = number of examples
 
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: num_true_negatives: Number of true negatives.
     """
 
@@ -126,11 +119,8 @@ def _get_num_true_negatives(true_labels, forecast_probabilities):
 def accuracy(true_labels, forecast_probabilities):
     """Computes accuracy ([a + d] / [a + b + c + d]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: accuracy: Accuracy.
     """
 
@@ -151,11 +141,8 @@ def accuracy(true_labels, forecast_probabilities):
 def csi(true_labels, forecast_probabilities):
     """Computes critical success index (a / [a + b + c]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: critical_success_index: Critical success index.
     """
 
@@ -174,11 +161,8 @@ def csi(true_labels, forecast_probabilities):
 def frequency_bias(true_labels, forecast_probabilities):
     """Computes frequency bias ([a + b] / [a + c]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: frequency_bias: Frequency bias.
     """
 
@@ -196,11 +180,8 @@ def frequency_bias(true_labels, forecast_probabilities):
 def pod(true_labels, forecast_probabilities):
     """Computes probability of detection (a / [a + c]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: probability_of_detection: Probability of detection.
     """
 
@@ -216,11 +197,8 @@ def pod(true_labels, forecast_probabilities):
 def fom(true_labels, forecast_probabilities):
     """Computes frequency of misses (c / [a + c]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: frequency_of_misses: Frequency of misses.
     """
 
@@ -230,11 +208,8 @@ def fom(true_labels, forecast_probabilities):
 def pofd(true_labels, forecast_probabilities):
     """Computes probability of false detection (b / [b + d]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: probability_of_false_detection: Probability of false detection.
     """
 
@@ -250,11 +225,8 @@ def pofd(true_labels, forecast_probabilities):
 def npv(true_labels, forecast_probabilities):
     """Computes negative predictive value (d / [b + d]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: negative_predictive_value: Negative predictive value.
     """
 
@@ -264,11 +236,8 @@ def npv(true_labels, forecast_probabilities):
 def success_ratio(true_labels, forecast_probabilities):
     """Computes success ratio (a / [a + b]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: success_ratio: Success ratio.
     """
 
@@ -284,11 +253,8 @@ def success_ratio(true_labels, forecast_probabilities):
 def far(true_labels, forecast_probabilities):
     """Computes false-alarm rate (b / [a + b]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: false_alarm_rate: False-alarm rate.
     """
 
@@ -298,11 +264,8 @@ def far(true_labels, forecast_probabilities):
 def dfr(true_labels, forecast_probabilities):
     """Computes detection-failure ratio (c / [c + d]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: detection_failure_ratio: Detection-failure ratio.
     """
 
@@ -318,11 +281,8 @@ def dfr(true_labels, forecast_probabilities):
 def focn(true_labels, forecast_probabilities):
     """Computes frequency of correct nulls (d / [c + d]).
 
-    E = number of examples
-
-    :param true_labels: length-E numpy array of true labels (integers).
-    :param forecast_probabilities: length-E numpy array of forecast
-        probabilities.
+    :param true_labels: See documentation for `_get_num_true_positives`.
+    :param forecast_probabilities: Same.
     :return: freq_of_correct_nulls: Frequency of correct nulls.
     """
 

@@ -42,6 +42,9 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import machine_learning_io as ml_io
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
+from generalexam.machine_learning import keras_losses
+
+DEFAULT_POSITIVE_CLASS_WEIGHT = 0.935
 
 LEARNING_RATE_FOR_UNET = 1e-4
 LIST_OF_METRIC_FUNCTIONS = [
@@ -60,13 +63,17 @@ NUM_NARR_GRID_ROWS_TO_USE = 272
 NUM_NARR_GRID_COLUMNS_TO_USE = 256
 
 
-def get_unet():
+def get_unet(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
     """Creates U-net with architecture used in the following example.
 
     https://github.com/zhixuhao/unet/blob/master/unet.py
 
     For more on U-nets in general, see Ronneberger et al. (2015).
 
+    :param positive_class_weight: Weight for positive class in loss function.
+        This should be (1 - frequency of positive class).  With dilation half-
+        width of 8 pixels, frequency of positive class (fraction of pixels
+        labeled as frontal) is ~0.065.  This is why default weight is 0.935.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
@@ -266,9 +273,15 @@ def get_unet():
         input=input_layer_object, output=conv_layer10_object)
 
     model_object.compile(
-        loss=keras.losses.binary_crossentropy,
+        loss=keras_losses.weighted_cross_entropy(
+            positive_class_weight=positive_class_weight),
         optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_UNET),
         metrics=LIST_OF_METRIC_FUNCTIONS)
+
+    # model_object.compile(
+    #     loss=keras.losses.binary_crossentropy,
+    #     optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_UNET),
+    #     metrics=LIST_OF_METRIC_FUNCTIONS)
 
     return model_object
 
@@ -327,7 +340,8 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object])
+            verbose=1,
+            callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -348,7 +362,8 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object],
+            verbose=1,
+            callbacks=[checkpoint_object],
             validation_data=ml_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
