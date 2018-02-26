@@ -512,7 +512,6 @@ def downsized_3d_example_generator(
         (labels).
     """
 
-
     _check_input_args_for_otf_generator(
         num_examples_per_batch=num_examples_per_batch,
         narr_predictor_names=narr_predictor_names,
@@ -520,6 +519,7 @@ def downsized_3d_example_generator(
         num_downsized_examples_per_time=num_examples_per_time,
         num_rows_in_downsized_half_grid=num_rows_in_half_grid,
         num_columns_in_downsized_half_grid=num_columns_in_half_grid)
+
     narr_file_name_matrix, frontal_grid_file_names = (
         find_input_files_for_3d_examples(
             first_target_time_unix_sec=first_target_time_unix_sec,

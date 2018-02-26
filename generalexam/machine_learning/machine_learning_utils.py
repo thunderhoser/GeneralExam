@@ -19,6 +19,8 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_utils import front_utils
 
+TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
+
 DEFAULT_NUM_SAMPLE_PTS_PER_TIME = 1000
 
 FIRST_NARR_COLUMN_WITHOUT_NAN = 7
@@ -260,6 +262,42 @@ def _downsize_predictor_images(
 
     return numpy.pad(
         downsized_predictor_matrix, pad_width=pad_width_input_arg, mode='edge')
+
+
+def get_class_weight_dict(class_frequencies):
+    """Returns dictionary of class weights.
+
+    This dictionary will be used to weight the loss function for a Keras model.
+
+    K = number of classes
+
+    :param class_frequencies: length-K numpy array, where class_frequencies[i]
+        is the frequency of the [i]th class in the training data.
+    :return: class_weight_dict: Dictionary, where each key is an integer from
+        0...(K - 1) and each value is the corresponding weight.
+    :raises: ValueError: if the sum of class frequencies is not 1.
+    """
+
+    error_checking.assert_is_numpy_array(class_frequencies, num_dimensions=1)
+    error_checking.assert_is_greater_numpy_array(class_frequencies, 0.)
+    error_checking.assert_is_less_than_numpy_array(class_frequencies, 1.)
+
+    sum_of_class_frequencies = numpy.sum(class_frequencies)
+    absolute_diff = numpy.absolute(sum_of_class_frequencies - 1.)
+    if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
+        error_string = (
+            '{0:s}Sum of class frequencies (shown above) should be 1.  Instead,'
+            ' got {1:.4f}.').format(str(class_frequencies),
+                                    sum_of_class_frequencies)
+        raise ValueError(error_string)
+
+    class_weights = 1. / class_frequencies
+    class_weights = class_weights / numpy.sum(class_weights)
+    class_weight_dict = {}
+
+    for k in range(len(class_weights)):
+        class_weight_dict.update({k: class_weights[k]})
+    return class_weight_dict
 
 
 def normalize_predictor_matrix(
