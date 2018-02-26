@@ -24,7 +24,6 @@ steps, C predictor variables).
 """
 
 import numpy
-import keras.utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
@@ -85,30 +84,45 @@ def _check_input_args(
         raise ValueError(error_string)
 
 
-def downsized_3d_example_generator(
-        target_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_half_width_for_target, num_rows_in_half_grid,
-        num_columns_in_half_grid):
-    """Generates downsized 3-D testing examples for a Keras model.
+def create_downsized_3d_examples(
+        narr_row_index, num_rows_in_half_grid, num_columns_in_half_grid,
+        full_predictor_matrix=None, full_target_matrix=None,
+        target_time_unix_sec=None, top_narr_directory_name=None,
+        top_frontal_grid_dir_name=None, narr_predictor_names=None,
+        pressure_level_mb=None, dilation_half_width_for_target=None):
+    """Creates downsized 3-D testing examples for a Keras model.
 
-    This function fits the template specified by
-    `keras.models.*.predict_generator`.  Thus, when testing a Keras model with
-    the `predict_generator` method, the input argument "generator" should be
-    this function.  For example:
+    Specifically, this method creates examples for one time step and one row in
+    the NARR grid.
 
-    model_object.predict_generator(
-        generator=machine_learning_io.downsized_3d_example_generator(
-            target_time_unix_sec, top_narr_directory_name, ...),
-        ...)
+    Below is an example of how to use this method with a Keras model.
 
-    E = batch size = number of columns in the full grid.  In other words, each
-        batch corresponds to one row of the full grid.
+    predictor_matrix, actual_target_values = create_downsized_3d_examples(
+        target_time_unix_sec, narr_row_index, ...)
+    predicted_target_values = model_object.predict(predictor_matrix, ...)
 
-    M = number of pixel rows = 2 * num_rows_in_half_grid + 1
-    N = number of pixel columns = 2 * num_columns_in_half_grid + 1
+    E = number of examples
+      = number of columns in the NARR grid (after removing columns with NaN)
+    M = number of pixel rows in full NARR grid
+    N = number of pixel columns in full NARR grid
     C = number of channels (predictor variables)
 
+    m = number of pixel rows in each downsized grid
+      = 2 * num_rows_in_half_grid + 1
+    n = number of pixel columns in each downsized grid
+      = 2 * num_columns_in_half_grid + 1
+
+    If `full_predictor_matrix` and `full_target_matrix` are both given, this
+    method will ignore all input args thereafter.
+
+    :param narr_row_index: Examples will be created for this row in the NARR
+        grid.  In other words, the center of each downsized image will be at row
+        `narr_row_index` and columns ranging from 0...(E - 1).
+    :param num_rows_in_half_grid: See general discussion above.
+    :param num_columns_in_half_grid: See general discussion above.
+    :param full_predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
+        image.
+    :param full_target_matrix: 1-by-M-by-N numpy array with target image.
     :param target_time_unix_sec: Target time.
     :param top_narr_directory_name: Name of top-level directory with NARR data
         (one file for each variable, pressure level, and time step).
@@ -120,114 +134,97 @@ def downsized_3d_example_generator(
         target variable.  For each time step t and grid cell [j, k], if a front
         occurs within `dilation_half_width_for_target` of [j, k] at time t, the
         label at [t, j, k] will be positive.
-    :param num_rows_in_half_grid: See general discussion above.
-    :param num_columns_in_half_grid: See general discussion above.
-    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
+    :return: downsized_predictor_matrix: E-by-m-by-n-by-C numpy array of
+        predictor images.
     :return: target_values: length-E numpy array of binary targets (labels).
+    :return: full_predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
+        image.
+    :param full_target_matrix: 1-by-M-by-N numpy array with target image.
     """
 
-    # TODO(thunderhoser): Does this function need to return target values?
-
-    _check_input_args(
-        narr_predictor_names=narr_predictor_names,
-        dilation_half_width_for_target=dilation_half_width_for_target,
-        num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-        num_columns_in_downsized_half_grid=num_columns_in_half_grid)
-
-    # TODO(thunderhoser): Make the following method public.
-    narr_file_name_matrix, frontal_grid_file_names = (
-        ml_io.find_input_files_for_3d_examples(
-            first_target_time_unix_sec=target_time_unix_sec,
-            last_target_time_unix_sec=target_time_unix_sec,
-            top_narr_directory_name=top_narr_directory_name,
-            top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+    if full_predictor_matrix is None or full_target_matrix is None:
+        _check_input_args(
             narr_predictor_names=narr_predictor_names,
-            pressure_level_mb=pressure_level_mb))
+            dilation_half_width_for_target=dilation_half_width_for_target,
+            num_rows_in_downsized_half_grid=num_rows_in_half_grid,
+            num_columns_in_downsized_half_grid=num_columns_in_half_grid)
 
-    narr_file_names = narr_file_name_matrix[0, :]
-    frontal_grid_file_name = frontal_grid_file_names[0]
-    num_predictors = len(narr_predictor_names)
+        narr_file_name_matrix, frontal_grid_file_names = (
+            ml_io.find_input_files_for_3d_examples(
+                first_target_time_unix_sec=target_time_unix_sec,
+                last_target_time_unix_sec=target_time_unix_sec,
+                top_narr_directory_name=top_narr_directory_name,
+                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                pressure_level_mb=pressure_level_mb))
 
-    row_index = 0
-    num_rows_in_full_grid = -1
-    num_columns_in_full_grid = -1
-    full_predictor_matrix = None
-    full_target_matrix = None
+        narr_file_names = narr_file_name_matrix[0, :]
+        frontal_grid_file_name = frontal_grid_file_names[0]
 
-    while True:
-        if full_predictor_matrix is None:
-            print '\n'
-            tuple_of_full_predictor_matrices = ()
+        num_predictors = len(narr_predictor_names)
+        tuple_of_full_predictor_matrices = ()
 
-            for j in range(num_predictors):
-                print 'Reading data from: "{0:s}"...'.format(narr_file_names[j])
-                this_field_predictor_matrix, _, _, _ = (
-                    processed_narr_io.read_fields_from_file(narr_file_names[j]))
+        for j in range(num_predictors):
+            print 'Reading data from: "{0:s}"...'.format(narr_file_names[j])
+            this_field_predictor_matrix, _, _, _ = (
+                processed_narr_io.read_fields_from_file(narr_file_names[j]))
+            tuple_of_full_predictor_matrices += (this_field_predictor_matrix,)
 
-                tuple_of_full_predictor_matrices += (
-                    this_field_predictor_matrix,)
+        print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
+        frontal_grid_table = fronts_io.read_narr_grids_from_file(
+            frontal_grid_file_name)
 
-            print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
-            frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_name)
+        full_predictor_matrix = ml_utils.stack_predictor_variables(
+            tuple_of_full_predictor_matrices)
+        full_predictor_matrix = ml_utils.normalize_predictor_matrix(
+            predictor_matrix=full_predictor_matrix,
+            normalize_by_example=True)
 
-            full_predictor_matrix = ml_utils.stack_predictor_variables(
-                tuple_of_full_predictor_matrices)
-            full_predictor_matrix = ml_utils.normalize_predictor_matrix(
-                predictor_matrix=full_predictor_matrix,
-                normalize_by_example=True)
+        full_target_matrix = ml_utils.front_table_to_images(
+            frontal_grid_table=frontal_grid_table,
+            num_rows_per_image=full_predictor_matrix.shape[1],
+            num_columns_per_image=full_predictor_matrix.shape[2])
+        full_target_matrix = ml_utils.binarize_front_images(
+            full_target_matrix)
 
-            num_rows_in_full_grid = full_predictor_matrix.shape[1]
-            num_columns_in_full_grid = full_predictor_matrix.shape[2]
+        full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
+            full_predictor_matrix)
+        full_target_matrix = ml_utils.remove_nans_from_narr_grid(
+            full_target_matrix)
 
-            full_target_matrix = ml_utils.front_table_to_images(
-                frontal_grid_table=frontal_grid_table,
-                num_rows_per_image=num_rows_in_full_grid,
-                num_columns_per_image=num_columns_in_full_grid)
-            full_target_matrix = ml_utils.binarize_front_images(
-                full_target_matrix)
+        full_target_matrix = ml_utils.dilate_target_images(
+            binary_target_matrix=full_target_matrix,
+            num_pixels_in_half_window=dilation_half_width_for_target,
+            verbose=False)
 
-            full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
-                full_predictor_matrix)
-            full_target_matrix = ml_utils.remove_nans_from_narr_grid(
-                full_target_matrix)
+    num_rows_in_narr_grid = full_predictor_matrix.shape[1]
+    num_columns_in_narr_grid = full_predictor_matrix.shape[2]
 
-            full_target_matrix = ml_utils.dilate_target_images(
-                binary_target_matrix=full_target_matrix,
-                num_pixels_in_half_window=dilation_half_width_for_target,
-                verbose=False)
+    print ('Creating downsized examples for {0:d}th of {1:d} NARR grid '
+           'rows...').format(narr_row_index + 1, num_rows_in_narr_grid)
 
-        print ('Creating downsized examples for {0:d}th of {1:d} grid '
-               'rows...').format(row_index + 1, num_rows_in_full_grid)
+    these_narr_row_indices = numpy.linspace(
+        narr_row_index, narr_row_index, num=num_columns_in_narr_grid, dtype=int)
+    these_narr_column_indices = numpy.linspace(
+        0, num_columns_in_narr_grid - 1, num=num_columns_in_narr_grid,
+        dtype=int)
 
-        these_row_indices = numpy.linspace(
-            row_index, row_index, num=num_columns_in_full_grid, dtype=int)
-        these_column_indices = numpy.linspace(
-            0, num_columns_in_full_grid - 1, num=num_columns_in_full_grid,
-            dtype=int)
+    this_target_point_dict = {
+        ml_utils.ROW_INDICES_BY_TIME_KEY: [these_narr_row_indices],
+        ml_utils.COLUMN_INDICES_BY_TIME_KEY: [these_narr_column_indices]
+    }
+    downsized_predictor_matrix, target_values, _, _, _ = (
+        ml_utils.downsize_grids_around_selected_points(
+            predictor_matrix=full_predictor_matrix,
+            target_matrix=full_target_matrix,
+            num_rows_in_half_window=num_rows_in_half_grid,
+            num_columns_in_half_window=num_columns_in_half_grid,
+            target_point_dict=this_target_point_dict,
+            verbose=False))
 
-        row_index += 1
-        if row_index >= num_rows_in_full_grid:
-            row_index = 0
-
-        this_target_point_dict = {
-            ml_utils.ROW_INDICES_BY_TIME_KEY: [these_row_indices],
-            ml_utils.COLUMN_INDICES_BY_TIME_KEY: [these_column_indices]
-        }
-        this_downsized_predictor_matrix, these_target_values, _, _, _ = (
-            ml_utils.downsize_grids_around_selected_points(
-                predictor_matrix=full_predictor_matrix,
-                target_matrix=full_target_matrix,
-                num_rows_in_half_window=num_rows_in_half_grid,
-                num_columns_in_half_window=num_columns_in_half_grid,
-                target_point_dict=this_target_point_dict,
-                verbose=False))
-
-        this_downsized_predictor_matrix = (
-            this_downsized_predictor_matrix.astype('float32'))
-        these_target_values = keras.utils.to_categorical(
-            these_target_values, NUM_CLASSES)
-        yield (this_downsized_predictor_matrix, these_target_values)
+    downsized_predictor_matrix = downsized_predictor_matrix.astype('float32')
+    return (downsized_predictor_matrix, target_values, full_predictor_matrix,
+            full_target_matrix)
 
 
 def create_full_size_3d_example(
@@ -236,11 +233,7 @@ def create_full_size_3d_example(
         dilation_half_width_for_target):
     """Creates one full-size 3-D testing example for a Keras model.
 
-    Unlike `downsized_3d_example_generator`, this method is not a generator.  In
-    other words, it does not fit the template specified by
-    `keras.models.*.predict_generator`.  Thus, when using this method to test a
-    Keras model, you should use the  `keras.models.*.predict` method.  For
-    example:
+    Below is an example of how to use this method with a Keras model.
 
     predictor_matrix, actual_target_matrix = create_full_size_3d_example(
         target_time_unix_sec, top_narr_directory_name, ...)
