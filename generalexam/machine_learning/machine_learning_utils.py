@@ -556,6 +556,8 @@ def sample_target_points(
         negative_indices_linear = numpy.random.choice(
             negative_indices_linear, size=num_negative_cases, replace=False)
 
+    print positive_indices_linear
+
     positive_time_indices, positive_row_indices, positive_column_indices = (
         numpy.unravel_index(
             positive_indices_linear, binary_target_matrix.shape))
