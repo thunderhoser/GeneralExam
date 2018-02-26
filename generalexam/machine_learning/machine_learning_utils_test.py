@@ -11,6 +11,7 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 # TODO(thunderhoser): need unit tests for 5-D predictor matrices.
 
 TOLERANCE = 1e-6
+TOLERANCE_FOR_CLASS_WEIGHT = 1e-3
 
 # The following constants are used to test _check_predictor_matrix.
 PREDICTOR_MATRIX_1D = numpy.array([1, 2, 3, 4], dtype=numpy.float32)
@@ -116,6 +117,12 @@ SMALL_GRID_MATRIX_MIDDLE_3D = numpy.stack(
     (SMALL_GRID_MATRIX_MIDDLE, SMALL_GRID_MATRIX_MIDDLE), axis=0)
 SMALL_GRID_MATRIX_MIDDLE_4D = numpy.stack(
     (SMALL_GRID_MATRIX_MIDDLE_3D, SMALL_GRID_MATRIX_MIDDLE_3D), axis=-1)
+
+# The following constants are used to test get_class_weight_dict.
+CLASS_FREQUENCIES_BINARY = numpy.array([0.1, 0.9])
+CLASS_WEIGHT_DICT_BINARY = {0: 0.9, 1: 0.1}
+CLASS_FREQUENCIES_TERNARY = numpy.array([0.1, 0.2, 0.7])
+CLASS_WEIGHT_DICT_TERNARY = {0: 0.6087, 1: 0.3043, 2: 0.0870}
 
 # The following constants are used to test normalize_predictor_matrix.
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
@@ -578,6 +585,42 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_matrix, SMALL_GRID_MATRIX_MIDDLE_4D, atol=TOLERANCE))
+
+    def test_get_class_weight_dict_binary(self):
+        """Ensures correct output from get_class_weight_dict.
+
+        In this case, input contains 2 classes.
+        """
+
+        this_class_weight_dict = ml_utils.get_class_weight_dict(
+            CLASS_FREQUENCIES_BINARY)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(CLASS_WEIGHT_DICT_BINARY.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                CLASS_WEIGHT_DICT_BINARY[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
+
+    def test_get_class_weight_dict_ternary(self):
+        """Ensures correct output from get_class_weight_dict.
+
+        In this case, input contains 3 classes.
+        """
+
+        this_class_weight_dict = ml_utils.get_class_weight_dict(
+            CLASS_FREQUENCIES_TERNARY)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(CLASS_WEIGHT_DICT_TERNARY.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                CLASS_WEIGHT_DICT_TERNARY[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
     def test_normalize_predictor_matrix_by_example(self):
         """Ensures correct output from normalize_predictor_matrix.
