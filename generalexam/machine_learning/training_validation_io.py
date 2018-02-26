@@ -459,7 +459,7 @@ def downsized_3d_example_generator_from_files(
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
         print 'Fraction of positive examples = {0:.4f}'.format(
-            numpy.mean(target_values[batch_indices]))
+            numpy.mean(target_values[batch_indices].astype('float')))
         # predictor_matrix_to_return = (
         #     ml_utils.normalize_predictor_matrix(
         #         predictor_matrix=predictor_matrix_to_return,
@@ -651,7 +651,7 @@ def downsized_3d_example_generator(
         predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
         print 'Fraction of positive examples = {0:.4f}'.format(
-            numpy.mean(target_values[batch_indices]))
+            numpy.mean(target_values[batch_indices].astype('float')))
         target_values_to_return = keras.utils.to_categorical(
             target_values[batch_indices], NUM_CLASSES)
 
