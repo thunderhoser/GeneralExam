@@ -22,7 +22,9 @@ C = number of channels (predictor variables) in each image
 import numpy
 import keras
 from keras.models import Sequential
+from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import cnn_utils
@@ -108,12 +110,14 @@ def get_cnn_with_mnist_architecture():
 
 
 def train_model_from_files(
-        model_object, num_examples_per_batch, training_file_pattern, num_epochs,
-        num_training_batches_per_epoch, validation_file_pattern=None,
-        num_validation_batches_per_epoch=None):
+        model_object, output_file_name, num_examples_per_batch,
+        training_file_pattern, num_epochs, num_training_batches_per_epoch,
+        validation_file_pattern=None, num_validation_batches_per_epoch=None):
     """Trains CNN, using examples read from pre-existing files.
 
     :param model_object: Instance of `keras.models.Sequential`.
+    :param output_file_name: Path to output file (HDF5 format).  The model will
+        be saved here after every epoch.
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :param training_file_pattern: Glob pattern for training files (example:
@@ -138,28 +142,33 @@ def train_model_from_files(
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
-    # class_weight_dict = {
-    #     0: 1. / (1. - positive_fraction),
-    #     1: 1. / positive_fraction
-    # }
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     if validation_file_pattern is None:
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='loss', verbose=1, save_best_only=False,
+            save_weights_only=False, mode='min', period=1)
+
         model_object.fit_generator(
             generator=ml_io.downsized_3d_example_generator_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1)
+            verbose=1, callbacks=[checkpoint_object])
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
         model_object.fit_generator(
             generator=ml_io.downsized_3d_example_generator_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1,
+            verbose=1, callbacks=[checkpoint_object],
             validation_data=ml_io.downsized_3d_example_generator_from_files(
                 input_file_pattern=validation_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
@@ -167,7 +176,7 @@ def train_model_from_files(
 
 
 def train_model_from_on_the_fly_examples(
-        model_object, num_examples_per_batch, num_epochs,
+        model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, num_examples_per_time,
         training_start_time_unix_sec, training_end_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
@@ -178,6 +187,8 @@ def train_model_from_on_the_fly_examples(
     """Trains CNN, using examples generated on the fly.
 
     :param model_object: Instance of `keras.models.Sequential`.
+    :param output_file_name: Path to output file (HDF5 format).  The model will
+        be saved here after every epoch.
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :param num_epochs: Number of epochs.
@@ -206,30 +217,15 @@ def train_model_from_on_the_fly_examples(
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
     class_frequencies = numpy.array([1. - positive_fraction, positive_fraction])
     class_weight_dict = ml_utils.get_class_weight_dict(class_frequencies)
 
     if num_validation_batches_per_epoch is None:
-        model_object.fit_generator(
-            generator=ml_io.downsized_3d_example_generator(
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_time=num_examples_per_time,
-                first_target_time_unix_sec=training_start_time_unix_sec,
-                last_target_time_unix_sec=training_end_time_unix_sec,
-                top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
-                positive_fraction=positive_fraction,
-                num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            class_weight=class_weight_dict, verbose=1)
-
-    else:
-        error_checking.assert_is_integer(num_validation_batches_per_epoch)
-        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='loss', verbose=1, save_best_only=False,
+            save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
             generator=ml_io.downsized_3d_example_generator(
@@ -247,6 +243,33 @@ def train_model_from_on_the_fly_examples(
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             class_weight=class_weight_dict, verbose=1,
+            callbacks=[checkpoint_object])
+
+    else:
+        error_checking.assert_is_integer(num_validation_batches_per_epoch)
+        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
+
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=ml_io.downsized_3d_example_generator(
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_time=num_examples_per_time,
+                first_target_time_unix_sec=training_start_time_unix_sec,
+                last_target_time_unix_sec=training_end_time_unix_sec,
+                top_narr_directory_name=top_narr_directory_name,
+                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                pressure_level_mb=pressure_level_mb,
+                dilation_half_width_for_target=dilation_half_width_for_target,
+                positive_fraction=positive_fraction,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            class_weight=class_weight_dict, verbose=1,
+            callbacks=[checkpoint_object],
             validation_data=ml_io.downsized_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_time=num_examples_per_time,

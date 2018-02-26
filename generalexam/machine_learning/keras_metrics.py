@@ -38,7 +38,7 @@ examples with true label of 0
 import keras.backend as K
 
 
-def get_num_true_positives(true_labels, forecast_probabilities):
+def _get_num_true_positives(true_labels, forecast_probabilities):
     """Returns number of true positives (defined in docstring).
 
     Number of true positives = `a` in contingency table
@@ -50,11 +50,16 @@ def get_num_true_positives(true_labels, forecast_probabilities):
     :return: num_true_positives: Number of true positives.
     """
 
+    num_tensor_dimensions = len(K.int_shape(true_labels))
+    if num_tensor_dimensions == 2:
+        return K.sum(K.clip(
+            true_labels[:, 1] * forecast_probabilities[:, 1], 0., 1.))
+
     return K.sum(K.clip(
-        true_labels[:, 1] * forecast_probabilities[:, 1], 0., 1.))
+        true_labels * forecast_probabilities, 0., 1.))
 
 
-def get_num_false_positives(true_labels, forecast_probabilities):
+def _get_num_false_positives(true_labels, forecast_probabilities):
     """Returns number of false positives (defined in docstring).
 
     Number of false positives = `b` in contingency table
@@ -66,11 +71,16 @@ def get_num_false_positives(true_labels, forecast_probabilities):
     :return: num_false_positives: Number of false positives.
     """
 
+    num_tensor_dimensions = len(K.int_shape(true_labels))
+    if num_tensor_dimensions == 2:
+        return K.sum(K.clip(
+            (1 - true_labels[:, 1]) * forecast_probabilities[:, 1], 0., 1.))
+
     return K.sum(K.clip(
-        (1 - true_labels[:, 1]) * forecast_probabilities[:, 1], 0., 1.))
+        (1 - true_labels) * forecast_probabilities, 0., 1.))
 
 
-def get_num_false_negatives(true_labels, forecast_probabilities):
+def _get_num_false_negatives(true_labels, forecast_probabilities):
     """Returns number of false negatives (defined in docstring).
 
     Number of false negatives = `c` in contingency table
@@ -82,11 +92,16 @@ def get_num_false_negatives(true_labels, forecast_probabilities):
     :return: num_false_negatives: Number of false negatives.
     """
 
+    num_tensor_dimensions = len(K.int_shape(true_labels))
+    if num_tensor_dimensions == 2:
+        return K.sum(K.clip(
+            true_labels[:, 1] * (1. - forecast_probabilities[:, 1]), 0., 1.))
+
     return K.sum(K.clip(
-        true_labels[:, 1] * (1. - forecast_probabilities[:, 1]), 0., 1.))
+        true_labels * (1. - forecast_probabilities), 0., 1.))
 
 
-def get_num_true_negatives(true_labels, forecast_probabilities):
+def _get_num_true_negatives(true_labels, forecast_probabilities):
     """Returns number of true negatives (defined in docstring).
 
     Number of true negatives = `d` in contingency table
@@ -98,8 +113,14 @@ def get_num_true_negatives(true_labels, forecast_probabilities):
     :return: num_true_negatives: Number of true negatives.
     """
 
+    num_tensor_dimensions = len(K.int_shape(true_labels))
+    if num_tensor_dimensions == 2:
+        return K.sum(K.clip(
+            (1 - true_labels[:, 1]) *
+            (1. - forecast_probabilities[:, 1]), 0., 1.))
+
     return K.sum(K.clip(
-        (1 - true_labels[:, 1]) * (1. - forecast_probabilities[:, 1]), 0., 1.))
+        (1 - true_labels) * (1. - forecast_probabilities), 0., 1.))
 
 
 def accuracy(true_labels, forecast_probabilities):
@@ -113,13 +134,13 @@ def accuracy(true_labels, forecast_probabilities):
     :return: accuracy: Accuracy.
     """
 
-    num_true_positives = get_num_true_positives(
+    num_true_positives = _get_num_true_positives(
         true_labels, forecast_probabilities)
-    num_false_positives = get_num_false_positives(
+    num_false_positives = _get_num_false_positives(
         true_labels, forecast_probabilities)
-    num_false_negatives = get_num_false_negatives(
+    num_false_negatives = _get_num_false_negatives(
         true_labels, forecast_probabilities)
-    num_true_negatives = get_num_true_negatives(
+    num_true_negatives = _get_num_true_negatives(
         true_labels, forecast_probabilities)
 
     return (num_true_positives + num_true_negatives) / (
@@ -138,11 +159,11 @@ def csi(true_labels, forecast_probabilities):
     :return: critical_success_index: Critical success index.
     """
 
-    num_true_positives = get_num_true_positives(
+    num_true_positives = _get_num_true_positives(
         true_labels, forecast_probabilities)
-    num_false_positives = get_num_false_positives(
+    num_false_positives = _get_num_false_positives(
         true_labels, forecast_probabilities)
-    num_false_negatives = get_num_false_negatives(
+    num_false_negatives = _get_num_false_negatives(
         true_labels, forecast_probabilities)
 
     return num_true_positives / (
@@ -161,11 +182,11 @@ def frequency_bias(true_labels, forecast_probabilities):
     :return: frequency_bias: Frequency bias.
     """
 
-    num_true_positives = get_num_true_positives(
+    num_true_positives = _get_num_true_positives(
         true_labels, forecast_probabilities)
-    num_false_positives = get_num_false_positives(
+    num_false_positives = _get_num_false_positives(
         true_labels, forecast_probabilities)
-    num_false_negatives = get_num_false_negatives(
+    num_false_negatives = _get_num_false_negatives(
         true_labels, forecast_probabilities)
 
     return (num_true_positives + num_false_positives) / (
@@ -183,9 +204,9 @@ def pod(true_labels, forecast_probabilities):
     :return: probability_of_detection: Probability of detection.
     """
 
-    num_true_positives = get_num_true_positives(
+    num_true_positives = _get_num_true_positives(
         true_labels, forecast_probabilities)
-    num_false_negatives = get_num_false_negatives(
+    num_false_negatives = _get_num_false_negatives(
         true_labels, forecast_probabilities)
 
     return num_true_positives / (
@@ -217,9 +238,9 @@ def pofd(true_labels, forecast_probabilities):
     :return: probability_of_false_detection: Probability of false detection.
     """
 
-    num_false_positives = get_num_false_positives(
+    num_false_positives = _get_num_false_positives(
         true_labels, forecast_probabilities)
-    num_true_negatives = get_num_true_negatives(
+    num_true_negatives = _get_num_true_negatives(
         true_labels, forecast_probabilities)
 
     return num_false_positives / (
@@ -251,9 +272,9 @@ def success_ratio(true_labels, forecast_probabilities):
     :return: success_ratio: Success ratio.
     """
 
-    num_true_positives = get_num_true_positives(
+    num_true_positives = _get_num_true_positives(
         true_labels, forecast_probabilities)
-    num_false_positives = get_num_false_positives(
+    num_false_positives = _get_num_false_positives(
         true_labels, forecast_probabilities)
 
     return num_true_positives / (
@@ -285,9 +306,9 @@ def dfr(true_labels, forecast_probabilities):
     :return: detection_failure_ratio: Detection-failure ratio.
     """
 
-    num_false_negatives = get_num_false_negatives(
+    num_false_negatives = _get_num_false_negatives(
         true_labels, forecast_probabilities)
-    num_true_negatives = get_num_true_negatives(
+    num_true_negatives = _get_num_true_negatives(
         true_labels, forecast_probabilities)
 
     return num_false_negatives / (

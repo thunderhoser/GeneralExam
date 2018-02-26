@@ -35,10 +35,19 @@ Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
 
 import keras.models
 import keras.layers
+from keras.callbacks import ModelCheckpoint
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import machine_learning_io as ml_io
 from generalexam.machine_learning import testing_io
+from generalexam.machine_learning import keras_metrics
+
+LEARNING_RATE_FOR_UNET = 1e-4
+LIST_OF_METRIC_FUNCTIONS = [
+    keras_metrics.accuracy, keras_metrics.csi, keras_metrics.frequency_bias,
+    keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
+    keras_metrics.focn]
 
 NUM_CLASSES = 2
 DEFAULT_NARR_PREDICTOR_NAMES = [
@@ -253,12 +262,19 @@ def get_unet():
     print 'Shape of convolutional layer 10: {0:s}'.format(
         conv_layer10_object.shape)
 
-    return keras.models.Model(
+    model_object = keras.models.Model(
         input=input_layer_object, output=conv_layer10_object)
+
+    model_object.compile(
+        loss=keras.losses.binary_crossentropy,
+        optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_UNET),
+        metrics=LIST_OF_METRIC_FUNCTIONS)
+
+    return model_object
 
 
 def train_model_with_3d_examples(
-        model_object, num_examples_per_batch, num_epochs,
+        model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, training_start_time_unix_sec,
         training_end_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
@@ -267,6 +283,8 @@ def train_model_with_3d_examples(
     """Trains FCN, using 3-D examples generated on the fly.
 
     :param model_object: Instance of `keras.models.Model`.
+    :param output_file_name: Path to output file (HDF5 format).  The model will
+        be saved here after every epoch.
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :param num_epochs: Number of epochs.
@@ -291,7 +309,13 @@ def train_model_with_3d_examples(
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
     if num_validation_batches_per_epoch is None:
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='loss', verbose=1, save_best_only=False,
+            save_weights_only=False, mode='min', period=1)
+
         model_object.fit_generator(
             generator=ml_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -303,12 +327,16 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1)
+            verbose=1, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
         model_object.fit_generator(
             generator=ml_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -320,7 +348,7 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1,
+            verbose=1, callbacks=[checkpoint_object],
             validation_data=ml_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
@@ -334,7 +362,7 @@ def train_model_with_3d_examples(
 
 
 def train_model_with_4d_examples(
-        model_object, num_examples_per_batch, num_epochs,
+        model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, num_predictor_time_steps,
         num_lead_time_steps, training_start_time_unix_sec,
         training_end_time_unix_sec, top_narr_directory_name,
@@ -344,6 +372,8 @@ def train_model_with_4d_examples(
     """Trains FCN, using 4-D examples generated on the fly.
 
     :param model_object: Instance of `keras.models.Model`.
+    :param output_file_name: Path to output file (HDF5 format).  The model will
+        be saved here after every epoch.
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :param num_epochs: Number of epochs.
@@ -370,7 +400,13 @@ def train_model_with_4d_examples(
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
     if num_validation_batches_per_epoch is None:
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='loss', verbose=1, save_best_only=False,
+            save_weights_only=False, mode='min', period=1)
+
         model_object.fit_generator(
             generator=ml_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -384,12 +420,16 @@ def train_model_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1)
+            verbose=1, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
         model_object.fit_generator(
             generator=ml_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -403,7 +443,7 @@ def train_model_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1,
+            verbose=1, callbacks=[checkpoint_object],
             validation_data=ml_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
