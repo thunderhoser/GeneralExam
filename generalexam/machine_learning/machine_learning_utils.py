@@ -529,8 +529,6 @@ def sample_target_points(
     negative_indices_linear = numpy.where(
         numpy.invert(positive_flags_linear))[0]
 
-    print positive_indices_linear
-
     if not len(positive_indices_linear):
         return None
     if not len(negative_indices_linear):
