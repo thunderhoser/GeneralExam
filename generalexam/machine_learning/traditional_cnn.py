@@ -66,6 +66,8 @@ def get_cnn_with_mnist_architecture():
         aforementioned architecture.
     """
 
+    # TODO(thunderhoser): Generalize this to take any number of channels.
+
     model_object = Sequential()
 
     layer_object = cnn_utils.get_convolutional_layer(
