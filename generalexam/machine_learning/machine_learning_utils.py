@@ -518,7 +518,7 @@ def sample_target_points(
 
     num_positive_cases = int(
         numpy.round(positive_fraction * num_points_to_sample))
-    num_positive_cases = max([num_positive_cases, 0])
+    num_positive_cases = max([num_positive_cases, 1])
     num_positive_cases = min([num_positive_cases, num_points_to_sample - 1])
     num_negative_cases = num_points_to_sample - num_positive_cases
 
@@ -526,9 +526,10 @@ def sample_target_points(
         numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
         front_utils.ANY_FRONT_INTEGER_ID)
     positive_indices_linear = numpy.where(positive_flags_linear)[0]
-    print positive_indices_linear
     negative_indices_linear = numpy.where(
         numpy.invert(positive_flags_linear))[0]
+
+    print positive_indices_linear
 
     if not len(positive_indices_linear):
         return None
