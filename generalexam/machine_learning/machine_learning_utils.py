@@ -526,6 +526,7 @@ def sample_target_points(
         numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
         front_utils.ANY_FRONT_INTEGER_ID)
     positive_indices_linear = numpy.where(positive_flags_linear)[0]
+    print positive_indices_linear
     negative_indices_linear = numpy.where(
         numpy.invert(positive_flags_linear))[0]
 
@@ -555,8 +556,6 @@ def sample_target_points(
     else:
         negative_indices_linear = numpy.random.choice(
             negative_indices_linear, size=num_negative_cases, replace=False)
-
-    print positive_indices_linear
 
     positive_time_indices, positive_row_indices, positive_column_indices = (
         numpy.unravel_index(
