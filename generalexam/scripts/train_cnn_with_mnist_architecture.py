@@ -95,9 +95,11 @@ DEFAULT_NUM_COLUMNS_IN_HALF_GRID = 32
 DEFAULT_DILATION_HALF_WIDTH_IN_PIXELS = 8
 DEFAULT_POSITIVE_FRACTION = 0.1
 DEFAULT_PRESSURE_LEVEL_MB = 1000
-DEFAULT_TOP_NARR_DIR_NAME = ''
-DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = ''
-DEFAULT_TOP_OUTPUT_DIR_NAME = ''
+DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
+DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = (
+    '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
+DEFAULT_TOP_OUTPUT_DIR_NAME = (
+    '/condo/swatwork/ralager/ml_models/downsized_3d_examples')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
