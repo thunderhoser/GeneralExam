@@ -46,7 +46,7 @@ from generalexam.machine_learning import keras_losses
 
 DEFAULT_POSITIVE_CLASS_WEIGHT = 0.935
 
-LEARNING_RATE_FOR_UNET = 1e-4
+LEARNING_RATE_FOR_U_NET = 1e-4
 LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.accuracy, keras_metrics.csi, keras_metrics.frequency_bias,
     keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
@@ -63,7 +63,7 @@ NUM_NARR_GRID_ROWS_TO_USE = 272
 NUM_NARR_GRID_COLUMNS_TO_USE = 256
 
 
-def get_unet(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
+def get_u_net(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
     """Creates U-net with architecture used in the following example.
 
     https://github.com/zhixuhao/unet/blob/master/unet.py
@@ -77,6 +77,9 @@ def get_unet(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
+
+    error_checking.assert_is_greater(positive_class_weight, 0.)
+    error_checking.assert_is_less_than(positive_class_weight, 1.)
 
     input_layer_object = keras.layers.Input(
         shape=(NUM_NARR_GRID_ROWS_TO_USE,
@@ -275,12 +278,12 @@ def get_unet(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
     model_object.compile(
         loss=keras_losses.weighted_cross_entropy(
             positive_class_weight=positive_class_weight),
-        optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_UNET),
+        optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_U_NET),
         metrics=LIST_OF_METRIC_FUNCTIONS)
 
     # model_object.compile(
     #     loss=keras.losses.binary_crossentropy,
-    #     optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_UNET),
+    #     optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_U_NET),
     #     metrics=LIST_OF_METRIC_FUNCTIONS)
 
     return model_object

@@ -1,22 +1,21 @@
-"""Trains convolutional neural net with MNIST architecture.
+"""Trains U-net with architecture used in the following example.
 
-Said architecture was used to classify handwritten digits from the MNIST
-(Modified National Institute of Standards and Technology) dataset.
+https://github.com/zhixuhao/unet/blob/master/unet.py
+
+For more on U-nets in general, see Ronneberger et al. (2015).
+
+--- REFERENCES ---
+
+Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
+    for biomedical image segmentation". International Conference on Medical
+    Image Computing and Computer-assisted Intervention, 234-241.
 """
 
 import argparse
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_io import processed_narr_io
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import fcn
 from generalexam.scripts import machine_learning as ml_script_helper
-
-# TODO(thunderhoser): Allow two versions of `positive_fraction`, one for
-# training and one for validation?
-
-# TODO(thunderhoser): Still need to extend downsized approach for future
-# prediction.
-
-# TODO(thunderhoser): Explore regularization and batch normalization.
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -31,36 +30,27 @@ INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER, use_downsized_examples=True)
 
 
-def _train_cnn(
-        num_epochs, num_examples_per_batch, num_examples_per_time,
-        num_training_batches_per_epoch, num_validation_batches_per_epoch,
-        num_rows_in_half_grid, num_columns_in_half_grid,
-        dilation_half_width_for_target, positive_fraction, pressure_level_mb,
-        training_start_time_string, training_end_time_string,
-        validation_start_time_string, validation_end_time_string,
-        top_narr_dir_name, top_frontal_grid_dir_name, output_file_name):
-    """Trains convolutional neural net with MNIST architecture.
+def _train_u_net(
+        num_epochs, num_examples_per_batch, num_training_batches_per_epoch,
+        num_validation_batches_per_epoch, dilation_half_width_for_target,
+        positive_class_weight, pressure_level_mb, training_start_time_string,
+        training_end_time_string, validation_start_time_string,
+        validation_end_time_string, top_narr_dir_name,
+        top_frontal_grid_dir_name, output_file_name):
+    """Trains U-net with certain architecture.
 
     :param num_epochs: Number of training epochs.
-    :param num_examples_per_batch: Number of examples (downsized images) per
-        batch.
-    :param num_examples_per_time: Number of examples (downsized images) sampled
-        from each time step.
+    :param num_examples_per_batch: Number of examples (images over the full NARR
+        grid) per batch.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
-    :param num_rows_in_half_grid: Number of rows in half-grid for each downsized
-        image.  Total number of rows will be 2 * `num_rows_in_half_grid` + 1.
-    :param num_columns_in_half_grid: Number of columns in half-grid for each
-        downsized image.  Total number of columns will be
-        2 * `num_columns_in_half_grid` + 1.
     :param dilation_half_width_for_target: Half-width of dilation window (number
         of pixels).  Target images will be dilated, which increases the number
         of pixels labeled as frontal.  This accounts for uncertainty in the
         placement of fronts.
-    :param positive_fraction: Fraction of positive examples in both training and
-        validation sets.  A "positive example" is an image with a front passing
-        within `dilation_half_width_for_target` pixels of the center.
+    :param positive_class_weight: Weight for positive class in loss function.
+        This should be (1 - frequency of positive class).
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
@@ -91,14 +81,13 @@ def _train_cnn(
         validation_end_time_string, INPUT_TIME_FORMAT)
 
     print 'Initializing model...'
-    model_object = traditional_cnn.get_cnn_with_mnist_architecture()
+    model_object = fcn.get_u_net(positive_class_weight=positive_class_weight)
     print SEPARATOR_STRING
 
-    traditional_cnn.train_model_from_on_the_fly_examples(
+    fcn.train_model_with_3d_examples(
         model_object=model_object, output_file_name=output_file_name,
         num_examples_per_batch=num_examples_per_batch, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        num_examples_per_time=num_examples_per_time,
         training_start_time_unix_sec=training_start_time_unix_sec,
         training_end_time_unix_sec=training_end_time_unix_sec,
         top_narr_directory_name=top_narr_dir_name,
@@ -106,9 +95,6 @@ def _train_cnn(
         narr_predictor_names=NARR_PREDICTOR_NAMES,
         pressure_level_mb=pressure_level_mb,
         dilation_half_width_for_target=dilation_half_width_for_target,
-        positive_fraction=positive_fraction,
-        num_rows_in_half_grid=num_rows_in_half_grid,
-        num_columns_in_half_grid=num_columns_in_half_grid,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec)
@@ -117,28 +103,21 @@ def _train_cnn(
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    _train_cnn(
+    _train_u_net(
         num_epochs=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.NUM_EPOCHS_ARG_NAME),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
-        num_examples_per_time=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.NUM_EXAMPLES_PER_TIME_ARG_NAME),
         num_training_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT,
             ml_script_helper.NUM_TRAIN_BATCHES_PER_EPOCH_ARG_NAME),
         num_validation_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT,
             ml_script_helper.NUM_VALIDN_BATCHES_PER_EPOCH_ARG_NAME),
-        num_rows_in_half_grid=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.NUM_ROWS_IN_HALF_GRID_ARG_NAME),
-        num_columns_in_half_grid=getattr(
-            INPUT_ARG_OBJECT,
-            ml_script_helper.NUM_COLUMNS_IN_HALF_GRID_ARG_NAME),
         dilation_half_width_for_target=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.DILATION_HALF_WIDTH_ARG_NAME),
-        positive_fraction=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.POSITIVE_FRACTION_ARG_NAME),
+        positive_class_weight=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.POSITIVE_CLASS_WEIGHT_ARG_NAME),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
         training_start_time_string=getattr(
