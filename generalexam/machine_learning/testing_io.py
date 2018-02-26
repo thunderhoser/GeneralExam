@@ -293,14 +293,14 @@ def create_full_size_3d_example(
         num_columns_per_image=predictor_matrix.shape[2])
     target_matrix = ml_utils.binarize_front_images(target_matrix)
 
-    predictor_matrix = ml_utils.remove_nans_from_narr_grid(predictor_matrix)
-    target_matrix = ml_utils.remove_nans_from_narr_grid(target_matrix)
+    predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
+    target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
     target_matrix = ml_utils.dilate_target_images(
         binary_target_matrix=target_matrix,
         num_pixels_in_half_window=dilation_half_width_for_target, verbose=False)
 
-    predictor_matrix = predictor_matrix[:, :272, :256, :].astype('float32')
-    target_matrix = target_matrix[:, :272, :256].astype('bool')
+    predictor_matrix = predictor_matrix.astype('float32')
+    target_matrix = target_matrix.astype('bool')
     print numpy.mean(target_matrix)
 
     target_matrix = numpy.expand_dims(target_matrix, axis=-1)
@@ -393,8 +393,8 @@ def create_full_size_4d_example(
         num_columns_per_image=predictor_matrix.shape[2])
 
     target_matrix = ml_utils.binarize_front_images(target_matrix)
-    predictor_matrix = ml_utils.remove_nans_from_narr_grid(predictor_matrix)
-    target_matrix = ml_utils.remove_nans_from_narr_grid(target_matrix)
+    predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
+    target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
     target_matrix = ml_utils.dilate_target_images(
         binary_target_matrix=target_matrix,
         num_pixels_in_half_window=dilation_half_width_for_target, verbose=False)

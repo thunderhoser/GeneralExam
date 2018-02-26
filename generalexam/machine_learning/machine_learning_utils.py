@@ -30,6 +30,23 @@ NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(
     num=LAST_NARR_COLUMN_WITHOUT_NAN - FIRST_NARR_COLUMN_WITHOUT_NAN + 1,
     dtype=int)
 
+# Subset of NARR grid for FCN (fully convolutional net) input.  This results in
+# dimensions of 272 x 256, which are divisible by 2 many times, which obviates
+# the need for padding and cropping layers.
+FIRST_NARR_COLUMN_FOR_FCN_INPUT = 8
+LAST_NARR_COLUMN_FOR_FCN_INPUT = 263
+FIRST_NARR_ROW_FOR_FCN_INPUT = 5
+LAST_NARR_ROW_FOR_FCN_INPUT = 276
+
+NARR_ROWS_FOR_FCN_INPUT = numpy.linspace(
+    FIRST_NARR_ROW_FOR_FCN_INPUT, LAST_NARR_ROW_FOR_FCN_INPUT,
+    num=LAST_NARR_ROW_FOR_FCN_INPUT - FIRST_NARR_ROW_FOR_FCN_INPUT + 1,
+    dtype=int)
+NARR_COLUMNS_FOR_FCN_INPUT = numpy.linspace(
+    FIRST_NARR_COLUMN_FOR_FCN_INPUT, LAST_NARR_COLUMN_FOR_FCN_INPUT,
+    num=LAST_NARR_COLUMN_FOR_FCN_INPUT - FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1,
+    dtype=int)
+
 ROW_INDICES_BY_TIME_KEY = 'row_indices_by_time'
 COLUMN_INDICES_BY_TIME_KEY = 'column_indices_by_time'
 
@@ -38,6 +55,32 @@ DEFAULT_PREDICTOR_NORMALIZATION_DICT = {
     processed_narr_io.U_WIND_GRID_RELATIVE_NAME: numpy.array([-20., 20.]),
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME: numpy.array([-20., 20.])
 }
+
+
+def _check_full_narr_matrix(full_narr_matrix):
+    """Checks input matrix (must contain data on full NARR grid).
+
+    :param full_narr_matrix: numpy array of either predictor images or target
+        images.  Dimensions may be E x M x N, E x M x N x C,
+        or E x M x N x T x C.
+    """
+
+    error_checking.assert_is_numpy_array(full_narr_matrix)
+
+    num_dimensions = len(full_narr_matrix.shape)
+    error_checking.assert_is_geq(num_dimensions, 3)
+    error_checking.assert_is_leq(num_dimensions, 5)
+
+    num_rows_in_narr, num_columns_in_narr = nwp_model_utils.get_grid_dimensions(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+
+    expected_dimensions = (
+        full_narr_matrix.shape[0], num_rows_in_narr, num_columns_in_narr)
+    for i in range(3, num_dimensions):
+        expected_dimensions += (full_narr_matrix.shape[i],)
+
+    error_checking.assert_is_numpy_array(
+        full_narr_matrix, exact_dimensions=numpy.array(expected_dimensions))
 
 
 def _check_predictor_matrix(
@@ -711,24 +754,23 @@ def remove_nans_from_narr_grid(narr_matrix):
         dimensions is the same as the original image.
     """
 
-    error_checking.assert_is_numpy_array(narr_matrix)
-
-    num_dimensions = len(narr_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 3)
-    error_checking.assert_is_leq(num_dimensions, 5)
-
-    num_rows_in_narr, num_columns_in_narr = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
-
-    expected_dimensions = (
-        narr_matrix.shape[0], num_rows_in_narr, num_columns_in_narr)
-    for i in range(3, num_dimensions):
-        expected_dimensions += (narr_matrix.shape[i],)
-
-    error_checking.assert_is_numpy_array(
-        narr_matrix, exact_dimensions=numpy.array(expected_dimensions))
-
+    _check_full_narr_matrix(narr_matrix)
     return numpy.take(narr_matrix, NARR_COLUMNS_WITHOUT_NAN, axis=2)
+
+
+def subset_narr_grid_for_fcn_input(narr_matrix):
+    """Subsets NARR grid for input to an FCN (fully convolutional net).
+
+    This results in dimensions of 272 x 256, which are divisible by 2 many
+    times, which obviates the need for padding and cropping layers.
+
+    :param narr_matrix: See documentation for `remove_nans_from_narr_grid`.
+    :return: narr_matrix: See documentation for `remove_nans_from_narr_grid`.
+    """
+
+    _check_full_narr_matrix(narr_matrix)
+    narr_matrix = numpy.take(narr_matrix, NARR_ROWS_FOR_FCN_INPUT, axis=1)
+    return numpy.take(narr_matrix, NARR_COLUMNS_FOR_FCN_INPUT, axis=2)
 
 
 def downsize_grids_around_selected_points(

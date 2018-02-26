@@ -754,9 +754,9 @@ def full_size_3d_example_generator(
             this_frontal_grid_matrix = ml_utils.binarize_front_images(
                 this_frontal_grid_matrix)
 
-            this_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
+            this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_predictor_matrix)
-            this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
+            this_frontal_grid_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_frontal_grid_matrix)
 
             this_frontal_grid_matrix = ml_utils.dilate_target_images(
@@ -776,9 +776,9 @@ def full_size_3d_example_generator(
             num_examples_in_memory = target_matrix.shape[0]
 
         predictor_matrix_to_return = predictor_matrix[
-            batch_indices, :272, :256, :].astype('float32')
+            batch_indices, ...].astype('float32')
         target_matrix_to_return = target_matrix[
-            batch_indices, :272, :256].astype('bool')
+            batch_indices, ...].astype('bool')
         print numpy.mean(target_matrix_to_return)
 
         target_matrix_to_return = numpy.expand_dims(
@@ -909,9 +909,9 @@ def full_size_4d_example_generator(
             this_frontal_grid_matrix = ml_utils.binarize_front_images(
                 this_frontal_grid_matrix)
 
-            this_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
+            this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_predictor_matrix)
-            this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
+            this_frontal_grid_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_frontal_grid_matrix)
 
             this_frontal_grid_matrix = ml_utils.dilate_target_images(

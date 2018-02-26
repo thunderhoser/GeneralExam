@@ -40,6 +40,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import machine_learning_io as ml_io
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
 from generalexam.machine_learning import keras_losses
@@ -57,10 +58,6 @@ DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
     processed_narr_io.WET_BULB_TEMP_NAME]
-
-# TODO(thunderhoser): This is a hack.  Use cropping and padding.
-NUM_NARR_GRID_ROWS_TO_USE = 272
-NUM_NARR_GRID_COLUMNS_TO_USE = 256
 
 
 def get_u_net(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
@@ -81,10 +78,11 @@ def get_u_net(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
     error_checking.assert_is_greater(positive_class_weight, 0.)
     error_checking.assert_is_less_than(positive_class_weight, 1.)
 
-    input_layer_object = keras.layers.Input(
-        shape=(NUM_NARR_GRID_ROWS_TO_USE,
-               NUM_NARR_GRID_COLUMNS_TO_USE,
-               len(DEFAULT_NARR_PREDICTOR_NAMES)))
+    input_dimensions = (
+        len(ml_utils.NARR_ROWS_FOR_FCN_INPUT),
+        len(ml_utils.NARR_COLUMNS_FOR_FCN_INPUT),
+        len(DEFAULT_NARR_PREDICTOR_NAMES))
+    input_layer_object = keras.layers.Input(shape=input_dimensions)
 
     conv_layer1_object = keras.layers.Conv2D(
         filters=64, kernel_size=(3, 3), activation='relu', padding='same',
