@@ -39,6 +39,7 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.machine_learning import keras_metrics
 
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
@@ -48,6 +49,16 @@ NUM_CLASSES = 2
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
     nwp_model_utils.NARR_MODEL_NAME)[1]
+
+CUSTOM_OBJECT_DICT_FOR_LOADING_MODEL = {
+    'accuracy': keras_metrics.accuracy,
+    'csi': keras_metrics.csi,
+    'frequency_bias': keras_metrics.frequency_bias,
+    'pod': keras_metrics.pod,
+    'pofd': keras_metrics.pofd,
+    'success_ratio': keras_metrics.success_ratio,
+    'focn': keras_metrics.focn
+}
 
 
 def _check_input_args_for_generator(
@@ -378,7 +389,8 @@ def read_keras_model(hdf5_file_name):
     """
 
     error_checking.assert_file_exists(hdf5_file_name)
-    return load_model(hdf5_file_name)
+    return load_model(
+        hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_LOADING_MODEL)
 
 
 def downsized_3d_example_generator_from_files(

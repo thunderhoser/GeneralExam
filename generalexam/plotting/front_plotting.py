@@ -7,8 +7,6 @@ import matplotlib.colors
 from generalexam.ge_utils import front_utils
 from generalexam.plotting import narr_plotting
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
-from gewittergefahr.gg_utils import grids
-from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_WARM_FRONT_COLOUR = numpy.array([228., 26., 28.]) / 255
