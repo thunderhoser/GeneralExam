@@ -33,6 +33,7 @@ Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
     Image Computing and Computer-assisted Intervention, 234-241.
 """
 
+from keras import backend as K
 import keras.models
 import keras.layers
 from keras.callbacks import ModelCheckpoint
@@ -44,6 +45,9 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
 from generalexam.machine_learning import keras_losses
+
+K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 DEFAULT_POSITIVE_CLASS_WEIGHT = 0.935
 
@@ -341,7 +345,7 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object])
+            verbose=1, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -362,7 +366,7 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object],
+            verbose=1, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -435,7 +439,7 @@ def train_model_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object])
+            verbose=1, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -458,7 +462,7 @@ def train_model_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object],
+            verbose=1, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,

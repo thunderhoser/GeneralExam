@@ -21,7 +21,8 @@ C = number of channels (predictor variables) in each image
 """
 
 import numpy
-import keras
+import keras.losses
+import keras.optimizers
 from keras import backend as K
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint
@@ -213,8 +214,8 @@ def train_with_3d_examples_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False,
-            class_weight=class_weight_dict, callbacks=[checkpoint_object])
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object])
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
@@ -229,8 +230,8 @@ def train_with_3d_examples_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False,
-            class_weight=class_weight_dict, callbacks=[checkpoint_object],
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.downsized_3d_example_generator_from_files(
                 input_file_pattern=validation_file_pattern,
@@ -305,8 +306,8 @@ def train_with_3d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False,
-            class_weight=class_weight_dict, callbacks=[checkpoint_object])
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -331,8 +332,8 @@ def train_with_3d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, use_multiprocessing=False,
-            class_weight=class_weight_dict, callbacks=[checkpoint_object],
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.downsized_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -419,8 +420,8 @@ def train_with_4d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            use_multiprocessing=False, verbose=1,
-            class_weight=class_weight_dict, callbacks=[checkpoint_object])
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -447,8 +448,8 @@ def train_with_4d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            use_multiprocessing=False, verbose=1,
-            class_weight=class_weight_dict, callbacks=[checkpoint_object],
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.downsized_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
