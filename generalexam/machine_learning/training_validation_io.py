@@ -52,7 +52,7 @@ NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
 
 def _check_input_args_for_generator(
         num_examples_per_batch, narr_predictor_names,
-        dilation_half_width_for_target, num_downsized_examples_per_time=None,
+        dilation_half_width_for_target, num_examples_per_target_time=None,
         num_rows_in_downsized_half_grid=None,
         num_columns_in_downsized_half_grid=None):
     """Checks input arguments for any of the generators listed below.
@@ -65,7 +65,7 @@ def _check_input_args_for_generator(
         `downsized_3d_example_generator`.
     :param narr_predictor_names: Same.
     :param dilation_half_width_for_target: Same.
-    :param num_downsized_examples_per_time: Same.
+    :param num_examples_per_target_time: Same.
     :param num_rows_in_downsized_half_grid: Same.
     :param num_columns_in_downsized_half_grid: Same.
     :raises: ValueError: if `dilation_half_width_for_target` >=
@@ -81,13 +81,13 @@ def _check_input_args_for_generator(
 
     error_checking.assert_is_integer(dilation_half_width_for_target)
     error_checking.assert_is_geq(dilation_half_width_for_target, 0)
-    if (num_downsized_examples_per_time is None or
+    if (num_examples_per_target_time is None or
             num_rows_in_downsized_half_grid is None or
             num_columns_in_downsized_half_grid is None):
         return
 
-    error_checking.assert_is_integer(num_downsized_examples_per_time)
-    error_checking.assert_is_geq(num_downsized_examples_per_time, 2)
+    error_checking.assert_is_integer(num_examples_per_target_time)
+    error_checking.assert_is_geq(num_examples_per_target_time, 2)
 
     error_checking.assert_is_integer(num_rows_in_downsized_half_grid)
     error_checking.assert_is_greater(num_rows_in_downsized_half_grid, 0)
@@ -476,7 +476,7 @@ def downsized_3d_example_generator_from_files(
 
 
 def downsized_3d_example_generator(
-        num_examples_per_batch, num_examples_per_time,
+        num_examples_per_batch, num_examples_per_target_time,
         first_target_time_unix_sec, last_target_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
@@ -493,7 +493,7 @@ def downsized_3d_example_generator(
 
     model_object.fit_generator(
         generator=machine_learning_io.downsized_3d_example_generator(
-            num_examples_per_batch, num_examples_per_time, ...),
+            num_examples_per_batch, num_examples_per_target_time, ...),
         ...)
 
     E = num_examples_per_batch
@@ -503,8 +503,8 @@ def downsized_3d_example_generator(
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
-    :param num_examples_per_time: Number of downsized examples to create for
-        each target time.
+    :param num_examples_per_target_time: Number of downsized examples to create
+        for each target time.
     :param first_target_time_unix_sec: See documentation for
         `find_input_files_for_3d_examples`.
     :param last_target_time_unix_sec: Same.
@@ -529,7 +529,7 @@ def downsized_3d_example_generator(
         num_examples_per_batch=num_examples_per_batch,
         narr_predictor_names=narr_predictor_names,
         dilation_half_width_for_target=dilation_half_width_for_target,
-        num_downsized_examples_per_time=num_examples_per_time,
+        num_examples_per_target_time=num_examples_per_target_time,
         num_rows_in_downsized_half_grid=num_rows_in_half_grid,
         num_columns_in_downsized_half_grid=num_columns_in_half_grid)
 
@@ -578,7 +578,7 @@ def downsized_3d_example_generator(
             if this_frontal_grid_table.empty:
                 continue
 
-            print 'Creating downsized machine-learning examples...'
+            print 'Creating downsized 3-D machine-learning examples...'
 
             this_full_predictor_matrix = ml_utils.stack_predictor_variables(
                 tuple_of_full_predictor_matrices)
@@ -608,7 +608,205 @@ def downsized_3d_example_generator(
             this_sampled_target_point_dict = ml_utils.sample_target_points(
                 binary_target_matrix=this_frontal_grid_matrix,
                 positive_fraction=positive_fraction,
-                num_points_per_time=num_examples_per_time)
+                num_points_per_time=num_examples_per_target_time)
+            if this_sampled_target_point_dict is None:
+                continue
+
+            if target_values is None or len(target_values) == 0:
+                downsized_predictor_matrix, target_values, _, _, _ = (
+                    ml_utils.downsize_grids_around_selected_points(
+                        predictor_matrix=this_full_predictor_matrix,
+                        target_matrix=this_frontal_grid_matrix,
+                        num_rows_in_half_window=num_rows_in_half_grid,
+                        num_columns_in_half_window=num_columns_in_half_grid,
+                        target_point_dict=this_sampled_target_point_dict,
+                        verbose=False))
+            else:
+                (this_downsized_predictor_matrix, these_target_values,
+                 _, _, _) = ml_utils.downsize_grids_around_selected_points(
+                     predictor_matrix=this_full_predictor_matrix,
+                     target_matrix=this_frontal_grid_matrix,
+                     num_rows_in_half_window=num_rows_in_half_grid,
+                     num_columns_in_half_window=num_columns_in_half_grid,
+                     target_point_dict=this_sampled_target_point_dict,
+                     verbose=False)
+
+                downsized_predictor_matrix = numpy.concatenate(
+                    (downsized_predictor_matrix,
+                     this_downsized_predictor_matrix), axis=0)
+                target_values = numpy.concatenate(
+                    (target_values, these_target_values))
+
+            num_examples_in_memory = len(target_values)
+
+        example_indices = numpy.linspace(
+            0, num_examples_in_memory - 1, num=num_examples_in_memory,
+            dtype=int)
+        numpy.random.shuffle(example_indices)
+
+        downsized_predictor_matrix = downsized_predictor_matrix[
+            example_indices, ...]
+        target_values = target_values[example_indices]
+
+        predictor_matrix_to_return = downsized_predictor_matrix[
+            batch_indices, ...].astype('float32')
+        print 'Fraction of positive examples = {0:.4f}'.format(
+            numpy.mean(target_values[batch_indices].astype('float')))
+        target_values_to_return = keras.utils.to_categorical(
+            target_values[batch_indices], NUM_CLASSES)
+
+        downsized_predictor_matrix = numpy.delete(
+            downsized_predictor_matrix, batch_indices, axis=0)
+        target_values = numpy.delete(target_values, batch_indices, axis=0)
+        num_examples_in_memory = len(target_values)
+
+        yield (predictor_matrix_to_return, target_values_to_return)
+
+
+def downsized_4d_example_generator(
+        num_examples_per_batch, num_examples_per_target_time,
+        first_target_time_unix_sec, last_target_time_unix_sec,
+        num_predictor_time_steps, num_lead_time_steps,
+        top_narr_directory_name, top_frontal_grid_dir_name,
+        narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
+        positive_fraction, num_rows_in_half_grid, num_columns_in_half_grid):
+    """Generates downsized 4-D examples for a Keras model.
+
+    This function creates examples on the fly, rather than reading them from
+    pre-existing files.  As yet, this function has no counterpart that reads
+    from files.
+
+    This function fits the template specified by `keras.models.*.fit_generator`.
+    Thus, when training a Keras model with the `fit_generator` method, the input
+    argument "generator" should be this function.  For example:
+
+    model_object.fit_generator(
+        generator=machine_learning_io.downsized_4d_example_generator(
+            num_examples_per_batch, num_examples_per_target_time, ...),
+        ...)
+
+    E = num_examples_per_batch
+    M = number of pixel rows = 2 * num_rows_in_half_grid + 1
+    N = number of pixel columns = 2 * num_columns_in_half_grid + 1
+
+    :param num_examples_per_batch: Number of examples per batch.  This argument
+        is known as "batch_size" in Keras.
+    :param num_examples_per_target_time: Number of downsized examples to create
+        for each target time.
+    :param first_target_time_unix_sec: See documentation for
+        `find_input_files_for_4d_examples`.
+    :param last_target_time_unix_sec: Same.
+    :param num_predictor_time_steps: Same.
+    :param num_lead_time_steps: Same.
+    :param top_narr_directory_name: Same.
+    :param top_frontal_grid_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
+    :param dilation_half_width_for_target: See documentation for
+        `downsized_3d_example_generator`.
+    :param positive_fraction: Fraction of positive examples generated by this
+        function.  A "positive example" is one labeled as frontal.
+    :param num_rows_in_half_grid: See general discussion above.
+    :param num_columns_in_half_grid: See general discussion above.
+    :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
+        images.
+    :return: target_values: length-E numpy array of corresponding targets
+        (labels).
+    """
+
+    _check_input_args_for_generator(
+        num_examples_per_batch=num_examples_per_batch,
+        narr_predictor_names=narr_predictor_names,
+        dilation_half_width_for_target=dilation_half_width_for_target,
+        num_examples_per_target_time=num_examples_per_target_time,
+        num_rows_in_downsized_half_grid=num_rows_in_half_grid,
+        num_columns_in_downsized_half_grid=num_columns_in_half_grid)
+
+    narr_file_name_matrix, frontal_grid_file_names = (
+        find_input_files_for_4d_examples(
+            first_target_time_unix_sec=first_target_time_unix_sec,
+            last_target_time_unix_sec=last_target_time_unix_sec,
+            num_predictor_time_steps=num_predictor_time_steps,
+            num_lead_time_steps=num_lead_time_steps,
+            top_narr_directory_name=top_narr_directory_name,
+            top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+            narr_predictor_names=narr_predictor_names,
+            pressure_level_mb=pressure_level_mb))
+
+    num_target_times = len(frontal_grid_file_names)
+    num_predictors = len(narr_predictor_names)
+    batch_indices = numpy.linspace(
+        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
+
+    target_time_index = 0
+    num_examples_in_memory = 0
+    downsized_predictor_matrix = None
+    target_values = None
+
+    while True:
+        while num_examples_in_memory < num_examples_per_batch:
+            print '\n'
+            tuple_of_4d_predictor_matrices = ()
+
+            for i in range(num_predictor_time_steps):
+                tuple_of_3d_predictor_matrices = ()
+
+                for j in range(num_predictors):
+                    print 'Reading data from: "{0:s}"...'.format(
+                        narr_file_name_matrix[target_time_index, i, j])
+                    this_field_predictor_matrix, _, _, _ = (
+                        processed_narr_io.read_fields_from_file(
+                            narr_file_name_matrix[target_time_index, i, j]))
+
+                    tuple_of_3d_predictor_matrices += (
+                        this_field_predictor_matrix,)
+
+                tuple_of_4d_predictor_matrices += (
+                    ml_utils.stack_predictor_variables(
+                        tuple_of_3d_predictor_matrices),)
+
+            print 'Reading data from: "{0:s}"...'.format(
+                frontal_grid_file_names[target_time_index])
+            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
+                frontal_grid_file_names[target_time_index])
+
+            target_time_index += 1
+            if target_time_index >= num_target_times:
+                target_time_index = 0
+
+            if this_frontal_grid_table.empty:
+                continue
+
+            print 'Creating downsized 4-D machine-learning examples...'
+
+            this_full_predictor_matrix = ml_utils.stack_time_steps(
+                tuple_of_4d_predictor_matrices)
+            this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
+                predictor_matrix=this_full_predictor_matrix,
+                normalize_by_example=True)
+
+            this_frontal_grid_matrix = ml_utils.front_table_to_images(
+                frontal_grid_table=this_frontal_grid_table,
+                num_rows_per_image=this_full_predictor_matrix.shape[1],
+                num_columns_per_image=this_full_predictor_matrix.shape[2])
+
+            this_frontal_grid_matrix = ml_utils.binarize_front_images(
+                this_frontal_grid_matrix)
+
+            this_full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
+                this_full_predictor_matrix)
+            this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
+                this_frontal_grid_matrix)
+
+            this_frontal_grid_matrix = ml_utils.dilate_target_images(
+                binary_target_matrix=this_frontal_grid_matrix,
+                num_pixels_in_half_window=dilation_half_width_for_target,
+                verbose=False)
+
+            this_sampled_target_point_dict = ml_utils.sample_target_points(
+                binary_target_matrix=this_frontal_grid_matrix,
+                positive_fraction=positive_fraction,
+                num_points_per_time=num_examples_per_target_time)
             if this_sampled_target_point_dict is None:
                 continue
 

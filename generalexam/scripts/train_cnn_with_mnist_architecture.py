@@ -94,11 +94,11 @@ def _train_cnn(
     model_object = traditional_cnn.get_cnn_with_mnist_architecture()
     print SEPARATOR_STRING
 
-    traditional_cnn.train_model_from_on_the_fly_examples(
+    traditional_cnn.train_with_3d_examples(
         model_object=model_object, output_file_name=output_file_name,
         num_examples_per_batch=num_examples_per_batch, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        num_examples_per_time=num_examples_per_time,
+        num_examples_per_target_time=num_examples_per_time,
         training_start_time_unix_sec=training_start_time_unix_sec,
         training_end_time_unix_sec=training_end_time_unix_sec,
         top_narr_directory_name=top_narr_dir_name,
