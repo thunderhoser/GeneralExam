@@ -350,9 +350,9 @@ def get_3d_convolution_layer(
                          num_kernel_time_steps),
             strides=(stride_length_in_rows, stride_length_in_columns,
                      stride_length_in_time_steps),
-            padding='valid', data_format='channels_last', dilation_rate=(1, 1),
-            activation=activation_function, use_bias=True,
-            kernel_initializer=kernel_weight_initializer,
+            padding='valid', data_format='channels_last',
+            dilation_rate=(1, 1, 1), activation=activation_function,
+            use_bias=True, kernel_initializer=kernel_weight_initializer,
             bias_initializer=bias_initializer,
             input_shape=(num_input_rows, num_input_columns,
                          num_input_time_steps, num_input_channels))
@@ -363,7 +363,7 @@ def get_3d_convolution_layer(
                      num_kernel_time_steps),
         strides=(stride_length_in_rows, stride_length_in_columns,
                  stride_length_in_time_steps),
-        padding='valid', data_format='channels_last', dilation_rate=(1, 1),
+        padding='valid', data_format='channels_last', dilation_rate=(1, 1, 1),
         activation=activation_function, use_bias=True,
         kernel_initializer=kernel_weight_initializer,
         bias_initializer=bias_initializer)

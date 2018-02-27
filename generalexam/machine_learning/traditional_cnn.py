@@ -13,9 +13,10 @@ said features are in the image.
 Throughout this module, the following letters will be used to denote matrix
 dimensions.
 
-E = number of examples (images)
+E = number of examples.  Each example is one image or a time sequence of images.
 M = number of pixel rows in each image
 N = number of pixel columns in each image
+T = number of predictor times per example (images per sequence)
 C = number of channels (predictor variables) in each image
 """
 
@@ -54,7 +55,9 @@ NUM_NARR_ROWS_WITHOUT_NAN, _ = nwp_model_utils.get_grid_dimensions(
 NUM_NARR_COLUMNS_WITHOUT_NAN = len(ml_utils.NARR_COLUMNS_WITHOUT_NAN)
 
 
-def get_cnn_with_mnist_architecture():
+def get_cnn_with_mnist_architecture(
+        narr_predictor_names=DEFAULT_NARR_PREDICTOR_NAMES,
+        num_dimensions_per_example=3, num_predictor_times_per_example=None):
     """Creates CNN with architecture used in the following example.
 
     https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
@@ -62,32 +65,76 @@ def get_cnn_with_mnist_architecture():
     Said architecture was used to classify handwritten digits from the MNIST
     (Modified National Institute of Standards and Technology) dataset.
 
+    :param narr_predictor_names: length-C list of NARR fields to use as
+        predictors.
+    :param num_dimensions_per_example: Number of dimensions per training example
+        (either 3 or 4).  If 3, the CNN will do 2-D convolution (over the x- and
+        y-dimensions).  If 4, the CNN will do 3-D convolution (over dimensions
+        x, y, t).
+    :param num_predictor_times_per_example: Number of predictor times per
+        example (images per sequence).
     :return: model_object: Instance of `keras.models.Sequential`, with the
         aforementioned architecture.
     """
 
-    # TODO(thunderhoser): Generalize this to take any number of channels.
+    error_checking.assert_is_integer(num_dimensions_per_example)
+    error_checking.assert_is_geq(num_dimensions_per_example, 3)
+    error_checking.assert_is_leq(num_dimensions_per_example, 4)
+
+    error_checking.assert_is_string_list(narr_predictor_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(narr_predictor_names), num_dimensions=1)
+    num_predictors = len(narr_predictor_names)
 
     model_object = Sequential()
 
-    layer_object = cnn_utils.get_2d_convolution_layer(
-        num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
-        stride_length_in_rows=1, stride_length_in_columns=1,
-        activation_function='relu', is_first_layer=True,
-        num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
-        num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-        num_input_channels=len(DEFAULT_NARR_PREDICTOR_NAMES))
+    if num_dimensions_per_example == 3:
+        layer_object = cnn_utils.get_2d_convolution_layer(
+            num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
+            stride_length_in_rows=1, stride_length_in_columns=1,
+            activation_function='relu', is_first_layer=True,
+            num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
+            num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
+            num_input_channels=num_predictors)
+    else:
+        error_checking.assert_is_integer(num_predictor_times_per_example)
+        error_checking.assert_is_greater(num_predictor_times_per_example, 0)
+
+        layer_object = cnn_utils.get_3d_convolution_layer(
+            num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
+            num_kernel_time_steps=3, stride_length_in_rows=1,
+            stride_length_in_columns=1, stride_length_in_time_steps=1,
+            activation_function='relu', is_first_layer=True,
+            num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
+            num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
+            num_input_time_steps=num_predictor_times_per_example,
+            num_input_channels=num_predictors)
+
     model_object.add(layer_object)
 
-    layer_object = cnn_utils.get_2d_convolution_layer(
-        num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
-        stride_length_in_rows=1, stride_length_in_columns=1,
-        activation_function='relu')
+    if num_dimensions_per_example == 3:
+        layer_object = cnn_utils.get_2d_convolution_layer(
+            num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
+            stride_length_in_rows=1, stride_length_in_columns=1,
+            activation_function='relu')
+    else:
+        layer_object = cnn_utils.get_3d_convolution_layer(
+            num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
+            num_kernel_time_steps=3, stride_length_in_rows=1,
+            stride_length_in_columns=1, stride_length_in_time_steps=1,
+            activation_function='relu')
+
     model_object.add(layer_object)
 
-    layer_object = cnn_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=cnn_utils.MAX_POOLING_TYPE)
+    if num_dimensions_per_example == 3:
+        layer_object = cnn_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            pooling_type=cnn_utils.MAX_POOLING_TYPE)
+    else:
+        layer_object = cnn_utils.get_3d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            num_time_steps_in_window=2, pooling_type=cnn_utils.MAX_POOLING_TYPE)
+
     model_object.add(layer_object)
 
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
@@ -162,8 +209,8 @@ def train_with_3d_examples_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object])
+            verbose=1, use_multiprocessing=False,
+            class_weight=class_weight_dict, callbacks=[checkpoint_object])
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
@@ -178,8 +225,8 @@ def train_with_3d_examples_from_files(
                 input_file_pattern=training_file_pattern,
                 num_examples_per_batch=num_examples_per_batch),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object],
+            verbose=1, use_multiprocessing=False,
+            class_weight=class_weight_dict, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.downsized_3d_example_generator_from_files(
                 input_file_pattern=validation_file_pattern,
@@ -254,8 +301,8 @@ def train_with_3d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            class_weight=class_weight_dict, verbose=1,
-            callbacks=[checkpoint_object])
+            verbose=1, use_multiprocessing=False,
+            class_weight=class_weight_dict, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -280,8 +327,8 @@ def train_with_3d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            class_weight=class_weight_dict, verbose=1,
-            callbacks=[checkpoint_object],
+            verbose=1, use_multiprocessing=False,
+            class_weight=class_weight_dict, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.downsized_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -368,8 +415,8 @@ def train_with_4d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            class_weight=class_weight_dict, verbose=1,
-            callbacks=[checkpoint_object])
+            use_multiprocessing=False, verbose=1,
+            class_weight=class_weight_dict, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -396,8 +443,8 @@ def train_with_4d_examples(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            class_weight=class_weight_dict, verbose=1,
-            callbacks=[checkpoint_object],
+            use_multiprocessing=False, verbose=1,
+            class_weight=class_weight_dict, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.downsized_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,

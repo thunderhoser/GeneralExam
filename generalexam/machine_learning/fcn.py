@@ -341,8 +341,7 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1,
-            callbacks=[checkpoint_object])
+            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -363,8 +362,7 @@ def train_model_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1,
-            callbacks=[checkpoint_object],
+            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.full_size_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -437,7 +435,7 @@ def train_model_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object])
+            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object])
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
@@ -460,7 +458,7 @@ def train_model_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_half_width_for_target=dilation_half_width_for_target),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object],
+            verbose=1, use_multiprocessing=False, callbacks=[checkpoint_object],
             validation_data=
             training_validation_io.full_size_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
