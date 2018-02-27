@@ -70,22 +70,22 @@ def get_cnn_with_mnist_architecture():
 
     model_object = Sequential()
 
-    layer_object = cnn_utils.get_convolutional_layer(
-        num_filters=32, num_rows_in_kernel=3, num_columns_in_kernel=3,
+    layer_object = cnn_utils.get_2d_convolution_layer(
+        num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
         stride_length_in_rows=1, stride_length_in_columns=1,
         activation_function='relu', is_first_layer=True,
-        num_rows_per_image=DEFAULT_NUM_PIXEL_ROWS,
-        num_columns_per_image=DEFAULT_NUM_PIXEL_COLUMNS,
-        num_channels_per_image=len(DEFAULT_NARR_PREDICTOR_NAMES))
+        num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
+        num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
+        num_input_channels=len(DEFAULT_NARR_PREDICTOR_NAMES))
     model_object.add(layer_object)
 
-    layer_object = cnn_utils.get_convolutional_layer(
-        num_filters=64, num_rows_in_kernel=3, num_columns_in_kernel=3,
+    layer_object = cnn_utils.get_2d_convolution_layer(
+        num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
         stride_length_in_rows=1, stride_length_in_columns=1,
         activation_function='relu')
     model_object.add(layer_object)
 
-    layer_object = cnn_utils.get_pooling_layer(
+    layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MAX_POOLING_TYPE)
     model_object.add(layer_object)
