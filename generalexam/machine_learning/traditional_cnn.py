@@ -23,7 +23,6 @@ C = number of channels (predictor variables) in each image
 import numpy
 import keras.losses
 import keras.optimizers
-from keras import backend as K
 from keras.models import Sequential
 from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -36,8 +35,9 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
 
-K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
+# from keras import backend as K
+# K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+#     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 DEFAULT_ASSUMED_POSITIVE_FRACTION = 0.935
 

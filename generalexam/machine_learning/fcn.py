@@ -33,7 +33,6 @@ Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
     Image Computing and Computer-assisted Intervention, 234-241.
 """
 
-from keras import backend as K
 import keras.models
 import keras.layers
 from keras.callbacks import ModelCheckpoint
@@ -46,8 +45,9 @@ from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import keras_metrics
 from generalexam.machine_learning import keras_losses
 
-K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
+# from keras import backend as K
+# K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+#     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 DEFAULT_POSITIVE_CLASS_WEIGHT = 0.935
 
