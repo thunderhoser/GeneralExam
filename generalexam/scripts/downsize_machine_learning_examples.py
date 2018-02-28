@@ -77,7 +77,7 @@ DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME]
 
 DEFAULT_PRESSURE_LEVEL_MB = 1000
-DEFAULT_DILATION_DISTANCE_METRES = float(1e5)
+DEFAULT_DILATION_DISTANCE_METRES = 50000.
 DEFAULT_POSITIVE_FRACTION = 0.5
 DEFAULT_NUM_ROWS_IN_HALF_WINDOW = 32
 DEFAULT_NUM_COLUMNS_IN_HALF_WINDOW = 32
@@ -280,8 +280,8 @@ def _downsize_ml_examples(
 
     predictor_matrix = ml_utils.stack_predictor_variables(
         tuple_of_predictor_matrices)
-    predictor_matrix = ml_utils.normalize_predictor_matrix(
-        predictor_matrix, normalize_by_example=True)
+    # predictor_matrix = ml_utils.normalize_predictor_matrix(
+    #     predictor_matrix, normalize_by_example=True)
 
     frontal_grid_file_name = _find_frontal_grid_file(
         directory_name=input_frontal_grid_dir_name, year_string=time_string[:4])
