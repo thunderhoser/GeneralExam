@@ -36,18 +36,23 @@ NUM_CLASSES = 2
 def _check_input_args(
         narr_predictor_names, dilation_half_width_for_target,
         num_rows_in_downsized_half_grid=None,
-        num_columns_in_downsized_half_grid=None):
+        num_columns_in_downsized_half_grid=None,
+        center_rows_for_downsized_grids=None,
+        center_columns_for_downsized_grids=None):
     """Checks input arguments for any of the methods listed below.
 
-    - downsized_3d_example_generator
+    - create_downsized_3d_examples
+    - create_downsized_4d_examples
     - create_full_size_3d_example
     - create_full_size_4d_example
 
     :param narr_predictor_names: See documentation for
-        `downsized_3d_example_generator`.
+        `create_downsized_3d_examples`.
     :param dilation_half_width_for_target: Same.
     :param num_rows_in_downsized_half_grid: Same.
     :param num_columns_in_downsized_half_grid: Same.
+    :param center_rows_for_downsized_grids: Same.
+    :param center_columns_for_downsized_grids: Same.
     :raises: ValueError: if `dilation_half_width_for_target` >=
         `num_rows_in_downsized_half_grid` or
         `num_columns_in_downsized_half_grid`.
@@ -59,8 +64,11 @@ def _check_input_args(
 
     error_checking.assert_is_integer(dilation_half_width_for_target)
     error_checking.assert_is_geq(dilation_half_width_for_target, 0)
+
     if (num_rows_in_downsized_half_grid is None or
-            num_columns_in_downsized_half_grid is None):
+            num_columns_in_downsized_half_grid is None or
+            center_rows_for_downsized_grids is None or
+            center_columns_for_downsized_grids is None):
         return
 
     error_checking.assert_is_integer(num_rows_in_downsized_half_grid)
@@ -83,26 +91,49 @@ def _check_input_args(
                 num_columns_in_downsized_half_grid)
         raise ValueError(error_string)
 
+    error_checking.assert_is_integer_numpy_array(
+        center_rows_for_downsized_grids)
+    error_checking.assert_is_numpy_array(
+        center_rows_for_downsized_grids, num_dimensions=1)
+
+    error_checking.assert_is_geq_numpy_array(center_rows_for_downsized_grids, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        center_rows_for_downsized_grids, len(ml_utils.NARR_ROWS_WITHOUT_NAN))
+
+    num_sample_points = len(center_rows_for_downsized_grids)
+    error_checking.assert_is_integer_numpy_array(
+        center_columns_for_downsized_grids)
+    error_checking.assert_is_numpy_array(
+        center_columns_for_downsized_grids,
+        exact_dimensions=numpy.array([num_sample_points]))
+
+    error_checking.assert_is_geq_numpy_array(
+        center_columns_for_downsized_grids, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        center_columns_for_downsized_grids,
+        len(ml_utils.NARR_COLUMNS_WITHOUT_NAN))
+
 
 def create_downsized_3d_examples(
-        narr_row_index, num_rows_in_half_grid, num_columns_in_half_grid,
-        full_predictor_matrix=None, full_target_matrix=None,
-        target_time_unix_sec=None, top_narr_directory_name=None,
-        top_frontal_grid_dir_name=None, narr_predictor_names=None,
-        pressure_level_mb=None, dilation_half_width_for_target=None):
-    """Creates downsized 3-D testing examples for a Keras model.
+        center_row_indices, center_column_indices, num_rows_in_half_grid,
+        num_columns_in_half_grid, full_predictor_matrix=None,
+        full_target_matrix=None, target_time_unix_sec=None,
+        top_narr_directory_name=None, top_frontal_grid_dir_name=None,
+        narr_predictor_names=None, pressure_level_mb=None,
+        dilation_half_width_for_target=None):
+    """Creates downsized 3-D examples for testing a Keras model.
 
-    Specifically, this method creates examples for one time step and one row in
-    the NARR grid.
+    Specifically, this method creates one example for each sample point at one
+    time step.  Sample points are specified by `center_row_indices` and
+    `center_column_indices`.
 
     Below is an example of how to use this method with a Keras model.
 
     predictor_matrix, actual_target_values = create_downsized_3d_examples(
-        narr_row_index, num_rows_in_half_grid, ...)
+        center_row_indices, center_column_indices, ...)
     predicted_target_values = model_object.predict(predictor_matrix, ...)
 
-    E = number of examples
-      = number of columns in the NARR grid (after removing columns with NaN)
+    E = number of sample points
     M = number of pixel rows in full NARR grid
     N = number of pixel columns in full NARR grid
     C = number of channels (predictor variables)
@@ -115,15 +146,15 @@ def create_downsized_3d_examples(
     If `full_predictor_matrix` and `full_target_matrix` are both given, this
     method will ignore all input args thereafter.
 
-    :param narr_row_index: Examples will be created for this row in the NARR
-        grid.  In other words, the center of each downsized image will be at row
-        `narr_row_index` and columns ranging from 0...(E - 1).
+    :param center_row_indices: length-E numpy array of rows that will serve as
+        center points of downsized examples.  These are indices into the full
+        NARR grid.
+    :param center_column_indices: Same as above, except for columns.
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
     :param full_predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
         image.
     :param full_target_matrix: 1-by-M-by-N numpy array with target image.
-    :param target_time_unix_sec: Target time.
     :param top_narr_directory_name: Name of top-level directory with NARR data
         (one file for each variable, pressure level, and time step).
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
@@ -147,7 +178,9 @@ def create_downsized_3d_examples(
             narr_predictor_names=narr_predictor_names,
             dilation_half_width_for_target=dilation_half_width_for_target,
             num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-            num_columns_in_downsized_half_grid=num_columns_in_half_grid)
+            num_columns_in_downsized_half_grid=num_columns_in_half_grid,
+            center_rows_for_downsized_grids=center_row_indices,
+            center_columns_for_downsized_grids=center_column_indices)
 
         narr_file_name_matrix, frontal_grid_file_names = (
             training_validation_io.find_input_files_for_3d_examples(
@@ -197,21 +230,13 @@ def create_downsized_3d_examples(
             num_pixels_in_half_window=dilation_half_width_for_target,
             verbose=False)
 
-    num_rows_in_narr_grid = full_predictor_matrix.shape[1]
-    num_columns_in_narr_grid = full_predictor_matrix.shape[2]
-
-    print ('Creating downsized examples for {0:d}th of {1:d} NARR grid '
-           'rows...').format(narr_row_index + 1, num_rows_in_narr_grid)
-
-    these_narr_row_indices = numpy.linspace(
-        narr_row_index, narr_row_index, num=num_columns_in_narr_grid, dtype=int)
-    these_narr_column_indices = numpy.linspace(
-        0, num_columns_in_narr_grid - 1, num=num_columns_in_narr_grid,
-        dtype=int)
+    num_sample_points = len(center_row_indices)
+    print ('Creating downsized 3-D example for each of {0:d} sample '
+           'points...').format(num_sample_points)
 
     this_target_point_dict = {
-        ml_utils.ROW_INDICES_BY_TIME_KEY: [these_narr_row_indices],
-        ml_utils.COLUMN_INDICES_BY_TIME_KEY: [these_narr_column_indices]
+        ml_utils.ROW_INDICES_BY_TIME_KEY: [center_row_indices],
+        ml_utils.COLUMN_INDICES_BY_TIME_KEY: [center_column_indices]
     }
     downsized_predictor_matrix, target_values, _, _, _ = (
         ml_utils.downsize_grids_around_selected_points(
@@ -228,45 +253,42 @@ def create_downsized_3d_examples(
 
 
 def create_downsized_4d_examples(
-        narr_row_index, num_rows_in_half_grid, num_columns_in_half_grid,
-        full_predictor_matrix=None, full_target_matrix=None,
-        target_time_unix_sec=None, num_predictor_time_steps=None,
-        num_lead_time_steps=None, top_narr_directory_name=None,
-        top_frontal_grid_dir_name=None, narr_predictor_names=None,
-        pressure_level_mb=None, dilation_half_width_for_target=None):
-    """Creates downsized 4-D testing examples for a Keras model.
+        center_row_indices, center_column_indices, num_rows_in_half_grid,
+        num_columns_in_half_grid, full_predictor_matrix=None,
+        full_target_matrix=None, target_time_unix_sec=None,
+        num_predictor_time_steps=None, num_lead_time_steps=None,
+        top_narr_directory_name=None, top_frontal_grid_dir_name=None,
+        narr_predictor_names=None, pressure_level_mb=None,
+        dilation_half_width_for_target=None):
+    """Creates downsized 4-D examples for testing a Keras model.
 
-    Specifically, this method creates examples for one time step and one row in
-    the NARR grid.
+    Specifically, this method creates one example for each sample point at one
+    time step.  Sample points are specified by `center_row_indices` and
+    `center_column_indices`.
 
     Below is an example of how to use this method with a Keras model.
 
     predictor_matrix, actual_target_values = create_downsized_4d_examples(
-        narr_row_index, num_rows_in_half_grid, ...)
+        center_row_indices, center_column_indices, ...)
     predicted_target_values = model_object.predict(predictor_matrix, ...)
 
-    E = number of examples
-      = number of columns in the NARR grid (after removing columns with NaN)
-    M = number of pixel rows in full NARR grid
-    N = number of pixel columns in full NARR grid
-
+    E = number of sample points (length of `center_row_indices` or
+        `center_column_indices`)
     m = number of pixel rows in each downsized grid
       = 2 * num_rows_in_half_grid + 1
     n = number of pixel columns in each downsized grid
       = 2 * num_columns_in_half_grid + 1
 
-    If `full_predictor_matrix` and `full_target_matrix` are both given, this
-    method will ignore all input args thereafter.
-
-    :param narr_row_index: See documentation for `create_downsized_3d_examples`.
+    :param center_row_indices: See documentation for
+        `create_downsized_3d_examples`.
+    :param center_column_indices: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :param full_predictor_matrix: Same.
     :param full_target_matrix: Same.
     :param target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Number of predictor times per example.
-    :param num_lead_time_steps: Number of time steps separating latest predictor
-        time from target time.
+    :param num_predictor_time_steps:
+    :param num_lead_time_steps:
     :param top_narr_directory_name: See documentation for
         `create_downsized_3d_examples`.
     :param top_frontal_grid_dir_name: Same.
@@ -286,7 +308,9 @@ def create_downsized_4d_examples(
             narr_predictor_names=narr_predictor_names,
             dilation_half_width_for_target=dilation_half_width_for_target,
             num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-            num_columns_in_downsized_half_grid=num_columns_in_half_grid)
+            num_columns_in_downsized_half_grid=num_columns_in_half_grid,
+            center_rows_for_downsized_grids=center_row_indices,
+            center_columns_for_downsized_grids=center_column_indices)
 
         narr_file_name_matrix, frontal_grid_file_names = (
             training_validation_io.find_input_files_for_4d_examples(
@@ -347,21 +371,13 @@ def create_downsized_4d_examples(
             num_pixels_in_half_window=dilation_half_width_for_target,
             verbose=False)
 
-    num_rows_in_narr_grid = full_predictor_matrix.shape[1]
-    num_columns_in_narr_grid = full_predictor_matrix.shape[2]
-
-    print ('Creating downsized examples for {0:d}th of {1:d} NARR grid '
-           'rows...').format(narr_row_index + 1, num_rows_in_narr_grid)
-
-    these_narr_row_indices = numpy.linspace(
-        narr_row_index, narr_row_index, num=num_columns_in_narr_grid, dtype=int)
-    these_narr_column_indices = numpy.linspace(
-        0, num_columns_in_narr_grid - 1, num=num_columns_in_narr_grid,
-        dtype=int)
+    num_sample_points = len(center_row_indices)
+    print ('Creating downsized 3-D example for each of {0:d} sample '
+           'points...').format(num_sample_points)
 
     this_target_point_dict = {
-        ml_utils.ROW_INDICES_BY_TIME_KEY: [these_narr_row_indices],
-        ml_utils.COLUMN_INDICES_BY_TIME_KEY: [these_narr_column_indices]
+        ml_utils.ROW_INDICES_BY_TIME_KEY: [center_row_indices],
+        ml_utils.COLUMN_INDICES_BY_TIME_KEY: [center_column_indices]
     }
     downsized_predictor_matrix, target_values, _, _, _ = (
         ml_utils.downsize_grids_around_selected_points(

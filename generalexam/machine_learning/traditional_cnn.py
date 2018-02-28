@@ -503,12 +503,20 @@ def apply_model_to_3d_example(
     full_target_matrix = None
 
     for i in range(NUM_NARR_ROWS_WITHOUT_NAN):
+        these_center_row_indices = numpy.linspace(
+            i, i, num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+        these_center_column_indices = numpy.linspace(
+            0, NUM_NARR_COLUMNS_WITHOUT_NAN - 1,
+            num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+
         if i == 0:
             (this_downsized_predictor_matrix,
              actual_target_matrix[:, i, :],
              full_predictor_matrix,
              full_target_matrix) = testing_io.create_downsized_3d_examples(
-                 narr_row_index=i, num_rows_in_half_grid=num_rows_in_half_grid,
+                 center_row_indices=these_center_row_indices,
+                 center_column_indices=these_center_column_indices,
+                 num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  target_time_unix_sec=target_time_unix_sec,
                  top_narr_directory_name=top_narr_directory_name,
@@ -521,7 +529,8 @@ def apply_model_to_3d_example(
             (this_downsized_predictor_matrix,
              actual_target_matrix[:, i, :],
              _, _) = testing_io.create_downsized_3d_examples(
-                 narr_row_index=i,
+                 center_row_indices=these_center_row_indices,
+                 center_column_indices=these_center_column_indices,
                  num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  full_predictor_matrix=full_predictor_matrix,
@@ -571,12 +580,20 @@ def apply_model_to_4d_example(
     full_target_matrix = None
 
     for i in range(NUM_NARR_ROWS_WITHOUT_NAN):
+        these_center_row_indices = numpy.linspace(
+            i, i, num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+        these_center_column_indices = numpy.linspace(
+            0, NUM_NARR_COLUMNS_WITHOUT_NAN - 1,
+            num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+
         if i == 0:
             (this_downsized_predictor_matrix,
              actual_target_matrix[:, i, :],
              full_predictor_matrix,
              full_target_matrix) = testing_io.create_downsized_4d_examples(
-                 narr_row_index=i, num_rows_in_half_grid=num_rows_in_half_grid,
+                 center_row_indices=these_center_row_indices,
+                 center_column_indices=these_center_column_indices,
+                 num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  target_time_unix_sec=target_time_unix_sec,
                  num_predictor_time_steps=num_predictor_time_steps,
@@ -591,7 +608,9 @@ def apply_model_to_4d_example(
             (this_downsized_predictor_matrix,
              actual_target_matrix[:, i, :],
              _, _) = testing_io.create_downsized_4d_examples(
-                 narr_row_index=i, num_rows_in_half_grid=num_rows_in_half_grid,
+                 center_row_indices=these_center_row_indices,
+                 center_column_indices=these_center_column_indices,
+                 num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  full_predictor_matrix=full_predictor_matrix,
                  full_target_matrix=full_target_matrix)
