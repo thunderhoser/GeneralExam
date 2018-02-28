@@ -34,7 +34,7 @@ NUM_CLASSES = 2
 
 
 def _check_input_args(
-        narr_predictor_names, dilation_half_width_for_target,
+        narr_predictor_names, dilation_distance_for_target_metres,
         num_rows_in_downsized_half_grid=None,
         num_columns_in_downsized_half_grid=None,
         center_rows_for_downsized_grids=None,
@@ -48,22 +48,17 @@ def _check_input_args(
 
     :param narr_predictor_names: See documentation for
         `create_downsized_3d_examples`.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :param num_rows_in_downsized_half_grid: Same.
     :param num_columns_in_downsized_half_grid: Same.
     :param center_rows_for_downsized_grids: Same.
     :param center_columns_for_downsized_grids: Same.
-    :raises: ValueError: if `dilation_half_width_for_target` >=
-        `num_rows_in_downsized_half_grid` or
-        `num_columns_in_downsized_half_grid`.
     """
 
     error_checking.assert_is_string_list(narr_predictor_names)
     error_checking.assert_is_numpy_array(
         numpy.asarray(narr_predictor_names), num_dimensions=1)
-
-    error_checking.assert_is_integer(dilation_half_width_for_target)
-    error_checking.assert_is_geq(dilation_half_width_for_target, 0)
+    error_checking.assert_is_geq(dilation_distance_for_target_metres, 0.)
 
     if (num_rows_in_downsized_half_grid is None or
             num_columns_in_downsized_half_grid is None or
@@ -75,21 +70,6 @@ def _check_input_args(
     error_checking.assert_is_greater(num_rows_in_downsized_half_grid, 0)
     error_checking.assert_is_integer(num_columns_in_downsized_half_grid)
     error_checking.assert_is_greater(num_columns_in_downsized_half_grid, 0)
-
-    if dilation_half_width_for_target >= num_rows_in_downsized_half_grid:
-        error_string = (
-            'dilation_half_width_for_target ({0:d}) should be < '
-            'num_rows_in_downsized_half_grid ({1:d}).').format(
-                dilation_half_width_for_target, num_rows_in_downsized_half_grid)
-        raise ValueError(error_string)
-
-    if dilation_half_width_for_target >= num_columns_in_downsized_half_grid:
-        error_string = (
-            'dilation_half_width_for_target ({0:d}) should be < '
-            'num_columns_in_downsized_half_grid ({1:d}).').format(
-                dilation_half_width_for_target,
-                num_columns_in_downsized_half_grid)
-        raise ValueError(error_string)
 
     error_checking.assert_is_integer_numpy_array(
         center_rows_for_downsized_grids)
@@ -120,7 +100,7 @@ def create_downsized_3d_examples(
         full_target_matrix=None, target_time_unix_sec=None,
         top_narr_directory_name=None, top_frontal_grid_dir_name=None,
         narr_predictor_names=None, pressure_level_mb=None,
-        dilation_half_width_for_target=None):
+        dilation_distance_for_target_metres=None):
     """Creates downsized 3-D examples for testing a Keras model.
 
     Specifically, this method creates one example for each sample point at one
@@ -161,9 +141,9 @@ def create_downsized_3d_examples(
         grids (one file per time step).
     :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
     :param pressure_level_mb: Pressure level (millibars).
-    :param dilation_half_width_for_target: Half-width of dilation window for
-        target variable.  For each time step t and grid cell [j, k], if a front
-        occurs within `dilation_half_width_for_target` of [j, k] at time t, the
+    :param dilation_distance_for_target_metres: Dilation distance for target
+        variable.  If a front occurs within
+        `dilation_distance_for_target_metres` of grid cell [j, k] at time t, the
         label at [t, j, k] will be positive.
     :return: downsized_predictor_matrix: E-by-m-by-n-by-C numpy array of
         predictor images.
@@ -176,7 +156,8 @@ def create_downsized_3d_examples(
     if full_predictor_matrix is None or full_target_matrix is None:
         _check_input_args(
             narr_predictor_names=narr_predictor_names,
-            dilation_half_width_for_target=dilation_half_width_for_target,
+            dilation_distance_for_target_metres=
+            dilation_distance_for_target_metres,
             num_rows_in_downsized_half_grid=num_rows_in_half_grid,
             num_columns_in_downsized_half_grid=num_columns_in_half_grid,
             center_rows_for_downsized_grids=center_row_indices,
@@ -227,7 +208,7 @@ def create_downsized_3d_examples(
 
         full_target_matrix = ml_utils.dilate_target_images(
             binary_target_matrix=full_target_matrix,
-            num_pixels_in_half_window=dilation_half_width_for_target,
+            dilation_distance_metres=dilation_distance_for_target_metres,
             verbose=False)
 
     num_sample_points = len(center_row_indices)
@@ -259,7 +240,7 @@ def create_downsized_4d_examples(
         num_predictor_time_steps=None, num_lead_time_steps=None,
         top_narr_directory_name=None, top_frontal_grid_dir_name=None,
         narr_predictor_names=None, pressure_level_mb=None,
-        dilation_half_width_for_target=None):
+        dilation_distance_for_target_metres=None):
     """Creates downsized 4-D examples for testing a Keras model.
 
     Specifically, this method creates one example for each sample point at one
@@ -294,7 +275,7 @@ def create_downsized_4d_examples(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :return: downsized_predictor_matrix: E-by-m-by-n-by-T-by-C numpy array of
         predictor images.
     :return: target_values: length-E numpy array of binary targets (labels).
@@ -306,7 +287,8 @@ def create_downsized_4d_examples(
     if full_predictor_matrix is None or full_target_matrix is None:
         _check_input_args(
             narr_predictor_names=narr_predictor_names,
-            dilation_half_width_for_target=dilation_half_width_for_target,
+            dilation_distance_for_target_metres=
+            dilation_distance_for_target_metres,
             num_rows_in_downsized_half_grid=num_rows_in_half_grid,
             num_columns_in_downsized_half_grid=num_columns_in_half_grid,
             center_rows_for_downsized_grids=center_row_indices,
@@ -368,7 +350,7 @@ def create_downsized_4d_examples(
 
         full_target_matrix = ml_utils.dilate_target_images(
             binary_target_matrix=full_target_matrix,
-            num_pixels_in_half_window=dilation_half_width_for_target,
+            dilation_distance_metres=dilation_distance_for_target_metres,
             verbose=False)
 
     num_sample_points = len(center_row_indices)
@@ -396,7 +378,7 @@ def create_downsized_4d_examples(
 def create_full_size_3d_example(
         target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_half_width_for_target):
+        dilation_distance_for_target_metres):
     """Creates one full-size 3-D testing example for a Keras model.
 
     Below is an example of how to use this method with a Keras model.
@@ -411,7 +393,7 @@ def create_full_size_3d_example(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :return: predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
         image.
     :return: target_matrix: 1-by-M-by-N numpy array with binary target image.
@@ -419,7 +401,7 @@ def create_full_size_3d_example(
 
     _check_input_args(
         narr_predictor_names=narr_predictor_names,
-        dilation_half_width_for_target=dilation_half_width_for_target)
+        dilation_distance_for_target_metres=dilation_distance_for_target_metres)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         training_validation_io.find_input_files_for_3d_examples(
@@ -463,7 +445,8 @@ def create_full_size_3d_example(
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
     target_matrix = ml_utils.dilate_target_images(
         binary_target_matrix=target_matrix,
-        num_pixels_in_half_window=dilation_half_width_for_target, verbose=False)
+        dilation_distance_metres=dilation_distance_for_target_metres,
+        verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
     target_matrix = target_matrix.astype('bool')
@@ -477,7 +460,7 @@ def create_full_size_4d_example(
         target_time_unix_sec, num_predictor_time_steps, num_lead_time_steps,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_half_width_for_target):
+        dilation_distance_for_target_metres):
     """Creates one full-size 4-D testing example for a Keras model.
 
     Unlike `downsized_3d_example_generator`, this method is not a generator.  In
@@ -500,7 +483,7 @@ def create_full_size_4d_example(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :return: predictor_matrix: 1-by-M-by-N-by-T-by-C numpy array of predictor
         images.
     :return: target_matrix: 1-by-M-by-N numpy array with binary target image.
@@ -508,7 +491,7 @@ def create_full_size_4d_example(
 
     _check_input_args(
         narr_predictor_names=narr_predictor_names,
-        dilation_half_width_for_target=dilation_half_width_for_target)
+        dilation_distance_for_target_metres=dilation_distance_for_target_metres)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         training_validation_io.find_input_files_for_4d_examples(
@@ -563,7 +546,8 @@ def create_full_size_4d_example(
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
     target_matrix = ml_utils.dilate_target_images(
         binary_target_matrix=target_matrix,
-        num_pixels_in_half_window=dilation_half_width_for_target, verbose=False)
+        dilation_distance_metres=dilation_distance_for_target_metres,
+        verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
     target_matrix = target_matrix.astype('bool')

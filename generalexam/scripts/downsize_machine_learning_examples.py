@@ -33,7 +33,7 @@ FRONTAL_GRID_DIR_INPUT_ARG = 'input_frontal_grid_dir_name'
 PREDICTOR_NAMES_INPUT_ARG = 'narr_predictor_names'
 PRESSURE_LEVEL_INPUT_ARG = 'pressure_level_mb'
 TIME_INPUT_ARG = 'time_string'
-DILATION_HALF_WIDTH_INPUT_ARG = 'dilation_half_width_in_grid_cells'
+DILATION_DISTANCE_INPUT_ARG = 'dilation_distance_metres'
 POSITIVE_FRACTION_INPUT_ARG = 'positive_fraction'
 NUM_ROWS_INPUT_ARG = 'num_rows_in_half_window'
 NUM_COLUMNS_INPUT_ARG = 'num_columns_in_half_window'
@@ -53,11 +53,10 @@ PRESSURE_LEVEL_HELP_STRING = (
 TIME_HELP_STRING = (
     'Downsized ML examples will be created for this time step (format '
     '"yyyymmddHH").')
-DILATION_HALF_WIDTH_HELP_STRING = (
-    'Dilation half-width.  For each downsized grid, if there is any positive '
-    'label (grid cell intersected by front) within `{0:s}` grid cells of the '
-    'center, label will be positive (= 1 = yes).').format(
-        DILATION_HALF_WIDTH_INPUT_ARG)
+DILATION_DISTANCE_HELP_STRING = (
+    'Dilation distance.  For each downsized grid, if there is any positive '
+    'label (grid cell intersected by front) within `{0:s}` of the center, label'
+    ' will be positive (front = yes).').format(DILATION_DISTANCE_INPUT_ARG)
 POSITIVE_FRACTION_HELP_STRING = (
     'Fraction of positive examples in downsized dataset.  A "positive example" '
     'is a point [time, row, column] with either a front.')
@@ -78,7 +77,7 @@ DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME]
 
 DEFAULT_PRESSURE_LEVEL_MB = 1000
-DEFAULT_DILATION_HALF_WIDTH_IN_GRID_CELLS = 8
+DEFAULT_DILATION_DISTANCE_METRES = float(1e5)
 DEFAULT_POSITIVE_FRACTION = 0.5
 DEFAULT_NUM_ROWS_IN_HALF_WINDOW = 32
 DEFAULT_NUM_COLUMNS_IN_HALF_WINDOW = 32
@@ -104,9 +103,9 @@ INPUT_ARG_PARSER.add_argument(
     '--' + TIME_INPUT_ARG, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + DILATION_HALF_WIDTH_INPUT_ARG, type=int, required=False,
-    default=DEFAULT_DILATION_HALF_WIDTH_IN_GRID_CELLS,
-    help=DILATION_HALF_WIDTH_HELP_STRING)
+    '--' + DILATION_DISTANCE_INPUT_ARG, type=float, required=False,
+    default=DEFAULT_DILATION_DISTANCE_METRES,
+    help=DILATION_DISTANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + POSITIVE_FRACTION_INPUT_ARG, type=float, required=False,
@@ -208,7 +207,7 @@ def _find_frontal_grid_file(directory_name, year_string):
 
 def _downsize_ml_examples(
         input_narr_dir_name, input_frontal_grid_dir_name, narr_predictor_names,
-        pressure_level_mb, time_string, dilation_half_width_in_grid_cells,
+        pressure_level_mb, time_string, dilation_distance_metres,
         positive_fraction, num_rows_in_half_window, num_columns_in_half_window,
         output_dir_name):
     """Downsizes machine-learning examples.
@@ -225,10 +224,10 @@ def _downsize_ml_examples(
         level (millibars).
     :param time_string: Downsized ML examples will be created for this time step
         (format "yyyymmddHH").
-    :param dilation_half_width_in_grid_cells: Dilation half-width.  For each
-        downsized grid, if there is any positive label (grid cell intersected by
-        front) within `dilation_half_width_in_grid_cells` grid cells of the
-        center, label will be positive (= 1 = yes).
+    :param dilation_distance_metres: Dilation distance.  For each downsized
+        grid, if there is any positive label (grid cell intersected by front)
+        within `dilation_distance_metres` of the center, label will be positive
+        (front = yes).
     :param positive_fraction: Fraction of positive examples in downsized
         dataset.  A "positive example" is a point [time, row, column] with
         either a front.
@@ -238,23 +237,7 @@ def _downsize_ml_examples(
         downsizing.
     :param output_dir_name: Name of output directory (downsized examples will be
         saved in a Pickle file here).
-    :raises: ValueError: if `dilation_half_width_in_grid_cells` >=
-        `num_rows_in_half_window` or `num_columns_in_half_window`.
     """
-
-    if dilation_half_width_in_grid_cells >= num_rows_in_half_window:
-        error_string = (
-            '`dilation_half_width_in_grid_cells` ({0:d}) should be < '
-            '`num_rows_in_half_window` ({1:d}).').format(
-                dilation_half_width_in_grid_cells, num_rows_in_half_window)
-        raise ValueError(error_string)
-
-    if dilation_half_width_in_grid_cells >= num_columns_in_half_window:
-        error_string = (
-            '`dilation_half_width_in_grid_cells` ({0:d}) should be < '
-            '`num_columns_in_half_window` ({1:d}).').format(
-                dilation_half_width_in_grid_cells, num_columns_in_half_window)
-        raise ValueError(error_string)
 
     num_predictors = len(narr_predictor_names)
     predictor_times_unix_sec = None
@@ -341,7 +324,7 @@ def _downsize_ml_examples(
 
     frontal_grid_matrix = ml_utils.dilate_target_images(
         binary_target_matrix=frontal_grid_matrix,
-        num_pixels_in_half_window=dilation_half_width_in_grid_cells)
+        dilation_distance_metres=dilation_distance_metres)
 
     print ('Downsampling target points (so that fraction of positive cases = '
            '{0:f})...').format(positive_fraction)
@@ -417,9 +400,9 @@ def add_input_arguments(argument_parser_object):
         default=DEFAULT_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + DILATION_HALF_WIDTH_INPUT_ARG, type=int, required=False,
-        default=DEFAULT_DILATION_HALF_WIDTH_IN_GRID_CELLS,
-        help=DILATION_HALF_WIDTH_HELP_STRING)
+        '--' + DILATION_DISTANCE_INPUT_ARG, type=float, required=False,
+        default=DEFAULT_DILATION_DISTANCE_METRES,
+        help=DILATION_DISTANCE_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + POSITIVE_FRACTION_INPUT_ARG, type=float, required=False,
@@ -450,8 +433,8 @@ if __name__ == '__main__':
     NARR_PREDICTOR_NAMES = getattr(INPUT_ARG_OBJECT, PREDICTOR_NAMES_INPUT_ARG)
     PRESSURE_LEVEL_MB = getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_INPUT_ARG)
     TIME_STRING = getattr(INPUT_ARG_OBJECT, TIME_INPUT_ARG)
-    DILATION_HALF_WIDTH_IN_GRID_CELLS = getattr(
-        INPUT_ARG_OBJECT, DILATION_HALF_WIDTH_INPUT_ARG)
+    DILATION_DISTANCE_METRES = getattr(
+        INPUT_ARG_OBJECT, DILATION_DISTANCE_INPUT_ARG)
 
     POSITIVE_FRACTION = getattr(INPUT_ARG_OBJECT, POSITIVE_FRACTION_INPUT_ARG)
     NUM_ROWS_IN_HALF_WINDOW = getattr(INPUT_ARG_OBJECT, NUM_ROWS_INPUT_ARG)
@@ -465,7 +448,7 @@ if __name__ == '__main__':
         input_frontal_grid_dir_name=INPUT_FRONTAL_GRID_DIR_NAME,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
         pressure_level_mb=PRESSURE_LEVEL_MB, time_string=TIME_STRING,
-        dilation_half_width_in_grid_cells=DILATION_HALF_WIDTH_IN_GRID_CELLS,
+        dilation_distance_metres=DILATION_DISTANCE_METRES,
         positive_fraction=POSITIVE_FRACTION,
         num_rows_in_half_window=NUM_ROWS_IN_HALF_WINDOW,
         num_columns_in_half_window=NUM_COLUMNS_IN_HALF_WINDOW,

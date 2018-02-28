@@ -32,7 +32,7 @@ INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
 
 def _train_u_net(
         num_epochs, num_examples_per_batch, num_training_batches_per_epoch,
-        num_validation_batches_per_epoch, dilation_half_width_for_target,
+        num_validation_batches_per_epoch, dilation_distance_for_target_metres,
         positive_class_weight, pressure_level_mb, training_start_time_string,
         training_end_time_string, validation_start_time_string,
         validation_end_time_string, top_narr_dir_name,
@@ -45,10 +45,9 @@ def _train_u_net(
     :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
-    :param dilation_half_width_for_target: Half-width of dilation window (number
-        of pixels).  Target images will be dilated, which increases the number
-        of pixels labeled as frontal.  This accounts for uncertainty in the
-        placement of fronts.
+    :param dilation_distance_for_target_metres: Dilation distance.  Target
+        images will be dilated, which increases the number of pixels labeled as
+        frontal.  This accounts for uncertainty in the placement of fronts.
     :param positive_class_weight: Weight for positive class in loss function.
         This should be (1 - frequency of positive class).
     :param pressure_level_mb: NARR predictors will be taken from this pressure
@@ -94,7 +93,7 @@ def _train_u_net(
         top_frontal_grid_dir_name=top_frontal_grid_dir_name,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
         pressure_level_mb=pressure_level_mb,
-        dilation_half_width_for_target=dilation_half_width_for_target,
+        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec)
@@ -114,8 +113,8 @@ if __name__ == '__main__':
         num_validation_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT,
             ml_script_helper.NUM_VALIDN_BATCHES_PER_EPOCH_ARG_NAME),
-        dilation_half_width_for_target=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.DILATION_HALF_WIDTH_ARG_NAME),
+        dilation_distance_for_target_metres=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
         positive_class_weight=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.POSITIVE_CLASS_WEIGHT_ARG_NAME),
         pressure_level_mb=getattr(

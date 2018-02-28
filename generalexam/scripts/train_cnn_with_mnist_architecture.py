@@ -35,8 +35,8 @@ def _train_cnn(
         num_epochs, num_examples_per_batch, num_examples_per_time,
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         num_rows_in_half_grid, num_columns_in_half_grid,
-        dilation_half_width_for_target, positive_fraction, pressure_level_mb,
-        training_start_time_string, training_end_time_string,
+        dilation_distance_for_target_metres, positive_fraction,
+        pressure_level_mb, training_start_time_string, training_end_time_string,
         validation_start_time_string, validation_end_time_string,
         top_narr_dir_name, top_frontal_grid_dir_name, output_file_name):
     """Trains convolutional neural net with MNIST architecture.
@@ -54,13 +54,12 @@ def _train_cnn(
     :param num_columns_in_half_grid: Number of columns in half-grid for each
         downsized image.  Total number of columns will be
         2 * `num_columns_in_half_grid` + 1.
-    :param dilation_half_width_for_target: Half-width of dilation window (number
-        of pixels).  Target images will be dilated, which increases the number
-        of pixels labeled as frontal.  This accounts for uncertainty in the
-        placement of fronts.
+    :param dilation_distance_for_target_metres: Dilation distance.  Target
+        images will be dilated, which increases the number of pixels labeled as
+        frontal.  This accounts for uncertainty in the placement of fronts.
     :param positive_fraction: Fraction of positive examples in both training and
         validation sets.  A "positive example" is an image with a front passing
-        within `dilation_half_width_for_target` pixels of the center.
+        within `dilation_distance_for_target_metres` of the center.
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
@@ -105,7 +104,7 @@ def _train_cnn(
         top_frontal_grid_dir_name=top_frontal_grid_dir_name,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
         pressure_level_mb=pressure_level_mb,
-        dilation_half_width_for_target=dilation_half_width_for_target,
+        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         positive_fraction=positive_fraction,
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid,
@@ -135,8 +134,8 @@ if __name__ == '__main__':
         num_columns_in_half_grid=getattr(
             INPUT_ARG_OBJECT,
             ml_script_helper.NUM_COLUMNS_IN_HALF_GRID_ARG_NAME),
-        dilation_half_width_for_target=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.DILATION_HALF_WIDTH_ARG_NAME),
+        dilation_distance_for_target_metres=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
         positive_fraction=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.POSITIVE_FRACTION_ARG_NAME),
         pressure_level_mb=getattr(

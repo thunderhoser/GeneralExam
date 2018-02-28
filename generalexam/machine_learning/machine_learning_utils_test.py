@@ -343,7 +343,7 @@ FRONTAL_GRID_MATRIX2_DILATED = numpy.array([[1, 1, 1, 1, 1, 1, 1, 0],
                                             [1, 1, 1, 0, 0, 1, 1, 1],
                                             [1, 1, 1, 0, 0, 0, 0, 0]])
 
-DILATION_HALF_WIDTH_IN_GRID_CELLS = 1
+DILATION_DISTANCE_METRES = 50000.
 FRONTAL_GRID_MATRIX_DILATED = numpy.stack(
     (FRONTAL_GRID_MATRIX1_DILATED, FRONTAL_GRID_MATRIX2_DILATED),
     axis=0).astype(int)
@@ -1008,7 +1008,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX_BINARY)
         this_dilated_matrix = ml_utils.dilate_target_images(
             binary_target_matrix=this_input_matrix,
-            num_pixels_in_half_window=DILATION_HALF_WIDTH_IN_GRID_CELLS)
+            dilation_distance_metres=DILATION_DISTANCE_METRES)
 
         self.assertTrue(numpy.array_equal(
             this_dilated_matrix, FRONTAL_GRID_MATRIX_DILATED))

@@ -5,11 +5,13 @@ A front may be represented as either a polyline or a set of grid points.
 
 import numpy
 import pandas
+import cv2
 import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
 from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage import generate_binary_structure
 from skimage.measure import label as label_image
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
@@ -425,6 +427,86 @@ def check_front_type(front_string_id):
             '\n\nValid front types (listed above) do not include "' +
             front_string_id + '".')
         raise ValueError(error_string)
+
+
+def buffer_distance_to_narr_mask(buffer_distance_metres):
+    """Converts buffer distance to mask defined over NARR grid.
+
+    m = number of rows (unique grid-point y-coordinates) within buffer distance
+    n = number of columns (unique grid-point x-coordinates) within buffer
+        distance
+
+    :param buffer_distance_metres: Buffer distance.
+    :return: mask_matrix: m-by-n numpy array of Boolean flags.  The center point
+        -- mask_matrix[floor(m/2), floor(n/2)] -- represents the grid point
+        around which the buffer is applied.  If mask_matrix[i, j] = True, grid
+        point [i, j] -- in this relative coordinate system -- is within the
+        distance buffer.
+    """
+
+    error_checking.assert_is_greater(buffer_distance_metres, 0.)
+    buffer_distance_metres = max([buffer_distance_metres, 1.])
+
+    grid_spacing_metres, _ = nwp_model_utils.get_xy_grid_spacing(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+    max_row_or_column_offset = int(
+        numpy.floor(float(buffer_distance_metres) / grid_spacing_metres))
+
+    row_or_column_offsets = numpy.linspace(
+        -max_row_or_column_offset, max_row_or_column_offset,
+        num=2*max_row_or_column_offset + 1, dtype=int)
+
+    column_offset_matrix, row_offset_matrix = grids.xy_vectors_to_matrices(
+        x_unique_metres=row_or_column_offsets,
+        y_unique_metres=row_or_column_offsets)
+    row_offset_matrix = row_offset_matrix.astype(float)
+    column_offset_matrix = column_offset_matrix.astype(float)
+
+    distance_matrix_metres = grid_spacing_metres * numpy.sqrt(
+        row_offset_matrix ** 2 + column_offset_matrix ** 2)
+    return distance_matrix_metres <= buffer_distance_metres
+
+
+def dilate_binary_narr_image(binary_matrix, dilation_distance_metres=None,
+                             dilation_kernel_matrix=None):
+    """Dilates a binary image on the NARR grid.
+
+    M = number of rows (unique grid-point y-coordinates) in NARR grid
+    N = number of columns (unique grid-point x-coordinates) in NARR grid
+    m = number of rows in dilation kernel
+    n = number of columns in dilation kernel
+
+    If `dilation_kernel_matrix` is None, `dilation_distance_metres` will be
+    used.
+
+    :param binary_matrix: M-by-N numpy array of integers (must be all 0 or 1).
+    :param dilation_distance_metres: Dilation distance.
+    :param dilation_kernel_matrix: m-by-n numpy array of integers (all 0 or 1).
+        This may be created by `buffer_distance_to_narr_mask` for a given buffer
+        distance.
+    :return: binary_matrix: Same as input, except dilated.
+    """
+
+    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
+    error_checking.assert_is_integer_numpy_array(binary_matrix)
+    error_checking.assert_is_geq_numpy_array(binary_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(binary_matrix, 1)
+
+    if dilation_kernel_matrix is None:
+        dilation_kernel_matrix = buffer_distance_to_narr_mask(
+            dilation_distance_metres).astype(int)
+
+    error_checking.assert_is_numpy_array(
+        dilation_kernel_matrix, num_dimensions=2)
+    error_checking.assert_is_integer_numpy_array(dilation_kernel_matrix)
+    error_checking.assert_is_geq_numpy_array(dilation_kernel_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(dilation_kernel_matrix, 1)
+    error_checking.assert_is_geq(numpy.sum(dilation_kernel_matrix), 1)
+
+    binary_matrix = cv2.dilate(
+        binary_matrix.astype(numpy.uint8),
+        dilation_kernel_matrix.astype(numpy.uint8), iterations=1)
+    return binary_matrix.astype(int)
 
 
 def dilate_binary_image(

@@ -673,33 +673,32 @@ def binarize_front_images(frontal_grid_matrix):
 
 
 def dilate_target_images(
-        binary_target_matrix, num_pixels_in_half_window, verbose=True):
+        binary_target_matrix, dilation_distance_metres, verbose=True):
     """Dilates target image at each time step.
 
     :param binary_target_matrix: E-by-M-by-N numpy array with 2 possible
         entries (see documentation for `_check_target_matrix`).
-    :param num_pixels_in_half_window: Number of pixels in dilation half-window.
-    :param verbose: Boolean flag.  If True, this method will print progress
+    :param dilation_distance_metres: Dilation distance.
+    Boolean flag.  If True, this method will print progress
         messages.
     :return: binary_target_matrix: Dilated version of input.
     """
 
     _check_target_matrix(binary_target_matrix, assert_binary=True)
-    if num_pixels_in_half_window == 0:
-        return binary_target_matrix
-
     error_checking.assert_is_boolean(verbose)
-    num_times = binary_target_matrix.shape[0]
 
+    dilation_kernel_matrix = front_utils.buffer_distance_to_narr_mask(
+        dilation_distance_metres).astype(int)
+
+    num_times = binary_target_matrix.shape[0]
     for i in range(num_times):
         if verbose:
             print ('Dilating target grid at {0:d}th of {1:d} time '
                    'steps...').format(i + 1, num_times)
 
-        binary_target_matrix[i, :, :] = front_utils.dilate_binary_image(
+        binary_target_matrix[i, :, :] = front_utils.dilate_binary_narr_image(
             binary_matrix=binary_target_matrix[i, :, :],
-            dilation_half_width_in_grid_cells=num_pixels_in_half_window,
-            include_diagonal_neighbours=True)
+            dilation_kernel_matrix=dilation_kernel_matrix)
 
     return binary_target_matrix
 

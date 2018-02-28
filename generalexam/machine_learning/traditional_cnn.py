@@ -244,8 +244,9 @@ def train_with_3d_examples(
         num_training_batches_per_epoch, num_examples_per_target_time,
         training_start_time_unix_sec, training_end_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
-        positive_fraction, num_rows_in_half_grid, num_columns_in_half_grid,
+        narr_predictor_names, pressure_level_mb,
+        dilation_distance_for_target_metres, positive_fraction,
+        num_rows_in_half_grid, num_columns_in_half_grid,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
     """Trains CNN, using 3-D examples created on the fly.
@@ -265,7 +266,7 @@ def train_with_3d_examples(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :param positive_fraction: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
@@ -301,7 +302,8 @@ def train_with_3d_examples(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
                 positive_fraction=positive_fraction,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
@@ -327,7 +329,8 @@ def train_with_3d_examples(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
                 positive_fraction=positive_fraction,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
@@ -344,7 +347,8 @@ def train_with_3d_examples(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
                 positive_fraction=positive_fraction,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
@@ -357,8 +361,9 @@ def train_with_4d_examples(
         num_predictor_time_steps, num_lead_time_steps,
         training_start_time_unix_sec, training_end_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
-        positive_fraction, num_rows_in_half_grid, num_columns_in_half_grid,
+        narr_predictor_names, pressure_level_mb,
+        dilation_distance_for_target_metres, positive_fraction,
+        num_rows_in_half_grid, num_columns_in_half_grid,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
     """Trains CNN, using 4-D examples created on the fly.
@@ -379,7 +384,7 @@ def train_with_4d_examples(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :param positive_fraction: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
@@ -415,7 +420,8 @@ def train_with_4d_examples(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
                 positive_fraction=positive_fraction,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
@@ -443,7 +449,8 @@ def train_with_4d_examples(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
                 positive_fraction=positive_fraction,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
@@ -462,7 +469,8 @@ def train_with_4d_examples(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_half_width_for_target=dilation_half_width_for_target,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
                 positive_fraction=positive_fraction,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
@@ -472,7 +480,7 @@ def train_with_4d_examples(
 def apply_model_to_3d_example(
         model_object, target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_half_width_for_target, num_rows_in_half_grid,
+        dilation_distance_for_target_metres, num_rows_in_half_grid,
         num_columns_in_half_grid):
     """Applies trained CNN to one 3-D example.
 
@@ -483,7 +491,7 @@ def apply_model_to_3d_example(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :return: predicted_target_matrix: 1-by-M-by-N numpy array of predicted
@@ -523,7 +531,8 @@ def apply_model_to_3d_example(
                  top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                  narr_predictor_names=narr_predictor_names,
                  pressure_level_mb=pressure_level_mb,
-                 dilation_half_width_for_target=dilation_half_width_for_target)
+                 dilation_distance_for_target_metres=
+                 dilation_distance_for_target_metres)
 
         else:
             (this_downsized_predictor_matrix,
@@ -547,8 +556,9 @@ def apply_model_to_3d_example(
 def apply_model_to_4d_example(
         model_object, target_time_unix_sec, num_predictor_time_steps,
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_half_width_for_target,
-        num_rows_in_half_grid, num_columns_in_half_grid):
+        narr_predictor_names, pressure_level_mb,
+        dilation_distance_for_target_metres, num_rows_in_half_grid,
+        num_columns_in_half_grid):
     """Applies trained CNN to one 4-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -560,7 +570,7 @@ def apply_model_to_4d_example(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_for_target: Same.
+    :param dilation_distance_for_target_metres: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :return: predicted_target_matrix: 1-by-M-by-N numpy array of predicted
@@ -602,7 +612,8 @@ def apply_model_to_4d_example(
                  top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                  narr_predictor_names=narr_predictor_names,
                  pressure_level_mb=pressure_level_mb,
-                 dilation_half_width_for_target=dilation_half_width_for_target)
+                 dilation_distance_for_target_metres=
+                 dilation_distance_for_target_metres)
 
         else:
             (this_downsized_predictor_matrix,

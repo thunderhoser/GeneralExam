@@ -48,8 +48,8 @@ def _write_slurm_file(
         first_time_string, last_time_string, max_num_simultaneous_tasks,
         email_address, partition_name, slurm_file_name, input_narr_dir_name,
         input_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_half_width_in_grid_cells, positive_fraction,
-        num_rows_in_half_window, num_columns_in_half_window, output_dir_name):
+        dilation_distance_metres, positive_fraction, num_rows_in_half_window,
+        num_columns_in_half_window, output_dir_name):
     """Writes Slurm file to run downsize_machine_learning_examples.py.
 
     :param first_time_string: Time (format "yyyymmddHH").  This script creates
@@ -68,7 +68,7 @@ def _write_slurm_file(
     :param input_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_half_width_in_grid_cells: Same.
+    :param dilation_distance_metres: Same.
     :param positive_fraction: Same.
     :param num_rows_in_half_window: Same.
     :param num_columns_in_half_window: Same.
@@ -120,18 +120,18 @@ def _write_slurm_file(
     slurm_file_handle.write('"${this_valid_time_string}"')
 
     slurm_file_handle.write(
-        (' --{0:s}="{1:s}" --{2:s}="{3:s}" --{4:s}={5:d} --{6:s}={7:d} '
+        (' --{0:s}="{1:s}" --{2:s}="{3:s}" --{4:s}={5:d} --{6:s}={7:.6f} '
          '--{8:s}={9:.6f} --{10:s}={11:d} --{12:s}={13:d} '
          '--{14:s}="{15:s}"').format(
-            downsize_ml.NARR_DIR_INPUT_ARG, input_narr_dir_name,
-            downsize_ml.FRONTAL_GRID_DIR_INPUT_ARG, input_frontal_grid_dir_name,
-            downsize_ml.PRESSURE_LEVEL_INPUT_ARG, pressure_level_mb,
-            downsize_ml.DILATION_HALF_WIDTH_INPUT_ARG,
-            dilation_half_width_in_grid_cells,
-            downsize_ml.POSITIVE_FRACTION_INPUT_ARG, positive_fraction,
-            downsize_ml.NUM_ROWS_INPUT_ARG, num_rows_in_half_window,
-            downsize_ml.NUM_COLUMNS_INPUT_ARG, num_columns_in_half_window,
-            downsize_ml.OUTPUT_DIR_INPUT_ARG, output_dir_name))
+             downsize_ml.NARR_DIR_INPUT_ARG, input_narr_dir_name,
+             downsize_ml.FRONTAL_GRID_DIR_INPUT_ARG,
+             input_frontal_grid_dir_name,
+             downsize_ml.PRESSURE_LEVEL_INPUT_ARG, pressure_level_mb,
+             downsize_ml.DILATION_DISTANCE_INPUT_ARG, dilation_distance_metres,
+             downsize_ml.POSITIVE_FRACTION_INPUT_ARG, positive_fraction,
+             downsize_ml.NUM_ROWS_INPUT_ARG, num_rows_in_half_window,
+             downsize_ml.NUM_COLUMNS_INPUT_ARG, num_columns_in_half_window,
+             downsize_ml.OUTPUT_DIR_INPUT_ARG, output_dir_name))
 
     slurm_file_handle.write(' --{0:s}'.format(
         downsize_ml.PREDICTOR_NAMES_INPUT_ARG))
@@ -163,8 +163,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, downsize_ml.PREDICTOR_NAMES_INPUT_ARG),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, downsize_ml.PRESSURE_LEVEL_INPUT_ARG),
-        dilation_half_width_in_grid_cells=getattr(
-            INPUT_ARG_OBJECT, downsize_ml.DILATION_HALF_WIDTH_INPUT_ARG),
+        dilation_distance_metres=getattr(
+            INPUT_ARG_OBJECT, downsize_ml.DILATION_DISTANCE_INPUT_ARG),
         positive_fraction=getattr(
             INPUT_ARG_OBJECT, downsize_ml.POSITIVE_FRACTION_INPUT_ARG),
         num_rows_in_half_window=getattr(

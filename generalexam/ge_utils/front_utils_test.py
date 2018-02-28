@@ -142,6 +142,42 @@ Y_ADVECTION_MATRIX_KELVINS_S01 = numpy.array([[0., 0., 8., 8., 8., 9.],
 ADVECTION_MATRIX_KELVINS_S01 = (
     X_ADVECTION_MATRIX_KELVINS_S01 + Y_ADVECTION_MATRIX_KELVINS_S01)
 
+# The following constants are used to test buffer_distance_to_narr_mask.
+LARGE_BUFFER_DISTANCE_METRES = float(1e5)
+MASK_MATRIX_FOR_LARGE_BUFFER = numpy.array([[0, 0, 0, 1, 0, 0, 0],
+                                            [0, 1, 1, 1, 1, 1, 0],
+                                            [0, 1, 1, 1, 1, 1, 0],
+                                            [1, 1, 1, 1, 1, 1, 1],
+                                            [0, 1, 1, 1, 1, 1, 0],
+                                            [0, 1, 1, 1, 1, 1, 0],
+                                            [0, 0, 0, 1, 0, 0, 0]],
+                                           dtype=bool)
+
+SMALL_BUFFER_DISTANCE_METRES = 1.
+MASK_MATRIX_FOR_SMALL_BUFFER = numpy.array([[1]], dtype=bool)
+
+# The following constants are used to test dilate_binary_narr_image.
+DILATION_DISTANCE_METRES = float(1e5)
+NARR_MATRIX_BEFORE_DILATION = numpy.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                           [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                           [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                                           [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                           [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]],
+                                          dtype=int)
+
+NARR_MATRIX_AFTER_DILATION = numpy.array([[1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+                                          [1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+                                          [1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+                                          [1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+                                          [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                                          [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+                                          [0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+                                          [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]],
+                                         dtype=int)
+
 # The following constants are used to test get_frontal_types_over_grid.
 BINARY_MATRIX_BEFORE_DISCRIMINATION = numpy.array(
     [[0, 0, 1, 1, 1, 1],
@@ -339,6 +375,39 @@ class FrontUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_advection_matrix_kelvins_s01, ADVECTION_MATRIX_KELVINS_S01,
             atol=TOLERANCE))
+
+    def test_buffer_distance_to_narr_mask_large(self):
+        """Ensures correct output from buffer_distance_to_narr_mask.
+
+        In this case, buffer distance is large.
+        """
+
+        this_mask_matrix = front_utils.buffer_distance_to_narr_mask(
+            LARGE_BUFFER_DISTANCE_METRES)
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, MASK_MATRIX_FOR_LARGE_BUFFER))
+
+    def test_buffer_distance_to_narr_mask_small(self):
+        """Ensures correct output from buffer_distance_to_narr_mask.
+
+        In this case, buffer distance is small.
+        """
+
+        this_mask_matrix = front_utils.buffer_distance_to_narr_mask(
+            SMALL_BUFFER_DISTANCE_METRES)
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, MASK_MATRIX_FOR_SMALL_BUFFER))
+
+    def test_dilate_binary_narr_image(self):
+        """Ensures correct output from dilate_binary_narr_image."""
+
+        input_matrix = copy.deepcopy(NARR_MATRIX_BEFORE_DILATION)
+        this_binary_matrix = front_utils.dilate_binary_narr_image(
+            binary_matrix=input_matrix,
+            dilation_distance_metres=DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_binary_matrix, NARR_MATRIX_AFTER_DILATION))
 
     def test_frontal_grid_to_points(self):
         """Ensures correct output from frontal_grid_to_points."""
