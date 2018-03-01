@@ -24,7 +24,7 @@ C = number of channels (predictor variables) in each image
 import numpy
 import keras.losses
 import keras.optimizers
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -39,8 +39,20 @@ from generalexam.machine_learning import keras_metrics
 # K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 #     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
+CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
+    'accuracy': keras_metrics.accuracy,
+    'binary_accuracy': keras_metrics.binary_accuracy,
+    'binary_csi': keras_metrics.binary_csi,
+    'binary_frequency_bias': keras_metrics.binary_frequency_bias,
+    'binary_pod': keras_metrics.binary_pod,
+    'binary_pofd': keras_metrics.binary_pofd,
+    'binary_success_ratio': keras_metrics.binary_success_ratio,
+    'binary_focn': keras_metrics.binary_focn
+}
+
 DEFAULT_NUM_PIXEL_ROWS = 65
 DEFAULT_NUM_PIXEL_COLUMNS = 65
+DEFAULT_NUM_PREDICTOR_TIME_STEPS = 6
 DEFAULT_ASSUMED_POSITIVE_FRACTION = 0.935
 
 LIST_OF_METRIC_FUNCTIONS = [
@@ -55,8 +67,7 @@ NUM_NARR_COLUMNS_WITHOUT_NAN = len(ml_utils.NARR_COLUMNS_WITHOUT_NAN)
 
 
 def get_cnn_with_mnist_architecture(
-        num_predictors=3, num_classes=2, num_dimensions_per_example=3,
-        num_predictor_times_per_example=None):
+        num_classes=2, num_predictors=3, convolve_over_time=False):
     """Creates CNN with architecture used in the following example.
 
     https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
@@ -64,44 +75,25 @@ def get_cnn_with_mnist_architecture(
     Said architecture was used to classify handwritten digits from the MNIST
     (Modified National Institute of Standards and Technology) dataset.
 
+    :param num_classes: Number of classes.
     :param num_predictors: Number of predictor variables (image channels).
-    :param num_classes: Number of channels (possible tagret values).
-    :param num_dimensions_per_example: Number of dimensions per training example
-        (either 3 or 4).  If 3, the CNN will do 2-D convolution (over the x- and
-        y-dimensions).  If 4, the CNN will do 3-D convolution (over dimensions
-        x, y, t).
-    :param num_predictor_times_per_example:
-        [used only if num_dimensions_per_example = 4]
-        Number of predictor times per example (images per sequence).
+    :param convolve_over_time: Boolean flag.  If True, the net will do 3-D
+        convolution (over x, y, and time).  If False, only 2-D convolution (over
+        x and y).
     :return: model_object: Instance of `keras.models.Sequential`, with the
         aforementioned architecture.
     """
 
-    error_checking.assert_is_integer(num_predictors)
-    error_checking.assert_is_geq(num_predictors, 1)
-
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
-
-    error_checking.assert_is_integer(num_dimensions_per_example)
-    error_checking.assert_is_geq(num_dimensions_per_example, 3)
-    error_checking.assert_is_leq(num_dimensions_per_example, 4)
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_geq(num_predictors, 1)
+    error_checking.assert_is_boolean(convolve_over_time)
 
     model_object = Sequential()
 
-    if num_dimensions_per_example == 3:
-        layer_object = cnn_utils.get_2d_convolution_layer(
-            num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
-            stride_length_in_rows=1, stride_length_in_columns=1,
-            activation_function='relu', is_first_layer=True,
-            num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
-            num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-            num_input_channels=num_predictors)
-    else:
-        error_checking.assert_is_integer(num_predictor_times_per_example)
-        error_checking.assert_is_geq(num_predictor_times_per_example, 3)
-
+    if convolve_over_time:
         layer_object = cnn_utils.get_3d_convolution_layer(
             num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
             num_kernel_time_steps=3, stride_length_in_rows=1,
@@ -109,33 +101,41 @@ def get_cnn_with_mnist_architecture(
             activation_function='relu', is_first_layer=True,
             num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
             num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-            num_input_time_steps=num_predictor_times_per_example,
+            num_input_time_steps=DEFAULT_NUM_PREDICTOR_TIME_STEPS,
+            num_input_channels=num_predictors)
+    else:
+        layer_object = cnn_utils.get_2d_convolution_layer(
+            num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
+            stride_length_in_rows=1, stride_length_in_columns=1,
+            activation_function='relu', is_first_layer=True,
+            num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
+            num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
             num_input_channels=num_predictors)
 
     model_object.add(layer_object)
 
-    if num_dimensions_per_example == 3:
-        layer_object = cnn_utils.get_2d_convolution_layer(
-            num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
-            stride_length_in_rows=1, stride_length_in_columns=1,
-            activation_function='relu')
-    else:
+    if convolve_over_time:
         layer_object = cnn_utils.get_3d_convolution_layer(
             num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
             num_kernel_time_steps=3, stride_length_in_rows=1,
             stride_length_in_columns=1, stride_length_in_time_steps=1,
             activation_function='relu')
+    else:
+        layer_object = cnn_utils.get_2d_convolution_layer(
+            num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
+            stride_length_in_rows=1, stride_length_in_columns=1,
+            activation_function='relu')
 
     model_object.add(layer_object)
 
-    if num_dimensions_per_example == 3:
-        layer_object = cnn_utils.get_2d_pooling_layer(
-            num_rows_in_window=2, num_columns_in_window=2,
-            pooling_type=cnn_utils.MAX_POOLING_TYPE)
-    else:
+    if convolve_over_time:
         layer_object = cnn_utils.get_3d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
             num_time_steps_in_window=2, pooling_type=cnn_utils.MAX_POOLING_TYPE)
+    else:
+        layer_object = cnn_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            pooling_type=cnn_utils.MAX_POOLING_TYPE)
 
     model_object.add(layer_object)
 
@@ -160,6 +160,18 @@ def get_cnn_with_mnist_architecture(
         loss=keras.losses.categorical_crossentropy,
         optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
     return model_object
+
+
+def read_keras_model_old(hdf5_file_name):
+    """Reads Keras model from HDF5 file.
+
+    :param hdf5_file_name: Path to input file.
+    :return: keras_model_object: Instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_file_exists(hdf5_file_name)
+    return load_model(
+        hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
 
 
 def train_with_3d_examples_from_files(

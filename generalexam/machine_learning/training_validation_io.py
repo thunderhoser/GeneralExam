@@ -31,7 +31,6 @@ import os.path
 import pickle
 import numpy
 import keras
-from keras.models import load_model
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
@@ -40,7 +39,6 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
-from generalexam.machine_learning import keras_metrics
 
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
@@ -50,17 +48,6 @@ NUM_CLASSES_IN_DOWNSIZED_FILES = 2
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
     nwp_model_utils.NARR_MODEL_NAME)[1]
-
-CUSTOM_OBJECT_DICT_FOR_LOADING_MODEL = {
-    'accuracy': keras_metrics.accuracy,
-    'binary_accuracy': keras_metrics.binary_accuracy,
-    'binary_csi': keras_metrics.binary_csi,
-    'binary_frequency_bias': keras_metrics.binary_frequency_bias,
-    'binary_pod': keras_metrics.binary_pod,
-    'binary_pofd': keras_metrics.binary_pofd,
-    'binary_success_ratio': keras_metrics.binary_success_ratio,
-    'binary_focn': keras_metrics.binary_focn
-}
 
 
 def find_input_files_for_3d_examples(
@@ -310,29 +297,6 @@ def find_downsized_example_file(
         raise ValueError(error_string)
 
     return downsized_example_file_name
-
-
-def write_keras_model(keras_model_object, hdf5_file_name):
-    """Writes Keras model to HDF5 file.
-
-    :param keras_model_object: Instance of `keras.models.Model`.
-    :param hdf5_file_name: Path to output file.
-    """
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=hdf5_file_name)
-    keras_model_object.save(hdf5_file_name)
-
-
-def read_keras_model(hdf5_file_name):
-    """Reads Keras model from HDF5 file.
-
-    :param hdf5_file_name: Path to input file.
-    :return: keras_model_object: Instance of `keras.models.Model`.
-    """
-
-    error_checking.assert_file_exists(hdf5_file_name)
-    return load_model(
-        hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_LOADING_MODEL)
 
 
 def downsized_3d_example_generator_from_files(
@@ -972,7 +936,6 @@ def full_size_3d_example_generator(
             target_matrix[batch_indices, ...], num_classes)
         target_matrix_to_return = numpy.reshape(
             target_matrix_to_return, target_matrix.shape + (num_classes,))
-        print target_matrix_to_return.shape
 
         predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
         target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)

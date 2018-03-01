@@ -49,6 +49,18 @@ from generalexam.machine_learning import keras_losses
 # K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 #     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
+
+CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
+    'accuracy': keras_metrics.accuracy,
+    'binary_accuracy': keras_metrics.binary_accuracy,
+    'binary_csi': keras_metrics.binary_csi,
+    'binary_frequency_bias': keras_metrics.binary_frequency_bias,
+    'binary_pod': keras_metrics.binary_pod,
+    'binary_pofd': keras_metrics.binary_pofd,
+    'binary_success_ratio': keras_metrics.binary_success_ratio,
+    'binary_focn': keras_metrics.binary_focn
+}
+
 LEARNING_RATE_FOR_U_NET = 1e-4
 LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.accuracy, keras_metrics.binary_accuracy,
@@ -57,30 +69,83 @@ LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.binary_success_ratio, keras_metrics.binary_focn]
 
 
-def get_u_net(assumed_class_fractions, num_predictors=3):
-    """Creates U-net with architecture used in the following example.
+def _check_unet_input_args(
+        assumed_class_frequencies, num_predictors, convolve_over_time=False,
+        num_predictor_time_steps=None):
+    """Checks input arguments for U-net.
 
-    https://github.com/zhixuhao/unet/blob/master/unet.py
+    K = number of classes
 
-    For more on U-nets in general, see Ronneberger et al. (2015).
-
-    :param assumed_class_fractions: 1-D numpy array, where the [i]th element is
-        the estimated frequency of the [i]th class.
-    :param num_predictors: Number of predictor variables.
-    :return: model_object: Instance of `keras.models.Model`, with the
-        aforementioned architecture.
+    :param assumed_class_frequencies: See documentation for
+        `get_unet_with_3d_convolution`.
+    :param num_predictors: Same.
+    :param convolve_over_time: Same.
+    :param num_predictor_time_steps: Same.
+    :return: class_weights: K-by-1 numpy array of class weights for loss
+        function.
     """
 
-    error_checking.assert_is_integer(num_predictors)
-    error_checking.assert_is_geq(num_predictors, 1)
-
-    class_weight_dict = ml_utils.get_class_weight_dict(assumed_class_fractions)
+    class_weight_dict = ml_utils.get_class_weight_dict(
+        assumed_class_frequencies)
     class_weights = numpy.array(class_weight_dict.values())
 
     num_classes = len(class_weights)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
-    class_weights = numpy.reshape(class_weights, (num_classes, 1))
+
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_geq(num_predictors, 1)
+    error_checking.assert_is_boolean(convolve_over_time)
+
+    if convolve_over_time:
+        error_checking.assert_is_integer(num_predictor_time_steps)
+        error_checking.assert_is_geq(num_predictor_time_steps, 6)
+
+    return numpy.reshape(class_weights, (num_classes, 1))
+
+
+def read_keras_model(hdf5_file_name, assumed_class_frequencies):
+    """Reads Keras model from HDF5 file.
+
+    :param hdf5_file_name: Path to input file.
+    :param assumed_class_frequencies: See documentation for
+        `get_unet_with_2d_convolution`.
+    :return: keras_model_object: Instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_file_exists(hdf5_file_name)
+
+    class_weight_dict = ml_utils.get_class_weight_dict(
+        assumed_class_frequencies)
+    class_weights = numpy.array(class_weight_dict.values())
+    class_weights = numpy.reshape(class_weights, (class_weights.size, 1))
+
+    CUSTOM_OBJECT_DICT_FOR_READING_MODEL.update(
+        {'loss': keras_losses.weighted_cross_entropy(class_weights)})
+    return keras.models.load_model(
+        hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
+
+
+def get_unet_with_2d_convolution(assumed_class_frequencies, num_predictors=3):
+    """Creates U-net with architecture used in the following example.
+
+    https://github.com/zhixuhao/unet/blob/master/unet.py
+
+    For more on U-nets in general, see Ronneberger et al. (2015):
+
+    :param assumed_class_frequencies: 1-D numpy array, where the [k]th element
+        is the estimated frequency of the [k]th class.  These frequencies will
+        be used to create weights for the loss function.  The weight for each
+        class will be inversely proportional to its assumed frequency.
+    :param num_predictors: Number of predictor variables (image channels).
+    :return: model_object: Instance of `keras.models.Model`, with the
+        aforementioned architecture.
+    """
+
+    class_weights = _check_unet_input_args(
+        assumed_class_frequencies=assumed_class_frequencies,
+        num_predictors=num_predictors, convolve_over_time=False)
+    num_classes = len(class_weights)
 
     input_dimensions = (
         len(ml_utils.NARR_ROWS_FOR_FCN_INPUT),
@@ -90,79 +155,69 @@ def get_u_net(assumed_class_fractions, num_predictors=3):
     conv_layer1_object = keras.layers.Conv2D(
         filters=64, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(input_layer_object)
-    print 'Shape of convolutional layer 1: {0:s}'.format(
-        conv_layer1_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer1_object.shape)
 
     conv_layer1_object = keras.layers.Conv2D(
         filters=64, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer1_object)
-    print 'Shape of convolutional layer 1: {0:s}'.format(
-        conv_layer1_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer1_object.shape)
 
     pooling_layer1_object = keras.layers.MaxPooling2D(
         pool_size=(2, 2))(conv_layer1_object)
-    print 'Shape of pooling layer 1: {0:s}'.format(pooling_layer1_object.shape)
+    print 'Shape of pooling layer: {0:s}'.format(pooling_layer1_object.shape)
 
     conv_layer2_object = keras.layers.Conv2D(
         filters=128, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(pooling_layer1_object)
-    print 'Shape of convolutional layer 2: {0:s}'.format(
-        conv_layer2_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer2_object.shape)
 
     conv_layer2_object = keras.layers.Conv2D(
         filters=128, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer2_object)
-    print 'Shape of convolutional layer 2: {0:s}'.format(
-        conv_layer2_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer2_object.shape)
 
     pooling_layer2_object = keras.layers.MaxPooling2D(
         pool_size=(2, 2))(conv_layer2_object)
-    print 'Shape of pooling layer 2: {0:s}'.format(pooling_layer2_object.shape)
+    print 'Shape of pooling layer: {0:s}'.format(pooling_layer2_object.shape)
 
     conv_layer3_object = keras.layers.Conv2D(
         filters=256, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(pooling_layer2_object)
-    print 'Shape of convolutional layer 3: {0:s}'.format(
-        conv_layer3_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer3_object.shape)
 
     conv_layer3_object = keras.layers.Conv2D(
         filters=256, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer3_object)
-    print 'Shape of convolutional layer 3: {0:s}'.format(
-        conv_layer3_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer3_object.shape)
 
     pooling_layer3_object = keras.layers.MaxPooling2D(
         pool_size=(2, 2))(conv_layer3_object)
-    print 'Shape of pooling layer 3: {0:s}'.format(pooling_layer3_object.shape)
+    print 'Shape of pooling layer: {0:s}'.format(pooling_layer3_object.shape)
 
     conv_layer4_object = keras.layers.Conv2D(
         filters=512, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(pooling_layer3_object)
-    print 'Shape of convolutional layer 4: {0:s}'.format(
-        conv_layer4_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer4_object.shape)
 
     conv_layer4_object = keras.layers.Conv2D(
         filters=512, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer4_object)
-    print 'Shape of convolutional layer 4: {0:s}'.format(
-        conv_layer4_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer4_object.shape)
 
     dropout_layer4_object = keras.layers.Dropout(rate=0.5)(conv_layer4_object)
     pooling_layer4_object = keras.layers.MaxPooling2D(
         pool_size=(2, 2))(dropout_layer4_object)
-    print 'Shape of pooling layer 4: {0:s}'.format(pooling_layer4_object.shape)
+    print 'Shape of pooling layer: {0:s}'.format(pooling_layer4_object.shape)
 
     conv_layer5_object = keras.layers.Conv2D(
         filters=1024, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(pooling_layer4_object)
-    print 'Shape of convolutional layer 5: {0:s}'.format(
-        conv_layer5_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer5_object.shape)
 
     conv_layer5_object = keras.layers.Conv2D(
         filters=1024, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer5_object)
-    print 'Shape of convolutional layer 5: {0:s}'.format(
-        conv_layer5_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer5_object.shape)
 
     dropout_layer5_object = keras.layers.Dropout(rate=0.5)(conv_layer5_object)
 
@@ -170,108 +225,103 @@ def get_u_net(assumed_class_fractions, num_predictors=3):
         filters=512, kernel_size=(2, 2), activation='relu', padding='same',
         kernel_initializer='he_normal')(
             keras.layers.UpSampling2D(size=(2, 2))(dropout_layer5_object))
-    print 'Shape of upsampling layer 6: {0:s}'.format(
+    print 'Shape of upsampling layer: {0:s}'.format(
         upsampling_layer6_object.shape)
 
     merged_layer6_object = keras.layers.merge(
         [dropout_layer4_object, upsampling_layer6_object], mode='concat',
         concat_axis=3)
-    print 'Shape of merged layer 6: {0:s}'.format(merged_layer6_object.shape)
+    print 'Shape of merged layer: {0:s}'.format(merged_layer6_object.shape)
 
     conv_layer6_object = keras.layers.Conv2D(
         filters=512, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(merged_layer6_object)
-    print 'Shape of convolutional layer 6: {0:s}'.format(
-        conv_layer6_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer6_object.shape)
 
     conv_layer6_object = keras.layers.Conv2D(
         filters=512, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer6_object)
-    print 'Shape of convolutional layer 6: {0:s}'.format(
-        conv_layer6_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer6_object.shape)
 
     upsampling_layer7_object = keras.layers.Conv2D(
         filters=256, kernel_size=(2, 2), activation='relu', padding='same',
         kernel_initializer='he_normal')(
             keras.layers.UpSampling2D(size=(2, 2))(conv_layer6_object))
-    print 'Shape of upsampling layer 7: {0:s}'.format(
+    print 'Shape of upsampling layer: {0:s}'.format(
         upsampling_layer7_object.shape)
 
     merged_layer7_object = keras.layers.merge(
         [conv_layer3_object, upsampling_layer7_object], mode='concat',
         concat_axis=3)
-    print 'Shape of merged layer 7: {0:s}'.format(merged_layer7_object.shape)
+    print 'Shape of merged layer: {0:s}'.format(merged_layer7_object.shape)
 
     conv_layer7_object = keras.layers.Conv2D(
         filters=256, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(merged_layer7_object)
-    print 'Shape of convolutional layer 7: {0:s}'.format(
-        conv_layer7_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer7_object.shape)
 
     conv_layer7_object = keras.layers.Conv2D(
         filters=256, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer7_object)
-    print 'Shape of convolutional layer 7: {0:s}'.format(
-        conv_layer7_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer7_object.shape)
 
     upsampling_layer8_object = keras.layers.Conv2D(
         filters=128, kernel_size=(2, 2), activation='relu', padding='same',
         kernel_initializer='he_normal')(
             keras.layers.UpSampling2D(size=(2, 2))(conv_layer7_object))
-    print 'Shape of upsampling layer 8: {0:s}'.format(
+    print 'Shape of upsampling layer: {0:s}'.format(
         upsampling_layer8_object.shape)
 
     merged_layer8_object = keras.layers.merge(
         [conv_layer2_object, upsampling_layer8_object], mode='concat',
         concat_axis=3)
-    print 'Shape of merged layer 8: {0:s}'.format(merged_layer8_object.shape)
+    print 'Shape of merged layer: {0:s}'.format(merged_layer8_object.shape)
 
     conv_layer8_object = keras.layers.Conv2D(
         filters=128, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(merged_layer8_object)
-    print 'Shape of convolutional layer 8: {0:s}'.format(
-        conv_layer8_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer8_object.shape)
 
     conv_layer8_object = keras.layers.Conv2D(
         filters=128, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer8_object)
-    print 'Shape of convolutional layer 8: {0:s}'.format(
-        conv_layer8_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer8_object.shape)
 
     upsampling_layer9_object = keras.layers.Conv2D(
         filters=64, kernel_size=(2, 2), activation='relu', padding='same',
         kernel_initializer='he_normal')(
             keras.layers.UpSampling2D(size=(2, 2))(conv_layer8_object))
-    print 'Shape of upsampling layer 9: {0:s}'.format(
+    print 'Shape of upsampling layer: {0:s}'.format(
         upsampling_layer9_object.shape)
 
     merged_layer9_object = keras.layers.merge(
         [conv_layer1_object, upsampling_layer9_object], mode='concat',
         concat_axis=3)
-    print 'Shape of merged layer 9: {0:s}'.format(merged_layer9_object.shape)
+    print 'Shape of merged layer: {0:s}'.format(merged_layer9_object.shape)
 
     conv_layer9_object = keras.layers.Conv2D(
         filters=64, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(merged_layer9_object)
-    print 'Shape of convolutional layer 9: {0:s}'.format(
-        conv_layer9_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer9_object.shape)
 
     conv_layer9_object = keras.layers.Conv2D(
         filters=64, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer9_object)
-    print 'Shape of convolutional layer 9: {0:s}'.format(
-        conv_layer9_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer9_object.shape)
 
     conv_layer9_object = keras.layers.Conv2D(
-        filters=6, kernel_size=(3, 3), activation='relu', padding='same',
-        kernel_initializer='he_normal')(conv_layer9_object)
-    print 'Shape of convolutional layer 9: {0:s}'.format(
-        conv_layer9_object.shape)
+        filters=2*num_classes, kernel_size=(3, 3), activation='relu',
+        padding='same', kernel_initializer='he_normal')(conv_layer9_object)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer9_object.shape)
+
+    # conv_layer10_object = keras.layers.Conv2D(
+    #     filters=1, kernel_size=(1, 1), activation='sigmoid')(
+    #         conv_layer9_object)
 
     conv_layer10_object = keras.layers.Conv2D(
-        filters=3, kernel_size=(1, 1), activation='sigmoid')(conv_layer9_object)
-    print 'Shape of convolutional layer 10: {0:s}'.format(
-        conv_layer10_object.shape)
+        filters=num_classes, kernel_size=(1, 1), activation='softmax')(
+            conv_layer9_object)
+    print 'Shape of convolutional layer: {0:s}'.format(conv_layer10_object.shape)
 
     model_object = keras.models.Model(
         input=input_layer_object, output=conv_layer10_object)
@@ -487,6 +537,8 @@ def apply_model_to_3d_example(
         dilation_distance_for_target_metres, num_classes):
     """Applies FCN to one 3-D example.
 
+    K = number of classes (possible values of target label)
+
     :param model_object: Instance of `keras.models.Model`.
     :param target_time_unix_sec: See documentation for
         `testing_io.create_full_size_3d_example`.
@@ -495,16 +547,12 @@ def apply_model_to_3d_example(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
-    :param num_classes: Same.
-    :return: predicted_target_matrix: M-by-N numpy array of predicted targets on
+    :param num_classes: Number of classes.  This is K in the above discussion.
+    :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
+        class probabilities.
+    :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
         the NARR grid.
-    :return: actual_target_matrix: M-by-N numpy array of actual targets on the
-        NARR grid.
     """
-
-    # TODO(thunderhoser): Change output dimensions (to allow for both binary and
-    # ternary classification).  I just don't know how yet (will know when I have
-    # a model to feed through this method).
 
     predictor_matrix, actual_target_matrix = (
         testing_io.create_full_size_3d_example(
@@ -516,11 +564,10 @@ def apply_model_to_3d_example(
             dilation_distance_for_target_metres=
             dilation_distance_for_target_metres, num_classes=num_classes))
 
-    predicted_target_matrix = model_object.predict(
+    class_probability_matrix = model_object.predict(
         predictor_matrix, batch_size=1)
 
-    return (predicted_target_matrix[0, ..., 0].astype('float'),
-            actual_target_matrix[0, ..., 0])
+    return class_probability_matrix, actual_target_matrix[..., 0]
 
 
 def apply_model_to_4d_example(
@@ -529,6 +576,8 @@ def apply_model_to_4d_example(
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_classes):
     """Applies FCN to one 4-D example.
+
+    K = number of classes (possible values of target label)
 
     :param model_object: Instance of `keras.models.Model`.
     :param target_time_unix_sec: See documentation for
@@ -540,16 +589,12 @@ def apply_model_to_4d_example(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
-    :param num_classes: Same.
-    :return: predicted_target_matrix: M-by-N numpy array of predicted targets on
+    :param num_classes: Number of classes.  This is K in the above discussion.
+    :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
+        class probabilities.
+    :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
         the NARR grid.
-    :return: actual_target_matrix: M-by-N numpy array of actual targets on the
-        NARR grid.
     """
-
-    # TODO(thunderhoser): Change output dimensions (to allow for both binary and
-    # ternary classification).  I just don't know how yet (will know when I have
-    # a model to feed through this method).
 
     predictor_matrix, actual_target_matrix = (
         testing_io.create_full_size_4d_example(
@@ -563,8 +608,7 @@ def apply_model_to_4d_example(
             dilation_distance_for_target_metres=
             dilation_distance_for_target_metres, num_classes=num_classes))
 
-    predicted_target_matrix = model_object.predict(
+    class_probability_matrix = model_object.predict(
         predictor_matrix, batch_size=1)
 
-    return (predicted_target_matrix[0, ..., 0].astype('float'),
-            actual_target_matrix[0, ..., 0])
+    return class_probability_matrix, actual_target_matrix[..., 0]

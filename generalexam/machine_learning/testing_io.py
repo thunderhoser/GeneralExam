@@ -405,7 +405,6 @@ def create_full_size_3d_example(
             verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
-    # target_matrix = target_matrix.astype('bool')
     print 'Fraction of pixels with a front = {0:.4f}'.format(
         numpy.mean(target_matrix > 0))
 
@@ -517,10 +516,8 @@ def create_full_size_4d_example(
             verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
-    # target_matrix = target_matrix.astype('bool')
     print 'Fraction of pixels with a front = {0:.4f}'.format(
         numpy.mean(target_matrix > 0))
 
-    # Expands target matrix to 4-D.  Might have to expand to 5-D.
     target_matrix = numpy.expand_dims(target_matrix, axis=-1)
     return predictor_matrix, target_matrix
