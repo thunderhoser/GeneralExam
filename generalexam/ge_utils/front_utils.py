@@ -829,9 +829,7 @@ def many_polylines_to_narr_grid(front_table, dilation_distance_metres):
             if front_table[FRONT_TYPE_COLUMN].values[j] == WARM_FRONT_STRING_ID:
                 this_frontal_grid_matrix[
                     numpy.where(this_binary_matrix)] = WARM_FRONT_INTEGER_ID
-
-            elif (front_table[FRONT_TYPE_COLUMN].values[i] ==
-                  COLD_FRONT_STRING_ID):
+            else:
                 this_frontal_grid_matrix[
                     numpy.where(this_binary_matrix)] = COLD_FRONT_INTEGER_ID
 
