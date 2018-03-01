@@ -3,15 +3,37 @@
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
 import matplotlib.colors
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import front_utils
 from generalexam.plotting import narr_plotting
 
 DEFAULT_GRID_OPACITY = 0.5
 
+ANY_FRONT_STRING_ID = 'any'
+VALID_STRING_IDS = [
+    ANY_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID,
+    front_utils.COLD_FRONT_STRING_ID]
 
-def _get_default_colour_map():
-    """Returns default colour map for probability.
+
+def _check_front_type(front_string_id):
+    """Ensures that front type is valid.
+
+    :param front_string_id: String ID for front type.
+    :raises: ValueError: if front type is unrecognized.
+    """
+
+    error_checking.assert_is_string(front_string_id)
+    if front_string_id not in VALID_STRING_IDS:
+        error_string = (
+            '\n\n{0:s}\nValid front types (listed above) do not include '
+            '"{1:s}".').format(VALID_STRING_IDS, front_string_id)
+        raise ValueError(error_string)
+
+
+def get_any_front_colour_map():
+    """Returns colour map for "probability of any front" (warm or cold).
 
     N = number of colours
 
@@ -55,10 +77,10 @@ def _get_default_colour_map():
 
 
 def plot_narr_grid(
-        predicted_target_matrix, axes_object, basemap_object,
+        probability_matrix, front_string_id, axes_object, basemap_object,
         first_row_in_narr_grid=0, first_column_in_narr_grid=0,
         opacity=DEFAULT_GRID_OPACITY):
-    """Plots colour map of predicted probabilities.
+    """Plots frontal-probability map on NARR grid.
 
     This method plots data over a contiguous subset of the NARR grid, which need
     not be *strictly* a subset.  In other words, the "subset" could be the full
@@ -67,9 +89,11 @@ def plot_narr_grid(
     M = number of rows (unique grid-point y-coordinates)
     N = number of columns (unique grid-point x-coordinates)
 
-    :param predicted_target_matrix: M-by-N numpy array, where
+    :param probability_matrix: M-by-N numpy array, where
         predicted_target_matrix[i, j] is the predicted probability of a front
         passing through grid cell [i, j].
+    :param front_string_id: Type of fronts predicted in `probability_matrix`.
+        May be "warm", "cold", or "any".
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     :param first_row_in_narr_grid: Row 0 in the subgrid is row
@@ -79,18 +103,30 @@ def plot_narr_grid(
     :param opacity: Opacity for colour map (in range 0...1).
     """
 
-    error_checking.assert_is_numpy_array(
-        predicted_target_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(probability_matrix, num_dimensions=2)
     error_checking.assert_is_geq_numpy_array(
-        predicted_target_matrix, 0., allow_nan=False)
+        probability_matrix, 0., allow_nan=False)
     error_checking.assert_is_leq_numpy_array(
-        predicted_target_matrix, 1., allow_nan=False)
+        probability_matrix, 1., allow_nan=False)
 
-    colour_map_object, _, colour_bounds = _get_default_colour_map()
+    _check_front_type(front_string_id)
+
+    if front_string_id == ANY_FRONT_STRING_ID:
+        colour_map_object, _, colour_bounds = get_any_front_colour_map()
+        colour_minimum = colour_bounds[1]
+        colour_maximum = colour_bounds[-2]
+    elif front_string_id == front_utils.WARM_FRONT_STRING_ID:
+        colour_map_object = pyplot.cm.Reds
+        colour_minimum = 0.
+        colour_maximum = 1.
+    else:
+        colour_map_object = pyplot.cm.Blues
+        colour_minimum = 0.
+        colour_maximum = 1.
 
     narr_plotting.plot_xy_grid(
-        data_matrix=predicted_target_matrix, axes_object=axes_object,
+        data_matrix=probability_matrix, axes_object=axes_object,
         basemap_object=basemap_object, colour_map=colour_map_object,
-        colour_minimum=colour_bounds[1], colour_maximum=colour_bounds[-2],
+        colour_minimum=colour_minimum, colour_maximum=colour_maximum,
         first_row_in_narr_grid=first_row_in_narr_grid,
         first_column_in_narr_grid=first_column_in_narr_grid, opacity=opacity)
