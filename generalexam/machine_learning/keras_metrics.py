@@ -23,7 +23,7 @@ Throughout this module, I will use the following letters to denote elements in
 the contingency table.
 
 a = number of true positives = sum of forecast probabilities for examples with
-true label of 1
+true label != 0
 
 b = number of false positives = sum of forecast probabilities for examples with
 true label of 0
@@ -32,258 +32,286 @@ c = number of false negatives = sum of inverse forecast probabilities for
 examples with true label of 1
 
 d = number of true negatives = sum of inverse forecast probabilities for
-examples with true label of 0
+examples with true label != 0
+
+--- INPUT FORMATS ---
+
+Inputs to all methods must be in one of two formats.
+
+E = number of examples
+M = number of pixel rows
+N = number of pixel columns
+K = number of classes (possible values of target variable)
+
+FORMAT 1:
+
+true_label_tensor: E-by-K tensor of true labels.  If true_label_tensor[i, m]
+    = 1, the [i]th example belongs to the [m]th class.
+
+predicted_probability_tensor: E-by-K tensor of predicted probabilities.
+    predicted_probability_tensor[i, m] is the estimated probability that the
+    [i]th example belongs to the [m]th class.
+
+FORMAT 2:
+
+true_label_tensor: E-by-M-by-N-by-K tensor of true labels.  If
+    true_label_tensor[i, j, k, m] = 1, pixel [j, k] in the [i]th example belongs
+    to the [m]th class.
+
+predicted_probability_tensor: E-by-M-by-N-by-K tensor of predicted
+    probabilities.  predicted_probability_tensor[i, j, k, m] is the estimated
+    probability that pixel [j, k] in the [i]th example belongs to the [m]th
+    class.
 """
 
 import keras.backend as K
 
 
-def _get_num_true_positives(true_labels, forecast_probabilities):
+def _get_num_true_positives(true_label_tensor, predicted_probability_tensor):
     """Returns number of true positives (defined in docstring).
 
     Number of true positives = `a` in contingency table
 
-    :param true_labels: tensor of true labels (integers).
-    :param forecast_probabilities: equivalent-sized tensor of forecast
-        probabilities (in range 0...1).
+    :param true_label_tensor: See docstring.
+    :param predicted_probability_tensor: See docstring.
     :return: num_true_positives: Number of true positives.
     """
 
-    num_tensor_dimensions = len(K.int_shape(true_labels))
-    if num_tensor_dimensions == 2:
-        return K.sum(K.clip(
-            true_labels[:, 1] * forecast_probabilities[:, 1], 0., 1.))
-
     return K.sum(K.clip(
-        true_labels * forecast_probabilities, 0., 1.))
+        (1 - true_label_tensor[..., 0]) *
+        (1. - predicted_probability_tensor[..., 0]), 0., 1.))
 
 
-def _get_num_false_positives(true_labels, forecast_probabilities):
+def _get_num_false_positives(true_label_tensor, predicted_probability_tensor):
     """Returns number of false positives (defined in docstring).
 
     Number of false positives = `b` in contingency table
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
+    :param true_label_tensor: See docstring.
+    :param predicted_probability_tensor: See docstring.
     :return: num_false_positives: Number of false positives.
     """
 
-    num_tensor_dimensions = len(K.int_shape(true_labels))
-    if num_tensor_dimensions == 2:
-        return K.sum(K.clip(
-            (1 - true_labels[:, 1]) * forecast_probabilities[:, 1], 0., 1.))
-
     return K.sum(K.clip(
-        (1 - true_labels) * forecast_probabilities, 0., 1.))
+        true_label_tensor[..., 0] *
+        (1. - predicted_probability_tensor[..., 0]), 0., 1.))
 
 
-def _get_num_false_negatives(true_labels, forecast_probabilities):
+def _get_num_false_negatives(true_label_tensor, predicted_probability_tensor):
     """Returns number of false negatives (defined in docstring).
 
     Number of false negatives = `c` in contingency table
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
+    :param true_label_tensor: See docstring.
+    :param predicted_probability_tensor: See docstring.
     :return: num_false_negatives: Number of false negatives.
     """
 
-    num_tensor_dimensions = len(K.int_shape(true_labels))
-    if num_tensor_dimensions == 2:
-        return K.sum(K.clip(
-            true_labels[:, 1] * (1. - forecast_probabilities[:, 1]), 0., 1.))
-
     return K.sum(K.clip(
-        true_labels * (1. - forecast_probabilities), 0., 1.))
+        (1 - true_label_tensor[..., 0]) *
+        predicted_probability_tensor[..., 0], 0., 1.))
 
 
-def _get_num_true_negatives(true_labels, forecast_probabilities):
+def _get_num_true_negatives(true_label_tensor, predicted_probability_tensor):
     """Returns number of true negatives (defined in docstring).
 
     Number of true negatives = `d` in contingency table
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
+    :param true_label_tensor: See docstring.
+    :param predicted_probability_tensor: See docstring.
     :return: num_true_negatives: Number of true negatives.
     """
 
-    num_tensor_dimensions = len(K.int_shape(true_labels))
-    if num_tensor_dimensions == 2:
-        return K.sum(K.clip(
-            (1 - true_labels[:, 1]) *
-            (1. - forecast_probabilities[:, 1]), 0., 1.))
-
     return K.sum(K.clip(
-        (1 - true_labels) * (1. - forecast_probabilities), 0., 1.))
+        true_label_tensor[..., 0] *
+        predicted_probability_tensor[..., 0], 0., 1.))
 
 
-def accuracy(true_labels, forecast_probabilities):
-    """Computes accuracy ([a + d] / [a + b + c + d]).
+def accuracy(true_label_tensor, predicted_probability_tensor):
+    """Computes accuracy.
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
+    :param true_label_tensor: E-by-K tensor of true labels.  If
+        true_label_tensor[i, j] = 1, the [i]th example belongs to the [j]th
+        class.
+    :param predicted_probability_tensor: E-by-K by tensor of predicted
+        probabilities.  predicted_probability_tensor[i, j] is the probability of
+        the [i]th example falling in the [j]th class.
     :return: accuracy: Accuracy.
     """
 
+    return K.mean(K.clip(
+        true_label_tensor * predicted_probability_tensor, 0., 1.))
+
+
+def binary_accuracy(true_label_tensor, predicted_probability_tensor):
+    """Computes binary accuracy ([a + d] / [a + b + c + d]).
+
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_accuracy: Binary accuracy.
+    """
+
     num_true_positives = _get_num_true_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_positives = _get_num_false_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_negatives = _get_num_false_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_true_negatives = _get_num_true_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return (num_true_positives + num_true_negatives) / (
         num_true_positives + num_false_positives + num_false_negatives +
         num_true_negatives + K.epsilon())
 
 
-def csi(true_labels, forecast_probabilities):
-    """Computes critical success index (a / [a + b + c]).
+def binary_csi(true_label_tensor, predicted_probability_tensor):
+    """Computes binary critical success index (a / [a + b + c]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: critical_success_index: Critical success index.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_csi: Binary CSI.
     """
 
     num_true_positives = _get_num_true_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_positives = _get_num_false_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_negatives = _get_num_false_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return num_true_positives / (
         num_true_positives + num_false_positives + num_false_negatives +
         K.epsilon())
 
 
-def frequency_bias(true_labels, forecast_probabilities):
-    """Computes frequency bias ([a + b] / [a + c]).
+def binary_frequency_bias(true_label_tensor, predicted_probability_tensor):
+    """Computes binary frequency bias ([a + b] / [a + c]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: frequency_bias: Frequency bias.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_frequency_bias: Binary frequency bias.
     """
 
     num_true_positives = _get_num_true_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_positives = _get_num_false_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_negatives = _get_num_false_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return (num_true_positives + num_false_positives) / (
         num_true_positives + num_false_negatives + K.epsilon())
 
 
-def pod(true_labels, forecast_probabilities):
-    """Computes probability of detection (a / [a + c]).
+def binary_pod(true_label_tensor, predicted_probability_tensor):
+    """Computes binary probability of detection (a / [a + c]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: probability_of_detection: Probability of detection.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_pod: Binary POD.
     """
 
     num_true_positives = _get_num_true_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_negatives = _get_num_false_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return num_true_positives / (
         num_true_positives + num_false_negatives + K.epsilon())
 
 
-def fom(true_labels, forecast_probabilities):
-    """Computes frequency of misses (c / [a + c]).
+def binary_fom(true_label_tensor, predicted_probability_tensor):
+    """Computes binary frequency of misses (c / [a + c]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: frequency_of_misses: Frequency of misses.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_fom: Binary FOM.
     """
 
-    return 1. - pod(true_labels, forecast_probabilities)
+    return 1. - binary_pod(true_label_tensor, predicted_probability_tensor)
 
 
-def pofd(true_labels, forecast_probabilities):
-    """Computes probability of false detection (b / [b + d]).
+def binary_pofd(true_label_tensor, predicted_probability_tensor):
+    """Computes binary probability of false detection (b / [b + d]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: probability_of_false_detection: Probability of false detection.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_pofd: Binary POFD.
     """
 
     num_false_positives = _get_num_false_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_true_negatives = _get_num_true_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return num_false_positives / (
         num_false_positives + num_true_negatives + K.epsilon())
 
 
-def npv(true_labels, forecast_probabilities):
-    """Computes negative predictive value (d / [b + d]).
+def binary_npv(true_label_tensor, predicted_probability_tensor):
+    """Computes binary negative predictive value (d / [b + d]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: negative_predictive_value: Negative predictive value.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_npv: Binary NPV.
     """
 
-    return 1. - pofd(true_labels, forecast_probabilities)
+    return 1. - binary_pofd(true_label_tensor, predicted_probability_tensor)
 
 
-def success_ratio(true_labels, forecast_probabilities):
-    """Computes success ratio (a / [a + b]).
+def binary_success_ratio(true_label_tensor, predicted_probability_tensor):
+    """Computes binary success ratio (a / [a + b]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: success_ratio: Success ratio.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_success_ratio: Binary success ratio.
     """
 
     num_true_positives = _get_num_true_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_false_positives = _get_num_false_positives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return num_true_positives / (
         num_true_positives + num_false_positives + K.epsilon())
 
 
-def far(true_labels, forecast_probabilities):
-    """Computes false-alarm rate (b / [a + b]).
+def binary_far(true_label_tensor, predicted_probability_tensor):
+    """Computes binary false-alarm rate (b / [a + b]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: false_alarm_rate: False-alarm rate.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_far: Binary FAR.
     """
 
-    return 1. - success_ratio(true_labels, forecast_probabilities)
+    return 1. - binary_success_ratio(true_label_tensor,
+                                     predicted_probability_tensor)
 
 
-def dfr(true_labels, forecast_probabilities):
-    """Computes detection-failure ratio (c / [c + d]).
+def binary_dfr(true_label_tensor, predicted_probability_tensor):
+    """Computes binary detection-failure ratio (c / [c + d]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: detection_failure_ratio: Detection-failure ratio.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_dfr: Binary DFR.
     """
 
     num_false_negatives = _get_num_false_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
     num_true_negatives = _get_num_true_negatives(
-        true_labels, forecast_probabilities)
+        true_label_tensor, predicted_probability_tensor)
 
     return num_false_negatives / (
         num_false_negatives + num_true_negatives + K.epsilon())
 
 
-def focn(true_labels, forecast_probabilities):
-    """Computes frequency of correct nulls (d / [c + d]).
+def binary_focn(true_label_tensor, predicted_probability_tensor):
+    """Computes binary frequency of correct nulls (d / [c + d]).
 
-    :param true_labels: See documentation for `_get_num_true_positives`.
-    :param forecast_probabilities: Same.
-    :return: freq_of_correct_nulls: Frequency of correct nulls.
+    :param true_label_tensor: See documentation for `accuracy`.
+    :param predicted_probability_tensor: Same.
+    :return: binary_focn: Binary FOCN.
     """
 
-    return 1. - dfr(true_labels, forecast_probabilities)
+    return 1. - binary_dfr(true_label_tensor, predicted_probability_tensor)

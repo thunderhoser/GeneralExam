@@ -53,12 +53,13 @@ NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
 
 CUSTOM_OBJECT_DICT_FOR_LOADING_MODEL = {
     'accuracy': keras_metrics.accuracy,
-    'csi': keras_metrics.csi,
-    'frequency_bias': keras_metrics.frequency_bias,
-    'pod': keras_metrics.pod,
-    'pofd': keras_metrics.pofd,
-    'success_ratio': keras_metrics.success_ratio,
-    'focn': keras_metrics.focn
+    'binary_accuracy': keras_metrics.binary_accuracy,
+    'binary_csi': keras_metrics.binary_csi,
+    'binary_frequency_bias': keras_metrics.binary_frequency_bias,
+    'binary_pod': keras_metrics.binary_pod,
+    'binary_pofd': keras_metrics.binary_pofd,
+    'binary_success_ratio': keras_metrics.binary_success_ratio,
+    'binary_focn': keras_metrics.binary_focn
 }
 
 
@@ -870,7 +871,7 @@ def full_size_3d_example_generator(
     """
 
     error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_geq(num_examples_per_batch, 1)
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
@@ -964,13 +965,14 @@ def full_size_3d_example_generator(
 
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
-        target_matrix_to_return = target_matrix[
-            batch_indices, ...].astype(numpy.int32)
         print 'Fraction of examples with a front = {0:.4f}'.format(
-            numpy.mean(target_matrix_to_return > 0))
+            numpy.mean(target_matrix[batch_indices, ...] > 0))
 
-        target_matrix_to_return = numpy.expand_dims(
-            target_matrix_to_return, axis=-1)
+        target_matrix_to_return = keras.utils.to_categorical(
+            target_matrix[batch_indices, ...], num_classes)
+        target_matrix_to_return = numpy.reshape(
+            target_matrix_to_return, target_matrix.shape + (num_classes,))
+        print target_matrix_to_return.shape
 
         predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
         target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)
@@ -1025,7 +1027,7 @@ def full_size_4d_example_generator(
     """
 
     error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_geq(num_examples_per_batch, 1)
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
@@ -1130,14 +1132,13 @@ def full_size_4d_example_generator(
 
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
-        target_matrix_to_return = target_matrix[
-            batch_indices, ...].astype(numpy.int32)
         print 'Fraction of examples with a front = {0:.4f}'.format(
-            numpy.mean(target_matrix_to_return > 0))
+            numpy.mean(target_matrix[batch_indices, ...] > 0))
 
-        # Expands target matrix to 4-D.  Might have to expand to 5-D.
-        target_matrix_to_return = numpy.expand_dims(
-            target_matrix_to_return, axis=-1)
+        target_matrix_to_return = keras.utils.to_categorical(
+            target_matrix[batch_indices, ...], num_classes)
+        target_matrix_to_return = numpy.reshape(
+            target_matrix_to_return, target_matrix.shape + (num_classes,))
 
         predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
         target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)

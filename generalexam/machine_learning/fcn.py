@@ -33,12 +33,12 @@ Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
     Image Computing and Computer-assisted Intervention, 234-241.
 """
 
+import numpy
 import keras.models
 import keras.layers
 from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
@@ -49,42 +49,42 @@ from generalexam.machine_learning import keras_losses
 # K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 #     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
-DEFAULT_POSITIVE_CLASS_WEIGHT = 0.935
-
 LEARNING_RATE_FOR_U_NET = 1e-4
 LIST_OF_METRIC_FUNCTIONS = [
-    keras_metrics.accuracy, keras_metrics.csi, keras_metrics.frequency_bias,
-    keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
-    keras_metrics.focn]
-
-DEFAULT_NARR_PREDICTOR_NAMES = [
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.WET_BULB_TEMP_NAME]
+    keras_metrics.accuracy, keras_metrics.binary_accuracy,
+    keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
+    keras_metrics.binary_pod, keras_metrics.binary_pofd,
+    keras_metrics.binary_success_ratio, keras_metrics.binary_focn]
 
 
-def get_u_net(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
+def get_u_net(assumed_class_fractions, num_predictors=3):
     """Creates U-net with architecture used in the following example.
 
     https://github.com/zhixuhao/unet/blob/master/unet.py
 
     For more on U-nets in general, see Ronneberger et al. (2015).
 
-    :param positive_class_weight: Weight for positive class in loss function.
-        This should be (1 - frequency of positive class).  With dilation
-        distance of 150 km, frequency of positive class (fraction of pixels
-        labeled as frontal) is ~0.065.  This is why default weight is 0.935.
+    :param assumed_class_fractions: 1-D numpy array, where the [i]th element is
+        the estimated frequency of the [i]th class.
+    :param num_predictors: Number of predictor variables.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
-    error_checking.assert_is_greater(positive_class_weight, 0.)
-    error_checking.assert_is_less_than(positive_class_weight, 1.)
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_geq(num_predictors, 1)
+
+    class_weight_dict = ml_utils.get_class_weight_dict(assumed_class_fractions)
+    class_weights = numpy.array(class_weight_dict.values())
+
+    num_classes = len(class_weights)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
+    class_weights = numpy.reshape(class_weights, (num_classes, 1))
 
     input_dimensions = (
         len(ml_utils.NARR_ROWS_FOR_FCN_INPUT),
-        len(ml_utils.NARR_COLUMNS_FOR_FCN_INPUT),
-        len(DEFAULT_NARR_PREDICTOR_NAMES))
+        len(ml_utils.NARR_COLUMNS_FOR_FCN_INPUT), num_predictors)
     input_layer_object = keras.layers.Input(shape=input_dimensions)
 
     conv_layer1_object = keras.layers.Conv2D(
@@ -263,13 +263,13 @@ def get_u_net(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
         conv_layer9_object.shape)
 
     conv_layer9_object = keras.layers.Conv2D(
-        filters=2, kernel_size=(3, 3), activation='relu', padding='same',
+        filters=6, kernel_size=(3, 3), activation='relu', padding='same',
         kernel_initializer='he_normal')(conv_layer9_object)
     print 'Shape of convolutional layer 9: {0:s}'.format(
         conv_layer9_object.shape)
 
     conv_layer10_object = keras.layers.Conv2D(
-        filters=1, kernel_size=(1, 1), activation='sigmoid')(conv_layer9_object)
+        filters=3, kernel_size=(1, 1), activation='sigmoid')(conv_layer9_object)
     print 'Shape of convolutional layer 10: {0:s}'.format(
         conv_layer10_object.shape)
 
@@ -277,15 +277,9 @@ def get_u_net(positive_class_weight=DEFAULT_POSITIVE_CLASS_WEIGHT):
         input=input_layer_object, output=conv_layer10_object)
 
     model_object.compile(
-        loss=keras_losses.weighted_cross_entropy(
-            positive_class_weight=positive_class_weight),
+        loss=keras_losses.weighted_cross_entropy(class_weights),
         optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_U_NET),
         metrics=LIST_OF_METRIC_FUNCTIONS)
-
-    # model_object.compile(
-    #     loss=keras.losses.binary_crossentropy,
-    #     optimizer=keras.optimizers.Adam(lr=LEARNING_RATE_FOR_U_NET),
-    #     metrics=LIST_OF_METRIC_FUNCTIONS)
 
     return model_object
 

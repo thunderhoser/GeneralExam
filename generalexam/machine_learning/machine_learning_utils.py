@@ -536,19 +536,13 @@ def sample_target_points(
         columns.
     """
 
-    try:
-        _check_target_matrix(
-            target_matrix, assert_binary=True, num_dimensions=3)
-        num_classes = 2
-    except:
-        _check_target_matrix(
-            target_matrix, assert_binary=False, num_dimensions=3)
-        num_classes = 3
-
-    error_checking.assert_is_numpy_array(
-        class_fractions, exact_dimensions=numpy.array([num_classes]))
+    error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(class_fractions, 0.)
     error_checking.assert_is_leq_numpy_array(class_fractions, 1.)
+
+    num_classes = len(class_fractions)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     sum_of_class_fractions = numpy.sum(class_fractions)
     absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
@@ -558,6 +552,9 @@ def sample_target_points(
             'Instead, got {1:.4f}.').format(
                 str(class_fractions), sum_of_class_fractions)
         raise ValueError(error_string)
+
+    _check_target_matrix(
+        target_matrix, assert_binary=num_classes == 2, num_dimensions=3)
 
     error_checking.assert_is_integer(num_points_per_time)
     error_checking.assert_is_geq(num_points_per_time, 3)

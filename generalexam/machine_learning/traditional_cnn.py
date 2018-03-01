@@ -44,9 +44,10 @@ DEFAULT_NUM_PIXEL_COLUMNS = 65
 DEFAULT_ASSUMED_POSITIVE_FRACTION = 0.935
 
 LIST_OF_METRIC_FUNCTIONS = [
-    keras_metrics.accuracy, keras_metrics.csi, keras_metrics.frequency_bias,
-    keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
-    keras_metrics.focn]
+    keras_metrics.accuracy, keras_metrics.binary_accuracy,
+    keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
+    keras_metrics.binary_pod, keras_metrics.binary_pofd,
+    keras_metrics.binary_success_ratio, keras_metrics.binary_focn]
 
 NUM_NARR_ROWS_WITHOUT_NAN, _ = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
