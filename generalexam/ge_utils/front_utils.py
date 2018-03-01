@@ -541,36 +541,6 @@ def dilate_binary_narr_image(binary_matrix, dilation_distance_metres=None,
     return binary_matrix.astype(int)
 
 
-def dilate_binary_image(
-        binary_matrix, dilation_half_width_in_grid_cells,
-        include_diagonal_neighbours):
-    """Dilates a binary image.
-
-    M = number of grid rows (unique grid-point y-coordinates)
-    N = number of grid columns (unique grid-point x-coordinates)
-
-    :param binary_matrix: M-by-N numpy array of Boolean flags.
-    :param dilation_half_width_in_grid_cells: Half-width of dilation window.
-    :param include_diagonal_neighbours: Boolean flag.  If True, diagonally
-        adjacent grid cells (those sharing only a corner) are considered
-        connected.  If False, only grid cells sharing an edge are considered
-        connected.
-    :return: binary_matrix: Same as input, except dilated.
-    """
-
-    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
-    error_checking.assert_is_boolean(include_diagonal_neighbours)
-
-    if include_diagonal_neighbours:
-        structuring_element = generate_binary_structure(rank=2, connectivity=2)
-    else:
-        structuring_element = generate_binary_structure(rank=2, connectivity=1)
-
-    return binary_dilation(
-        binary_matrix, structure=structuring_element,
-        iterations=dilation_half_width_in_grid_cells, origin=0, border_value=0)
-
-
 def frontal_grid_to_points(frontal_grid_matrix):
     """Converts a frontal grid to lists of points.
 
@@ -739,7 +709,7 @@ def get_frontal_types_over_grid(
 
 def polyline_to_binary_narr_grid(
         polyline_latitudes_deg, polyline_longitudes_deg,
-        dilation_half_width_in_grid_cells=1):
+        dilation_distance_metres):
     """Converts polyline to binary image with dimensions of NARR* grid.
 
     * NARR = North American Regional Reanalysis
@@ -752,15 +722,14 @@ def polyline_to_binary_narr_grid(
         in polyline.
     :param polyline_longitudes_deg: length-P numpy array with longitudes (deg E)
         in polyline.
-    :param dilation_half_width_in_grid_cells: Half-width of dilation window for
-        `dilate_binary_image`.
+    :param dilation_distance_metres: Dilation distance.
     :return: binary_matrix: M-by-N numpy array of Boolean flags.  If
         binary_matrix[i, j] = True, the polyline passes through grid cell
         [i, j].  Otherwise, the polyline does not pass through grid cell [i, j].
     """
 
-    error_checking.assert_is_integer(dilation_half_width_in_grid_cells)
-    error_checking.assert_is_geq(dilation_half_width_in_grid_cells, 0)
+    error_checking.assert_is_geq(dilation_distance_metres, 0.)
+    dilation_distance_metres = max([dilation_distance_metres, 1.])
 
     polyline_x_coords_metres, polyline_y_coords_metres = (
         nwp_model_utils.project_latlng_to_xy(
@@ -785,17 +754,12 @@ def polyline_to_binary_narr_grid(
         rows_in_object=rows_in_polyline, columns_in_object=columns_in_polyline,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
-    if dilation_half_width_in_grid_cells == 0:
-        return binary_matrix
-
-    return dilate_binary_image(
+    return dilate_binary_narr_image(
         binary_matrix=binary_matrix,
-        dilation_half_width_in_grid_cells=dilation_half_width_in_grid_cells,
-        include_diagonal_neighbours=False)
+        dilation_distance_metres=dilation_distance_metres)
 
 
-def many_polylines_to_narr_grid(
-        front_table, dilation_half_width_in_grid_cells=1):
+def many_polylines_to_narr_grid(front_table, dilation_distance_metres):
     """For each time step, converts frontal polylines to image over NARR* grid.
 
     * NARR = North American Regional Reanalysis
@@ -807,8 +771,7 @@ def many_polylines_to_narr_grid(
 
     :param front_table: See documentation for
         `fronts_io.write_polylines_to_file`.
-    :param dilation_half_width_in_grid_cells: Half-width of dilation window for
-        `dilate_binary_image`.
+    :param dilation_distance_metres: Dilation distance.
     :return: frontal_grid_table: pandas DataFrame with the following columns.
         Each row is one valid time.
     frontal_grid_table.unix_time_sec: Valid time.
@@ -860,8 +823,7 @@ def many_polylines_to_narr_grid(
                 front_table[LATITUDES_COLUMN].values[j],
                 polyline_longitudes_deg=
                 front_table[LONGITUDES_COLUMN].values[j],
-                dilation_half_width_in_grid_cells=
-                dilation_half_width_in_grid_cells)
+                dilation_distance_metres=dilation_distance_metres)
 
             if front_table[FRONT_TYPE_COLUMN].values[j] == WARM_FRONT_STRING_ID:
                 this_frontal_grid_matrix[
