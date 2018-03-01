@@ -502,8 +502,9 @@ def apply_model_to_3d_example(
         NARR grid.
     """
 
-    # TODO(thunderhoser): Output dimensions need to be different for
-    # multi-class.
+    # TODO(thunderhoser): Change output dimensions (to allow for both binary and
+    # ternary classification).  I just don't know how yet (will know when I have
+    # a model to feed through this method).
 
     predictor_matrix, actual_target_matrix = (
         testing_io.create_full_size_3d_example(
@@ -546,8 +547,9 @@ def apply_model_to_4d_example(
         NARR grid.
     """
 
-    # TODO(thunderhoser): Output dimensions need to be different for
-    # multi-class.
+    # TODO(thunderhoser): Change output dimensions (to allow for both binary and
+    # ternary classification).  I just don't know how yet (will know when I have
+    # a model to feed through this method).
 
     predictor_matrix, actual_target_matrix = (
         testing_io.create_full_size_4d_example(
