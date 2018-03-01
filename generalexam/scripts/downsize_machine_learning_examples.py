@@ -322,15 +322,16 @@ def _downsize_ml_examples(
         frontal_grid_matrix)
     print SEPARATOR_STRING
 
-    frontal_grid_matrix = ml_utils.dilate_target_images(
-        binary_target_matrix=frontal_grid_matrix,
+    frontal_grid_matrix = ml_utils.dilate_binary_target_images(
+        target_matrix=frontal_grid_matrix,
         dilation_distance_metres=dilation_distance_metres)
 
     print ('Downsampling target points (so that fraction of positive cases = '
            '{0:f})...').format(positive_fraction)
+
+    class_fractions = numpy.array([1. - positive_fraction, positive_fraction])
     sampled_target_point_dict = ml_utils.sample_target_points(
-        binary_target_matrix=frontal_grid_matrix,
-        positive_fraction=positive_fraction,
+        target_matrix=frontal_grid_matrix, class_fractions=class_fractions,
         num_points_per_time=NUM_POINTS_TO_SAMPLE_PER_TIME)
     print SEPARATOR_STRING
 

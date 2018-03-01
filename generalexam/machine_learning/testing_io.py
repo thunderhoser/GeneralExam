@@ -206,8 +206,8 @@ def create_downsized_3d_examples(
         full_target_matrix = ml_utils.remove_nans_from_narr_grid(
             full_target_matrix)
 
-        full_target_matrix = ml_utils.dilate_target_images(
-            binary_target_matrix=full_target_matrix,
+        full_target_matrix = ml_utils.dilate_binary_target_images(
+            target_matrix=full_target_matrix,
             dilation_distance_metres=dilation_distance_for_target_metres,
             verbose=False)
 
@@ -348,8 +348,8 @@ def create_downsized_4d_examples(
         full_target_matrix = ml_utils.remove_nans_from_narr_grid(
             full_target_matrix)
 
-        full_target_matrix = ml_utils.dilate_target_images(
-            binary_target_matrix=full_target_matrix,
+        full_target_matrix = ml_utils.dilate_binary_target_images(
+            target_matrix=full_target_matrix,
             dilation_distance_metres=dilation_distance_for_target_metres,
             verbose=False)
 
@@ -443,8 +443,8 @@ def create_full_size_3d_example(
 
     predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
-    target_matrix = ml_utils.dilate_target_images(
-        binary_target_matrix=target_matrix,
+    target_matrix = ml_utils.dilate_binary_target_images(
+        target_matrix=target_matrix,
         dilation_distance_metres=dilation_distance_for_target_metres,
         verbose=False)
 
@@ -544,8 +544,8 @@ def create_full_size_4d_example(
     target_matrix = ml_utils.binarize_front_images(target_matrix)
     predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
-    target_matrix = ml_utils.dilate_target_images(
-        binary_target_matrix=target_matrix,
+    target_matrix = ml_utils.dilate_binary_target_images(
+        target_matrix=target_matrix,
         dilation_distance_metres=dilation_distance_for_target_metres,
         verbose=False)
 

@@ -157,10 +157,19 @@ DOWNSIZED_MATRIX_MIDDLE_4D = numpy.stack(
 DOWNSIZED_MATRIX_MIDDLE_5D = numpy.stack(
     (DOWNSIZED_MATRIX_MIDDLE_4D, DOWNSIZED_MATRIX_MIDDLE_4D), axis=-2)
 
+# The following constants are used to test _class_fractions_to_num_points.
+CLASS_FRACTIONS_BINARY = numpy.array([0.1, 0.9])
+NUM_POINTS_AVAILABLE_LARGE = 17
+NUM_POINTS_BY_CLASS_BINARY_LARGE = numpy.array([2, 15])
+NUM_POINTS_BY_CLASS_TERNARY_LARGE = numpy.array([2, 3, 12])
+
+CLASS_FRACTIONS_TERNARY = numpy.array([0.1, 0.2, 0.7])
+NUM_POINTS_AVAILABLE_SMALL = 4
+NUM_POINTS_BY_CLASS_BINARY_SMALL = numpy.array([1, 3])
+NUM_POINTS_BY_CLASS_TERNARY_SMALL = numpy.array([1, 1, 2])
+
 # The following constants are used to test get_class_weight_dict.
-CLASS_FREQUENCIES_BINARY = numpy.array([0.1, 0.9])
 CLASS_WEIGHT_DICT_BINARY = {0: 0.9, 1: 0.1}
-CLASS_FREQUENCIES_TERNARY = numpy.array([0.1, 0.2, 0.7])
 CLASS_WEIGHT_DICT_TERNARY = {0: 0.6087, 1: 0.3043, 2: 0.0870}
 
 # The following constants are used to test normalize_predictor_matrix, with
@@ -219,19 +228,9 @@ PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT = numpy.stack(
     (PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT,
      PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT), axis=-2)
 
-# The following constants are used to test sample_target_points.
-POSITIVE_FRACTION_FOR_SAMPLING = 0.5
+# The following constants are used to test sample_target_points with 2 classes.
+CLASS_FRACTIONS_FOR_BINARY_SAMPLING = numpy.array([0.5, 0.5])
 NUM_EXAMPLES_PER_TIME = 25
-
-POSITIVE_ROW_INDICES_TIME1 = numpy.array(
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5])
-POSITIVE_COLUMN_INDICES_TIME1 = numpy.array(
-    [1, 2, 7, 1, 2, 3, 4, 5, 6, 7, 1, 1, 0, 1, 0])
-
-THESE_ROW_INDICES_TIME2 = numpy.array(
-    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], dtype=int)
-THESE_COLUMN_INDICES_TIME2 = numpy.array(
-    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6], dtype=int)
 
 NEGATIVE_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 0, 0,
                                           1,
@@ -244,17 +243,63 @@ NEGATIVE_COLUMN_INDICES_TIME1 = numpy.array([0, 3, 4, 5, 6,
                                              0, 2, 3, 4, 5, 6, 7,
                                              2, 3, 4, 5, 6])
 
+POSITIVE_ROW_INDICES_TIME1 = numpy.array(
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5])
+POSITIVE_COLUMN_INDICES_TIME1 = numpy.array(
+    [1, 2, 7, 1, 2, 3, 4, 5, 6, 7, 1, 1, 0, 1, 0])
+
 THESE_ROW_INDICES_TIME1 = numpy.concatenate((
-    POSITIVE_ROW_INDICES_TIME1, NEGATIVE_ROW_INDICES_TIME1)).astype(int)
+    NEGATIVE_ROW_INDICES_TIME1, POSITIVE_ROW_INDICES_TIME1)).astype(int)
 THESE_COLUMN_INDICES_TIME1 = numpy.concatenate((
-    POSITIVE_COLUMN_INDICES_TIME1, NEGATIVE_COLUMN_INDICES_TIME1)).astype(int)
+    NEGATIVE_COLUMN_INDICES_TIME1, POSITIVE_COLUMN_INDICES_TIME1)).astype(int)
+
+THESE_ROW_INDICES_TIME2 = numpy.array(
+    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], dtype=int)
+THESE_COLUMN_INDICES_TIME2 = numpy.array(
+    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6], dtype=int)
 
 THESE_ROW_INDICES_BY_TIME = [
     THESE_ROW_INDICES_TIME1, THESE_ROW_INDICES_TIME2]
 THESE_COLUMN_INDICES_BY_TIME = [
     THESE_COLUMN_INDICES_TIME1, THESE_COLUMN_INDICES_TIME2]
 
-SAMPLED_TARGET_POINT_DICT = {
+SAMPLED_TARGET_POINT_DICT_BINARY = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY: THESE_ROW_INDICES_BY_TIME,
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY: THESE_COLUMN_INDICES_BY_TIME
+}
+
+# The following constants are used to test sample_target_points with 3 classes.
+CLASS_FRACTIONS_FOR_TERNARY_SAMPLING = numpy.array([0.5, 0.2, 0.3])
+
+WARM_FRONT_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 1, 1, 1, 1, 1, 1])
+WARM_FRONT_COLUMN_INDICES_TIME1 = numpy.array([1, 2, 7, 2, 3, 4, 5, 6, 7])
+WARM_FRONT_ROW_INDICES_TIME2 = numpy.array([1])
+WARM_FRONT_COLUMN_INDICES_TIME2 = numpy.array([4])
+
+COLD_FRONT_ROW_INDICES_TIME1 = numpy.array([1, 2, 3, 4, 4, 5])
+COLD_FRONT_COLUMN_INDICES_TIME1 = numpy.array([1, 1, 1, 0, 1, 0])
+COLD_FRONT_ROW_INDICES_TIME2 = numpy.array([0, 0, 1, 1, 2, 2, 3, 3, 4])
+COLD_FRONT_COLUMN_INDICES_TIME2 = numpy.array([2, 3, 1, 2, 0, 1, 0, 1, 0])
+
+THESE_ROW_INDICES_TIME1 = numpy.concatenate((
+    NEGATIVE_ROW_INDICES_TIME1, WARM_FRONT_ROW_INDICES_TIME1,
+    COLD_FRONT_ROW_INDICES_TIME1)).astype(int)
+THESE_COLUMN_INDICES_TIME1 = numpy.concatenate((
+    NEGATIVE_COLUMN_INDICES_TIME1, WARM_FRONT_COLUMN_INDICES_TIME1,
+    COLD_FRONT_COLUMN_INDICES_TIME1)).astype(int)
+
+THESE_ROW_INDICES_TIME2 = numpy.concatenate((
+    WARM_FRONT_ROW_INDICES_TIME2, COLD_FRONT_ROW_INDICES_TIME2)).astype(int)
+THESE_COLUMN_INDICES_TIME2 = numpy.concatenate((
+    WARM_FRONT_COLUMN_INDICES_TIME2,
+    COLD_FRONT_COLUMN_INDICES_TIME2)).astype(int)
+
+THESE_ROW_INDICES_BY_TIME = [
+    THESE_ROW_INDICES_TIME1, THESE_ROW_INDICES_TIME2]
+THESE_COLUMN_INDICES_BY_TIME = [
+    THESE_COLUMN_INDICES_TIME1, THESE_COLUMN_INDICES_TIME2]
+
+SAMPLED_TARGET_POINT_DICT_TERNARY = {
     ml_utils.ROW_INDICES_BY_TIME_KEY: THESE_ROW_INDICES_BY_TIME,
     ml_utils.COLUMN_INDICES_BY_TIME_KEY: THESE_COLUMN_INDICES_BY_TIME
 }
@@ -292,61 +337,77 @@ FRONTAL_GRID_TABLE2 = pandas.DataFrame.from_dict(THIS_DICT)
 FRONTAL_GRID_TABLE = pandas.concat(
     [FRONTAL_GRID_TABLE1, FRONTAL_GRID_TABLE2], axis=0, ignore_index=True)
 
-FRONTAL_GRID_MATRIX1 = numpy.array([[0, 1, 1, 0, 0, 0, 0, 1],
-                                    [0, 2, 1, 1, 1, 1, 1, 1],
-                                    [0, 2, 0, 0, 0, 0, 0, 0],
-                                    [0, 2, 0, 0, 0, 0, 0, 0],
-                                    [2, 2, 0, 0, 0, 0, 0, 0],
-                                    [2, 0, 0, 0, 0, 0, 0, 0]])
+THIS_FIRST_MATRIX = numpy.array([[0, 1, 1, 0, 0, 0, 0, 1],
+                                 [0, 2, 1, 1, 1, 1, 1, 1],
+                                 [0, 2, 0, 0, 0, 0, 0, 0],
+                                 [0, 2, 0, 0, 0, 0, 0, 0],
+                                 [2, 2, 0, 0, 0, 0, 0, 0],
+                                 [2, 0, 0, 0, 0, 0, 0, 0]])
 
-FRONTAL_GRID_MATRIX2 = numpy.array([[0, 0, 2, 2, 0, 0, 0, 0],
-                                    [0, 2, 2, 0, 1, 1, 0, 0],
-                                    [2, 2, 0, 0, 0, 1, 1, 0],
-                                    [2, 2, 0, 0, 0, 0, 1, 1],
-                                    [2, 2, 0, 0, 0, 0, 0, 0],
-                                    [0, 2, 0, 0, 0, 0, 0, 0]])
+THIS_SECOND_MATRIX = numpy.array([[0, 0, 2, 2, 0, 0, 0, 0],
+                                  [0, 2, 2, 0, 1, 1, 0, 0],
+                                  [2, 2, 0, 0, 0, 1, 1, 0],
+                                  [2, 2, 0, 0, 0, 0, 1, 1],
+                                  [2, 2, 0, 0, 0, 0, 0, 0],
+                                  [0, 2, 0, 0, 0, 0, 0, 0]])
 
-FRONTAL_GRID_MATRIX = numpy.stack(
-    (FRONTAL_GRID_MATRIX1, FRONTAL_GRID_MATRIX2), axis=0)
+FRONTAL_GRID_MATRIX_TERNARY = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0).astype(int)
 
 # The following constants are used to test binarize_front_images.
-FRONTAL_GRID_MATRIX1_BINARY = numpy.array([[0, 1, 1, 0, 0, 0, 0, 1],
-                                           [0, 1, 1, 1, 1, 1, 1, 1],
-                                           [0, 1, 0, 0, 0, 0, 0, 0],
-                                           [0, 1, 0, 0, 0, 0, 0, 0],
-                                           [1, 1, 0, 0, 0, 0, 0, 0],
-                                           [1, 0, 0, 0, 0, 0, 0, 0]])
+THIS_FIRST_MATRIX = numpy.array([[0, 1, 1, 0, 0, 0, 0, 1],
+                                 [0, 1, 1, 1, 1, 1, 1, 1],
+                                 [0, 1, 0, 0, 0, 0, 0, 0],
+                                 [0, 1, 0, 0, 0, 0, 0, 0],
+                                 [1, 1, 0, 0, 0, 0, 0, 0],
+                                 [1, 0, 0, 0, 0, 0, 0, 0]])
 
-FRONTAL_GRID_MATRIX2_BINARY = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
-                                           [0, 1, 1, 0, 1, 1, 0, 0],
-                                           [1, 1, 0, 0, 0, 1, 1, 0],
-                                           [1, 1, 0, 0, 0, 0, 1, 1],
-                                           [1, 1, 0, 0, 0, 0, 0, 0],
-                                           [0, 1, 0, 0, 0, 0, 0, 0]])
+THIS_SECOND_MATRIX = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
+                                  [0, 1, 1, 0, 1, 1, 0, 0],
+                                  [1, 1, 0, 0, 0, 1, 1, 0],
+                                  [1, 1, 0, 0, 0, 0, 1, 1],
+                                  [1, 1, 0, 0, 0, 0, 0, 0],
+                                  [0, 1, 0, 0, 0, 0, 0, 0]])
 
 FRONTAL_GRID_MATRIX_BINARY = numpy.stack(
-    (FRONTAL_GRID_MATRIX1_BINARY, FRONTAL_GRID_MATRIX2_BINARY),
-    axis=0).astype(int)
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0).astype(int)
 
 # The following constants are used to test dilate_target_images.
-FRONTAL_GRID_MATRIX1_DILATED = numpy.array([[1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 0, 0, 0, 0, 0],
-                                            [1, 1, 1, 0, 0, 0, 0, 0],
-                                            [1, 1, 1, 0, 0, 0, 0, 0]])
-
-FRONTAL_GRID_MATRIX2_DILATED = numpy.array([[1, 1, 1, 1, 1, 1, 1, 0],
-                                            [1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 1, 1, 1, 1, 1],
-                                            [1, 1, 1, 0, 1, 1, 1, 1],
-                                            [1, 1, 1, 0, 0, 1, 1, 1],
-                                            [1, 1, 1, 0, 0, 0, 0, 0]])
-
 DILATION_DISTANCE_METRES = 50000.
-FRONTAL_GRID_MATRIX_DILATED = numpy.stack(
-    (FRONTAL_GRID_MATRIX1_DILATED, FRONTAL_GRID_MATRIX2_DILATED),
-    axis=0).astype(int)
+
+THIS_FIRST_MATRIX = numpy.array([[1, 1, 1, 1, 1, 1, 1, 1],
+                                 [2, 2, 1, 1, 1, 1, 1, 1],
+                                 [2, 2, 2, 1, 1, 1, 1, 1],
+                                 [2, 2, 2, 0, 0, 0, 0, 0],
+                                 [2, 2, 2, 0, 0, 0, 0, 0],
+                                 [2, 2, 2, 0, 0, 0, 0, 0]])
+
+THIS_SECOND_MATRIX = numpy.array([[2, 2, 2, 2, 2, 1, 1, 0],
+                                  [2, 2, 2, 2, 1, 1, 1, 1],
+                                  [2, 2, 2, 2, 1, 1, 1, 1],
+                                  [2, 2, 2, 0, 1, 1, 1, 1],
+                                  [2, 2, 2, 0, 0, 1, 1, 1],
+                                  [2, 2, 2, 0, 0, 0, 0, 0]])
+
+FRONTAL_GRID_MATRIX_TERNARY_DILATED = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0).astype(int)
+
+THIS_FIRST_MATRIX = numpy.array([[1, 1, 1, 1, 1, 1, 1, 1],
+                                 [1, 1, 1, 1, 1, 1, 1, 1],
+                                 [1, 1, 1, 1, 1, 1, 1, 1],
+                                 [1, 1, 1, 0, 0, 0, 0, 0],
+                                 [1, 1, 1, 0, 0, 0, 0, 0],
+                                 [1, 1, 1, 0, 0, 0, 0, 0]])
+
+THIS_SECOND_MATRIX = numpy.array([[1, 1, 1, 1, 1, 1, 1, 0],
+                                  [1, 1, 1, 1, 1, 1, 1, 1],
+                                  [1, 1, 1, 1, 1, 1, 1, 1],
+                                  [1, 1, 1, 0, 1, 1, 1, 1],
+                                  [1, 1, 1, 0, 0, 1, 1, 1],
+                                  [1, 1, 1, 0, 0, 0, 0, 0]])
+
+FRONTAL_GRID_MATRIX_BINARY_DILATED = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0).astype(int)
 
 # The following constants are used to test remove_nans_from_narr_grid.
 FULL_NARR_MATRIX_2D_WITHOUT_NAN = FULL_NARR_MATRIX_2D[
@@ -854,6 +915,58 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, DOWNSIZED_MATRIX_MIDDLE_5D, atol=TOLERANCE))
 
+    def test_class_fractions_to_num_points_large_binary(self):
+        """Ensures correct output from _class_fractions_to_num_points.
+
+        In this case, number of available points is large and there are 2
+        classes.
+        """
+
+        this_num_points_by_class = ml_utils._class_fractions_to_num_points(
+            class_fractions=CLASS_FRACTIONS_BINARY,
+            num_points_total=NUM_POINTS_AVAILABLE_LARGE)
+        self.assertTrue(numpy.array_equal(
+            this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_LARGE))
+
+    def test_class_fractions_to_num_points_large_ternary(self):
+        """Ensures correct output from _class_fractions_to_num_points.
+
+        In this case, number of available points is large and there are 3
+        classes.
+        """
+
+        this_num_points_by_class = ml_utils._class_fractions_to_num_points(
+            class_fractions=CLASS_FRACTIONS_TERNARY,
+            num_points_total=NUM_POINTS_AVAILABLE_LARGE)
+        self.assertTrue(numpy.array_equal(
+            this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_LARGE))
+
+    def test_class_fractions_to_num_points_small_binary(self):
+        """Ensures correct output from _class_fractions_to_num_points.
+
+        In this case, number of available points is small and there are 2
+        classes.
+        """
+
+        this_num_points_by_class = ml_utils._class_fractions_to_num_points(
+            class_fractions=CLASS_FRACTIONS_BINARY,
+            num_points_total=NUM_POINTS_AVAILABLE_SMALL)
+        self.assertTrue(numpy.array_equal(
+            this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_SMALL))
+
+    def test_class_fractions_to_num_points_small_ternary(self):
+        """Ensures correct output from _class_fractions_to_num_points.
+
+        In this case, number of available points is small and there are 3
+        classes.
+        """
+
+        this_num_points_by_class = ml_utils._class_fractions_to_num_points(
+            class_fractions=CLASS_FRACTIONS_TERNARY,
+            num_points_total=NUM_POINTS_AVAILABLE_SMALL)
+        self.assertTrue(numpy.array_equal(
+            this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_SMALL))
+
     def test_get_class_weight_dict_binary(self):
         """Ensures correct output from get_class_weight_dict.
 
@@ -861,7 +974,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         """
 
         this_class_weight_dict = ml_utils.get_class_weight_dict(
-            CLASS_FREQUENCIES_BINARY)
+            CLASS_FRACTIONS_BINARY)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(CLASS_WEIGHT_DICT_BINARY.keys()))
@@ -879,7 +992,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         """
 
         this_class_weight_dict = ml_utils.get_class_weight_dict(
-            CLASS_FREQUENCIES_TERNARY)
+            CLASS_FRACTIONS_TERNARY)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(CLASS_WEIGHT_DICT_TERNARY.keys()))
@@ -956,30 +1069,64 @@ class MachineLearningUtilsTests(unittest.TestCase):
             this_normalized_matrix, PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_sample_target_points(self):
-        """Ensures correct output from _sample_target_points."""
+    def test_sample_target_points_binary(self):
+        """Ensures correct output from sample_target_points.
+
+        In this case there are 2 classes.
+        """
 
         this_target_point_dict = ml_utils.sample_target_points(
-            binary_target_matrix=FRONTAL_GRID_MATRIX_BINARY,
-            positive_fraction=POSITIVE_FRACTION_FOR_SAMPLING,
+            target_matrix=FRONTAL_GRID_MATRIX_BINARY,
+            class_fractions=CLASS_FRACTIONS_FOR_BINARY_SAMPLING,
             num_points_per_time=NUM_EXAMPLES_PER_TIME, test_mode=True)
 
         self.assertTrue(set(this_target_point_dict.keys()) ==
-                        set(SAMPLED_TARGET_POINT_DICT.keys()))
+                        set(SAMPLED_TARGET_POINT_DICT_BINARY.keys()))
 
         this_num_times = len(
             this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
         expected_num_times = len(
-            SAMPLED_TARGET_POINT_DICT[ml_utils.ROW_INDICES_BY_TIME_KEY])
+            SAMPLED_TARGET_POINT_DICT_BINARY[ml_utils.ROW_INDICES_BY_TIME_KEY])
         self.assertTrue(this_num_times == expected_num_times)
 
         for i in range(expected_num_times):
             self.assertTrue(numpy.array_equal(
                 this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY][i],
-                SAMPLED_TARGET_POINT_DICT[ml_utils.ROW_INDICES_BY_TIME_KEY][i]))
+                SAMPLED_TARGET_POINT_DICT_BINARY[
+                    ml_utils.ROW_INDICES_BY_TIME_KEY][i]))
             self.assertTrue(numpy.array_equal(
                 this_target_point_dict[ml_utils.COLUMN_INDICES_BY_TIME_KEY][i],
-                SAMPLED_TARGET_POINT_DICT[
+                SAMPLED_TARGET_POINT_DICT_BINARY[
+                    ml_utils.COLUMN_INDICES_BY_TIME_KEY][i]))
+
+    def test_sample_target_points_ternary(self):
+        """Ensures correct output from sample_target_points.
+
+        In this case there are 3 classes.
+        """
+
+        this_target_point_dict = ml_utils.sample_target_points(
+            target_matrix=FRONTAL_GRID_MATRIX_TERNARY,
+            class_fractions=CLASS_FRACTIONS_FOR_TERNARY_SAMPLING,
+            num_points_per_time=NUM_EXAMPLES_PER_TIME, test_mode=True)
+
+        self.assertTrue(set(this_target_point_dict.keys()) ==
+                        set(SAMPLED_TARGET_POINT_DICT_TERNARY.keys()))
+
+        this_num_times = len(
+            this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
+        expected_num_times = len(
+            SAMPLED_TARGET_POINT_DICT_TERNARY[ml_utils.ROW_INDICES_BY_TIME_KEY])
+        self.assertTrue(this_num_times == expected_num_times)
+
+        for i in range(expected_num_times):
+            self.assertTrue(numpy.array_equal(
+                this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY][i],
+                SAMPLED_TARGET_POINT_DICT_TERNARY[
+                    ml_utils.ROW_INDICES_BY_TIME_KEY][i]))
+            self.assertTrue(numpy.array_equal(
+                this_target_point_dict[ml_utils.COLUMN_INDICES_BY_TIME_KEY][i],
+                SAMPLED_TARGET_POINT_DICT_TERNARY[
                     ml_utils.COLUMN_INDICES_BY_TIME_KEY][i]))
 
     def test_front_table_to_images(self):
@@ -991,27 +1138,38 @@ class MachineLearningUtilsTests(unittest.TestCase):
             num_columns_per_image=NUM_GRID_COLUMNS)
 
         self.assertTrue(numpy.array_equal(
-            this_frontal_grid_matrix, FRONTAL_GRID_MATRIX))
+            this_frontal_grid_matrix, FRONTAL_GRID_MATRIX_TERNARY))
 
     def test_binarize_front_images(self):
         """Ensures correct output from binarize_front_images."""
 
-        this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX)
+        this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX_TERNARY)
         this_binary_matrix = ml_utils.binarize_front_images(this_input_matrix)
 
         self.assertTrue(numpy.array_equal(
             this_binary_matrix, FRONTAL_GRID_MATRIX_BINARY))
 
-    def test_dilate_target_images(self):
-        """Ensures correct output from dilate_target_images."""
+    def test_dilate_binary_target_images(self):
+        """Ensures correct output from dilate_binary_target_images."""
 
         this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX_BINARY)
-        this_dilated_matrix = ml_utils.dilate_target_images(
-            binary_target_matrix=this_input_matrix,
+        this_dilated_matrix = ml_utils.dilate_binary_target_images(
+            target_matrix=this_input_matrix,
             dilation_distance_metres=DILATION_DISTANCE_METRES)
 
         self.assertTrue(numpy.array_equal(
-            this_dilated_matrix, FRONTAL_GRID_MATRIX_DILATED))
+            this_dilated_matrix, FRONTAL_GRID_MATRIX_BINARY_DILATED))
+
+    def test_dilate_ternary_target_images(self):
+        """Ensures correct output from dilate_ternary_target_images."""
+
+        this_input_matrix = copy.deepcopy(FRONTAL_GRID_MATRIX_TERNARY)
+        this_dilated_matrix = ml_utils.dilate_ternary_target_images(
+            target_matrix=this_input_matrix,
+            dilation_distance_metres=DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_dilated_matrix, FRONTAL_GRID_MATRIX_TERNARY_DILATED))
 
     def test_stack_predictor_variables(self):
         """Ensures correct output from stack_predictor_variables."""

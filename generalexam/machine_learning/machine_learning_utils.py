@@ -308,6 +308,37 @@ def _downsize_predictor_images(
         downsized_predictor_matrix, pad_width=pad_width_input_arg, mode='edge')
 
 
+def _class_fractions_to_num_points(class_fractions, num_points_total):
+    """For each class, converts fraction of total points to number of points.
+
+    K = number of classes
+
+    :param class_fractions: length-K numpy array, where the [i]th element is the
+        desired fraction for the [i]th class.  Must sum to 1.0.
+    :param num_points_total: Total number of points to sample.
+    :return: num_points_by_class: length-K numpy array, where the [i]th element
+        is the number of points to sample for the [i]th class.
+    """
+
+    num_classes = len(class_fractions)
+    num_points_by_class = numpy.full(num_classes, -1, dtype=int)
+
+    for i in range(num_classes - 1):
+        num_points_by_class[i] = int(
+            numpy.round(class_fractions[i] * num_points_total))
+        num_points_by_class[i] = max([num_points_by_class[i], 1])
+
+        num_points_left = num_points_total - numpy.sum(num_points_by_class[:i])
+        num_classes_left = (num_classes - 1) - i
+        num_points_by_class[i] = min(
+            [num_points_by_class[i], num_points_left - num_classes_left])
+
+    num_points_by_class[-1] = num_points_total - numpy.sum(
+        num_points_by_class[:-1])
+
+    return num_points_by_class
+
+
 def get_class_weight_dict(class_frequencies):
     """Returns dictionary of class weights.
 
@@ -330,9 +361,9 @@ def get_class_weight_dict(class_frequencies):
     absolute_diff = numpy.absolute(sum_of_class_frequencies - 1.)
     if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
         error_string = (
-            '{0:s}Sum of class frequencies (shown above) should be 1.  Instead,'
-            ' got {1:.4f}.').format(str(class_frequencies),
-                                    sum_of_class_frequencies)
+            '\n\n{0:s}\nSum of class frequencies (shown above) should be 1.  '
+            'Instead, got {1:.4f}.').format(
+                str(class_frequencies), sum_of_class_frequencies)
         raise ValueError(error_string)
 
     class_weights = 1. / class_frequencies
@@ -482,20 +513,20 @@ def check_downsized_examples(
 
 
 def sample_target_points(
-        binary_target_matrix, positive_fraction,
+        target_matrix, class_fractions,
         num_points_per_time=DEFAULT_NUM_SAMPLE_PTS_PER_TIME, test_mode=False):
-    """Samples target points (for desired balance of positive/negative cases).
+    """Samples target points to achieve desired class balance.
 
-    If the input matrix has either no positive points (points intersected by a
-    front) or no negative points, this method will return None.
+    If any class is missing from `target_matrix`, this method will return None.
 
     P_i = number of grid points selected at the [i]th time
 
-    :param binary_target_matrix: numpy array of targets.  Dimensions must be
-        E x M x N.
-    :param positive_fraction: Fraction of positive cases in resulting sample.
-    :param num_points_per_time: Number of points to take from each example (for
-        target variable, one example = one time).
+    :param target_matrix: E-by-M-by-N numpy array of target images.  May be
+        either binary (2-class) or ternary (3-class).
+    :param class_fractions: 1-D numpy array of desired class fractions.  If
+        `target_matrix` is binary, this array must have length 2; if
+        `target_matrix` is ternary, this array must have length 3.
+    :param num_points_per_time: Number of points to sample from each image.
     :param test_mode: Boolean flag.  Always leave this False.
     :return: target_point_dict: Dictionary with the following keys.
     target_point_dict['row_indices_by_time']: length-T list, where the [i]th
@@ -505,81 +536,114 @@ def sample_target_points(
         columns.
     """
 
-    # TODO(thunderhoser): Allow non-binary target labels.
-    _check_target_matrix(binary_target_matrix, assert_binary=True)
+    try:
+        _check_target_matrix(
+            target_matrix, assert_binary=True, num_dimensions=3)
+        num_classes = 2
+    except:
+        _check_target_matrix(
+            target_matrix, assert_binary=False, num_dimensions=3)
+        num_classes = 3
 
-    error_checking.assert_is_greater(positive_fraction, 0.)
-    error_checking.assert_is_less_than(positive_fraction, 1.)
+    error_checking.assert_is_numpy_array(
+        class_fractions, exact_dimensions=numpy.array([num_classes]))
+    error_checking.assert_is_geq_numpy_array(class_fractions, 0.)
+    error_checking.assert_is_leq_numpy_array(class_fractions, 1.)
+
+    sum_of_class_fractions = numpy.sum(class_fractions)
+    absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
+    if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
+        error_string = (
+            '\n\n{0:s}\nSum of class fractions (shown above) should be 1.  '
+            'Instead, got {1:.4f}.').format(
+                str(class_fractions), sum_of_class_fractions)
+        raise ValueError(error_string)
+
     error_checking.assert_is_integer(num_points_per_time)
+    error_checking.assert_is_geq(num_points_per_time, 3)
     error_checking.assert_is_boolean(test_mode)
 
-    num_times = binary_target_matrix.shape[0]
-    num_points_to_sample = num_points_per_time * num_times
-    error_checking.assert_is_geq(num_points_to_sample, 2)
+    num_times = target_matrix.shape[0]
+    num_points_to_sample = num_times * num_points_per_time
+    num_points_to_sample_by_class = _class_fractions_to_num_points(
+        class_fractions=class_fractions, num_points_total=num_points_to_sample)
 
-    num_positive_cases = int(
-        numpy.round(positive_fraction * num_points_to_sample))
-    num_positive_cases = max([num_positive_cases, 1])
-    num_positive_cases = min([num_positive_cases, num_points_to_sample - 1])
-    num_negative_cases = num_points_to_sample - num_positive_cases
+    num_classes = len(num_points_to_sample_by_class)
+    num_points_found_by_class = numpy.full(num_classes, -1, dtype=int)
+    time_indices_by_class = [numpy.array([], dtype=int)] * num_classes
+    row_indices_by_class = [numpy.array([], dtype=int)] * num_classes
+    column_indices_by_class = [numpy.array([], dtype=int)] * num_classes
 
-    positive_flags_linear = (
-        numpy.reshape(binary_target_matrix, binary_target_matrix.size) ==
-        front_utils.ANY_FRONT_INTEGER_ID)
-    positive_indices_linear = numpy.where(positive_flags_linear)[0]
-    negative_indices_linear = numpy.where(
-        numpy.invert(positive_flags_linear))[0]
+    for i in range(num_classes):
+        (time_indices_by_class[i],
+         row_indices_by_class[i],
+         column_indices_by_class[i]) = numpy.where(target_matrix == i)
 
-    if not len(positive_indices_linear):
-        return None
-    if not len(negative_indices_linear):
-        return None
+        num_points_found_by_class[i] = len(time_indices_by_class[i])
+        if num_points_found_by_class[i] == 0:
+            return None
+        if num_points_found_by_class[i] <= num_points_to_sample_by_class[i]:
+            continue
 
-    if len(positive_indices_linear) < num_positive_cases:
-        num_positive_cases = len(positive_indices_linear)
-        num_negative_cases = int(numpy.round(
-            num_positive_cases * (1. - positive_fraction) / positive_fraction))
+        these_indices = numpy.linspace(
+            0, num_points_found_by_class[i] - 1,
+            num=num_points_found_by_class[i], dtype=int)
 
-    if len(negative_indices_linear) < num_negative_cases:
-        num_negative_cases = len(negative_indices_linear)
-        num_positive_cases = int(numpy.round(
-            num_negative_cases * positive_fraction / (1. - positive_fraction)))
+        if test_mode:
+            these_indices = these_indices[:num_points_to_sample_by_class[i]]
+        else:
+            these_indices = numpy.random.choice(
+                these_indices, size=num_points_to_sample_by_class[i],
+                replace=False)
 
-    if test_mode:
-        positive_indices_linear = positive_indices_linear[:num_positive_cases]
-    else:
-        positive_indices_linear = numpy.random.choice(
-            positive_indices_linear, size=num_positive_cases, replace=False)
+        time_indices_by_class[i] = time_indices_by_class[i][these_indices]
+        row_indices_by_class[i] = row_indices_by_class[i][these_indices]
+        column_indices_by_class[i] = column_indices_by_class[i][these_indices]
+        num_points_found_by_class[i] = len(time_indices_by_class[i])
 
-    if test_mode:
-        negative_indices_linear = negative_indices_linear[:num_negative_cases]
-    else:
-        negative_indices_linear = numpy.random.choice(
-            negative_indices_linear, size=num_negative_cases, replace=False)
+    if numpy.any(num_points_found_by_class < num_points_to_sample_by_class):
+        fraction_of_desired_num_by_class = num_points_found_by_class.astype(
+            float) / num_points_to_sample_by_class
+        num_points_to_sample = int(numpy.floor(
+            num_points_to_sample * numpy.min(fraction_of_desired_num_by_class)))
 
-    positive_time_indices, positive_row_indices, positive_column_indices = (
-        numpy.unravel_index(
-            positive_indices_linear, binary_target_matrix.shape))
-    negative_time_indices, negative_row_indices, negative_column_indices = (
-        numpy.unravel_index(
-            negative_indices_linear, binary_target_matrix.shape))
+        num_points_to_sample_by_class = _class_fractions_to_num_points(
+            class_fractions=class_fractions,
+            num_points_total=num_points_to_sample)
+
+        for i in range(num_classes):
+            if num_points_found_by_class[i] <= num_points_to_sample_by_class[i]:
+                continue
+
+            these_indices = numpy.linspace(
+                0, num_points_found_by_class[i] - 1,
+                num=num_points_found_by_class[i], dtype=int)
+
+            if test_mode:
+                these_indices = these_indices[:num_points_to_sample_by_class[i]]
+            else:
+                these_indices = numpy.random.choice(
+                    these_indices, size=num_points_to_sample_by_class[i],
+                    replace=False)
+
+            time_indices_by_class[i] = time_indices_by_class[i][these_indices]
+            row_indices_by_class[i] = row_indices_by_class[i][these_indices]
+            column_indices_by_class[i] = column_indices_by_class[i][
+                these_indices]
 
     row_indices_by_time = [numpy.array([], dtype=int)] * num_times
     column_indices_by_time = [numpy.array([], dtype=int)] * num_times
 
     for i in range(num_times):
-        these_positive_indices = numpy.where(positive_time_indices == i)[0]
-        row_indices_by_time[i] = positive_row_indices[these_positive_indices]
-        column_indices_by_time[i] = positive_column_indices[
-            these_positive_indices]
+        for j in range(num_classes):
+            this_time_indices = numpy.where(time_indices_by_class[j] == i)[0]
 
-        these_negative_indices = numpy.where(negative_time_indices == i)[0]
-        row_indices_by_time[i] = numpy.concatenate((
-            row_indices_by_time[i],
-            negative_row_indices[these_negative_indices]))
-        column_indices_by_time[i] = numpy.concatenate((
-            column_indices_by_time[i],
-            negative_column_indices[these_negative_indices]))
+            row_indices_by_time[i] = numpy.concatenate((
+                row_indices_by_time[i],
+                row_indices_by_class[j][this_time_indices]))
+            column_indices_by_time[i] = numpy.concatenate((
+                column_indices_by_time[i],
+                column_indices_by_class[j][this_time_indices]))
 
     return {
         ROW_INDICES_BY_TIME_KEY: row_indices_by_time,
@@ -672,35 +736,66 @@ def binarize_front_images(frontal_grid_matrix):
     return frontal_grid_matrix
 
 
-def dilate_target_images(
-        binary_target_matrix, dilation_distance_metres, verbose=True):
-    """Dilates target image at each time step.
+def dilate_ternary_target_images(
+        target_matrix, dilation_distance_metres, verbose=True):
+    """Dilates ternary (3-class) target image at each time step.
 
-    :param binary_target_matrix: E-by-M-by-N numpy array with 2 possible
+    :param target_matrix: E-by-M-by-N numpy array with 3 possible
         entries (see documentation for `_check_target_matrix`).
     :param dilation_distance_metres: Dilation distance.
-    Boolean flag.  If True, this method will print progress
+    :param verbose: Boolean flag.  If True, this method will print progress
         messages.
-    :return: binary_target_matrix: Dilated version of input.
+    :return: target_matrix: Dilated version of input.
     """
 
-    _check_target_matrix(binary_target_matrix, assert_binary=True)
+    _check_target_matrix(target_matrix, assert_binary=False, num_dimensions=3)
     error_checking.assert_is_boolean(verbose)
 
     dilation_kernel_matrix = front_utils.buffer_distance_to_narr_mask(
         dilation_distance_metres).astype(int)
 
-    num_times = binary_target_matrix.shape[0]
+    num_times = target_matrix.shape[0]
     for i in range(num_times):
         if verbose:
-            print ('Dilating target grid at {0:d}th of {1:d} time '
+            print ('Dilating 3-class target image at {0:d}th of {1:d} time '
                    'steps...').format(i + 1, num_times)
 
-        binary_target_matrix[i, :, :] = front_utils.dilate_binary_narr_image(
-            binary_matrix=binary_target_matrix[i, :, :],
+        target_matrix[i, :, :] = front_utils.dilate_ternary_narr_image(
+            ternary_matrix=target_matrix[i, :, :],
             dilation_kernel_matrix=dilation_kernel_matrix)
 
-    return binary_target_matrix
+    return target_matrix
+
+
+def dilate_binary_target_images(
+        target_matrix, dilation_distance_metres, verbose=True):
+    """Dilates binary (2-class) target image at each time step.
+
+    :param target_matrix: E-by-M-by-N numpy array with 2 possible
+        entries (see documentation for `_check_target_matrix`).
+    :param dilation_distance_metres: Dilation distance.
+    :param verbose: Boolean flag.  If True, this method will print progress
+        messages.
+    :return: target_matrix: Dilated version of input.
+    """
+
+    _check_target_matrix(target_matrix, assert_binary=True, num_dimensions=3)
+    error_checking.assert_is_boolean(verbose)
+
+    dilation_kernel_matrix = front_utils.buffer_distance_to_narr_mask(
+        dilation_distance_metres).astype(int)
+
+    num_times = target_matrix.shape[0]
+    for i in range(num_times):
+        if verbose:
+            print ('Dilating 2-class target image at {0:d}th of {1:d} time '
+                   'steps...').format(i + 1, num_times)
+
+        target_matrix[i, :, :] = front_utils.dilate_binary_narr_image(
+            binary_matrix=target_matrix[i, :, :],
+            dilation_kernel_matrix=dilation_kernel_matrix)
+
+    return target_matrix
 
 
 def stack_predictor_variables(tuple_of_3d_predictor_matrices):

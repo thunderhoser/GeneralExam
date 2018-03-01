@@ -329,53 +329,6 @@ def _close_frontal_grid_matrix(frontal_grid_matrix):
     return frontal_grid_matrix
 
 
-def _close_frontal_grid_matrix_old(frontal_grid_matrix):
-    """Performs binary closing on frontal grid.
-
-    :param frontal_grid_matrix: See documentation for `frontal_grid_to_points`.
-    :return: frontal_grid_matrix: Same as input, but after binary closing.
-    """
-
-    closed_binary_matrix = binary_closing(
-        frontal_grid_matrix > NO_FRONT_INTEGER_ID,
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, iterations=1)
-
-    new_frontal_row_indices, new_frontal_column_indices = numpy.where(
-        numpy.logical_and(
-            closed_binary_matrix, frontal_grid_matrix == NO_FRONT_INTEGER_ID))
-
-    num_new_frontal_points = len(new_frontal_row_indices)
-    num_grid_rows = frontal_grid_matrix.shape[0]
-    num_grid_columns = frontal_grid_matrix.shape[1]
-
-    for i in range(num_new_frontal_points):
-        this_min_row = max([new_frontal_row_indices[i] - 1, 0])
-        this_max_row = min([new_frontal_row_indices[i] + 1, num_grid_rows - 1])
-        this_min_column = max([new_frontal_column_indices[i] - 1, 0])
-        this_max_column = min(
-            [new_frontal_column_indices[i] + 1, num_grid_columns - 1])
-
-        this_frontal_grid_submatrix = frontal_grid_matrix[
-            this_min_row:(this_max_row + 1),
-            this_min_column:(this_max_column + 1)]
-
-        this_num_warm_front_points = numpy.sum(
-            this_frontal_grid_submatrix == WARM_FRONT_INTEGER_ID)
-        this_num_cold_front_points = numpy.sum(
-            this_frontal_grid_submatrix == COLD_FRONT_INTEGER_ID)
-
-        if this_num_cold_front_points >= this_num_warm_front_points:
-            frontal_grid_matrix[
-                new_frontal_row_indices[i],
-                new_frontal_column_indices[i]] = COLD_FRONT_INTEGER_ID
-        else:
-            frontal_grid_matrix[
-                new_frontal_row_indices[i],
-                new_frontal_column_indices[i]] = WARM_FRONT_INTEGER_ID
-
-    return frontal_grid_matrix
-
-
 def _get_thermal_advection_over_grid(
         grid_relative_u_wind_matrix_m_s01, grid_relative_v_wind_matrix_m_s01,
         thermal_param_matrix_kelvins, grid_spacing_x_metres,
@@ -465,6 +418,85 @@ def buffer_distance_to_narr_mask(buffer_distance_metres):
     distance_matrix_metres = grid_spacing_metres * numpy.sqrt(
         row_offset_matrix ** 2 + column_offset_matrix ** 2)
     return distance_matrix_metres <= buffer_distance_metres
+
+
+def dilate_ternary_narr_image(ternary_matrix, dilation_distance_metres=None,
+                              dilation_kernel_matrix=None):
+    """Dilates a ternary image on the NARR grid.
+
+    M = number of rows (unique grid-point y-coordinates) in NARR grid
+    N = number of columns (unique grid-point x-coordinates) in NARR grid
+
+    :param ternary_matrix: M-by-N numpy array of integers (must be all 0, 1,
+        or 2).
+    :param dilation_distance_metres: See documentation for
+        `dilate_binary_narr_image`.
+    :param dilation_kernel_matrix: See documentation for
+        `dilate_binary_narr_image`.
+    :return: ternary_matrix: Same as input, except dilated.
+    """
+
+    error_checking.assert_is_numpy_array(ternary_matrix, num_dimensions=2)
+    error_checking.assert_is_integer_numpy_array(ternary_matrix)
+    error_checking.assert_is_geq_numpy_array(ternary_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(ternary_matrix, 2)
+
+    binary_cold_front_matrix = numpy.full(
+        ternary_matrix.shape, NO_FRONT_INTEGER_ID, dtype=int)
+    binary_cold_front_matrix[
+        ternary_matrix == COLD_FRONT_INTEGER_ID] = ANY_FRONT_INTEGER_ID
+    binary_cold_front_matrix = dilate_binary_narr_image(
+        binary_cold_front_matrix,
+        dilation_distance_metres=dilation_distance_metres,
+        dilation_kernel_matrix=dilation_kernel_matrix)
+
+    binary_warm_front_matrix = numpy.full(
+        ternary_matrix.shape, NO_FRONT_INTEGER_ID, dtype=int)
+    binary_warm_front_matrix[
+        ternary_matrix == WARM_FRONT_INTEGER_ID] = ANY_FRONT_INTEGER_ID
+    binary_warm_front_matrix = dilate_binary_narr_image(
+        binary_warm_front_matrix,
+        dilation_distance_metres=dilation_distance_metres,
+        dilation_kernel_matrix=dilation_kernel_matrix)
+
+    cold_front_row_indices, cold_front_column_indices = numpy.where(
+        ternary_matrix == COLD_FRONT_INTEGER_ID)
+    warm_front_row_indices, warm_front_column_indices = numpy.where(
+        ternary_matrix == WARM_FRONT_INTEGER_ID)
+    both_fronts_row_indices, both_fronts_column_indices = numpy.where(
+        numpy.logical_and(binary_cold_front_matrix == ANY_FRONT_INTEGER_ID,
+                          binary_warm_front_matrix == ANY_FRONT_INTEGER_ID))
+
+    num_points_to_resolve = len(both_fronts_row_indices)
+    for i in range(num_points_to_resolve):
+        these_row_diffs = both_fronts_row_indices[i] - cold_front_row_indices
+        these_column_diffs = (
+            both_fronts_column_indices[i] - cold_front_column_indices)
+        this_min_cold_front_distance = numpy.min(
+            these_row_diffs**2 + these_column_diffs**2)
+
+        these_row_diffs = both_fronts_row_indices[i] - warm_front_row_indices
+        these_column_diffs = (
+            both_fronts_column_indices[i] - warm_front_column_indices)
+        this_min_warm_front_distance = numpy.min(
+            these_row_diffs**2 + these_column_diffs**2)
+
+        if this_min_cold_front_distance <= this_min_warm_front_distance:
+            binary_warm_front_matrix[
+                both_fronts_row_indices[i],
+                both_fronts_column_indices[i]] = NO_FRONT_INTEGER_ID
+        else:
+            binary_cold_front_matrix[
+                both_fronts_row_indices[i],
+                both_fronts_column_indices[i]] = NO_FRONT_INTEGER_ID
+
+    ternary_matrix[
+        binary_cold_front_matrix == ANY_FRONT_INTEGER_ID
+    ] = COLD_FRONT_INTEGER_ID
+    ternary_matrix[
+        binary_warm_front_matrix == ANY_FRONT_INTEGER_ID
+        ] = WARM_FRONT_INTEGER_ID
+    return ternary_matrix
 
 
 def dilate_binary_narr_image(binary_matrix, dilation_distance_metres=None,

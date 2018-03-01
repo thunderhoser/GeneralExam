@@ -178,6 +178,26 @@ NARR_MATRIX_AFTER_DILATION = numpy.array([[1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
                                           [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]],
                                          dtype=int)
 
+# The following constants are used to test dilate_ternary_narr_image.
+TERNARY_NARR_MATRIX_BEFORE_DILATION = numpy.array(
+    [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 2, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0, 2, 0]], dtype=int)
+TERNARY_NARR_MATRIX_AFTER_DILATION = numpy.array(
+    [[1, 1, 1, 1, 2, 0, 0, 0, 0, 0],
+     [1, 1, 1, 1, 2, 2, 2, 0, 0, 0],
+     [1, 1, 1, 2, 2, 2, 2, 1, 0, 0],
+     [1, 1, 2, 2, 2, 2, 1, 1, 0, 0],
+     [0, 1, 2, 2, 2, 1, 1, 1, 2, 0],
+     [0, 0, 2, 2, 1, 1, 1, 2, 2, 2],
+     [0, 0, 0, 1, 1, 1, 2, 2, 2, 2],
+     [0, 0, 0, 0, 0, 2, 2, 2, 2, 2]], dtype=int)
+
 # The following constants are used to test get_frontal_types_over_grid.
 BINARY_MATRIX_BEFORE_DISCRIMINATION = numpy.array(
     [[0, 0, 1, 1, 1, 1],
@@ -397,6 +417,17 @@ class FrontUtilsTests(unittest.TestCase):
             SMALL_BUFFER_DISTANCE_METRES)
         self.assertTrue(numpy.array_equal(
             this_mask_matrix, MASK_MATRIX_FOR_SMALL_BUFFER))
+
+    def test_dilate_ternary_narr_image(self):
+        """Ensures correct output from dilate_ternary_narr_image."""
+
+        input_matrix = copy.deepcopy(TERNARY_NARR_MATRIX_BEFORE_DILATION)
+        this_ternary_matrix = front_utils.dilate_ternary_narr_image(
+            ternary_matrix=input_matrix,
+            dilation_distance_metres=DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_ternary_matrix, TERNARY_NARR_MATRIX_AFTER_DILATION))
 
     def test_dilate_binary_narr_image(self):
         """Ensures correct output from dilate_binary_narr_image."""
