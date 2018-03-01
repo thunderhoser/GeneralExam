@@ -1,5 +1,6 @@
 """Helper methods for machine-learning scripts."""
 
+import numpy
 from gewittergefahr.gg_utils import error_checking
 
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
@@ -10,8 +11,7 @@ NUM_VALIDN_BATCHES_PER_EPOCH_ARG_NAME = 'num_validation_batches_per_epoch'
 NUM_ROWS_IN_HALF_GRID_ARG_NAME = 'num_rows_in_half_grid'
 NUM_COLUMNS_IN_HALF_GRID_ARG_NAME = 'num_columns_in_half_grid'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_for_target_metres'
-POSITIVE_FRACTION_ARG_NAME = 'positive_fraction'
-POSITIVE_CLASS_WEIGHT_ARG_NAME = 'positive_class_weight'
+CLASS_FRACTIONS_ARG_NAME = 'class_fractions'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 TRAINING_START_TIME_ARG_NAME = 'training_start_time_string'
 TRAINING_END_TIME_ARG_NAME = 'training_end_time_string'
@@ -41,13 +41,6 @@ DILATION_DISTANCE_HELP_STRING = (
     'Dilation distance.  Target images will be dilated, which increases the '
     'number of pixels labeled as frontal.  This accounts for uncertainty in the'
     ' placement of fronts.')
-POSITIVE_CLASS_WEIGHT_HELP_STRING = (
-    'Weight for positive class in loss function.  This should be (1 - frequency'
-    ' of positive class).')
-POSITIVE_FRACTION_HELP_STRING = (
-    'Fraction of positive examples in both training and validation sets.  A '
-    '"positive example" is an image with a front passing within `{0:s}` of the '
-    'center.').format(DILATION_DISTANCE_ARG_NAME)
 PRESSURE_LEVEL_HELP_STRING = (
     'NARR predictors will be taken from this pressure level (millibars).')
 TRAINING_TIME_HELP_STRING = (
@@ -74,8 +67,7 @@ DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH = 16
 DEFAULT_NUM_ROWS_IN_HALF_GRID = 32
 DEFAULT_NUM_COLUMNS_IN_HALF_GRID = 32
 DEFAULT_DILATION_DISTANCE_METRES = float(1e5)
-DEFAULT_POSITIVE_FRACTION = 0.1
-DEFAULT_POSITIVE_CLASS_WEIGHT = 0.935
+DEFAULT_CLASS_FRACTIONS = numpy.array([0.9, 0.05, 0.05])
 DEFAULT_PRESSURE_LEVEL_MB = 1000
 DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = (
@@ -170,15 +162,19 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
             default=DEFAULT_NUM_COLUMNS_IN_HALF_GRID,
             help=NUM_COLUMNS_IN_HALF_GRID_HELP_STRING)
 
-        argument_parser_object.add_argument(
-            '--' + POSITIVE_FRACTION_ARG_NAME, type=float, required=False,
-            default=DEFAULT_POSITIVE_FRACTION,
-            help=POSITIVE_FRACTION_HELP_STRING)
+        class_fractions_help_string = (
+            'Fraction of examples in each class.  Data will be sampled '
+            'according to these fractions for both training and validation.')
 
     else:
-        argument_parser_object.add_argument(
-            '--' + POSITIVE_CLASS_WEIGHT_ARG_NAME, type=float, required=False,
-            default=DEFAULT_POSITIVE_CLASS_WEIGHT,
-            help=POSITIVE_CLASS_WEIGHT_HELP_STRING)
+        class_fractions_help_string = (
+            'Assumed fraction of examples in each class.  These fractions will '
+            'be used to create weights for the loss function.  Said weights '
+            'will be inversely proportional to the fractions.')
+
+    argument_parser_object.add_argument(
+        '--' + CLASS_FRACTIONS_ARG_NAME, type=float, nargs='+',
+        required=False, default=DEFAULT_CLASS_FRACTIONS,
+        help=class_fractions_help_string)
 
     return argument_parser_object

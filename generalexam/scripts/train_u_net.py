@@ -12,6 +12,7 @@ Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
 """
 
 import argparse
+import numpy
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import fcn
@@ -33,7 +34,7 @@ INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
 def _train_u_net(
         num_epochs, num_examples_per_batch, num_training_batches_per_epoch,
         num_validation_batches_per_epoch, dilation_distance_for_target_metres,
-        positive_class_weight, pressure_level_mb, training_start_time_string,
+        class_fractions, pressure_level_mb, training_start_time_string,
         training_end_time_string, validation_start_time_string,
         validation_end_time_string, top_narr_dir_name,
         top_frontal_grid_dir_name, output_file_name):
@@ -48,8 +49,9 @@ def _train_u_net(
     :param dilation_distance_for_target_metres: Dilation distance.  Target
         images will be dilated, which increases the number of pixels labeled as
         frontal.  This accounts for uncertainty in the placement of fronts.
-    :param positive_class_weight: Weight for positive class in loss function.
-        This should be (1 - frequency of positive class).
+    :param class_fractions: Assumed fraction of examples in each class.  These
+        fractions will be used to create weights for the loss function.  Said
+        weights will be inversely proportional to the fractions.
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
@@ -69,6 +71,8 @@ def _train_u_net(
         model.
     """
 
+    class_fractions = numpy.array(class_fractions)
+
     training_start_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, INPUT_TIME_FORMAT)
     training_end_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -80,7 +84,7 @@ def _train_u_net(
         validation_end_time_string, INPUT_TIME_FORMAT)
 
     print 'Initializing model...'
-    model_object = fcn.get_u_net(positive_class_weight=positive_class_weight)
+    model_object = fcn.get_u_net(assumed_class_fractions=class_fractions)
     print SEPARATOR_STRING
 
     fcn.train_model_with_3d_examples(
@@ -92,7 +96,7 @@ def _train_u_net(
         top_narr_directory_name=top_narr_dir_name,
         top_frontal_grid_dir_name=top_frontal_grid_dir_name,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
-        pressure_level_mb=pressure_level_mb,
+        pressure_level_mb=pressure_level_mb, num_classes=len(class_fractions),
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
@@ -115,8 +119,8 @@ if __name__ == '__main__':
             ml_script_helper.NUM_VALIDN_BATCHES_PER_EPOCH_ARG_NAME),
         dilation_distance_for_target_metres=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
-        positive_class_weight=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.POSITIVE_CLASS_WEIGHT_ARG_NAME),
+        class_fractions=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.CLASS_FRACTIONS_ARG_NAME),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
         training_start_time_string=getattr(

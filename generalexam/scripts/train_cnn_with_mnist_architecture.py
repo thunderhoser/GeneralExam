@@ -5,16 +5,11 @@ Said architecture was used to classify handwritten digits from the MNIST
 """
 
 import argparse
+import numpy
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import traditional_cnn
 from generalexam.scripts import machine_learning as ml_script_helper
-
-# TODO(thunderhoser): Allow two versions of `positive_fraction`, one for
-# training and one for validation?
-
-# TODO(thunderhoser): Still need to extend downsized approach for future
-# prediction.
 
 # TODO(thunderhoser): Explore regularization and batch normalization.
 
@@ -35,7 +30,7 @@ def _train_cnn(
         num_epochs, num_examples_per_batch, num_examples_per_time,
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         num_rows_in_half_grid, num_columns_in_half_grid,
-        dilation_distance_for_target_metres, positive_fraction,
+        dilation_distance_for_target_metres, class_fractions,
         pressure_level_mb, training_start_time_string, training_end_time_string,
         validation_start_time_string, validation_end_time_string,
         top_narr_dir_name, top_frontal_grid_dir_name, output_file_name):
@@ -57,9 +52,9 @@ def _train_cnn(
     :param dilation_distance_for_target_metres: Dilation distance.  Target
         images will be dilated, which increases the number of pixels labeled as
         frontal.  This accounts for uncertainty in the placement of fronts.
-    :param positive_fraction: Fraction of positive examples in both training and
-        validation sets.  A "positive example" is an image with a front passing
-        within `dilation_distance_for_target_metres` of the center.
+    :param class_fractions: 1-D numpy array with fraction of examples in each
+        class.  Data will be sampled according to these fractions for both
+        training and validation.
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
@@ -78,6 +73,8 @@ def _train_cnn(
     :param output_file_name: Path to output file (HDF5 format) for trained
         model.
     """
+
+    class_fractions = numpy.array(class_fractions)
 
     training_start_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, INPUT_TIME_FORMAT)
@@ -105,7 +102,7 @@ def _train_cnn(
         narr_predictor_names=NARR_PREDICTOR_NAMES,
         pressure_level_mb=pressure_level_mb,
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
-        positive_fraction=positive_fraction,
+        class_fractions=class_fractions,
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -136,8 +133,8 @@ if __name__ == '__main__':
             ml_script_helper.NUM_COLUMNS_IN_HALF_GRID_ARG_NAME),
         dilation_distance_for_target_metres=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
-        positive_fraction=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.POSITIVE_FRACTION_ARG_NAME),
+        class_fractions=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.CLASS_FRACTIONS_ARG_NAME),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
         training_start_time_string=getattr(
