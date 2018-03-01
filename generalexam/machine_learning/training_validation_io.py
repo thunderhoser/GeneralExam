@@ -5,6 +5,7 @@
 Throughout this module, the following letters will be used to denote matrix
 dimensions.
 
+K = number of classes (possible values of target label)
 E = number of examples.  Each example is one image or a time sequence of images.
 M = number of pixel rows in each image
 N = number of pixel columns in each image
@@ -44,7 +45,7 @@ from generalexam.machine_learning import keras_metrics
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
 
-NUM_CLASSES = 2
+NUM_CLASSES_IN_DOWNSIZED_FILES = 2
 
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
@@ -59,47 +60,6 @@ CUSTOM_OBJECT_DICT_FOR_LOADING_MODEL = {
     'success_ratio': keras_metrics.success_ratio,
     'focn': keras_metrics.focn
 }
-
-
-def _check_input_args_for_generator(
-        num_examples_per_batch, narr_predictor_names,
-        dilation_distance_for_target_metres, num_examples_per_target_time=None,
-        num_rows_in_downsized_half_grid=None,
-        num_columns_in_downsized_half_grid=None):
-    """Checks input arguments for any of the generators listed below.
-
-    - downsized_3d_example_generator
-    - full_size_3d_example_generator
-    - full_size_4d_example_generator
-
-    :param num_examples_per_batch: See documentation for
-        `downsized_3d_example_generator`.
-    :param narr_predictor_names: Same.
-    :param dilation_distance_for_target_metres: Same.
-    :param num_examples_per_target_time: Same.
-    :param num_rows_in_downsized_half_grid: Same.
-    :param num_columns_in_downsized_half_grid: Same.
-    """
-
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 2)
-    error_checking.assert_is_string_list(narr_predictor_names)
-    error_checking.assert_is_numpy_array(
-        numpy.asarray(narr_predictor_names), num_dimensions=1)
-
-    error_checking.assert_is_geq(dilation_distance_for_target_metres, 0.)
-    if (num_examples_per_target_time is None or
-            num_rows_in_downsized_half_grid is None or
-            num_columns_in_downsized_half_grid is None):
-        return
-
-    error_checking.assert_is_integer(num_examples_per_target_time)
-    error_checking.assert_is_geq(num_examples_per_target_time, 2)
-
-    error_checking.assert_is_integer(num_rows_in_downsized_half_grid)
-    error_checking.assert_is_greater(num_rows_in_downsized_half_grid, 0)
-    error_checking.assert_is_integer(num_columns_in_downsized_half_grid)
-    error_checking.assert_is_greater(num_columns_in_downsized_half_grid, 0)
 
 
 def find_input_files_for_3d_examples(
@@ -399,8 +359,8 @@ def downsized_3d_example_generator_from_files(
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
-    :return: target_values: length-E numpy array of corresponding targets
-        (labels).
+    :return: target_matrix: E-by-2 numpy array of Boolean labels (all 0 or 1,
+        although technically the type is "float64").
     """
 
     input_file_names = glob.glob(input_file_pattern)
@@ -451,21 +411,17 @@ def downsized_3d_example_generator_from_files(
 
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
+
         print 'Fraction of positive examples = {0:.4f}'.format(
             numpy.mean(target_values[batch_indices].astype('float')))
-        # predictor_matrix_to_return = (
-        #     ml_utils.normalize_predictor_matrix(
-        #         predictor_matrix=predictor_matrix_to_return,
-        #         normalize_by_image=True))  # Should already be done in file.
-
-        target_values_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], NUM_CLASSES)
+        target_matrix_to_return = keras.utils.to_categorical(
+            target_values[batch_indices], NUM_CLASSES_IN_DOWNSIZED_FILES)
 
         predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
         target_values = numpy.delete(target_values, batch_indices, axis=0)
         num_examples_in_memory = len(target_values)
 
-        yield (predictor_matrix_to_return, target_values_to_return)
+        yield (predictor_matrix_to_return, target_matrix_to_return)
 
 
 def downsized_3d_example_generator(
@@ -473,7 +429,7 @@ def downsized_3d_example_generator(
         first_target_time_unix_sec, last_target_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres, positive_fraction,
+        dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid):
     """Generates downsized 3-D examples for a Keras model.
 
@@ -510,22 +466,23 @@ def downsized_3d_example_generator(
         variable.  If a front occurs within
         `dilation_distance_for_target_metres` of grid cell [j, k] at time t, the
         label at [t, j, k] will be positive.
-    :param positive_fraction: Fraction of positive examples generated by this
-        function.  A "positive example" is one labeled as frontal.
+    :param class_fractions: 1-D numpy array with fraction of each class in
+        batches generated by this function.  If you want 2 classes, the array
+        should be (no_front_fraction, front_fraction).  If you want 3 classes,
+        make it (no_front_fraction, warm_front_fraction, cold_front_fraction).
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
-    :return: target_values: length-E numpy array of corresponding targets
-        (labels).
+    :return: target_matrix: E-by-K numpy array of Boolean labels (all 0 or 1,
+        although technically the type is "float64").
     """
 
-    _check_input_args_for_generator(
-        num_examples_per_batch=num_examples_per_batch,
-        narr_predictor_names=narr_predictor_names,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
-        num_examples_per_target_time=num_examples_per_target_time,
-        num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-        num_columns_in_downsized_half_grid=num_columns_in_half_grid)
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
+    num_classes = len(class_fractions)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         find_input_files_for_3d_examples(
@@ -585,8 +542,9 @@ def downsized_3d_example_generator(
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
                 num_columns_per_image=this_full_predictor_matrix.shape[2])
 
-            this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                this_frontal_grid_matrix)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.binarize_front_images(
+                    this_frontal_grid_matrix)
 
             this_full_predictor_matrix = (
                 ml_utils.remove_nans_from_narr_grid(
@@ -594,13 +552,18 @@ def downsized_3d_example_generator(
             this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
                 this_frontal_grid_matrix)
 
-            this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                target_matrix=this_frontal_grid_matrix,
-                dilation_distance_metres=dilation_distance_for_target_metres,
-                verbose=False)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_frontal_grid_matrix,
+                    dilation_distance_metres=
+                    dilation_distance_for_target_metres, verbose=False)
+            else:
+                this_frontal_grid_matrix = (
+                    ml_utils.dilate_ternary_target_images(
+                        target_matrix=this_frontal_grid_matrix,
+                        dilation_distance_metres=
+                        dilation_distance_for_target_metres, verbose=False))
 
-            class_fractions = numpy.array(
-                [1. - positive_fraction, positive_fraction])
             this_sampled_target_point_dict = ml_utils.sample_target_points(
                 target_matrix=this_frontal_grid_matrix,
                 class_fractions=class_fractions,
@@ -646,17 +609,18 @@ def downsized_3d_example_generator(
 
         predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
-        print 'Fraction of positive examples = {0:.4f}'.format(
-            numpy.mean(target_values[batch_indices].astype('float')))
-        target_values_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], NUM_CLASSES)
+
+        print 'Fraction of examples with a front = {0:.4f}'.format(
+            numpy.mean(target_values[batch_indices] > 0))
+        target_matrix_to_return = keras.utils.to_categorical(
+            target_values[batch_indices], num_classes)
 
         downsized_predictor_matrix = numpy.delete(
             downsized_predictor_matrix, batch_indices, axis=0)
         target_values = numpy.delete(target_values, batch_indices, axis=0)
         num_examples_in_memory = len(target_values)
 
-        yield (predictor_matrix_to_return, target_values_to_return)
+        yield (predictor_matrix_to_return, target_matrix_to_return)
 
 
 def downsized_4d_example_generator(
@@ -665,7 +629,7 @@ def downsized_4d_example_generator(
         num_predictor_time_steps, num_lead_time_steps,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres, positive_fraction,
+        dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid):
     """Generates downsized 4-D examples for a Keras model.
 
@@ -701,23 +665,21 @@ def downsized_4d_example_generator(
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: See documentation for
         `downsized_3d_example_generator`.
-    :param positive_fraction: Fraction of positive examples generated by this
-        function.  A "positive example" is one labeled as frontal.
+    :param class_fractions: Same.
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
     :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
         images.
-    :return: target_values: length-E numpy array of corresponding targets
-        (labels).
+    :return: target_matrix: E-by-K numpy array of Boolean labels (all 0 or 1,
+        although technically the type is "float64").
     """
 
-    _check_input_args_for_generator(
-        num_examples_per_batch=num_examples_per_batch,
-        narr_predictor_names=narr_predictor_names,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
-        num_examples_per_target_time=num_examples_per_target_time,
-        num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-        num_columns_in_downsized_half_grid=num_columns_in_half_grid)
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
+    num_classes = len(class_fractions)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         find_input_files_for_4d_examples(
@@ -787,21 +749,27 @@ def downsized_4d_example_generator(
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
                 num_columns_per_image=this_full_predictor_matrix.shape[2])
 
-            this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                this_frontal_grid_matrix)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.binarize_front_images(
+                    this_frontal_grid_matrix)
 
             this_full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
                 this_full_predictor_matrix)
             this_frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
                 this_frontal_grid_matrix)
 
-            this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                target_matrix=this_frontal_grid_matrix,
-                dilation_distance_metres=dilation_distance_for_target_metres,
-                verbose=False)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_frontal_grid_matrix,
+                    dilation_distance_metres=
+                    dilation_distance_for_target_metres, verbose=False)
+            else:
+                this_frontal_grid_matrix = (
+                    ml_utils.dilate_ternary_target_images(
+                        target_matrix=this_frontal_grid_matrix,
+                        dilation_distance_metres=
+                        dilation_distance_for_target_metres, verbose=False))
 
-            class_fractions = numpy.array(
-                [1. - positive_fraction, positive_fraction])
             this_sampled_target_point_dict = ml_utils.sample_target_points(
                 target_matrix=this_frontal_grid_matrix,
                 class_fractions=class_fractions,
@@ -847,24 +815,25 @@ def downsized_4d_example_generator(
 
         predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
-        print 'Fraction of positive examples = {0:.4f}'.format(
-            numpy.mean(target_values[batch_indices].astype('float')))
-        target_values_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], NUM_CLASSES)
+
+        print 'Fraction of examples with a front = {0:.4f}'.format(
+            numpy.mean(target_values[batch_indices] > 0))
+        target_matrix_to_return = keras.utils.to_categorical(
+            target_values[batch_indices], num_classes)
 
         downsized_predictor_matrix = numpy.delete(
             downsized_predictor_matrix, batch_indices, axis=0)
         target_values = numpy.delete(target_values, batch_indices, axis=0)
         num_examples_in_memory = len(target_values)
 
-        yield (predictor_matrix_to_return, target_values_to_return)
+        yield (predictor_matrix_to_return, target_matrix_to_return)
 
 
 def full_size_3d_example_generator(
         num_examples_per_batch, first_target_time_unix_sec,
         last_target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres):
+        dilation_distance_for_target_metres, num_classes):
     """Generates full-size 3-D examples for a Keras model.
 
     This function creates examples on the fly, rather than reading them from
@@ -893,14 +862,18 @@ def full_size_3d_example_generator(
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: See documentation for
         `downsized_3d_example_generator`.
+    :param num_classes: Number of classes (possible target values).
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
-    :return: target_matrix: E-by-M-by-N numpy array of binary target images.
+    :return: target_matrix: E-by-M-by-N numpy array of target images, where
+        target_matrix[i, j, k] is the integer label for the [i]th time step,
+        [j]th pixel row, and [k]th pixel column.
     """
 
-    _check_input_args_for_generator(
-        num_examples_per_batch=num_examples_per_batch,
-        narr_predictor_names=narr_predictor_names,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres)
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         find_input_files_for_3d_examples(
@@ -957,18 +930,26 @@ def full_size_3d_example_generator(
                 num_rows_per_image=this_predictor_matrix.shape[1],
                 num_columns_per_image=this_predictor_matrix.shape[2])
 
-            this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                this_frontal_grid_matrix)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.binarize_front_images(
+                    this_frontal_grid_matrix)
 
             this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_predictor_matrix)
             this_frontal_grid_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_frontal_grid_matrix)
 
-            this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                target_matrix=this_frontal_grid_matrix,
-                dilation_distance_metres=dilation_distance_for_target_metres,
-                verbose=False)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_frontal_grid_matrix,
+                    dilation_distance_metres=
+                    dilation_distance_for_target_metres, verbose=False)
+            else:
+                this_frontal_grid_matrix = (
+                    ml_utils.dilate_ternary_target_images(
+                        target_matrix=this_frontal_grid_matrix,
+                        dilation_distance_metres=
+                        dilation_distance_for_target_metres, verbose=False))
 
             if target_matrix is None or target_matrix.size == 0:
                 predictor_matrix = copy.deepcopy(this_predictor_matrix)
@@ -984,9 +965,9 @@ def full_size_3d_example_generator(
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
         target_matrix_to_return = target_matrix[
-            batch_indices, ...].astype('bool')
-        print 'Fraction of positive examples = {0:.4f}'.format(
-            numpy.mean(target_matrix_to_return))
+            batch_indices, ...].astype(numpy.int32)
+        print 'Fraction of examples with a front = {0:.4f}'.format(
+            numpy.mean(target_matrix_to_return > 0))
 
         target_matrix_to_return = numpy.expand_dims(
             target_matrix_to_return, axis=-1)
@@ -1003,7 +984,7 @@ def full_size_4d_example_generator(
         last_target_time_unix_sec, num_predictor_time_steps,
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres):
+        dilation_distance_for_target_metres, num_classes):
     """Generates full-size 4-D examples for a Keras model.
 
     This function creates examples on the fly, rather than reading them from
@@ -1035,15 +1016,19 @@ def full_size_4d_example_generator(
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: See documentation for
         `downsized_3d_example_generator`.
+    :param num_classes: Number of classes (possible target values).
     :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
         images.
-    :return: target_matrix: E-by-M-by-N numpy array of binary target images.
+    :return: target_matrix: E-by-M-by-N numpy array of target images, where
+        target_matrix[i, j, k] is the integer label for the [i]th time step,
+        [j]th pixel row, and [k]th pixel column.
     """
 
-    _check_input_args_for_generator(
-        num_examples_per_batch=num_examples_per_batch,
-        narr_predictor_names=narr_predictor_names,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres)
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         find_input_files_for_4d_examples(
@@ -1111,18 +1096,26 @@ def full_size_4d_example_generator(
                 num_rows_per_image=this_predictor_matrix.shape[1],
                 num_columns_per_image=this_predictor_matrix.shape[2])
 
-            this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                this_frontal_grid_matrix)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.binarize_front_images(
+                    this_frontal_grid_matrix)
 
             this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_predictor_matrix)
             this_frontal_grid_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_frontal_grid_matrix)
 
-            this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                target_matrix=this_frontal_grid_matrix,
-                dilation_distance_metres=dilation_distance_for_target_metres,
-                verbose=False)
+            if num_classes == 2:
+                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_frontal_grid_matrix,
+                    dilation_distance_metres=
+                    dilation_distance_for_target_metres, verbose=False)
+            else:
+                this_frontal_grid_matrix = (
+                    ml_utils.dilate_ternary_target_images(
+                        target_matrix=this_frontal_grid_matrix,
+                        dilation_distance_metres=
+                        dilation_distance_for_target_metres, verbose=False))
 
             if target_matrix is None or target_matrix.size == 0:
                 predictor_matrix = copy.deepcopy(this_predictor_matrix)
@@ -1138,9 +1131,9 @@ def full_size_4d_example_generator(
         predictor_matrix_to_return = predictor_matrix[
             batch_indices, ...].astype('float32')
         target_matrix_to_return = target_matrix[
-            batch_indices, ...].astype('bool')
-        print 'Fraction of positive examples = {0:.4f}'.format(
-            numpy.mean(target_matrix_to_return))
+            batch_indices, ...].astype(numpy.int32)
+        print 'Fraction of examples with a front = {0:.4f}'.format(
+            numpy.mean(target_matrix_to_return > 0))
 
         # Expands target matrix to 4-D.  Might have to expand to 5-D.
         target_matrix_to_return = numpy.expand_dims(

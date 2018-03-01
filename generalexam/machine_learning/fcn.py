@@ -57,7 +57,6 @@ LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
     keras_metrics.focn]
 
-NUM_CLASSES = 2
 DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
@@ -296,7 +295,7 @@ def train_model_with_3d_examples(
         num_training_batches_per_epoch, training_start_time_unix_sec,
         training_end_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres,
+        dilation_distance_for_target_metres, num_classes,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
     """Trains FCN, using 3-D examples generated on the fly.
@@ -316,6 +315,7 @@ def train_model_with_3d_examples(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param validation_start_time_unix_sec: See documentation for
@@ -345,7 +345,7 @@ def train_model_with_3d_examples(
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres),
+                dilation_distance_for_target_metres, num_classes=num_classes),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, callbacks=[checkpoint_object])
 
@@ -367,7 +367,7 @@ def train_model_with_3d_examples(
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres),
+                dilation_distance_for_target_metres, num_classes=num_classes),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, callbacks=[checkpoint_object],
             validation_data=
@@ -380,7 +380,7 @@ def train_model_with_3d_examples(
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres),
+                dilation_distance_for_target_metres, num_classes=num_classes),
             validation_steps=num_validation_batches_per_epoch)
 
 
@@ -390,7 +390,7 @@ def train_model_with_4d_examples(
         num_lead_time_steps, training_start_time_unix_sec,
         training_end_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres,
+        dilation_distance_for_target_metres, num_classes,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
     """Trains FCN, using 4-D examples generated on the fly.
@@ -412,6 +412,7 @@ def train_model_with_4d_examples(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param validation_start_time_unix_sec: See documentation for
@@ -443,7 +444,7 @@ def train_model_with_4d_examples(
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres),
+                dilation_distance_for_target_metres, num_classes=num_classes),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, callbacks=[checkpoint_object])
 
@@ -467,7 +468,7 @@ def train_model_with_4d_examples(
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres),
+                dilation_distance_for_target_metres, num_classes=num_classes),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, callbacks=[checkpoint_object],
             validation_data=
@@ -482,14 +483,14 @@ def train_model_with_4d_examples(
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres),
+                dilation_distance_for_target_metres, num_classes=num_classes),
             validation_steps=num_validation_batches_per_epoch)
 
 
 def apply_model_to_3d_example(
         model_object, target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres):
+        dilation_distance_for_target_metres, num_classes):
     """Applies FCN to one 3-D example.
 
     :param model_object: Instance of `keras.models.Model`.
@@ -500,11 +501,15 @@ def apply_model_to_3d_example(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :return: predicted_target_matrix: M-by-N numpy array of predicted targets on
         the NARR grid.
     :return: actual_target_matrix: M-by-N numpy array of actual targets on the
         NARR grid.
     """
+
+    # TODO(thunderhoser): Output dimensions need to be different for
+    # multi-class.
 
     predictor_matrix, actual_target_matrix = (
         testing_io.create_full_size_3d_example(
@@ -514,7 +519,7 @@ def apply_model_to_3d_example(
             narr_predictor_names=narr_predictor_names,
             pressure_level_mb=pressure_level_mb,
             dilation_distance_for_target_metres=
-            dilation_distance_for_target_metres))
+            dilation_distance_for_target_metres, num_classes=num_classes))
 
     predicted_target_matrix = model_object.predict(
         predictor_matrix, batch_size=1)
@@ -527,7 +532,7 @@ def apply_model_to_4d_example(
         model_object, target_time_unix_sec, num_predictor_time_steps,
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres):
+        dilation_distance_for_target_metres, num_classes):
     """Applies FCN to one 4-D example.
 
     :param model_object: Instance of `keras.models.Model`.
@@ -540,11 +545,15 @@ def apply_model_to_4d_example(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :return: predicted_target_matrix: M-by-N numpy array of predicted targets on
         the NARR grid.
     :return: actual_target_matrix: M-by-N numpy array of actual targets on the
         NARR grid.
     """
+
+    # TODO(thunderhoser): Output dimensions need to be different for
+    # multi-class.
 
     predictor_matrix, actual_target_matrix = (
         testing_io.create_full_size_4d_example(
@@ -556,7 +565,7 @@ def apply_model_to_4d_example(
             narr_predictor_names=narr_predictor_names,
             pressure_level_mb=pressure_level_mb,
             dilation_distance_for_target_metres=
-            dilation_distance_for_target_metres))
+            dilation_distance_for_target_metres, num_classes=num_classes))
 
     predicted_target_matrix = model_object.predict(
         predictor_matrix, batch_size=1)

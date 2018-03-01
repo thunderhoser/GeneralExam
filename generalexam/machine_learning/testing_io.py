@@ -30,69 +30,6 @@ from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-NUM_CLASSES = 2
-
-
-def _check_input_args(
-        narr_predictor_names, dilation_distance_for_target_metres,
-        num_rows_in_downsized_half_grid=None,
-        num_columns_in_downsized_half_grid=None,
-        center_rows_for_downsized_grids=None,
-        center_columns_for_downsized_grids=None):
-    """Checks input arguments for any of the methods listed below.
-
-    - create_downsized_3d_examples
-    - create_downsized_4d_examples
-    - create_full_size_3d_example
-    - create_full_size_4d_example
-
-    :param narr_predictor_names: See documentation for
-        `create_downsized_3d_examples`.
-    :param dilation_distance_for_target_metres: Same.
-    :param num_rows_in_downsized_half_grid: Same.
-    :param num_columns_in_downsized_half_grid: Same.
-    :param center_rows_for_downsized_grids: Same.
-    :param center_columns_for_downsized_grids: Same.
-    """
-
-    error_checking.assert_is_string_list(narr_predictor_names)
-    error_checking.assert_is_numpy_array(
-        numpy.asarray(narr_predictor_names), num_dimensions=1)
-    error_checking.assert_is_geq(dilation_distance_for_target_metres, 0.)
-
-    if (num_rows_in_downsized_half_grid is None or
-            num_columns_in_downsized_half_grid is None or
-            center_rows_for_downsized_grids is None or
-            center_columns_for_downsized_grids is None):
-        return
-
-    error_checking.assert_is_integer(num_rows_in_downsized_half_grid)
-    error_checking.assert_is_greater(num_rows_in_downsized_half_grid, 0)
-    error_checking.assert_is_integer(num_columns_in_downsized_half_grid)
-    error_checking.assert_is_greater(num_columns_in_downsized_half_grid, 0)
-
-    error_checking.assert_is_integer_numpy_array(
-        center_rows_for_downsized_grids)
-    error_checking.assert_is_numpy_array(
-        center_rows_for_downsized_grids, num_dimensions=1)
-
-    error_checking.assert_is_geq_numpy_array(center_rows_for_downsized_grids, 0)
-    error_checking.assert_is_less_than_numpy_array(
-        center_rows_for_downsized_grids, len(ml_utils.NARR_ROWS_WITHOUT_NAN))
-
-    num_sample_points = len(center_rows_for_downsized_grids)
-    error_checking.assert_is_integer_numpy_array(
-        center_columns_for_downsized_grids)
-    error_checking.assert_is_numpy_array(
-        center_columns_for_downsized_grids,
-        exact_dimensions=numpy.array([num_sample_points]))
-
-    error_checking.assert_is_geq_numpy_array(
-        center_columns_for_downsized_grids, 0)
-    error_checking.assert_is_less_than_numpy_array(
-        center_columns_for_downsized_grids,
-        len(ml_utils.NARR_COLUMNS_WITHOUT_NAN))
-
 
 def create_downsized_3d_examples(
         center_row_indices, center_column_indices, num_rows_in_half_grid,
@@ -100,7 +37,7 @@ def create_downsized_3d_examples(
         full_target_matrix=None, target_time_unix_sec=None,
         top_narr_directory_name=None, top_frontal_grid_dir_name=None,
         narr_predictor_names=None, pressure_level_mb=None,
-        dilation_distance_for_target_metres=None):
+        dilation_distance_for_target_metres=None, num_classes=None):
     """Creates downsized 3-D examples for testing a Keras model.
 
     Specifically, this method creates one example for each sample point at one
@@ -145,23 +82,19 @@ def create_downsized_3d_examples(
         variable.  If a front occurs within
         `dilation_distance_for_target_metres` of grid cell [j, k] at time t, the
         label at [t, j, k] will be positive.
+    :param num_classes: Number of classes (possible target values).
     :return: downsized_predictor_matrix: E-by-m-by-n-by-C numpy array of
         predictor images.
-    :return: target_values: length-E numpy array of binary targets (labels).
+    :return: target_values: length-E numpy array of integer targets (labels).
     :return: full_predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
         image.
     :return: full_target_matrix: 1-by-M-by-N numpy array with target image.
     """
 
     if full_predictor_matrix is None or full_target_matrix is None:
-        _check_input_args(
-            narr_predictor_names=narr_predictor_names,
-            dilation_distance_for_target_metres=
-            dilation_distance_for_target_metres,
-            num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-            num_columns_in_downsized_half_grid=num_columns_in_half_grid,
-            center_rows_for_downsized_grids=center_row_indices,
-            center_columns_for_downsized_grids=center_column_indices)
+        error_checking.assert_is_integer(num_classes)
+        error_checking.assert_is_geq(num_classes, 2)
+        error_checking.assert_is_leq(num_classes, 3)
 
         narr_file_name_matrix, frontal_grid_file_names = (
             training_validation_io.find_input_files_for_3d_examples(
@@ -198,18 +131,26 @@ def create_downsized_3d_examples(
             frontal_grid_table=frontal_grid_table,
             num_rows_per_image=full_predictor_matrix.shape[1],
             num_columns_per_image=full_predictor_matrix.shape[2])
-        full_target_matrix = ml_utils.binarize_front_images(
-            full_target_matrix)
+
+        if num_classes == 2:
+            full_target_matrix = ml_utils.binarize_front_images(
+                full_target_matrix)
 
         full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
             full_predictor_matrix)
         full_target_matrix = ml_utils.remove_nans_from_narr_grid(
             full_target_matrix)
 
-        full_target_matrix = ml_utils.dilate_binary_target_images(
-            target_matrix=full_target_matrix,
-            dilation_distance_metres=dilation_distance_for_target_metres,
-            verbose=False)
+        if num_classes == 2:
+            full_target_matrix = ml_utils.dilate_binary_target_images(
+                target_matrix=full_target_matrix,
+                dilation_distance_metres=dilation_distance_for_target_metres,
+                verbose=False)
+        else:
+            full_target_matrix = ml_utils.dilate_ternary_target_images(
+                target_matrix=full_target_matrix,
+                dilation_distance_metres=dilation_distance_for_target_metres,
+                verbose=False)
 
     num_sample_points = len(center_row_indices)
     print ('Creating downsized 3-D example for each of {0:d} sample '
@@ -240,7 +181,7 @@ def create_downsized_4d_examples(
         num_predictor_time_steps=None, num_lead_time_steps=None,
         top_narr_directory_name=None, top_frontal_grid_dir_name=None,
         narr_predictor_names=None, pressure_level_mb=None,
-        dilation_distance_for_target_metres=None):
+        dilation_distance_for_target_metres=None, num_classes=None):
     """Creates downsized 4-D examples for testing a Keras model.
 
     Specifically, this method creates one example for each sample point at one
@@ -276,23 +217,19 @@ def create_downsized_4d_examples(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :return: downsized_predictor_matrix: E-by-m-by-n-by-T-by-C numpy array of
         predictor images.
-    :return: target_values: length-E numpy array of binary targets (labels).
+    :return: target_values: length-E numpy array of integer targets (labels).
     :return: full_predictor_matrix: 1-by-M-by-N-by-T-by-C numpy array with
         predictor image.
     :return: full_target_matrix: 1-by-M-by-N numpy array with target image.
     """
 
     if full_predictor_matrix is None or full_target_matrix is None:
-        _check_input_args(
-            narr_predictor_names=narr_predictor_names,
-            dilation_distance_for_target_metres=
-            dilation_distance_for_target_metres,
-            num_rows_in_downsized_half_grid=num_rows_in_half_grid,
-            num_columns_in_downsized_half_grid=num_columns_in_half_grid,
-            center_rows_for_downsized_grids=center_row_indices,
-            center_columns_for_downsized_grids=center_column_indices)
+        error_checking.assert_is_integer(num_classes)
+        error_checking.assert_is_geq(num_classes, 2)
+        error_checking.assert_is_leq(num_classes, 3)
 
         narr_file_name_matrix, frontal_grid_file_names = (
             training_validation_io.find_input_files_for_4d_examples(
@@ -342,16 +279,25 @@ def create_downsized_4d_examples(
             num_rows_per_image=full_predictor_matrix.shape[1],
             num_columns_per_image=full_predictor_matrix.shape[2])
 
-        full_target_matrix = ml_utils.binarize_front_images(full_target_matrix)
+        if num_classes == 2:
+            full_target_matrix = ml_utils.binarize_front_images(
+                full_target_matrix)
+
         full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
             full_predictor_matrix)
         full_target_matrix = ml_utils.remove_nans_from_narr_grid(
             full_target_matrix)
 
-        full_target_matrix = ml_utils.dilate_binary_target_images(
-            target_matrix=full_target_matrix,
-            dilation_distance_metres=dilation_distance_for_target_metres,
-            verbose=False)
+        if num_classes == 2:
+            full_target_matrix = ml_utils.dilate_binary_target_images(
+                target_matrix=full_target_matrix,
+                dilation_distance_metres=dilation_distance_for_target_metres,
+                verbose=False)
+        else:
+            full_target_matrix = ml_utils.dilate_ternary_target_images(
+                target_matrix=full_target_matrix,
+                dilation_distance_metres=dilation_distance_for_target_metres,
+                verbose=False)
 
     num_sample_points = len(center_row_indices)
     print ('Creating downsized 3-D example for each of {0:d} sample '
@@ -378,7 +324,7 @@ def create_downsized_4d_examples(
 def create_full_size_3d_example(
         target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres):
+        dilation_distance_for_target_metres, num_classes):
     """Creates one full-size 3-D testing example for a Keras model.
 
     Below is an example of how to use this method with a Keras model.
@@ -394,14 +340,15 @@ def create_full_size_3d_example(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :return: predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
         image.
-    :return: target_matrix: 1-by-M-by-N numpy array with binary target image.
+    :return: target_matrix: 1-by-M-by-N numpy array with target image.
     """
 
-    _check_input_args(
-        narr_predictor_names=narr_predictor_names,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         training_validation_io.find_input_files_for_3d_examples(
@@ -439,18 +386,28 @@ def create_full_size_3d_example(
         frontal_grid_table=frontal_grid_table,
         num_rows_per_image=predictor_matrix.shape[1],
         num_columns_per_image=predictor_matrix.shape[2])
-    target_matrix = ml_utils.binarize_front_images(target_matrix)
+
+    if num_classes == 2:
+        target_matrix = ml_utils.binarize_front_images(target_matrix)
 
     predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
-    target_matrix = ml_utils.dilate_binary_target_images(
-        target_matrix=target_matrix,
-        dilation_distance_metres=dilation_distance_for_target_metres,
-        verbose=False)
+
+    if num_classes == 2:
+        target_matrix = ml_utils.dilate_binary_target_images(
+            target_matrix=target_matrix,
+            dilation_distance_metres=dilation_distance_for_target_metres,
+            verbose=False)
+    else:
+        target_matrix = ml_utils.dilate_ternary_target_images(
+            target_matrix=target_matrix,
+            dilation_distance_metres=dilation_distance_for_target_metres,
+            verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
-    target_matrix = target_matrix.astype('bool')
-    print numpy.mean(target_matrix)
+    # target_matrix = target_matrix.astype('bool')
+    print 'Fraction of pixels with a front = {0:.4f}'.format(
+        numpy.mean(target_matrix > 0))
 
     target_matrix = numpy.expand_dims(target_matrix, axis=-1)
     return predictor_matrix, target_matrix
@@ -460,7 +417,7 @@ def create_full_size_4d_example(
         target_time_unix_sec, num_predictor_time_steps, num_lead_time_steps,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres):
+        dilation_distance_for_target_metres, num_classes):
     """Creates one full-size 4-D testing example for a Keras model.
 
     Unlike `downsized_3d_example_generator`, this method is not a generator.  In
@@ -484,14 +441,15 @@ def create_full_size_4d_example(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
+    :param num_classes: Same.
     :return: predictor_matrix: 1-by-M-by-N-by-T-by-C numpy array of predictor
         images.
-    :return: target_matrix: 1-by-M-by-N numpy array with binary target image.
+    :return: target_matrix: 1-by-M-by-N numpy array with target image.
     """
 
-    _check_input_args(
-        narr_predictor_names=narr_predictor_names,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
 
     narr_file_name_matrix, frontal_grid_file_names = (
         training_validation_io.find_input_files_for_4d_examples(
@@ -541,17 +499,27 @@ def create_full_size_4d_example(
         num_rows_per_image=predictor_matrix.shape[1],
         num_columns_per_image=predictor_matrix.shape[2])
 
-    target_matrix = ml_utils.binarize_front_images(target_matrix)
+    if num_classes == 2:
+        target_matrix = ml_utils.binarize_front_images(target_matrix)
+
     predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
-    target_matrix = ml_utils.dilate_binary_target_images(
-        target_matrix=target_matrix,
-        dilation_distance_metres=dilation_distance_for_target_metres,
-        verbose=False)
+
+    if num_classes == 2:
+        target_matrix = ml_utils.dilate_binary_target_images(
+            target_matrix=target_matrix,
+            dilation_distance_metres=dilation_distance_for_target_metres,
+            verbose=False)
+    else:
+        target_matrix = ml_utils.dilate_ternary_target_images(
+            target_matrix=target_matrix,
+            dilation_distance_metres=dilation_distance_for_target_metres,
+            verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
-    target_matrix = target_matrix.astype('bool')
-    print numpy.mean(target_matrix)
+    # target_matrix = target_matrix.astype('bool')
+    print 'Fraction of pixels with a front = {0:.4f}'.format(
+        numpy.mean(target_matrix > 0))
 
     # Expands target matrix to 4-D.  Might have to expand to 5-D.
     target_matrix = numpy.expand_dims(target_matrix, axis=-1)

@@ -13,6 +13,7 @@ said features are in the image.
 Throughout this module, the following letters will be used to denote matrix
 dimensions.
 
+K = number of classes (possible target values)
 E = number of examples.  Each example is one image or a time sequence of images.
 M = number of pixel rows in each image
 N = number of pixel columns in each image
@@ -28,7 +29,6 @@ from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import cnn_utils
 from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
@@ -39,6 +39,8 @@ from generalexam.machine_learning import keras_metrics
 # K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 #     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
+DEFAULT_NUM_PIXEL_ROWS = 65
+DEFAULT_NUM_PIXEL_COLUMNS = 65
 DEFAULT_ASSUMED_POSITIVE_FRACTION = 0.935
 
 LIST_OF_METRIC_FUNCTIONS = [
@@ -46,23 +48,14 @@ LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.pod, keras_metrics.pofd, keras_metrics.success_ratio,
     keras_metrics.focn]
 
-NUM_CLASSES = 2
-DEFAULT_NUM_PIXEL_ROWS = 65
-DEFAULT_NUM_PIXEL_COLUMNS = 65
-
-DEFAULT_NARR_PREDICTOR_NAMES = [
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.WET_BULB_TEMP_NAME]
-
 NUM_NARR_ROWS_WITHOUT_NAN, _ = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
 NUM_NARR_COLUMNS_WITHOUT_NAN = len(ml_utils.NARR_COLUMNS_WITHOUT_NAN)
 
 
 def get_cnn_with_mnist_architecture(
-        narr_predictor_names=DEFAULT_NARR_PREDICTOR_NAMES,
-        num_dimensions_per_example=3, num_predictor_times_per_example=None):
+        num_predictors=3, num_classes=2, num_dimensions_per_example=3,
+        num_predictor_times_per_example=None):
     """Creates CNN with architecture used in the following example.
 
     https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
@@ -70,26 +63,29 @@ def get_cnn_with_mnist_architecture(
     Said architecture was used to classify handwritten digits from the MNIST
     (Modified National Institute of Standards and Technology) dataset.
 
-    :param narr_predictor_names: length-C list of NARR fields to use as
-        predictors.
+    :param num_predictors: Number of predictor variables (image channels).
+    :param num_classes: Number of channels (possible tagret values).
     :param num_dimensions_per_example: Number of dimensions per training example
         (either 3 or 4).  If 3, the CNN will do 2-D convolution (over the x- and
         y-dimensions).  If 4, the CNN will do 3-D convolution (over dimensions
         x, y, t).
-    :param num_predictor_times_per_example: Number of predictor times per
-        example (images per sequence).
+    :param num_predictor_times_per_example:
+        [used only if num_dimensions_per_example = 4]
+        Number of predictor times per example (images per sequence).
     :return: model_object: Instance of `keras.models.Sequential`, with the
         aforementioned architecture.
     """
 
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_geq(num_predictors, 1)
+
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
+
     error_checking.assert_is_integer(num_dimensions_per_example)
     error_checking.assert_is_geq(num_dimensions_per_example, 3)
     error_checking.assert_is_leq(num_dimensions_per_example, 4)
-
-    error_checking.assert_is_string_list(narr_predictor_names)
-    error_checking.assert_is_numpy_array(
-        numpy.array(narr_predictor_names), num_dimensions=1)
-    num_predictors = len(narr_predictor_names)
 
     model_object = Sequential()
 
@@ -103,7 +99,7 @@ def get_cnn_with_mnist_architecture(
             num_input_channels=num_predictors)
     else:
         error_checking.assert_is_integer(num_predictor_times_per_example)
-        error_checking.assert_is_greater(num_predictor_times_per_example, 0)
+        error_checking.assert_is_geq(num_predictor_times_per_example, 3)
 
         layer_object = cnn_utils.get_3d_convolution_layer(
             num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
@@ -156,7 +152,7 @@ def get_cnn_with_mnist_architecture(
     model_object.add(layer_object)
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=NUM_CLASSES, activation_function='softmax')
+        num_output_units=num_classes, activation_function='softmax')
     model_object.add(layer_object)
 
     model_object.compile(
@@ -199,9 +195,9 @@ def train_with_3d_examples_from_files(
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
-    class_frequencies = numpy.array(
+    class_fractions = numpy.array(
         [1. - assumed_positive_fraction, assumed_positive_fraction])
-    class_weight_dict = ml_utils.get_class_weight_dict(class_frequencies)
+    class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
 
     if validation_file_pattern is None:
         checkpoint_object = ModelCheckpoint(
@@ -245,7 +241,7 @@ def train_with_3d_examples(
         training_start_time_unix_sec, training_end_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres, positive_fraction,
+        dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
@@ -267,7 +263,7 @@ def train_with_3d_examples(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
-    :param positive_fraction: Same.
+    :param class_fractions: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :param num_validation_batches_per_epoch: Number of validation batches per
@@ -283,9 +279,7 @@ def train_with_3d_examples(
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-
-    class_frequencies = numpy.array([1. - positive_fraction, positive_fraction])
-    class_weight_dict = ml_utils.get_class_weight_dict(class_frequencies)
+    class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -304,7 +298,7 @@ def train_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
                 dilation_distance_for_target_metres,
-                positive_fraction=positive_fraction,
+                class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
@@ -331,7 +325,7 @@ def train_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
                 dilation_distance_for_target_metres,
-                positive_fraction=positive_fraction,
+                class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
@@ -349,7 +343,7 @@ def train_with_3d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
                 dilation_distance_for_target_metres,
-                positive_fraction=positive_fraction,
+                class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             validation_steps=num_validation_batches_per_epoch)
@@ -362,7 +356,7 @@ def train_with_4d_examples(
         training_start_time_unix_sec, training_end_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres, positive_fraction,
+        dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
@@ -385,7 +379,7 @@ def train_with_4d_examples(
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
-    :param positive_fraction: Same.
+    :param class_fractions: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -399,9 +393,7 @@ def train_with_4d_examples(
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-
-    class_frequencies = numpy.array([1. - positive_fraction, positive_fraction])
-    class_weight_dict = ml_utils.get_class_weight_dict(class_frequencies)
+    class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -422,7 +414,7 @@ def train_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
                 dilation_distance_for_target_metres,
-                positive_fraction=positive_fraction,
+                class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
@@ -451,7 +443,7 @@ def train_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
                 dilation_distance_for_target_metres,
-                positive_fraction=positive_fraction,
+                class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
@@ -471,7 +463,7 @@ def train_with_4d_examples(
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_for_target_metres=
                 dilation_distance_for_target_metres,
-                positive_fraction=positive_fraction,
+                class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             validation_steps=num_validation_batches_per_epoch)
@@ -481,7 +473,7 @@ def apply_model_to_3d_example(
         model_object, target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
-        num_columns_in_half_grid):
+        num_columns_in_half_grid, num_classes):
     """Applies trained CNN to one 3-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -494,15 +486,16 @@ def apply_model_to_3d_example(
     :param dilation_distance_for_target_metres: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
-    :return: predicted_target_matrix: 1-by-M-by-N numpy array of predicted
-        targets on the NARR grid.
+    :param num_classes: Same.
+    :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
+        class probabilities.
     :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
         the NARR grid.
     """
 
-    predicted_target_matrix = numpy.full(
-        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN), -1,
-        dtype=float)
+    class_probability_matrix = numpy.full(
+        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN,
+         num_classes), -1, dtype=float)
     actual_target_matrix = numpy.full(
         (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN), -1,
         dtype=int)
@@ -532,7 +525,7 @@ def apply_model_to_3d_example(
                  narr_predictor_names=narr_predictor_names,
                  pressure_level_mb=pressure_level_mb,
                  dilation_distance_for_target_metres=
-                 dilation_distance_for_target_metres)
+                 dilation_distance_for_target_metres, num_classes=num_classes)
 
         else:
             (this_downsized_predictor_matrix,
@@ -543,14 +536,13 @@ def apply_model_to_3d_example(
                  num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  full_predictor_matrix=full_predictor_matrix,
-                 full_target_matrix=full_target_matrix)
+                 full_target_matrix=full_target_matrix, num_classes=num_classes)
 
-        this_prediction_matrix = model_object.predict(
+        class_probability_matrix[0, i, ...] = model_object.predict(
             this_downsized_predictor_matrix,
             batch_size=NUM_NARR_COLUMNS_WITHOUT_NAN)
-        predicted_target_matrix[:, i, :] = this_prediction_matrix[:, 1]
 
-    return predicted_target_matrix, actual_target_matrix
+    return class_probability_matrix, actual_target_matrix
 
 
 def apply_model_to_4d_example(
@@ -558,7 +550,7 @@ def apply_model_to_4d_example(
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
-        num_columns_in_half_grid):
+        num_columns_in_half_grid, num_classes):
     """Applies trained CNN to one 4-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -573,15 +565,16 @@ def apply_model_to_4d_example(
     :param dilation_distance_for_target_metres: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
-    :return: predicted_target_matrix: 1-by-M-by-N numpy array of predicted
-        targets on the NARR grid.
+    :param num_classes: Same.
+    :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
+        class probabilities.
     :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
         the NARR grid.
     """
 
-    predicted_target_matrix = numpy.full(
-        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN), -1,
-        dtype=float)
+    class_probability_matrix = numpy.full(
+        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN,
+         num_classes), -1, dtype=float)
     actual_target_matrix = numpy.full(
         (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN), -1,
         dtype=int)
@@ -613,7 +606,7 @@ def apply_model_to_4d_example(
                  narr_predictor_names=narr_predictor_names,
                  pressure_level_mb=pressure_level_mb,
                  dilation_distance_for_target_metres=
-                 dilation_distance_for_target_metres)
+                 dilation_distance_for_target_metres, num_classes=num_classes)
 
         else:
             (this_downsized_predictor_matrix,
@@ -624,11 +617,10 @@ def apply_model_to_4d_example(
                  num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  full_predictor_matrix=full_predictor_matrix,
-                 full_target_matrix=full_target_matrix)
+                 full_target_matrix=full_target_matrix, num_classes=num_classes)
 
-        this_prediction_matrix = model_object.predict(
+        class_probability_matrix[0, i, ...] = model_object.predict(
             this_downsized_predictor_matrix,
             batch_size=NUM_NARR_COLUMNS_WITHOUT_NAN)
-        predicted_target_matrix[:, i, :] = this_prediction_matrix[:, 1]
 
-    return predicted_target_matrix, actual_target_matrix
+    return class_probability_matrix, actual_target_matrix
