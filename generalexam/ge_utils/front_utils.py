@@ -755,7 +755,7 @@ def polyline_to_binary_narr_grid(
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     return dilate_binary_narr_image(
-        binary_matrix=binary_matrix,
+        binary_matrix=binary_matrix.astype(int),
         dilation_distance_metres=dilation_distance_metres)
 
 
@@ -824,6 +824,7 @@ def many_polylines_to_narr_grid(front_table, dilation_distance_metres):
                 polyline_longitudes_deg=
                 front_table[LONGITUDES_COLUMN].values[j],
                 dilation_distance_metres=dilation_distance_metres)
+            this_binary_matrix = this_binary_matrix.astype(bool)
 
             if front_table[FRONT_TYPE_COLUMN].values[j] == WARM_FRONT_STRING_ID:
                 this_frontal_grid_matrix[
