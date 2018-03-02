@@ -162,7 +162,7 @@ def get_cnn_with_mnist_architecture(
     return model_object
 
 
-def read_keras_model_old(hdf5_file_name):
+def read_keras_model(hdf5_file_name):
     """Reads Keras model from HDF5 file.
 
     :param hdf5_file_name: Path to input file.
