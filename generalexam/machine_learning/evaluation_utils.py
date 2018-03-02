@@ -28,6 +28,7 @@ steps, C predictor variables).
 import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import error_checking
 from generalexam.machine_learning import testing_io
@@ -46,12 +47,12 @@ MAX_OPTIMIZATION_DIRECTION = 'max'
 VALID_OPTIMIZATION_DIRECTIONS = [
     MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION]
 
+NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
+    model_name=nwp_model_utils.NARR_MODEL_NAME)
 THESE_ROW_INDICES = numpy.linspace(
-    0, len(ml_utils.NARR_ROWS_WITHOUT_NAN) - 1,
-    num=len(ml_utils.NARR_ROWS_WITHOUT_NAN), dtype=int)
+    0, NUM_ROWS_IN_NARR - 1, num=NUM_ROWS_IN_NARR, dtype=int)
 THESE_COLUMN_INDICES = numpy.linspace(
-    0, len(ml_utils.NARR_COLUMNS_WITHOUT_NAN) - 1,
-    num=len(ml_utils.NARR_COLUMNS_WITHOUT_NAN), dtype=int)
+    0, NUM_COLUMNS_IN_NARR - 1, num=NUM_COLUMNS_IN_NARR, dtype=int)
 THIS_COLUMN_INDEX_MATRIX, THIS_ROW_INDEX_MATRIX = grids.xy_vectors_to_matrices(
     x_unique_metres=THESE_COLUMN_INDICES, y_unique_metres=THESE_ROW_INDICES)
 

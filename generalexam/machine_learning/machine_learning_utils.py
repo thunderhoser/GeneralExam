@@ -17,25 +17,17 @@ import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
+from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
-
 DEFAULT_NUM_SAMPLE_PTS_PER_TIME = 1000
 
-FIRST_NARR_COLUMN_WITHOUT_NAN = 7
-LAST_NARR_COLUMN_WITHOUT_NAN = 264
-NARR_ROWS_WITHOUT_NAN = numpy.linspace(0, 276, num=277, dtype=int)
-NARR_COLUMNS_WITHOUT_NAN = numpy.linspace(
-    FIRST_NARR_COLUMN_WITHOUT_NAN, LAST_NARR_COLUMN_WITHOUT_NAN,
-    num=LAST_NARR_COLUMN_WITHOUT_NAN - FIRST_NARR_COLUMN_WITHOUT_NAN + 1,
-    dtype=int)
-
-# Subset of NARR grid for FCN (fully convolutional net) input.  This results in
-# dimensions of 272 x 256, which are divisible by 2 many times, which obviates
-# the need for padding and cropping layers.
-FIRST_NARR_COLUMN_FOR_FCN_INPUT = 8
-LAST_NARR_COLUMN_FOR_FCN_INPUT = 263
+# Subset of NARR grid for FCN (fully convolutional net).  This gives dimensions
+# of 272 x 336, which are integer-divisible by 2 many times, which obviates the
+# need for padding and cropping layers.
+FIRST_NARR_COLUMN_FOR_FCN_INPUT = 0
+LAST_NARR_COLUMN_FOR_FCN_INPUT = 335
 FIRST_NARR_ROW_FOR_FCN_INPUT = 5
 LAST_NARR_ROW_FOR_FCN_INPUT = 276
 
@@ -833,34 +825,39 @@ def stack_time_steps(tuple_of_4d_predictor_matrices):
     return predictor_matrix
 
 
-def remove_nans_from_narr_grid(narr_matrix):
-    """Removes NaN's from image defined on NARR grid.
+def fill_nans_in_predictor_images(predictor_matrix):
+    """Fills NaN's in predictor images.
 
-    M = number of pixel rows in each original image
-    N = number of pixel columns in each original image
-
-    m = number of pixel rows in each new image
-    n = number of pixel columns in each new image
-
-    :param narr_matrix: numpy array of either predictor images or target images.
-        Dimensions may be E x M x N, E x M x N x C, or E x M x N x T x C.
-    :return: narr_matrix: Subset of the input array.  Dimensions
-        may be E x m x n, E x m x n x C, or E x m x n x T x C.  Number of
-        dimensions is the same as the original image.
+    :param predictor_matrix: E-by-M-by-N numpy array of predictor images.
+    :return: predictor_matrix: Same but without NaN's.
     """
 
-    _check_full_narr_matrix(narr_matrix)
-    return numpy.take(narr_matrix, NARR_COLUMNS_WITHOUT_NAN, axis=2)
+    _check_predictor_matrix(
+        predictor_matrix=predictor_matrix, allow_nan=True, min_num_dimensions=3,
+        max_num_dimensions=3)
+
+    num_times = predictor_matrix.shape[0]
+    for i in range(num_times):
+        predictor_matrix[i, ...] = utils.fill_nans(predictor_matrix[i, ...])
+
+    _check_predictor_matrix(
+        predictor_matrix=predictor_matrix, allow_nan=False,
+        min_num_dimensions=3, max_num_dimensions=3)
+
+    return predictor_matrix
 
 
 def subset_narr_grid_for_fcn_input(narr_matrix):
     """Subsets NARR grid for input to an FCN (fully convolutional net).
 
-    This results in dimensions of 272 x 256, which are divisible by 2 many
+    This gives dimensions of 272 x 336, which are integer-divisible by 2 many
     times, which obviates the need for padding and cropping layers.
 
-    :param narr_matrix: See documentation for `remove_nans_from_narr_grid`.
-    :return: narr_matrix: See documentation for `remove_nans_from_narr_grid`.
+    :param narr_matrix: numpy array of either predictor images or target images.
+        Dimensions may be E x 277 x 349, E x 277 x 349 x C, or
+        E x 277 x 349 x T x C.
+    :return: narr_matrix: Subset of the input array.  Dimensions may be
+        E x 272 x 336, E x 272 x 336 x C, or E x 272 x 336 x T x C.
     """
 
     _check_full_narr_matrix(narr_matrix)

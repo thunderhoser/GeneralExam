@@ -113,8 +113,13 @@ def create_downsized_3d_examples(
 
         for j in range(num_predictors):
             print 'Reading data from: "{0:s}"...'.format(narr_file_names[j])
+
             this_field_predictor_matrix, _, _, _ = (
                 processed_narr_io.read_fields_from_file(narr_file_names[j]))
+            this_field_predictor_matrix = (
+                ml_utils.fill_nans_in_predictor_images(
+                    this_field_predictor_matrix))
+
             tuple_of_full_predictor_matrices += (this_field_predictor_matrix,)
 
         print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
@@ -135,11 +140,6 @@ def create_downsized_3d_examples(
         if num_classes == 2:
             full_target_matrix = ml_utils.binarize_front_images(
                 full_target_matrix)
-
-        full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
-            full_predictor_matrix)
-        full_target_matrix = ml_utils.remove_nans_from_narr_grid(
-            full_target_matrix)
 
         if num_classes == 2:
             full_target_matrix = ml_utils.dilate_binary_target_images(
@@ -254,9 +254,13 @@ def create_downsized_4d_examples(
             for j in range(num_predictors):
                 print 'Reading data from: "{0:s}"...'.format(
                     narr_file_name_matrix[i, j])
+
                 this_field_predictor_matrix, _, _, _ = (
                     processed_narr_io.read_fields_from_file(
                         narr_file_name_matrix[i, j]))
+                this_field_predictor_matrix = (
+                    ml_utils.fill_nans_in_predictor_images(
+                        this_field_predictor_matrix))
 
                 tuple_of_3d_predictor_matrices += (this_field_predictor_matrix,)
 
@@ -282,11 +286,6 @@ def create_downsized_4d_examples(
         if num_classes == 2:
             full_target_matrix = ml_utils.binarize_front_images(
                 full_target_matrix)
-
-        full_predictor_matrix = ml_utils.remove_nans_from_narr_grid(
-            full_predictor_matrix)
-        full_target_matrix = ml_utils.remove_nans_from_narr_grid(
-            full_target_matrix)
 
         if num_classes == 2:
             full_target_matrix = ml_utils.dilate_binary_target_images(
@@ -367,8 +366,13 @@ def create_full_size_3d_example(
 
     for j in range(num_predictors):
         print 'Reading data from: "{0:s}"...'.format(narr_file_names[j])
+
         this_field_predictor_matrix, _, _, _ = (
             processed_narr_io.read_fields_from_file(narr_file_names[j]))
+        this_field_predictor_matrix = (
+            ml_utils.fill_nans_in_predictor_images(
+                this_field_predictor_matrix))
+
         tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
     print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
@@ -473,9 +477,13 @@ def create_full_size_4d_example(
         for j in range(num_predictors):
             print 'Reading data from: "{0:s}"...'.format(
                 narr_file_name_matrix[i, j])
+
             this_field_predictor_matrix, _, _, _ = (
                 processed_narr_io.read_fields_from_file(
                     narr_file_name_matrix[i, j]))
+            this_field_predictor_matrix = (
+                ml_utils.fill_nans_in_predictor_images(
+                    this_field_predictor_matrix))
 
             tuple_of_3d_predictor_matrices += (this_field_predictor_matrix,)
 

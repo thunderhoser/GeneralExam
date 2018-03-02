@@ -61,9 +61,8 @@ LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.binary_pod, keras_metrics.binary_pofd,
     keras_metrics.binary_success_ratio, keras_metrics.binary_focn]
 
-NUM_NARR_ROWS_WITHOUT_NAN, _ = nwp_model_utils.get_grid_dimensions(
+NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
-NUM_NARR_COLUMNS_WITHOUT_NAN = len(ml_utils.NARR_COLUMNS_WITHOUT_NAN)
 
 
 def get_cnn_with_mnist_architecture(
@@ -507,21 +506,19 @@ def apply_model_to_3d_example(
     """
 
     class_probability_matrix = numpy.full(
-        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN,
-         num_classes), -1, dtype=float)
+        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
+        dtype=float)
     actual_target_matrix = numpy.full(
-        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN), -1,
-        dtype=int)
+        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR), -1, dtype=int)
 
     full_predictor_matrix = None
     full_target_matrix = None
 
-    for i in range(NUM_NARR_ROWS_WITHOUT_NAN):
+    for i in range(NUM_ROWS_IN_NARR):
         these_center_row_indices = numpy.linspace(
-            i, i, num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+            i, i, num=NUM_COLUMNS_IN_NARR, dtype=int)
         these_center_column_indices = numpy.linspace(
-            0, NUM_NARR_COLUMNS_WITHOUT_NAN - 1,
-            num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+            0, NUM_COLUMNS_IN_NARR - 1, num=NUM_COLUMNS_IN_NARR, dtype=int)
 
         if i == 0:
             (this_downsized_predictor_matrix,
@@ -552,8 +549,7 @@ def apply_model_to_3d_example(
                  full_target_matrix=full_target_matrix, num_classes=num_classes)
 
         class_probability_matrix[0, i, ...] = model_object.predict(
-            this_downsized_predictor_matrix,
-            batch_size=NUM_NARR_COLUMNS_WITHOUT_NAN)
+            this_downsized_predictor_matrix, batch_size=NUM_COLUMNS_IN_NARR)
 
     return class_probability_matrix, actual_target_matrix
 
@@ -586,21 +582,19 @@ def apply_model_to_4d_example(
     """
 
     class_probability_matrix = numpy.full(
-        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN,
-         num_classes), -1, dtype=float)
+        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
+        dtype=float)
     actual_target_matrix = numpy.full(
-        (1, NUM_NARR_ROWS_WITHOUT_NAN, NUM_NARR_COLUMNS_WITHOUT_NAN), -1,
-        dtype=int)
+        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR), -1, dtype=int)
 
     full_predictor_matrix = None
     full_target_matrix = None
 
-    for i in range(NUM_NARR_ROWS_WITHOUT_NAN):
+    for i in range(NUM_ROWS_IN_NARR):
         these_center_row_indices = numpy.linspace(
-            i, i, num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+            i, i, num=NUM_COLUMNS_IN_NARR, dtype=int)
         these_center_column_indices = numpy.linspace(
-            0, NUM_NARR_COLUMNS_WITHOUT_NAN - 1,
-            num=NUM_NARR_COLUMNS_WITHOUT_NAN, dtype=int)
+            0, NUM_COLUMNS_IN_NARR - 1, num=NUM_COLUMNS_IN_NARR, dtype=int)
 
         if i == 0:
             (this_downsized_predictor_matrix,
@@ -633,7 +627,6 @@ def apply_model_to_4d_example(
                  full_target_matrix=full_target_matrix, num_classes=num_classes)
 
         class_probability_matrix[0, i, ...] = model_object.predict(
-            this_downsized_predictor_matrix,
-            batch_size=NUM_NARR_COLUMNS_WITHOUT_NAN)
+            this_downsized_predictor_matrix, batch_size=NUM_COLUMNS_IN_NARR)
 
     return class_probability_matrix, actual_target_matrix

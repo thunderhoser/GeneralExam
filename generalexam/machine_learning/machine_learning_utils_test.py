@@ -409,19 +409,6 @@ THIS_SECOND_MATRIX = numpy.array([[1, 1, 1, 1, 1, 1, 1, 0],
 FRONTAL_GRID_MATRIX_BINARY_DILATED = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0).astype(int)
 
-# The following constants are used to test remove_nans_from_narr_grid.
-FULL_NARR_MATRIX_2D_WITHOUT_NAN = FULL_NARR_MATRIX_2D[
-    :, ml_utils.FIRST_NARR_COLUMN_WITHOUT_NAN:
-    (ml_utils.LAST_NARR_COLUMN_WITHOUT_NAN + 1)
-]
-
-FULL_NARR_MATRIX_3D_WITHOUT_NAN = numpy.stack(
-    (FULL_NARR_MATRIX_2D_WITHOUT_NAN, FULL_NARR_MATRIX_2D_WITHOUT_NAN), axis=0)
-FULL_NARR_MATRIX_4D_WITHOUT_NAN = numpy.stack(
-    (FULL_NARR_MATRIX_3D_WITHOUT_NAN, FULL_NARR_MATRIX_3D_WITHOUT_NAN), axis=-1)
-FULL_NARR_MATRIX_5D_WITHOUT_NAN = numpy.stack(
-    (FULL_NARR_MATRIX_4D_WITHOUT_NAN, FULL_NARR_MATRIX_4D_WITHOUT_NAN), axis=-2)
-
 # The following constants are used to test subset_narr_grid_for_fcn_input.
 FCN_INPUT_MATRIX_2D = FULL_NARR_MATRIX_2D[
     ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT:
@@ -1185,36 +1172,6 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_matrix = ml_utils.stack_time_steps(TUPLE_OF_4D_PREDICTOR_MATRICES)
         self.assertTrue(numpy.allclose(
             this_matrix, PREDICTOR_MATRIX_5D, atol=TOLERANCE, equal_nan=True))
-
-    def test_remove_nans_from_narr_grid_3d(self):
-        """Ensures correct output from remove_nans_from_narr_grid.
-
-        In this case, input matrix is 3-D.
-        """
-
-        this_matrix = ml_utils.remove_nans_from_narr_grid(FULL_NARR_MATRIX_3D)
-        self.assertTrue(numpy.allclose(
-            this_matrix, FULL_NARR_MATRIX_3D_WITHOUT_NAN, atol=TOLERANCE))
-
-    def test_remove_nans_from_narr_grid_4d(self):
-        """Ensures correct output from remove_nans_from_narr_grid.
-
-        In this case, input matrix is 4-D.
-        """
-
-        this_matrix = ml_utils.remove_nans_from_narr_grid(FULL_NARR_MATRIX_4D)
-        self.assertTrue(numpy.allclose(
-            this_matrix, FULL_NARR_MATRIX_4D_WITHOUT_NAN, atol=TOLERANCE))
-
-    def test_remove_nans_from_narr_grid_5d(self):
-        """Ensures correct output from remove_nans_from_narr_grid.
-
-        In this case, input matrix is 5-D.
-        """
-
-        this_matrix = ml_utils.remove_nans_from_narr_grid(FULL_NARR_MATRIX_5D)
-        self.assertTrue(numpy.allclose(
-            this_matrix, FULL_NARR_MATRIX_5D_WITHOUT_NAN, atol=TOLERANCE))
 
     def test_subset_narr_grid_for_fcn_input_3d(self):
         """Ensures correct output from subset_narr_grid_for_fcn_input.

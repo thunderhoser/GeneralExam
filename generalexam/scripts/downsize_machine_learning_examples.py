@@ -276,6 +276,8 @@ def _downsize_ml_examples(
 
         this_predictor_matrix = this_predictor_matrix[
             keep_predictor_time_indices, ...]
+        this_predictor_matrix = ml_utils.fill_nans_in_predictor_images(
+            this_predictor_matrix)
         tuple_of_predictor_matrices += (this_predictor_matrix,)
 
     predictor_matrix = ml_utils.stack_predictor_variables(
@@ -315,11 +317,6 @@ def _downsize_ml_examples(
 
     print 'Binarizing target labels...'
     frontal_grid_matrix = ml_utils.binarize_front_images(frontal_grid_matrix)
-
-    print 'Removing NaN''s from predictor and target grids...'
-    predictor_matrix = ml_utils.remove_nans_from_narr_grid(predictor_matrix)
-    frontal_grid_matrix = ml_utils.remove_nans_from_narr_grid(
-        frontal_grid_matrix)
     print SEPARATOR_STRING
 
     frontal_grid_matrix = ml_utils.dilate_binary_target_images(
