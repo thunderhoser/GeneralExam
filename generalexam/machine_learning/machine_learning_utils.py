@@ -689,8 +689,8 @@ def front_table_to_images(
                 front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN].values[i]
         }
 
-        this_frontal_grid_matrix = front_utils.frontal_points_to_grid(
-            frontal_grid_dict=this_frontal_grid_dict,
+        this_frontal_grid_matrix = front_utils.frontal_grid_points_to_image(
+            frontal_grid_point_dict=this_frontal_grid_dict,
             num_grid_rows=num_rows_per_image,
             num_grid_columns=num_columns_per_image)
 
@@ -758,7 +758,7 @@ def dilate_ternary_target_images(
                    'steps...').format(i + 1, num_times)
 
         target_matrix[i, :, :] = front_utils.dilate_ternary_narr_image(
-            ternary_matrix=target_matrix[i, :, :],
+            ternary_image_matrix=target_matrix[i, :, :],
             dilation_kernel_matrix=dilation_kernel_matrix)
 
     return target_matrix
@@ -789,7 +789,7 @@ def dilate_binary_target_images(
                    'steps...').format(i + 1, num_times)
 
         target_matrix[i, :, :] = front_utils.dilate_binary_narr_image(
-            binary_matrix=target_matrix[i, :, :],
+            binary_image_matrix=target_matrix[i, :, :],
             dilation_kernel_matrix=dilation_kernel_matrix)
 
     return target_matrix

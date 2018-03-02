@@ -106,8 +106,7 @@ def _get_triangulation(polygon_object_xy):
     vertex_x_coords, vertex_y_coords = _polygon_to_vertex_arrays(
         polygon_object_xy)
     vertex_list_xy = front_utils._vertex_arrays_to_list(
-        vertex_x_coords_metres=vertex_x_coords,
-        vertex_y_coords_metres=vertex_y_coords)
+        x_coords_metres=vertex_x_coords, y_coords_metres=vertex_y_coords)
     triangle_list = tripy.earclip(vertex_list_xy)
 
     num_triangles = len(triangle_list)
@@ -918,8 +917,7 @@ def get_main_skeleton_line(polygon_object_xy, verbose=False):
                 pass
 
             this_vertex_list_xy = front_utils._vertex_arrays_to_list(
-                vertex_x_coords_metres=these_x_coords,
-                vertex_y_coords_metres=these_y_coords)
+                x_coords_metres=these_x_coords, y_coords_metres=these_y_coords)
             this_linestring_object_xy = shapely.geometry.LineString(
                 this_vertex_list_xy)
             this_length = this_linestring_object_xy.length

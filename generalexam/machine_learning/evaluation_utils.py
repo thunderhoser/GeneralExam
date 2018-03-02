@@ -201,6 +201,63 @@ def _get_random_sample_points(num_points, for_downsized_examples):
     return row_indices, column_indices
 
 
+def _get_a_for_gerrity_score(contingency_table_as_matrix):
+    """Returns a-vector for Gerrity score.
+
+    The equation for a is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
+
+    :param contingency_table_as_matrix: See documentation for
+        `_check_contingency_table`.
+    :return: a_vector: As advertised.
+    """
+
+    num_classes = contingency_table_as_matrix.shape[0]
+    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+
+    num_examples_by_class = numpy.array(
+        [_get_num_true_labels_in_class(contingency_table_as_matrix, i)
+         for i in range(num_classes)])
+    cumul_frequency_by_class = numpy.cumsum(
+        num_examples_by_class.astype(float) / num_evaluation_pairs)
+
+    return (1. - cumul_frequency_by_class) / cumul_frequency_by_class
+
+
+def _get_s_for_gerrity_score(contingency_table_as_matrix):
+    """Returns S-matrix for Gerrity score.
+
+    The equation for S is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
+
+    :param contingency_table_as_matrix: See documentation for
+        `_check_contingency_table`.
+    :return: s_matrix: As advertised.
+    """
+
+    a_vector = _get_a_for_gerrity_score(contingency_table_as_matrix)
+    a_vector_reciprocal = 1. / a_vector
+
+    num_classes = contingency_table_as_matrix.shape[0]
+    s_matrix = numpy.full((num_classes, num_classes), numpy.nan)
+
+    for i in range(num_classes):
+        for j in range(num_classes):
+            if i == j:
+                s_matrix[i, j] = (
+                    numpy.sum(a_vector_reciprocal[:i]) +
+                    numpy.sum(a_vector[i:-1]))
+                continue
+
+            if i > j:
+                s_matrix[i, j] = s_matrix[j, i]
+                continue
+
+            s_matrix[i, j] = (
+                numpy.sum(a_vector_reciprocal[:i]) - (j - i) +
+                numpy.sum(a_vector[j:-1]))
+
+    return s_matrix / (num_classes - 1)
+
+
 def downsized_examples_to_eval_pairs(
         model_object, first_target_time_unix_sec, last_target_time_unix_sec,
         num_target_times_to_sample, num_examples_per_time,
@@ -710,63 +767,6 @@ def get_heidke_score(contingency_table_as_matrix):
     denominator = _non_zero(1. - second_numerator_term)
 
     return (first_numerator_term - second_numerator_term) / denominator
-
-
-def _get_s_for_gerrity_score(contingency_table_as_matrix):
-    """Returns S-matrix for Gerrity score.
-
-    The equation for S is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: s_matrix: As advertised.
-    """
-
-    a_vector = _get_a_for_gerrity_score(contingency_table_as_matrix)
-    a_vector_reciprocal = 1. / a_vector
-
-    num_classes = contingency_table_as_matrix.shape[0]
-    s_matrix = numpy.full((num_classes, num_classes), numpy.nan)
-
-    for i in range(num_classes):
-        for j in range(num_classes):
-            if i == j:
-                s_matrix[i, j] = (
-                    numpy.sum(a_vector_reciprocal[:i]) +
-                    numpy.sum(a_vector[i:-1]))
-                continue
-
-            if i > j:
-                s_matrix[i, j] = s_matrix[j, i]
-                continue
-
-            s_matrix[i, j] = (
-                numpy.sum(a_vector_reciprocal[:i]) - (j - i) +
-                numpy.sum(a_vector[j:-1]))
-
-    return s_matrix / (num_classes - 1)
-
-
-def _get_a_for_gerrity_score(contingency_table_as_matrix):
-    """Returns a-vector for Gerrity score.
-
-    The equation for a is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: a_vector: As advertised.
-    """
-
-    num_classes = contingency_table_as_matrix.shape[0]
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
-
-    num_examples_by_class = numpy.array(
-        [_get_num_true_labels_in_class(contingency_table_as_matrix, i)
-         for i in range(num_classes)])
-    cumul_frequency_by_class = numpy.cumsum(
-        num_examples_by_class.astype(float) / num_evaluation_pairs)
-
-    return (1. - cumul_frequency_by_class) / cumul_frequency_by_class
 
 
 def get_gerrity_score(contingency_table_as_matrix):
