@@ -88,7 +88,9 @@ def _train_cnn(
         validation_end_time_string, INPUT_TIME_FORMAT)
 
     print 'Initializing model...'
-    model_object = traditional_cnn.get_cnn_with_mnist_architecture()
+    model_object = traditional_cnn.get_cnn_with_mnist_architecture(
+        num_classes=len(class_fractions),
+        num_predictors=len(NARR_PREDICTOR_NAMES), convolve_over_time=False)
     print SEPARATOR_STRING
 
     traditional_cnn.train_with_3d_examples(
