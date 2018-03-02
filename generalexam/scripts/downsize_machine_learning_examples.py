@@ -329,7 +329,7 @@ def _downsize_ml_examples(
     class_fractions = numpy.array([1. - positive_fraction, positive_fraction])
     sampled_target_point_dict = ml_utils.sample_target_points(
         target_matrix=frontal_grid_matrix, class_fractions=class_fractions,
-        num_points_per_time=NUM_POINTS_TO_SAMPLE_PER_TIME)
+        num_points_to_sample=NUM_POINTS_TO_SAMPLE_PER_TIME)
     print SEPARATOR_STRING
 
     if sampled_target_point_dict is None:

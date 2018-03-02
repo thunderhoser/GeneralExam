@@ -444,6 +444,8 @@ def downsized_3d_example_generator(
 
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_integer(num_examples_per_target_time)
+    error_checking.assert_is_geq(num_examples_per_target_time, 2)
     error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
     num_classes = len(class_fractions)
     error_checking.assert_is_geq(num_classes, 2)
@@ -464,28 +466,29 @@ def downsized_3d_example_generator(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
 
     time_index = 0
-    num_examples_in_memory = 0
-    downsized_predictor_matrix = None
-    target_values = None
+    num_times_in_memory = 0
+    num_times_needed_in_memory = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_target_time))
+    full_predictor_matrix = None
+    full_target_matrix = None
 
     while True:
-        while num_examples_in_memory < num_examples_per_batch:
+        while num_times_in_memory < num_times_needed_in_memory:
             print '\n'
-            tuple_of_full_predictor_matrices = ()
+            tuple_of_predictor_matrices = ()
 
             for j in range(num_predictors):
                 print 'Reading data from: "{0:s}"...'.format(
                     narr_file_name_matrix[time_index, j])
 
-                this_field_full_predictor_matrix, _, _, _ = (
+                this_field_predictor_matrix, _, _, _ = (
                     processed_narr_io.read_fields_from_file(
                         narr_file_name_matrix[time_index, j]))
-                this_field_full_predictor_matrix = (
+                this_field_predictor_matrix = (
                     ml_utils.fill_nans_in_predictor_images(
-                        this_field_full_predictor_matrix))
+                        this_field_predictor_matrix))
 
-                tuple_of_full_predictor_matrices += (
-                    this_field_full_predictor_matrix,)
+                tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
             print 'Reading data from: "{0:s}"...'.format(
                 frontal_grid_file_names[time_index])
@@ -495,95 +498,74 @@ def downsized_3d_example_generator(
             time_index += 1
             if time_index >= num_times:
                 time_index = 0
-            if this_frontal_grid_table.empty:
-                continue
-
-            print 'Creating downsized 3-D machine-learning examples...'
 
             this_full_predictor_matrix = ml_utils.stack_predictor_variables(
-                tuple_of_full_predictor_matrices)
+                tuple_of_predictor_matrices)
             this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
                 predictor_matrix=this_full_predictor_matrix,
                 normalize_by_example=True)
 
-            this_frontal_grid_matrix = ml_utils.front_table_to_images(
+            this_full_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
                 num_columns_per_image=this_full_predictor_matrix.shape[2])
 
             if num_classes == 2:
-                this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                    this_frontal_grid_matrix)
+                this_full_target_matrix = ml_utils.binarize_front_images(
+                    this_full_target_matrix)
 
             if num_classes == 2:
-                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                    target_matrix=this_frontal_grid_matrix,
+                this_full_target_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_full_target_matrix,
                     dilation_distance_metres=
                     dilation_distance_for_target_metres, verbose=False)
             else:
-                this_frontal_grid_matrix = (
+                this_full_target_matrix = (
                     ml_utils.dilate_ternary_target_images(
-                        target_matrix=this_frontal_grid_matrix,
+                        target_matrix=this_full_target_matrix,
                         dilation_distance_metres=
                         dilation_distance_for_target_metres, verbose=False))
 
-            this_sampled_target_point_dict = ml_utils.sample_target_points(
-                target_matrix=this_frontal_grid_matrix,
-                class_fractions=class_fractions,
-                num_points_per_time=num_examples_per_target_time)
-            if this_sampled_target_point_dict is None:
-                continue
-
-            if target_values is None or len(target_values) == 0:
-                downsized_predictor_matrix, target_values, _, _, _ = (
-                    ml_utils.downsize_grids_around_selected_points(
-                        predictor_matrix=this_full_predictor_matrix,
-                        target_matrix=this_frontal_grid_matrix,
-                        num_rows_in_half_window=num_rows_in_half_grid,
-                        num_columns_in_half_window=num_columns_in_half_grid,
-                        target_point_dict=this_sampled_target_point_dict,
-                        verbose=False))
+            if full_target_matrix is None or full_target_matrix.size == 0:
+                full_predictor_matrix = copy.deepcopy(
+                    this_full_predictor_matrix)
+                full_target_matrix = copy.deepcopy(this_full_target_matrix)
             else:
-                (this_downsized_predictor_matrix, these_target_values,
-                 _, _, _) = ml_utils.downsize_grids_around_selected_points(
-                     predictor_matrix=this_full_predictor_matrix,
-                     target_matrix=this_frontal_grid_matrix,
-                     num_rows_in_half_window=num_rows_in_half_grid,
-                     num_columns_in_half_window=num_columns_in_half_grid,
-                     target_point_dict=this_sampled_target_point_dict,
-                     verbose=False)
+                full_predictor_matrix = numpy.concatenate(
+                    (full_predictor_matrix, this_full_predictor_matrix), axis=0)
+                full_target_matrix = numpy.concatenate(
+                    (full_target_matrix, this_full_target_matrix), axis=0)
 
-                downsized_predictor_matrix = numpy.concatenate(
-                    (downsized_predictor_matrix,
-                     this_downsized_predictor_matrix), axis=0)
-                target_values = numpy.concatenate(
-                    (target_values, these_target_values))
+            num_times_in_memory = full_target_matrix.shape[0]
 
-            num_examples_in_memory = len(target_values)
+        print 'Creating downsized 3-D machine-learning examples...'
+        sampled_target_point_dict = ml_utils.sample_target_points(
+            target_matrix=full_target_matrix, class_fractions=class_fractions,
+            num_points_to_sample=num_examples_per_batch)
 
-        example_indices = numpy.linspace(
-            0, num_examples_in_memory - 1, num=num_examples_in_memory,
-            dtype=int)
-        numpy.random.shuffle(example_indices)
+        downsized_predictor_matrix, target_values, _, _, _ = (
+            ml_utils.downsize_grids_around_selected_points(
+                predictor_matrix=full_predictor_matrix,
+                target_matrix=full_target_matrix,
+                num_rows_in_half_window=num_rows_in_half_grid,
+                num_columns_in_half_window=num_columns_in_half_grid,
+                target_point_dict=sampled_target_point_dict,
+                verbose=False))
 
+        numpy.random.shuffle(batch_indices)
         downsized_predictor_matrix = downsized_predictor_matrix[
-            example_indices, ...]
-        target_values = target_values[example_indices]
-
-        predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
+        target_values = target_values[batch_indices]
 
         print 'Fraction of examples with a front = {0:.4f}'.format(
-            numpy.mean(target_values[batch_indices] > 0))
-        target_matrix_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], num_classes)
+            numpy.mean(target_values > 0))
+        target_matrix = keras.utils.to_categorical(target_values, num_classes)
 
-        downsized_predictor_matrix = numpy.delete(
-            downsized_predictor_matrix, batch_indices, axis=0)
-        target_values = numpy.delete(target_values, batch_indices, axis=0)
-        num_examples_in_memory = len(target_values)
+        full_predictor_matrix = None
+        full_target_matrix = None
+        num_times_in_memory = 0
 
-        yield (predictor_matrix_to_return, target_matrix_to_return)
+        yield (downsized_predictor_matrix, target_matrix)
 
 
 def downsized_4d_example_generator(
@@ -639,6 +621,8 @@ def downsized_4d_example_generator(
 
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_integer(num_examples_per_target_time)
+    error_checking.assert_is_geq(num_examples_per_target_time, 2)
     error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
     num_classes = len(class_fractions)
     error_checking.assert_is_geq(num_classes, 2)
@@ -661,12 +645,14 @@ def downsized_4d_example_generator(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
 
     target_time_index = 0
-    num_examples_in_memory = 0
-    downsized_predictor_matrix = None
-    target_values = None
+    num_times_in_memory = 0
+    num_times_needed_in_memory = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_target_time))
+    full_predictor_matrix = None
+    full_target_matrix = None
 
     while True:
-        while num_examples_in_memory < num_examples_per_batch:
+        while num_times_in_memory < num_times_needed_in_memory:
             print '\n'
             tuple_of_4d_predictor_matrices = ()
 
@@ -700,95 +686,72 @@ def downsized_4d_example_generator(
             if target_time_index >= num_target_times:
                 target_time_index = 0
 
-            if this_frontal_grid_table.empty:
-                continue
-
-            print 'Creating downsized 4-D machine-learning examples...'
-
             this_full_predictor_matrix = ml_utils.stack_time_steps(
                 tuple_of_4d_predictor_matrices)
             this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
                 predictor_matrix=this_full_predictor_matrix,
                 normalize_by_example=True)
 
-            this_frontal_grid_matrix = ml_utils.front_table_to_images(
+            this_full_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
                 num_columns_per_image=this_full_predictor_matrix.shape[2])
 
             if num_classes == 2:
-                this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                    this_frontal_grid_matrix)
+                this_full_target_matrix = ml_utils.binarize_front_images(
+                    this_full_target_matrix)
 
             if num_classes == 2:
-                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                    target_matrix=this_frontal_grid_matrix,
+                this_full_target_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_full_target_matrix,
                     dilation_distance_metres=
                     dilation_distance_for_target_metres, verbose=False)
             else:
-                this_frontal_grid_matrix = (
+                this_full_target_matrix = (
                     ml_utils.dilate_ternary_target_images(
-                        target_matrix=this_frontal_grid_matrix,
+                        target_matrix=this_full_target_matrix,
                         dilation_distance_metres=
                         dilation_distance_for_target_metres, verbose=False))
 
-            this_sampled_target_point_dict = ml_utils.sample_target_points(
-                target_matrix=this_frontal_grid_matrix,
-                class_fractions=class_fractions,
-                num_points_per_time=num_examples_per_target_time)
-            if this_sampled_target_point_dict is None:
-                continue
-
-            if target_values is None or len(target_values) == 0:
-                downsized_predictor_matrix, target_values, _, _, _ = (
-                    ml_utils.downsize_grids_around_selected_points(
-                        predictor_matrix=this_full_predictor_matrix,
-                        target_matrix=this_frontal_grid_matrix,
-                        num_rows_in_half_window=num_rows_in_half_grid,
-                        num_columns_in_half_window=num_columns_in_half_grid,
-                        target_point_dict=this_sampled_target_point_dict,
-                        verbose=False))
+            if full_target_matrix is None or full_target_matrix.size == 0:
+                full_predictor_matrix = copy.deepcopy(
+                    this_full_predictor_matrix)
+                full_target_matrix = copy.deepcopy(this_full_target_matrix)
             else:
-                (this_downsized_predictor_matrix, these_target_values,
-                 _, _, _) = ml_utils.downsize_grids_around_selected_points(
-                     predictor_matrix=this_full_predictor_matrix,
-                     target_matrix=this_frontal_grid_matrix,
-                     num_rows_in_half_window=num_rows_in_half_grid,
-                     num_columns_in_half_window=num_columns_in_half_grid,
-                     target_point_dict=this_sampled_target_point_dict,
-                     verbose=False)
+                full_predictor_matrix = numpy.concatenate(
+                    (full_predictor_matrix, this_full_predictor_matrix), axis=0)
+                full_target_matrix = numpy.concatenate(
+                    (full_target_matrix, this_full_target_matrix), axis=0)
 
-                downsized_predictor_matrix = numpy.concatenate(
-                    (downsized_predictor_matrix,
-                     this_downsized_predictor_matrix), axis=0)
-                target_values = numpy.concatenate(
-                    (target_values, these_target_values))
+            num_times_in_memory = full_target_matrix.shape[0]
 
-            num_examples_in_memory = len(target_values)
+        sampled_target_point_dict = ml_utils.sample_target_points(
+            target_matrix=full_target_matrix, class_fractions=class_fractions,
+            num_points_to_sample=num_examples_per_batch)
 
-        example_indices = numpy.linspace(
-            0, num_examples_in_memory - 1, num=num_examples_in_memory,
-            dtype=int)
-        numpy.random.shuffle(example_indices)
+        downsized_predictor_matrix, target_values, _, _, _ = (
+            ml_utils.downsize_grids_around_selected_points(
+                predictor_matrix=full_predictor_matrix,
+                target_matrix=full_target_matrix,
+                num_rows_in_half_window=num_rows_in_half_grid,
+                num_columns_in_half_window=num_columns_in_half_grid,
+                target_point_dict=sampled_target_point_dict,
+                verbose=False))
 
+        numpy.random.shuffle(batch_indices)
         downsized_predictor_matrix = downsized_predictor_matrix[
-            example_indices, ...]
-        target_values = target_values[example_indices]
-
-        predictor_matrix_to_return = downsized_predictor_matrix[
             batch_indices, ...].astype('float32')
+        target_values = target_values[batch_indices]
 
         print 'Fraction of examples with a front = {0:.4f}'.format(
-            numpy.mean(target_values[batch_indices] > 0))
-        target_matrix_to_return = keras.utils.to_categorical(
-            target_values[batch_indices], num_classes)
+            numpy.mean(target_values > 0))
+        target_matrix = keras.utils.to_categorical(target_values, num_classes)
 
-        downsized_predictor_matrix = numpy.delete(
-            downsized_predictor_matrix, batch_indices, axis=0)
-        target_values = numpy.delete(target_values, batch_indices, axis=0)
-        num_examples_in_memory = len(target_values)
+        full_predictor_matrix = None
+        full_target_matrix = None
+        num_times_in_memory = 0
 
-        yield (predictor_matrix_to_return, target_matrix_to_return)
+        yield (downsized_predictor_matrix, target_matrix)
 
 
 def full_size_3d_example_generator(

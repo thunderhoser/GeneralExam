@@ -230,7 +230,7 @@ PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT = numpy.stack(
 
 # The following constants are used to test sample_target_points with 2 classes.
 CLASS_FRACTIONS_FOR_BINARY_SAMPLING = numpy.array([0.5, 0.5])
-NUM_EXAMPLES_PER_TIME = 25
+NUM_POINTS_TO_SAMPLE = 50
 
 NEGATIVE_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 0, 0,
                                           1,
@@ -1065,7 +1065,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_target_point_dict = ml_utils.sample_target_points(
             target_matrix=FRONTAL_GRID_MATRIX_BINARY,
             class_fractions=CLASS_FRACTIONS_FOR_BINARY_SAMPLING,
-            num_points_per_time=NUM_EXAMPLES_PER_TIME, test_mode=True)
+            num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(set(this_target_point_dict.keys()) ==
                         set(SAMPLED_TARGET_POINT_DICT_BINARY.keys()))
@@ -1095,7 +1095,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         this_target_point_dict = ml_utils.sample_target_points(
             target_matrix=FRONTAL_GRID_MATRIX_TERNARY,
             class_fractions=CLASS_FRACTIONS_FOR_TERNARY_SAMPLING,
-            num_points_per_time=NUM_EXAMPLES_PER_TIME, test_mode=True)
+            num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(set(this_target_point_dict.keys()) ==
                         set(SAMPLED_TARGET_POINT_DICT_TERNARY.keys()))

@@ -21,7 +21,6 @@ from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
-DEFAULT_NUM_SAMPLE_PTS_PER_TIME = 1000
 
 # Subset of NARR grid for FCN (fully convolutional net).  This gives dimensions
 # of 272 x 336, which are integer-divisible by 2 many times, which obviates the
@@ -505,8 +504,7 @@ def check_downsized_examples(
 
 
 def sample_target_points(
-        target_matrix, class_fractions,
-        num_points_per_time=DEFAULT_NUM_SAMPLE_PTS_PER_TIME, test_mode=False):
+        target_matrix, class_fractions, num_points_to_sample, test_mode=False):
     """Samples target points to achieve desired class balance.
 
     If any class is missing from `target_matrix`, this method will return None.
@@ -518,7 +516,7 @@ def sample_target_points(
     :param class_fractions: 1-D numpy array of desired class fractions.  If
         `target_matrix` is binary, this array must have length 2; if
         `target_matrix` is ternary, this array must have length 3.
-    :param num_points_per_time: Number of points to sample from each image.
+    :param num_points_to_sample: Number of points to sample.
     :param test_mode: Boolean flag.  Always leave this False.
     :return: target_point_dict: Dictionary with the following keys.
     target_point_dict['row_indices_by_time']: length-T list, where the [i]th
@@ -548,12 +546,10 @@ def sample_target_points(
     _check_target_matrix(
         target_matrix, assert_binary=num_classes == 2, num_dimensions=3)
 
-    error_checking.assert_is_integer(num_points_per_time)
-    error_checking.assert_is_geq(num_points_per_time, 3)
+    error_checking.assert_is_integer(num_points_to_sample)
+    error_checking.assert_is_geq(num_points_to_sample, 3)
     error_checking.assert_is_boolean(test_mode)
 
-    num_times = target_matrix.shape[0]
-    num_points_to_sample = num_times * num_points_per_time
     num_points_to_sample_by_class = _class_fractions_to_num_points(
         class_fractions=class_fractions, num_points_total=num_points_to_sample)
 
@@ -620,6 +616,7 @@ def sample_target_points(
             column_indices_by_class[i] = column_indices_by_class[i][
                 these_indices]
 
+    num_times = target_matrix.shape[0]
     row_indices_by_time = [numpy.array([], dtype=int)] * num_times
     column_indices_by_time = [numpy.array([], dtype=int)] * num_times
 
