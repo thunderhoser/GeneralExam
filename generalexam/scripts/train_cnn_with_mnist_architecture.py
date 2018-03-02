@@ -75,6 +75,7 @@ def _train_cnn(
     """
 
     class_fractions = numpy.array(class_fractions)
+    print class_fractions
 
     training_start_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, INPUT_TIME_FORMAT)
