@@ -361,8 +361,6 @@ def downsized_examples_to_eval_pairs(
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
         for t in target_times_unix_sec]
 
-    full_predictor_matrix = None
-    full_target_matrix = None
     class_probability_matrix = numpy.full(
         (num_target_times_to_sample, num_examples_per_time, num_classes),
         numpy.nan)
@@ -377,67 +375,41 @@ def downsized_examples_to_eval_pairs(
             _get_random_sample_points(
                 num_points=num_examples_per_time, for_downsized_examples=True))
 
-        if i == 0:
-            if num_dimensions_per_example == 3:
-                (this_downsized_predictor_matrix,
-                 observed_labels[i, :],
-                 full_predictor_matrix,
-                 full_target_matrix) = testing_io.create_downsized_3d_examples(
-                     center_row_indices=these_center_row_indices,
-                     center_column_indices=these_center_column_indices,
-                     num_rows_in_half_grid=num_rows_in_half_grid,
-                     num_columns_in_half_grid=num_columns_in_half_grid,
-                     target_time_unix_sec=target_times_unix_sec[i],
-                     top_narr_directory_name=top_narr_directory_name,
-                     top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                     narr_predictor_names=narr_predictor_names,
-                     pressure_level_mb=pressure_level_mb,
-                     dilation_distance_for_target_metres=
-                     dilation_distance_for_target_metres,
-                     num_classes=num_classes)
-
-            else:
-                (this_downsized_predictor_matrix,
-                 observed_labels[i, :],
-                 full_predictor_matrix,
-                 full_target_matrix) = testing_io.create_downsized_4d_examples(
-                     center_row_indices=these_center_row_indices,
-                     center_column_indices=these_center_column_indices,
-                     num_rows_in_half_grid=num_rows_in_half_grid,
-                     num_columns_in_half_grid=num_columns_in_half_grid,
-                     target_time_unix_sec=target_times_unix_sec[i],
-                     num_predictor_time_steps=num_predictor_time_steps,
-                     num_lead_time_steps=num_lead_time_steps,
-                     top_narr_directory_name=top_narr_directory_name,
-                     top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                     narr_predictor_names=narr_predictor_names,
-                     pressure_level_mb=pressure_level_mb,
-                     dilation_distance_for_target_metres=
-                     dilation_distance_for_target_metres,
-                     num_classes=num_classes)
+        if num_dimensions_per_example == 3:
+            (this_downsized_predictor_matrix,
+             observed_labels[i, :],
+             _, _) = testing_io.create_downsized_3d_examples(
+                 center_row_indices=these_center_row_indices,
+                 center_column_indices=these_center_column_indices,
+                 num_rows_in_half_grid=num_rows_in_half_grid,
+                 num_columns_in_half_grid=num_columns_in_half_grid,
+                 target_time_unix_sec=target_times_unix_sec[i],
+                 top_narr_directory_name=top_narr_directory_name,
+                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                 narr_predictor_names=narr_predictor_names,
+                 pressure_level_mb=pressure_level_mb,
+                 dilation_distance_for_target_metres=
+                 dilation_distance_for_target_metres,
+                 num_classes=num_classes)
 
         else:
-            if num_dimensions_per_example == 3:
-                (this_downsized_predictor_matrix,
-                 observed_labels[i, :],
-                 _, _) = testing_io.create_downsized_3d_examples(
-                     center_row_indices=these_center_row_indices,
-                     center_column_indices=these_center_column_indices,
-                     num_rows_in_half_grid=num_rows_in_half_grid,
-                     num_columns_in_half_grid=num_columns_in_half_grid,
-                     full_predictor_matrix=full_predictor_matrix,
-                     full_target_matrix=full_target_matrix)
-
-            else:
-                (this_downsized_predictor_matrix,
-                 observed_labels[i, :],
-                 _, _) = testing_io.create_downsized_4d_examples(
-                     center_row_indices=these_center_row_indices,
-                     center_column_indices=these_center_column_indices,
-                     num_rows_in_half_grid=num_rows_in_half_grid,
-                     num_columns_in_half_grid=num_columns_in_half_grid,
-                     full_predictor_matrix=full_predictor_matrix,
-                     full_target_matrix=full_target_matrix)
+            (this_downsized_predictor_matrix,
+             observed_labels[i, :],
+             _, _) = testing_io.create_downsized_4d_examples(
+                 center_row_indices=these_center_row_indices,
+                 center_column_indices=these_center_column_indices,
+                 num_rows_in_half_grid=num_rows_in_half_grid,
+                 num_columns_in_half_grid=num_columns_in_half_grid,
+                 target_time_unix_sec=target_times_unix_sec[i],
+                 num_predictor_time_steps=num_predictor_time_steps,
+                 num_lead_time_steps=num_lead_time_steps,
+                 top_narr_directory_name=top_narr_directory_name,
+                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                 narr_predictor_names=narr_predictor_names,
+                 pressure_level_mb=pressure_level_mb,
+                 dilation_distance_for_target_metres=
+                 dilation_distance_for_target_metres,
+                 num_classes=num_classes)
 
         class_probability_matrix[i, ...] = model_object.predict(
             this_downsized_predictor_matrix, batch_size=num_examples_per_time)
@@ -625,9 +597,12 @@ def find_best_binarization_threshold(
             forecast_probabilities=class_probability_matrix[:, 0],
             binarization_threshold=possible_thresholds[i])
 
+        these_predicted_labels = numpy.invert(
+            these_predicted_labels.astype(bool)).astype(int)
+
         this_contingency_table_as_dict = model_eval.get_contingency_table(
             forecast_labels=these_predicted_labels,
-            observed_labels=observed_labels)
+            observed_labels=(observed_labels > 0).astype(int))
 
         criterion_values[i] = criterion_function(this_contingency_table_as_dict)
 
