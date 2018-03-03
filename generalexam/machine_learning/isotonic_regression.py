@@ -5,7 +5,39 @@ import numpy
 from sklearn.isotonic import IsotonicRegression
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.machine_learning import evaluation_utils
+
+
+def _check_evaluation_pairs(class_probability_matrix, observed_labels):
+    """Checks evaluation pairs for errors.
+
+    P = number of evaluation pairs
+    K = number of classes
+
+    :param class_probability_matrix: P-by-K numpy array of floats.
+        class_probability_matrix[i, k] is the predicted probability that the
+        [i]th example belongs to the [k]th class.
+    :param observed_labels: length-P numpy array of integers.  If
+        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
+        class.
+    """
+
+    # TODO(thunderhoser): This method is duplicated from evaluation_utils.py.  I
+    # can't just import evaluation_utils.py, because this leads to a circular
+    # import chain.  The answer is to put this method somewhere more general.
+
+    error_checking.assert_is_numpy_array(
+        class_probability_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
+    error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
+
+    num_evaluation_pairs = class_probability_matrix.shape[0]
+    num_classes = class_probability_matrix.shape[1]
+
+    error_checking.assert_is_numpy_array(
+        observed_labels, exact_dimensions=numpy.array([num_evaluation_pairs]))
+    error_checking.assert_is_integer_numpy_array(observed_labels)
+    error_checking.assert_is_geq_numpy_array(observed_labels, 0)
+    error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
 
 
 def train_model_for_each_class(orig_class_probability_matrix, observed_labels):
@@ -24,7 +56,7 @@ def train_model_for_each_class(orig_class_probability_matrix, observed_labels):
         `sklearn.isotonic.IsotonicRegression`.
     """
 
-    evaluation_utils.check_evaluation_pairs(
+    _check_evaluation_pairs(
         class_probability_matrix=orig_class_probability_matrix,
         observed_labels=observed_labels)
 
@@ -57,7 +89,7 @@ def apply_model_for_each_class(
         `orig_class_probability_matrix`.
     """
 
-    evaluation_utils.check_evaluation_pairs(
+    _check_evaluation_pairs(
         class_probability_matrix=orig_class_probability_matrix,
         observed_labels=observed_labels)
 
@@ -84,7 +116,7 @@ def apply_model_for_each_class(
             new_class_probability_matrix[i, :] /
             numpy.sum(new_class_probability_matrix[i, :]))
 
-    evaluation_utils.check_evaluation_pairs(
+    _check_evaluation_pairs(
         class_probability_matrix=new_class_probability_matrix,
         observed_labels=observed_labels)
 
