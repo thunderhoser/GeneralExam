@@ -37,6 +37,7 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import fcn
+from generalexam.machine_learning import isotonic_regression
 
 # TODO(thunderhoser): This file contains a lot of duplicated code.  Should
 # combine downsized 3-D and 4-D into one method, full-size 3-D and 4-D into one
@@ -104,35 +105,6 @@ ALL_ROW_INDICES_FOR_FULL_SIZE_EXAMPLES = numpy.reshape(
     THIS_ROW_INDEX_MATRIX, THIS_ROW_INDEX_MATRIX.size).astype(int)
 ALL_COLUMN_INDICES_FOR_FULL_SIZE_EXAMPLES = numpy.reshape(
     THIS_COLUMN_INDEX_MATRIX, THIS_COLUMN_INDEX_MATRIX.size).astype(int)
-
-
-def _check_evaluation_pairs(class_probability_matrix, observed_labels):
-    """Checks evaluation pairs for errors.
-
-    P = number of evaluation pairs
-    K = number of classes
-
-    :param class_probability_matrix: P-by-K numpy array of floats.
-        class_probability_matrix[i, k] is the predicted probability that the
-        [i]th example belongs to the [k]th class.
-    :param observed_labels: length-P numpy array of integers.  If
-        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
-        class.
-    """
-
-    error_checking.assert_is_numpy_array(
-        class_probability_matrix, num_dimensions=2)
-    error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
-    error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
-
-    num_evaluation_pairs = class_probability_matrix.shape[0]
-    num_classes = class_probability_matrix.shape[1]
-
-    error_checking.assert_is_numpy_array(
-        observed_labels, exact_dimensions=numpy.array([num_evaluation_pairs]))
-    error_checking.assert_is_integer_numpy_array(observed_labels)
-    error_checking.assert_is_geq_numpy_array(observed_labels, 0)
-    error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
 
 
 def _check_contingency_table(contingency_table_as_matrix):
@@ -289,6 +261,35 @@ def _get_s_for_gerrity_score(contingency_table_as_matrix):
     return s_matrix / (num_classes - 1)
 
 
+def check_evaluation_pairs(class_probability_matrix, observed_labels):
+    """Checks evaluation pairs for errors.
+
+    P = number of evaluation pairs
+    K = number of classes
+
+    :param class_probability_matrix: P-by-K numpy array of floats.
+        class_probability_matrix[i, k] is the predicted probability that the
+        [i]th example belongs to the [k]th class.
+    :param observed_labels: length-P numpy array of integers.  If
+        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
+        class.
+    """
+
+    error_checking.assert_is_numpy_array(
+        class_probability_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
+    error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
+
+    num_evaluation_pairs = class_probability_matrix.shape[0]
+    num_classes = class_probability_matrix.shape[1]
+
+    error_checking.assert_is_numpy_array(
+        observed_labels, exact_dimensions=numpy.array([num_evaluation_pairs]))
+    error_checking.assert_is_integer_numpy_array(observed_labels)
+    error_checking.assert_is_geq_numpy_array(observed_labels, 0)
+    error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
+
+
 def downsized_examples_to_eval_pairs(
         model_object, first_target_time_unix_sec, last_target_time_unix_sec,
         num_target_times_to_sample, num_examples_per_time,
@@ -296,7 +297,7 @@ def downsized_examples_to_eval_pairs(
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
         num_columns_in_half_grid, num_classes, num_predictor_time_steps=None,
-        num_lead_time_steps=None):
+        num_lead_time_steps=None, isotonic_model_object_by_class=None):
     """Creates evaluation pairs from downsized 3-D or 4-D examples.
 
     M = number of pixel rows in full NARR grid
@@ -336,9 +337,12 @@ def downsized_examples_to_eval_pairs(
     :param num_lead_time_steps: [needed only if examples are 4-D]
         Number of time steps between latest predictor time (last image in the
         sequence) and target time.
+    :param isotonic_model_object_by_class: length-K list with trained instances
+        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
+        regression.
     :return: class_probability_matrix: See documentation for
-        `_check_evaluation_pairs`.
-    :return: observed_labels: See doc for `_check_evaluation_pairs`.
+        `check_evaluation_pairs`.
+    :return: observed_labels: See doc for `check_evaluation_pairs`.
     """
 
     error_checking.assert_is_integer(num_target_times_to_sample)
@@ -423,6 +427,13 @@ def downsized_examples_to_eval_pairs(
         class_probability_matrix, new_dimensions)
     observed_labels = numpy.reshape(observed_labels, observed_labels.size)
 
+    if isotonic_model_object_by_class is not None:
+        class_probability_matrix = (
+            isotonic_regression.apply_model_for_each_class(
+                orig_class_probability_matrix=class_probability_matrix,
+                observed_labels=observed_labels,
+                model_object_by_class=isotonic_model_object_by_class))
+
     return class_probability_matrix, observed_labels
 
 
@@ -432,7 +443,8 @@ def full_size_examples_to_eval_pairs(
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_classes,
-        num_predictor_time_steps=None, num_lead_time_steps=None):
+        num_predictor_time_steps=None, num_lead_time_steps=None,
+        isotonic_model_object_by_class=None):
     """Creates evaluation pairs from full-size 3-D or 4-D examples.
 
     P = number of evaluation pairs created by this method
@@ -452,6 +464,7 @@ def full_size_examples_to_eval_pairs(
     :param num_classes: Same.
     :param num_predictor_time_steps: Same.
     :param num_lead_time_steps: Same.
+    :param isotonic_model_object_by_class: Same.
     :return: class_probability_matrix: Same.
     :return: observed_labels: Same.
     """
@@ -500,7 +513,9 @@ def full_size_examples_to_eval_pairs(
                     pressure_level_mb=pressure_level_mb,
                     dilation_distance_for_target_metres=
                     dilation_distance_for_target_metres,
-                    num_classes=num_classes))
+                    num_classes=num_classes,
+                    isotonic_model_object_by_class=
+                    isotonic_model_object_by_class))
         else:
             this_class_probability_matrix, this_actual_target_matrix = (
                 fcn.apply_model_to_4d_example(
@@ -514,7 +529,9 @@ def full_size_examples_to_eval_pairs(
                     pressure_level_mb=pressure_level_mb,
                     dilation_distance_for_target_metres=
                     dilation_distance_for_target_metres,
-                    num_classes=num_classes))
+                    num_classes=num_classes,
+                    isotonic_model_object_by_class=
+                    isotonic_model_object_by_class))
 
         these_row_indices, these_column_indices = _get_random_sample_points(
             num_points=num_points_per_time, for_downsized_examples=False)
@@ -557,8 +574,8 @@ def find_best_binarization_threshold(
     of classes.
 
     :param class_probability_matrix: See documentation for
-        `_check_evaluation_pairs`.
-    :param observed_labels: See doc for `_check_evaluation_pairs`.
+        `check_evaluation_pairs`.
+    :param observed_labels: See doc for `check_evaluation_pairs`.
     :param threshold_arg: See documentation for
         `model_evaluation.get_binarization_thresholds`.  Determines which
         thresholds will be tried.
@@ -575,7 +592,7 @@ def find_best_binarization_threshold(
         threshold.
     """
 
-    _check_evaluation_pairs(
+    check_evaluation_pairs(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 
@@ -627,7 +644,7 @@ def determinize_probabilities(class_probability_matrix, binarization_threshold):
     P = number of evaluation pairs
 
     :param class_probability_matrix: See documentation for
-        `_check_evaluation_pairs`.
+        `check_evaluation_pairs`.
     :param binarization_threshold: See documentation for
         `find_best_binarization_threshold`.
     :return: predicted_labels: length-P numpy array of predicted class labels

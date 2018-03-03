@@ -1,0 +1,120 @@
+"""Training and testing methods for isotonic regression."""
+
+import pickle
+import numpy
+from sklearn.isotonic import IsotonicRegression
+from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
+from generalexam.machine_learning import evaluation_utils
+
+
+def train_model_for_each_class(orig_class_probability_matrix, observed_labels):
+    """Trains isotonic-regression model for each class.
+
+    P = number of examples
+    K = number of classes
+
+    :param orig_class_probability_matrix: P-by-K numpy array uncalibrated
+        probabilities.  class_probability_matrix[i, k] is the predicted
+        probability that the [i]th example belongs to the [k]th class.
+    :param observed_labels: length-P numpy array of integers.  If
+        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
+        class.
+    :return: model_object_by_class: length-K list with trained instances of
+        `sklearn.isotonic.IsotonicRegression`.
+    """
+
+    evaluation_utils.check_evaluation_pairs(
+        class_probability_matrix=orig_class_probability_matrix,
+        observed_labels=observed_labels)
+
+    num_classes = orig_class_probability_matrix.shape[1]
+    model_object_by_class = [None] * num_classes
+
+    for k in range(num_classes):
+        print 'Training isotonic-regression model for class {0:d}...'.format(k)
+
+        model_object_by_class[k] = IsotonicRegression(
+            y_min=0., y_max=1., increasing=True, out_of_bounds='clip')
+        model_object_by_class[k].fit(
+            X=orig_class_probability_matrix[:, k],
+            y=(observed_labels == k).astype(int))
+
+    return model_object_by_class
+
+
+def apply_model_for_each_class(
+        orig_class_probability_matrix, observed_labels, model_object_by_class):
+    """Applies isotonic-regression model for each class.
+
+    :param orig_class_probability_matrix: See documentation for
+        `train_model_for_each_class`.
+    :param observed_labels: Same.
+    :param model_object_by_class: Same.
+    :return: new_class_probability_matrix: Calibrated version of
+        `orig_class_probability_matrix`.
+    :raises: ValueError: if number of models != number of columns in
+        `orig_class_probability_matrix`.
+    """
+
+    evaluation_utils.check_evaluation_pairs(
+        class_probability_matrix=orig_class_probability_matrix,
+        observed_labels=observed_labels)
+
+    error_checking.assert_is_list(model_object_by_class)
+    num_classes = orig_class_probability_matrix.shape[1]
+    if len(model_object_by_class) != num_classes:
+        error_string = (
+            'Number of models ({0:d}) should = number of columns in '
+            'orig_class_probability_matrix ({1:d}).').format(
+                len(model_object_by_class), num_classes)
+        raise ValueError(error_string)
+
+    num_examples = orig_class_probability_matrix.shape[0]
+    new_class_probability_matrix = numpy.full(
+        (num_examples, num_classes), numpy.nan)
+
+    for k in range(num_classes):
+        new_class_probability_matrix[:, k] = model_object_by_class[k].predict(
+            orig_class_probability_matrix[:, k])
+
+    # Ensure that sum of class probabilities = 1 for each example.
+    for i in range(num_examples):
+        new_class_probability_matrix[i, :] = (
+            new_class_probability_matrix[i, :] /
+            numpy.sum(new_class_probability_matrix[i, :]))
+
+    evaluation_utils.check_evaluation_pairs(
+        class_probability_matrix=new_class_probability_matrix,
+        observed_labels=observed_labels)
+
+    return new_class_probability_matrix
+
+
+def write_model_for_each_class(model_object_by_class, pickle_file_name):
+    """Writes models to Pickle file.
+
+    :param model_object_by_class: See documentation for
+        `train_model_for_each_class`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(model_object_by_class, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_model_for_each_class(pickle_file_name):
+    """Reads models from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: model_object_by_class: See documentation for
+        `train_model_for_each_class`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    model_object_by_class = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return model_object_by_class

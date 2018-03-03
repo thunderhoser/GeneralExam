@@ -16,6 +16,7 @@ from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.plotting import model_eval_plotting
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import evaluation_utils as eval_utils
+from generalexam.machine_learning import isotonic_regression
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
@@ -30,6 +31,7 @@ FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
 LAST_EVAL_TIME_ARG_NAME = 'last_eval_time_string'
 NUM_EVAL_TIMES_ARG_NAME = 'num_evaluation_times'
 NUM_EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
+USE_ISOTONIC_REGRESSION_ARG_NAME = 'use_isotonic_regression'
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
 
@@ -45,6 +47,9 @@ NUM_EVAL_TIMES_HELP_STRING = (
     '`{1:s}`.').format(FIRST_EVAL_TIME_ARG_NAME, LAST_EVAL_TIME_ARG_NAME)
 NUM_EXAMPLES_PER_TIME_HELP_STRING = (
     'Number of evaluation pairs to be drawn randomly from each time.')
+USE_ISOTONIC_REGRESSION_HELP_STRING = (
+    'Boolean flag.  If 1, isotonic regression will be used to calibrate '
+    'probabilities from the base model.')
 NARR_DIR_HELP_STRING = (
     'Name of top-level directory with NARR data (one file for each variable, '
     'pressure level, and time step).')
@@ -76,6 +81,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_PER_TIME_ARG_NAME, type=int, required=True,
     help=NUM_EXAMPLES_PER_TIME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + USE_ISOTONIC_REGRESSION_ARG_NAME, type=int, required=False,
+    default=0, help=USE_ISOTONIC_REGRESSION_ARG_NAME)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NARR_DIR_ARG_NAME, type=str, required=False,
@@ -237,8 +246,8 @@ def _create_attributes_diagrams(
 
 def _evaluate_model(
         model_file_name, first_eval_time_string, last_eval_time_string,
-        num_evaluation_times, num_examples_per_time, top_narr_directory_name,
-        top_frontal_grid_dir_name):
+        num_evaluation_times, num_examples_per_time, use_isotonic_regression,
+        top_narr_directory_name, top_frontal_grid_dir_name):
     """Evaluates a traditional CNN, preferably on non-training data.
 
     :param model_file_name: Path to model file, containing a trained CNN.  This
@@ -251,6 +260,8 @@ def _evaluate_model(
         from the period `first_eval_time_string`...`last_eval_time_string`.
     :param num_examples_per_time: Number of evaluation pairs to be drawn
         randomly from each time.
+    :param use_isotonic_regression: Boolean flag.  If True, isotonic regression
+        will be used to calibrate probabilities from the base model.
     :param top_narr_directory_name: Name of top-level directory with NARR data
         (one file for each variable, pressure level, and time step).
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
@@ -274,8 +285,20 @@ def _evaluate_model(
         model_metadata_file_name)
     model_metadata_dict = traditional_cnn.read_model_metadata(
         model_metadata_file_name)
-    print SEPARATOR_STRING
 
+    if use_isotonic_regression:
+        isotonic_regression_file_name = (
+            '{0:s}/isotonic_regression_models.p'.format(model_directory_name))
+
+        print 'Reading isotonic-regression models from: "{0:s}"...'.format(
+            isotonic_regression_file_name)
+        isotonic_model_object_by_class = (
+            isotonic_regression.read_model_for_each_class(
+                isotonic_regression_file_name))
+    else:
+        isotonic_model_object_by_class = None
+
+    print SEPARATOR_STRING
     num_classes = len(model_metadata_dict[traditional_cnn.CLASS_FRACTIONS_KEY])
 
     class_probability_matrix, observed_labels = (
@@ -301,7 +324,8 @@ def _evaluate_model(
             num_predictor_time_steps=model_metadata_dict[
                 traditional_cnn.NUM_PREDICTOR_TIME_STEPS_KEY],
             num_lead_time_steps=model_metadata_dict[
-                traditional_cnn.NUM_LEAD_TIME_STEPS_KEY]))
+                traditional_cnn.NUM_LEAD_TIME_STEPS_KEY],
+            isotonic_model_object_by_class=isotonic_model_object_by_class))
     print SEPARATOR_STRING
 
     print 'Finding best binarization threshold (front vs. no front)...'
@@ -407,6 +431,8 @@ if __name__ == '__main__':
     NUM_EVALUATION_TIMES = getattr(INPUT_ARG_OBJECT, NUM_EVAL_TIMES_ARG_NAME)
     NUM_EXAMPLES_PER_TIME = getattr(
         INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_TIME_ARG_NAME)
+    USE_ISOTONIC_REGRESSION = bool(
+        getattr(INPUT_ARG_OBJECT, USE_ISOTONIC_REGRESSION_ARG_NAME))
 
     TOP_NARR_DIRECTORY_NAME = getattr(INPUT_ARG_OBJECT, NARR_DIR_ARG_NAME)
     TOP_FRONTAL_GRID_DIR_NAME = getattr(
@@ -418,5 +444,6 @@ if __name__ == '__main__':
         last_eval_time_string=LAST_EVAL_TIME_STRING,
         num_evaluation_times=NUM_EVALUATION_TIMES,
         num_examples_per_time=NUM_EXAMPLES_PER_TIME,
+        use_isotonic_regression=USE_ISOTONIC_REGRESSION,
         top_narr_directory_name=TOP_NARR_DIRECTORY_NAME,
         top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME)

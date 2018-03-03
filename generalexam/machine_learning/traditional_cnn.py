@@ -34,6 +34,7 @@ from generalexam.machine_learning import cnn_utils
 from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
+from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import keras_metrics
 
 # from keras import backend as K
@@ -603,7 +604,8 @@ def apply_model_to_3d_example(
         model_object, target_time_unix_sec, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
-        num_columns_in_half_grid, num_classes):
+        num_columns_in_half_grid, num_classes,
+        isotonic_model_object_by_class=None):
     """Applies trained CNN to one 3-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -617,6 +619,9 @@ def apply_model_to_3d_example(
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :param num_classes: Same.
+    :param isotonic_model_object_by_class: length-K list with trained instances
+        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
+        regression.
     :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
         class probabilities.
     :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
@@ -669,6 +674,26 @@ def apply_model_to_3d_example(
         class_probability_matrix[0, i, ...] = model_object.predict(
             this_downsized_predictor_matrix, batch_size=NUM_COLUMNS_IN_NARR)
 
+    if isotonic_model_object_by_class is not None:
+        this_class_probability_matrix = numpy.reshape(
+            class_probability_matrix[0, ...],
+            (NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR, num_classes))
+
+        these_observed_labels = numpy.reshape(
+            actual_target_matrix[0, ...],
+            NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR)
+
+        this_class_probability_matrix = (
+            isotonic_regression.apply_model_for_each_class(
+                orig_class_probability_matrix=this_class_probability_matrix,
+                observed_labels=these_observed_labels,
+                model_object_by_class=isotonic_model_object_by_class))
+
+        this_class_probability_matrix = numpy.reshape(
+            this_class_probability_matrix,
+            (NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes))
+        class_probability_matrix[0, ...] = this_class_probability_matrix
+
     return class_probability_matrix, actual_target_matrix
 
 
@@ -677,7 +702,8 @@ def apply_model_to_4d_example(
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
-        num_columns_in_half_grid, num_classes):
+        num_columns_in_half_grid, num_classes,
+        isotonic_model_object_by_class=None):
     """Applies trained CNN to one 4-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -693,6 +719,9 @@ def apply_model_to_4d_example(
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :param num_classes: Same.
+    :param isotonic_model_object_by_class: length-K list with trained instances
+        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
+        regression.
     :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
         class probabilities.
     :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
@@ -746,5 +775,25 @@ def apply_model_to_4d_example(
 
         class_probability_matrix[0, i, ...] = model_object.predict(
             this_downsized_predictor_matrix, batch_size=NUM_COLUMNS_IN_NARR)
+
+    if isotonic_model_object_by_class is not None:
+        this_class_probability_matrix = numpy.reshape(
+            class_probability_matrix[0, ...],
+            (NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR, num_classes))
+
+        these_observed_labels = numpy.reshape(
+            actual_target_matrix[0, ...],
+            NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR)
+
+        this_class_probability_matrix = (
+            isotonic_regression.apply_model_for_each_class(
+                orig_class_probability_matrix=this_class_probability_matrix,
+                observed_labels=these_observed_labels,
+                model_object_by_class=isotonic_model_object_by_class))
+
+        this_class_probability_matrix = numpy.reshape(
+            this_class_probability_matrix,
+            (NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes))
+        class_probability_matrix[0, ...] = this_class_probability_matrix
 
     return class_probability_matrix, actual_target_matrix

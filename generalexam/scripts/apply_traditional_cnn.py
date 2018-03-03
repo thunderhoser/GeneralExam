@@ -18,6 +18,7 @@ from gewittergefahr.plotting import plotting_utils
 from generalexam.ge_utils import front_utils
 from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import isotonic_regression
 from generalexam.plotting import narr_plotting
 from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
@@ -38,6 +39,7 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 RANDOMIZE_TIMES_ARG_NAME = 'randomize_times'
 NUM_TIMES_ARG_NAME = 'num_times'
+USE_ISOTONIC_REGRESSION_ARG_NAME = 'use_isotonic_regression'
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
 FRONTAL_POLYLINE_DIR_ARG_NAME = 'input_frontal_polyline_dir_name'
@@ -57,6 +59,9 @@ NUM_TIMES_HELP_STRING = (
     '[used only if `{0:s}` = 1] The model will be applied to this many random '
     'times from `{1:s}`...`{2:s}`.').format(
         RANDOMIZE_TIMES_ARG_NAME, FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
+USE_ISOTONIC_REGRESSION_HELP_STRING = (
+    'Boolean flag.  If 1, isotonic regression will be used to calibrate '
+    'probabilities from the base model.')
 NARR_DIR_HELP_STRING = (
     'Name of top-level directory with NARR data (one file for each variable, '
     'pressure level, and time step).')
@@ -90,6 +95,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_TIMES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + USE_ISOTONIC_REGRESSION_ARG_NAME, type=int, required=False,
+    default=0, help=USE_ISOTONIC_REGRESSION_ARG_NAME)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NARR_DIR_ARG_NAME, type=str, required=False,
@@ -204,7 +213,7 @@ def _plot_one_time_step(
 
 def _apply_model(
         model_file_name, first_time_string, last_time_string, randomize_times,
-        num_evaluation_times, top_narr_directory_name,
+        num_evaluation_times, use_isotonic_regression, top_narr_directory_name,
         top_frontal_grid_dir_name, top_frontal_polyline_dir_name):
     """Applies traditional CNN to full NARR grid at one or more target times.
 
@@ -220,6 +229,8 @@ def _apply_model(
     :param num_evaluation_times: [used only if randomize_times = True]
         The model will be applied to this many random times from
         `first_time_string`...`last_time_string`.
+    :param use_isotonic_regression: Boolean flag.  If True, isotonic regression
+        will be used to calibrate probabilities from the base model.
     :param top_narr_directory_name: Name of top-level directory with NARR data
         (one file for each variable, pressure level, and time step).
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
@@ -261,6 +272,19 @@ def _apply_model(
         model_metadata_file_name)
     model_metadata_dict = traditional_cnn.read_model_metadata(
         model_metadata_file_name)
+
+    if use_isotonic_regression:
+        isotonic_regression_file_name = (
+            '{0:s}/isotonic_regression_models.p'.format(model_directory_name))
+
+        print 'Reading isotonic-regression models from: "{0:s}"...'.format(
+            isotonic_regression_file_name)
+        isotonic_model_object_by_class = (
+            isotonic_regression.read_model_for_each_class(
+                isotonic_regression_file_name))
+    else:
+        isotonic_model_object_by_class = None
+
     print SEPARATOR_STRING
 
     num_classes = len(model_metadata_dict[traditional_cnn.CLASS_FRACTIONS_KEY])
@@ -287,7 +311,9 @@ def _apply_model(
                         traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
                     num_columns_in_half_grid=model_metadata_dict[
                         traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
-                    num_classes=num_classes))
+                    num_classes=num_classes,
+                    isotonic_model_object_by_class=
+                    isotonic_model_object_by_class))
 
         else:
             this_class_probability_matrix, this_target_matrix = (
@@ -310,7 +336,9 @@ def _apply_model(
                         traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
                     num_columns_in_half_grid=model_metadata_dict[
                         traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
-                    num_classes=num_classes))
+                    num_classes=num_classes,
+                    isotonic_model_object_by_class=
+                    isotonic_model_object_by_class))
 
         print SEPARATOR_STRING
         this_class_probability_matrix = this_class_probability_matrix[0, ...]
@@ -342,6 +370,8 @@ if __name__ == '__main__':
     LAST_TIME_STRING = getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME)
     RANDOMIZE_TIMES_FLAG = bool(
         getattr(INPUT_ARG_OBJECT, RANDOMIZE_TIMES_ARG_NAME))
+    USE_ISOTONIC_REGRESSION = bool(
+        getattr(INPUT_ARG_OBJECT, USE_ISOTONIC_REGRESSION_ARG_NAME))
 
     if RANDOMIZE_TIMES_FLAG:
         NUM_EVALUATION_TIMES = getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME)
@@ -360,6 +390,7 @@ if __name__ == '__main__':
         last_time_string=LAST_TIME_STRING,
         randomize_times=RANDOMIZE_TIMES_FLAG,
         num_evaluation_times=NUM_EVALUATION_TIMES,
+        use_isotonic_regression=USE_ISOTONIC_REGRESSION,
         top_narr_directory_name=TOP_NARR_DIRECTORY_NAME,
         top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME,
         top_frontal_polyline_dir_name=TOP_FRONTAL_POLYLINE_DIR_NAME)
