@@ -21,6 +21,7 @@ T = number of predictor times per example (images per sequence)
 C = number of channels (predictor variables) in each image
 """
 
+import pickle
 import numpy
 import keras.losses
 import keras.optimizers
@@ -38,6 +39,35 @@ from generalexam.machine_learning import keras_metrics
 # from keras import backend as K
 # K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 #     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
+
+NUM_EPOCHS_KEY = 'num_epochs'
+NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+NUM_EXAMPLES_PER_TARGET_TIME_KEY = 'num_examples_per_target_time'
+NUM_TRAINING_BATCHES_PER_EPOCH_KEY = 'num_training_batches_per_epoch'
+NUM_VALIDATION_BATCHES_PER_EPOCH_KEY = 'num_validation_batches_per_epoch'
+NUM_ROWS_IN_HALF_GRID_KEY = 'num_rows_in_half_grid'
+NUM_COLUMNS_IN_HALF_GRID_KEY = 'num_columns_in_half_grid'
+DILATION_DISTANCE_FOR_TARGET_KEY = 'dilation_distance_for_target_metres'
+CLASS_FRACTIONS_KEY = 'class_fractions'
+NARR_PREDICTOR_NAMES_KEY = 'narr_predictor_names'
+PRESSURE_LEVEL_KEY = 'pressure_level_mb'
+TRAINING_START_TIME_KEY = 'training_start_time_unix_sec'
+TRAINING_END_TIME_KEY = 'training_end_time_unix_sec'
+VALIDATION_START_TIME_KEY = 'validation_start_time_unix_sec'
+VALIDATION_END_TIME_KEY = 'validation_end_time_unix_sec'
+NUM_PREDICTOR_TIME_STEPS_KEY = 'num_predictor_time_steps'
+NUM_LEAD_TIME_STEPS_KEY = 'num_lead_time_steps'
+
+MODEL_METADATA_KEYS = [
+    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY,
+    NUM_EXAMPLES_PER_TARGET_TIME_KEY, NUM_TRAINING_BATCHES_PER_EPOCH_KEY,
+    NUM_VALIDATION_BATCHES_PER_EPOCH_KEY, NUM_ROWS_IN_HALF_GRID_KEY,
+    NUM_COLUMNS_IN_HALF_GRID_KEY, DILATION_DISTANCE_FOR_TARGET_KEY,
+    CLASS_FRACTIONS_KEY, NARR_PREDICTOR_NAMES_KEY, PRESSURE_LEVEL_KEY,
+    TRAINING_START_TIME_KEY, TRAINING_END_TIME_KEY, VALIDATION_START_TIME_KEY,
+    VALIDATION_END_TIME_KEY, NUM_PREDICTOR_TIME_STEPS_KEY,
+    NUM_LEAD_TIME_STEPS_KEY
+]
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
@@ -159,6 +189,94 @@ def get_cnn_with_mnist_architecture(
         loss=keras.losses.categorical_crossentropy,
         optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
     return model_object
+
+
+def write_model_metadata(
+        num_epochs, num_examples_per_batch, num_examples_per_target_time,
+        num_training_batches_per_epoch, num_validation_batches_per_epoch,
+        num_rows_in_half_grid, num_columns_in_half_grid,
+        dilation_distance_for_target_metres, class_fractions,
+        narr_predictor_names, pressure_level_mb, training_start_time_unix_sec,
+        training_end_time_unix_sec, validation_start_time_unix_sec,
+        validation_end_time_unix_sec, pickle_file_name,
+        num_predictor_time_steps=None, num_lead_time_steps=None):
+    """Writes metadata to Pickle file.
+
+    :param num_epochs: See documentation for `train_with_3d_examples`.
+    :param num_examples_per_batch: Same.
+    :param num_examples_per_target_time: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param num_rows_in_half_grid: Same.
+    :param num_columns_in_half_grid: Same.
+    :param dilation_distance_for_target_metres: Same.
+    :param class_fractions: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
+    :param training_start_time_unix_sec: Same.
+    :param training_end_time_unix_sec: Same.
+    :param validation_start_time_unix_sec: Same.
+    :param validation_end_time_unix_sec: Same.
+    :param pickle_file_name: Path to output file.
+    :param num_predictor_time_steps: See documentation for
+        `train_with_4d_examples`.  If model does not convolve over time --
+        i.e., model does 2-D convolution, not 3-D convolution -- leave this as
+        None.
+    :param num_lead_time_steps: Same as `num_predictor_time_steps`.
+    """
+
+    model_metadata_dict = {
+        NUM_EPOCHS_KEY: num_epochs,
+        NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        NUM_EXAMPLES_PER_TARGET_TIME_KEY: num_examples_per_target_time,
+        NUM_TRAINING_BATCHES_PER_EPOCH_KEY: num_training_batches_per_epoch,
+        NUM_VALIDATION_BATCHES_PER_EPOCH_KEY: num_validation_batches_per_epoch,
+        NUM_ROWS_IN_HALF_GRID_KEY: num_rows_in_half_grid,
+        NUM_COLUMNS_IN_HALF_GRID_KEY: num_columns_in_half_grid,
+        DILATION_DISTANCE_FOR_TARGET_KEY: dilation_distance_for_target_metres,
+        CLASS_FRACTIONS_KEY: class_fractions,
+        NARR_PREDICTOR_NAMES_KEY: narr_predictor_names,
+        PRESSURE_LEVEL_KEY: pressure_level_mb,
+        TRAINING_START_TIME_KEY: training_start_time_unix_sec,
+        TRAINING_END_TIME_KEY: training_end_time_unix_sec,
+        VALIDATION_START_TIME_KEY: validation_start_time_unix_sec,
+        VALIDATION_END_TIME_KEY: validation_end_time_unix_sec,
+        NUM_PREDICTOR_TIME_STEPS_KEY: num_predictor_time_steps,
+        NUM_LEAD_TIME_STEPS_KEY: num_lead_time_steps
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(model_metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_model_metadata(pickle_file_name):
+    """Reads metadata from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: model_metadata_dict: Dictionary with all keys in the list
+        `MODEL_METADATA_KEYS`.
+    :raises: ValueError: if dictionary does not contain all keys in the list
+        `MODEL_METADATA_KEYS`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    model_metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    expected_keys_as_set = set(MODEL_METADATA_KEYS)
+    actual_keys_as_set = set(model_metadata_dict.keys())
+    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+        error_string = (
+            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
+            '("{1:s}") are listed below.  Some expected keys were not found.'
+            '\n{2:s}\n').format(MODEL_METADATA_KEYS, pickle_file_name,
+                                model_metadata_dict.keys())
+
+        raise ValueError(error_string)
+
+    return model_metadata_dict
 
 
 def read_keras_model(hdf5_file_name):

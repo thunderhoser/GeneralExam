@@ -25,11 +25,14 @@ For a 4-D example, the dimensions are M x N x T x C (M rows, N columns, T time
 steps, C predictor variables).
 """
 
+import pickle
 import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import model_evaluation as model_eval
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
@@ -41,11 +44,35 @@ from generalexam.machine_learning import fcn
 
 NARR_TIME_INTERVAL_SECONDS = 10800
 DEFAULT_FORECAST_PRECISION_FOR_THRESHOLDS = 1e-3
+TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
 
 MIN_OPTIMIZATION_DIRECTION = 'min'
 MAX_OPTIMIZATION_DIRECTION = 'max'
 VALID_OPTIMIZATION_DIRECTIONS = [
     MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION]
+
+CLASS_PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
+OBSERVED_LABELS_KEY = 'observed_labels'
+BINARIZATION_THRESHOLD_KEY = 'binarization_threshold'
+ACCURACY_KEY = 'accuracy'
+PEIRCE_SCORE_KEY = 'peirce_score'
+HEIDKE_SCORE_KEY = 'heidke_score'
+GERRITY_SCORE_KEY = 'gerrity_score'
+BINARY_POD_KEY = 'binary_pod'
+BINARY_POFD_KEY = 'binary_pofd'
+BINARY_SUCCESS_RATIO_KEY = 'binary_success_ratio'
+BINARY_FOCN_KEY = 'binary_focn'
+BINARY_ACCURACY_KEY = 'binary_accuracy'
+BINARY_CSI_KEY = 'binary_csi'
+BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
+
+EVALUATION_DICT_KEYS = [
+    CLASS_PROBABILITY_MATRIX_KEY, OBSERVED_LABELS_KEY,
+    BINARIZATION_THRESHOLD_KEY, ACCURACY_KEY, PEIRCE_SCORE_KEY,
+    HEIDKE_SCORE_KEY, GERRITY_SCORE_KEY, BINARY_POD_KEY, BINARY_POFD_KEY,
+    BINARY_SUCCESS_RATIO_KEY, BINARY_FOCN_KEY, BINARY_ACCURACY_KEY,
+    BINARY_CSI_KEY, BINARY_FREQUENCY_BIAS_KEY
+]
 
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -330,6 +357,9 @@ def downsized_examples_to_eval_pairs(
 
     numpy.random.shuffle(target_times_unix_sec)
     target_times_unix_sec = target_times_unix_sec[:num_target_times_to_sample]
+    target_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
+        for t in target_times_unix_sec]
 
     full_predictor_matrix = None
     full_target_matrix = None
@@ -340,6 +370,9 @@ def downsized_examples_to_eval_pairs(
         (num_target_times_to_sample, num_examples_per_time), -1, dtype=int)
 
     for i in range(num_target_times_to_sample):
+        print 'Drawing evaluation pairs from {0:s}...'.format(
+            target_time_strings[i])
+
         these_center_row_indices, these_center_column_indices = (
             _get_random_sample_points(
                 num_points=num_examples_per_time, for_downsized_examples=True))
@@ -467,6 +500,9 @@ def full_size_examples_to_eval_pairs(
 
     numpy.random.shuffle(target_times_unix_sec)
     target_times_unix_sec = target_times_unix_sec[:num_target_times_to_sample]
+    target_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
+        for t in target_times_unix_sec]
 
     class_probability_matrix = numpy.full(
         (num_target_times_to_sample, num_points_per_time, num_classes),
@@ -475,6 +511,9 @@ def full_size_examples_to_eval_pairs(
         (num_target_times_to_sample, num_points_per_time), -1, dtype=int)
 
     for i in range(num_target_times_to_sample):
+        print 'Drawing evaluation pairs from {0:s}...'.format(
+            target_time_strings[i])
+
         if num_dimensions_per_example == 3:
             this_class_probability_matrix, this_actual_target_matrix = (
                 fcn.apply_model_to_3d_example(
@@ -782,3 +821,87 @@ def get_gerrity_score(contingency_table_as_matrix):
 
     s_matrix = _get_s_for_gerrity_score(contingency_table_as_matrix)
     return numpy.mean(contingency_table_as_matrix * s_matrix)
+
+
+def write_evaluation_results(
+        class_probability_matrix, observed_labels, binarization_threshold,
+        accuracy, peirce_score, heidke_score, gerrity_score, binary_pod,
+        binary_pofd, binary_success_ratio, binary_focn, binary_accuracy,
+        binary_csi, binary_frequency_bias, pickle_file_name):
+    """Writes evaluation results to Pickle file.
+
+    P = number of evaluation pairs
+    K = number of classes
+
+    :param class_probability_matrix: P-by-K numpy array of floats.
+        class_probability_matrix[i, k] is the predicted probability that the
+        [i]th example belongs to the [k]th class.
+    :param observed_labels: length-P numpy array of integers.  If
+        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
+        class.
+    :param binarization_threshold: Best threshold for discriminating between
+        front and no front.  For details, see
+        `find_best_binarization_threshold`.
+    :param accuracy: Accuracy.
+    :param peirce_score: Peirce score.
+    :param heidke_score: Heidke score.
+    :param gerrity_score: Gerrity score.
+    :param binary_pod: Binary (front vs. no front) probability of detection.
+    :param binary_pofd: Binary probability of false detection.
+    :param binary_success_ratio: Binary success ratio.
+    :param binary_focn: Binary frequency of correct nulls.
+    :param binary_accuracy: Binary accuracy.
+    :param binary_csi: Binary critical success index.
+    :param binary_frequency_bias: Binary frequency bias.
+    :param pickle_file_name: Path to output file.
+    """
+
+    evaluation_dict = {
+        CLASS_PROBABILITY_MATRIX_KEY: class_probability_matrix,
+        OBSERVED_LABELS_KEY: observed_labels,
+        BINARIZATION_THRESHOLD_KEY: binarization_threshold,
+        ACCURACY_KEY: accuracy,
+        PEIRCE_SCORE_KEY: peirce_score,
+        HEIDKE_SCORE_KEY: heidke_score,
+        GERRITY_SCORE_KEY: gerrity_score,
+        BINARY_POD_KEY: binary_pod,
+        BINARY_POFD_KEY: binary_pofd,
+        BINARY_SUCCESS_RATIO_KEY: binary_success_ratio,
+        BINARY_FOCN_KEY: binary_focn,
+        BINARY_ACCURACY_KEY: binary_accuracy,
+        BINARY_CSI_KEY: binary_csi,
+        BINARY_FREQUENCY_BIAS_KEY: binary_frequency_bias
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(evaluation_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_evaluation_results(pickle_file_name):
+    """Reads evaluation results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: evaluation_dict: Dictionary with all keys in the list
+        `EVALUATION_DICT_KEYS`.
+    :raises: ValueError: if dictionary does not contain all keys in the list
+        `EVALUATION_DICT_KEYS`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    evaluation_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    expected_keys_as_set = set(EVALUATION_DICT_KEYS)
+    actual_keys_as_set = set(evaluation_dict.keys())
+    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+        error_string = (
+            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
+            '("{1:s}") are listed below.  Some expected keys were not found.'
+            '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
+                                evaluation_dict.keys())
+
+        raise ValueError(error_string)
+
+    return evaluation_dict
