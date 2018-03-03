@@ -4,6 +4,7 @@ Said architecture was used to classify handwritten digits from the MNIST
 (Modified National Institute of Standards and Technology) dataset.
 """
 
+import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -92,6 +93,27 @@ def _train_cnn(
         num_classes=len(class_fractions),
         num_predictors=len(NARR_PREDICTOR_NAMES), convolve_over_time=False)
     print SEPARATOR_STRING
+
+    model_dir_name, _ = os.path.split(output_file_name)
+    metadata_file_name = '{0:s}/model_metadata.p'.format(model_dir_name)
+    print 'Writing metadata to: "{0:s}"...'.format(metadata_file_name)
+
+    traditional_cnn.write_model_metadata(
+        num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
+        num_examples_per_target_time=num_examples_per_time,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        num_rows_in_half_grid=num_rows_in_half_grid,
+        num_columns_in_half_grid=num_columns_in_half_grid,
+        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
+        class_fractions=class_fractions,
+        narr_predictor_names=NARR_PREDICTOR_NAMES,
+        pressure_level_mb=pressure_level_mb,
+        training_start_time_unix_sec=training_start_time_unix_sec,
+        training_end_time_unix_sec=training_end_time_unix_sec,
+        validation_start_time_unix_sec=validation_start_time_unix_sec,
+        validation_end_time_unix_sec=validation_end_time_unix_sec,
+        pickle_file_name=metadata_file_name)
 
     traditional_cnn.train_with_3d_examples(
         model_object=model_object, output_file_name=output_file_name,

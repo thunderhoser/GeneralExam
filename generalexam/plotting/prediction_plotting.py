@@ -1,9 +1,6 @@
 """Plotting methods for model predictions."""
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
 import matplotlib.colors
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
@@ -76,6 +73,74 @@ def get_any_front_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds
 
 
+def get_cold_front_colour_map():
+    """Returns colour map for cold-front probability.
+
+    :return: colour_map_object: See documentation for
+        `get_any_front_colour_map`.
+    :return: colour_norm_object: Same.
+    :return: colour_bounds: Same.
+    """
+
+    main_colour_list = [
+        numpy.array([247., 251., 255.]), numpy.array([222., 235., 247.]),
+        numpy.array([198., 219., 239.]), numpy.array([158., 202., 225.]),
+        numpy.array([133., 189., 220.]), numpy.array([107., 174., 214.]),
+        numpy.array([66., 146., 198.]), numpy.array([33., 113., 181.]),
+        numpy.array([8., 81., 156.]), numpy.array([8., 48., 107.])]
+
+    for i in range(len(main_colour_list)):
+        main_colour_list[i] /= 255
+
+    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object.set_over(numpy.array([1., 1., 1.]))
+
+    main_colour_bounds = numpy.linspace(0.1, 0.9, num=9)
+    main_colour_bounds = numpy.concatenate((
+        numpy.array([0.01]), main_colour_bounds, numpy.array([1.])))
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        main_colour_bounds, colour_map_object.N)
+
+    colour_bounds = numpy.concatenate((
+        numpy.array([0.]), main_colour_bounds, numpy.array([2.])))
+    return colour_map_object, colour_norm_object, colour_bounds
+
+
+def get_warm_front_colour_map():
+    """Returns colour map for warm-front probability.
+
+    :return: colour_map_object: See documentation for
+        `get_any_front_colour_map`.
+    :return: colour_norm_object: Same.
+    :return: colour_bounds: Same.
+    """
+
+    main_colour_list = [
+        numpy.array([255., 245., 240.]), numpy.array([254., 224., 210.]),
+        numpy.array([252., 187., 161.]), numpy.array([252., 146., 114.]),
+        numpy.array([252., 126., 93.]), numpy.array([251., 106., 74.]),
+        numpy.array([239., 59., 44.]), numpy.array([203., 24., 29.]),
+        numpy.array([165., 15., 21.]), numpy.array([103., 0., 13.])]
+
+    for i in range(len(main_colour_list)):
+        main_colour_list[i] /= 255
+
+    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object.set_over(numpy.array([1., 1., 1.]))
+
+    main_colour_bounds = numpy.linspace(0.1, 0.9, num=9)
+    main_colour_bounds = numpy.concatenate((
+        numpy.array([0.01]), main_colour_bounds, numpy.array([1.])))
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        main_colour_bounds, colour_map_object.N)
+
+    colour_bounds = numpy.concatenate((
+        numpy.array([0.]), main_colour_bounds, numpy.array([2.])))
+    return colour_map_object, colour_norm_object, colour_bounds
+
+
 def plot_narr_grid(
         probability_matrix, front_string_id, axes_object, basemap_object,
         first_row_in_narr_grid=0, first_column_in_narr_grid=0,
@@ -113,16 +178,13 @@ def plot_narr_grid(
 
     if front_string_id == ANY_FRONT_STRING_ID:
         colour_map_object, _, colour_bounds = get_any_front_colour_map()
-        colour_minimum = colour_bounds[1]
-        colour_maximum = colour_bounds[-2]
     elif front_string_id == front_utils.WARM_FRONT_STRING_ID:
-        colour_map_object = pyplot.cm.Reds
-        colour_minimum = 0.
-        colour_maximum = 1.
+        colour_map_object, _, colour_bounds = get_warm_front_colour_map()
     else:
-        colour_map_object = pyplot.cm.Blues
-        colour_minimum = 0.
-        colour_maximum = 1.
+        colour_map_object, _, colour_bounds = get_cold_front_colour_map()
+
+    colour_minimum = colour_bounds[1]
+    colour_maximum = colour_bounds[-2]
 
     narr_plotting.plot_xy_grid(
         data_matrix=probability_matrix, axes_object=axes_object,
