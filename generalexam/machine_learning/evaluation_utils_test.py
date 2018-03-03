@@ -39,8 +39,10 @@ S_MATRIX_FOR_GERRITY_SCORE = numpy.array([[1.083333, -0.166667, -1.],
                                           [-0.166667, 0.666667, -0.166667],
                                           [-1., -0.166667, 1.083333]])
 
-GERRITY_SCORE = numpy.mean(
-    S_MATRIX_FOR_GERRITY_SCORE * CONTINGENCY_TABLE_AS_MATRIX)
+NUM_EVALUATION_PAIRS = len(OBSERVED_LABELS)
+GERRITY_SCORE = numpy.sum(
+    S_MATRIX_FOR_GERRITY_SCORE * CONTINGENCY_TABLE_AS_MATRIX
+) / NUM_EVALUATION_PAIRS
 
 
 class EvaluationUtilsTests(unittest.TestCase):
@@ -103,7 +105,6 @@ class EvaluationUtilsTests(unittest.TestCase):
 
         this_s_matrix = evaluation_utils._get_s_for_gerrity_score(
             CONTINGENCY_TABLE_AS_MATRIX)
-        print this_s_matrix
         self.assertTrue(numpy.allclose(
             this_s_matrix, S_MATRIX_FOR_GERRITY_SCORE,
             atol=TOLERANCE_FOR_GERRITY_SCORE))
