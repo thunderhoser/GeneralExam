@@ -795,8 +795,9 @@ def get_gerrity_score(contingency_table_as_matrix):
     """
 
     s_matrix = _get_s_for_gerrity_score(contingency_table_as_matrix)
-    print s_matrix
-    return numpy.mean(contingency_table_as_matrix * s_matrix)
+    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+    return numpy.sum(
+        contingency_table_as_matrix * s_matrix) / num_evaluation_pairs
 
 
 def write_evaluation_results(
