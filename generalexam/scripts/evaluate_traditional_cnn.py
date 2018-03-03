@@ -184,6 +184,8 @@ def _evaluate_model(
         predicted_labels=predicted_labels, observed_labels=observed_labels,
         num_classes=num_classes)
 
+    print contingency_table_as_matrix
+
     print 'Computing non-binary performance metrics...'
     accuracy = eval_utils.get_accuracy(contingency_table_as_matrix)
     peirce_score = eval_utils.get_peirce_score(contingency_table_as_matrix)
