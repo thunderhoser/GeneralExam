@@ -24,7 +24,6 @@ NUM_EVAL_TIMES_ARG_NAME = 'num_evaluation_times'
 NUM_EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
-EVAL_FILE_ARG_NAME = 'output_eval_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to model file, containing a trained CNN.  This file should be '
@@ -44,9 +43,6 @@ NARR_DIR_HELP_STRING = (
 FRONTAL_GRID_DIR_HELP_STRING = (
     'Name of top-level directory with frontal grids (one per file, indicating '
     'which NARR grid cells are intersected by a front).')
-EVAL_FILE_HELP_STRING = (
-    'Path to output file (will be written by `evaluation_utils.'
-    'write_evaluation_file`).')
 
 DEFAULT_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_FRONTAL_GRID_DIR_NAME = (
@@ -81,15 +77,11 @@ INPUT_ARG_PARSER.add_argument(
     '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_FRONTAL_GRID_DIR_NAME, help=FRONTAL_GRID_DIR_HELP_STRING)
 
-INPUT_ARG_PARSER.add_argument(
-    '--' + EVAL_FILE_ARG_NAME, type=str, required=True,
-    help=EVAL_FILE_HELP_STRING)
-
 
 def _evaluate_model(
         model_file_name, first_eval_time_string, last_eval_time_string,
         num_evaluation_times, num_examples_per_time, top_narr_directory_name,
-        top_frontal_grid_dir_name, evaluation_file_name):
+        top_frontal_grid_dir_name):
     """Evaluates a traditional CNN, preferably on non-training data.
 
     :param model_file_name: Path to model file, containing a trained CNN.  This
@@ -107,16 +99,12 @@ def _evaluate_model(
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
         grids (one per file, indicating which NARR grid cells are intersected by
         a front).
-    :param evaluation_file_name: Path to output file (will be written by
-        `evaluation_utils.write_evaluation_file`).
     """
 
     first_eval_time_unix_sec = time_conversion.string_to_unix_sec(
         first_eval_time_string, INPUT_TIME_FORMAT)
     last_eval_time_unix_sec = time_conversion.string_to_unix_sec(
         last_eval_time_string, INPUT_TIME_FORMAT)
-    file_system_utils.mkdir_recursive_if_necessary(
-        file_name=evaluation_file_name)
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = traditional_cnn.read_keras_model(model_file_name)
@@ -218,6 +206,9 @@ def _evaluate_model(
                binary_pod, binary_pofd, binary_success_ratio, binary_focn,
                binary_accuracy, binary_csi, binary_frequency_bias)
 
+    evaluation_file_name = '{0:s}/model_evaluation.p'.format(
+        model_directory_name)
+
     print 'Writing evaluation results to: "{0:s}"...'.format(
         evaluation_file_name)
     eval_utils.write_evaluation_results(
@@ -244,7 +235,6 @@ if __name__ == '__main__':
     TOP_NARR_DIRECTORY_NAME = getattr(INPUT_ARG_OBJECT, NARR_DIR_ARG_NAME)
     TOP_FRONTAL_GRID_DIR_NAME = getattr(
         INPUT_ARG_OBJECT, FRONTAL_GRID_DIR_ARG_NAME)
-    EVALUATION_FILE_NAME = getattr(INPUT_ARG_OBJECT, EVAL_FILE_ARG_NAME)
 
     _evaluate_model(
         model_file_name=MODEL_FILE_NAME,
@@ -253,5 +243,4 @@ if __name__ == '__main__':
         num_evaluation_times=NUM_EVALUATION_TIMES,
         num_examples_per_time=NUM_EXAMPLES_PER_TIME,
         top_narr_directory_name=TOP_NARR_DIRECTORY_NAME,
-        top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME,
-        evaluation_file_name=EVALUATION_FILE_NAME)
+        top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME)
