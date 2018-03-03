@@ -6,16 +6,24 @@ explicit.  The opposite is a fully convolutional net (see fcn.py).
 
 import os.path
 import argparse
+import numpy
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
+from sklearn.metrics import roc_auc_score
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import model_evaluation as model_eval
-from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import model_eval_plotting
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import evaluation_utils as eval_utils
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
+FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
+DOTS_PER_INCH = 300
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
@@ -76,6 +84,155 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_FRONTAL_GRID_DIR_NAME, help=FRONTAL_GRID_DIR_HELP_STRING)
+
+
+def _create_roc_curves(
+        class_probability_matrix, observed_labels, model_directory_name):
+    """Creates one-vs-all ROC curve for each class.
+
+    P = number of evaluation pairs
+    K = number of classes
+
+    :param class_probability_matrix: P-by-K numpy array of floats.
+        class_probability_matrix[i, k] is the predicted probability that the
+        [i]th example belongs to the [k]th class.
+    :param observed_labels: length-P numpy array of integers.  If
+        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
+        class.
+    :param model_directory_name: Path to output directory.
+    :return: auc_by_class: length-K numpy array with area under ROC curve (AUC)
+        from GewitterGefahr for each class.
+    :return: scikit_learn_auc_by_class: Same but with scikit-learn calculations.
+    """
+
+    num_classes = class_probability_matrix.shape[1]
+    auc_by_class = numpy.full(num_classes, numpy.nan)
+    scikit_learn_auc_by_class = numpy.full(num_classes, numpy.nan)
+
+    for k in range(num_classes):
+        print 'Creating ROC curve for class {0:d}...'.format(k)
+        this_pofd_by_threshold, this_pod_by_threshold = (
+            model_eval.get_points_in_roc_curve(
+                forecast_probabilities=class_probability_matrix[:, k],
+                observed_labels=(observed_labels == k).astype(int),
+                threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
+                unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS))
+
+        auc_by_class[k] = model_eval.get_area_under_roc_curve(
+            pofd_by_threshold=this_pofd_by_threshold,
+            pod_by_threshold=this_pod_by_threshold)
+        scikit_learn_auc_by_class[k] = roc_auc_score(
+            y_true=(observed_labels == k).astype(int),
+            y_score=class_probability_matrix[:, k])
+
+        print ('AUC estimates from GewitterGefahr and scikit-learn: {0:.4f}, '
+               '{1:.4f}').format(auc_by_class[k], scikit_learn_auc_by_class[k])
+
+        this_figure_file_name = '{0:s}/roc_curve_class{1:d}.jpg'.format(
+            model_directory_name, k)
+        print 'Saving ROC curve to: "{0:s}"...\n'.format(this_figure_file_name)
+
+        _, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        model_eval_plotting.plot_roc_curve(
+            axes_object=axes_object, pod_by_threshold=this_pod_by_threshold,
+            pofd_by_threshold=this_pofd_by_threshold)
+
+        title_string = (
+            'AUC = {0:.4f} (GewitterGefahr), {1:.4f} (scikit-learn).'.format(
+                auc_by_class[k], scikit_learn_auc_by_class[k]))
+        pyplot.title(title_string)
+        pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+        pyplot.close()
+
+    return auc_by_class, scikit_learn_auc_by_class
+
+
+def _create_performance_diagrams(
+        class_probability_matrix, observed_labels, model_directory_name):
+    """Creates one-vs-all performance diagram for each class.
+
+    :param class_probability_matrix: See documentation for `_create_roc_curves`.
+    :param observed_labels: Same.
+    :param model_directory_name: Same.
+    """
+
+    num_classes = class_probability_matrix.shape[1]
+    for k in range(num_classes):
+        print 'Creating performance diagram for class {0:d}...'.format(k)
+        this_sr_by_threshold, this_pod_by_threshold = (
+            model_eval.get_points_in_performance_diagram(
+                forecast_probabilities=class_probability_matrix[:, k],
+                observed_labels=(observed_labels == k).astype(int),
+                threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
+                unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS))
+
+        this_figure_file_name = (
+            '{0:s}/performance_diagram_class{1:d}.jpg'.format(
+                model_directory_name, k))
+        print 'Saving performance diagram to: "{0:s}"...'.format(
+            this_figure_file_name)
+
+        _, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        model_eval_plotting.plot_performance_diagram(
+            axes_object=axes_object, pod_by_threshold=this_pod_by_threshold,
+            success_ratio_by_threshold=this_sr_by_threshold)
+
+        pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+        pyplot.close()
+
+
+def _create_attributes_diagrams(
+        class_probability_matrix, observed_labels, model_directory_name):
+    """Creates one-vs-all attributes diagram for each class.
+
+    :param class_probability_matrix: See documentation for `_create_roc_curves`.
+    :param observed_labels: Same.
+    :param model_directory_name: Same.
+    """
+
+    num_classes = class_probability_matrix.shape[1]
+    for k in range(num_classes):
+        print 'Creating reliability curve for class {0:d}...'.format(k)
+        (this_mean_forecast_by_bin,
+         this_class_freq_by_bin,
+         this_num_examples_by_bin) = model_eval.get_points_in_reliability_curve(
+             forecast_probabilities=class_probability_matrix[:, k],
+             observed_labels=(observed_labels == k).astype(int))
+
+        this_figure_file_name = (
+            '{0:s}/reliability_curve_class{1:d}.jpg'.format(
+                model_directory_name, k))
+        print 'Saving reliability curve to: "{0:s}"...'.format(
+            this_figure_file_name)
+
+        _, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        model_eval_plotting.plot_reliability_curve(
+            axes_object=axes_object,
+            mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
+            mean_observed_label_by_bin=this_class_freq_by_bin)
+
+        pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+        pyplot.close()
+
+        this_figure_file_name = (
+            '{0:s}/attributes_diagram_class{1:d}.jpg'.format(
+                model_directory_name, k))
+        print 'Saving attributes diagram to: "{0:s}"...'.format(
+            this_figure_file_name)
+
+        figure_object, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
+        model_eval_plotting.plot_attributes_diagram(
+            figure_object=figure_object, axes_object=axes_object,
+            mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
+            mean_observed_label_by_bin=this_class_freq_by_bin,
+            num_examples_by_bin=this_num_examples_by_bin)
+
+        pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+        pyplot.close()
 
 
 def _evaluate_model(
@@ -206,10 +363,16 @@ def _evaluate_model(
                binary_pod, binary_pofd, binary_success_ratio, binary_focn,
                binary_accuracy, binary_csi, binary_frequency_bias)
 
+    auc_by_class, scikit_learn_auc_by_class = _create_roc_curves(
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels,
+        model_directory_name=model_directory_name)
+    print '\n'
+
     evaluation_file_name = '{0:s}/model_evaluation.p'.format(
         model_directory_name)
 
-    print 'Writing evaluation results to: "{0:s}"...'.format(
+    print 'Writing evaluation results to: "{0:s}"...\n'.format(
         evaluation_file_name)
     eval_utils.write_evaluation_results(
         class_probability_matrix=class_probability_matrix,
@@ -220,7 +383,20 @@ def _evaluate_model(
         binary_pofd=binary_pofd, binary_success_ratio=binary_success_ratio,
         binary_focn=binary_focn, binary_accuracy=binary_accuracy,
         binary_csi=binary_csi, binary_frequency_bias=binary_frequency_bias,
+        auc_by_class=auc_by_class,
+        scikit_learn_auc_by_class=scikit_learn_auc_by_class,
         pickle_file_name=evaluation_file_name)
+
+    _create_performance_diagrams(
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels,
+        model_directory_name=model_directory_name)
+    print '\n'
+
+    _create_attributes_diagrams(
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels,
+        model_directory_name=model_directory_name)
 
 
 if __name__ == '__main__':
