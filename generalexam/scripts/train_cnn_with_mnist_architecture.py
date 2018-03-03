@@ -32,9 +32,10 @@ def _train_cnn(
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         num_rows_in_half_grid, num_columns_in_half_grid,
         dilation_distance_for_target_metres, class_fractions,
-        pressure_level_mb, training_start_time_string, training_end_time_string,
-        validation_start_time_string, validation_end_time_string,
-        top_narr_dir_name, top_frontal_grid_dir_name, output_file_name):
+        weight_loss_function, pressure_level_mb, training_start_time_string,
+        training_end_time_string, validation_start_time_string,
+        validation_end_time_string, top_narr_dir_name,
+        top_frontal_grid_dir_name, output_file_name):
     """Trains convolutional neural net with MNIST architecture.
 
     :param num_epochs: Number of training epochs.
@@ -56,6 +57,9 @@ def _train_cnn(
     :param class_fractions: 1-D numpy array with fraction of examples in each
         class.  Data will be sampled according to these fractions for both
         training and validation.
+    :param weight_loss_function: Boolean flag.  If 1, classes will be weighted
+        differently in loss function (class weights inversely proportional to
+        `class_fractions`).
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
@@ -76,7 +80,8 @@ def _train_cnn(
     """
 
     class_fractions = numpy.array(class_fractions)
-    print class_fractions
+    print 'Class fractions = {0:s} ... weight loss function? {1:d}'.format(
+        str(class_fractions), weight_loss_function)
 
     training_start_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, INPUT_TIME_FORMAT)
@@ -107,6 +112,7 @@ def _train_cnn(
         num_columns_in_half_grid=num_columns_in_half_grid,
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         class_fractions=class_fractions,
+        weight_loss_function=weight_loss_function,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
         pressure_level_mb=pressure_level_mb,
         training_start_time_unix_sec=training_start_time_unix_sec,
@@ -128,6 +134,7 @@ def _train_cnn(
         pressure_level_mb=pressure_level_mb,
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         class_fractions=class_fractions,
+        weight_loss_function=weight_loss_function,
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -160,6 +167,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
         class_fractions=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.CLASS_FRACTIONS_ARG_NAME),
+        weight_loss_function=bool(getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.WEIGHT_LOSS_FUNCTION_ARG_NAME)),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
         training_start_time_string=getattr(

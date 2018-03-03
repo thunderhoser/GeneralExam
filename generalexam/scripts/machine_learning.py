@@ -12,6 +12,7 @@ NUM_ROWS_IN_HALF_GRID_ARG_NAME = 'num_rows_in_half_grid'
 NUM_COLUMNS_IN_HALF_GRID_ARG_NAME = 'num_columns_in_half_grid'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_for_target_metres'
 CLASS_FRACTIONS_ARG_NAME = 'class_fractions'
+WEIGHT_LOSS_FUNCTION_ARG_NAME = 'weight_loss_function'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 TRAINING_START_TIME_ARG_NAME = 'training_start_time_string'
 TRAINING_END_TIME_ARG_NAME = 'training_end_time_string'
@@ -41,6 +42,10 @@ DILATION_DISTANCE_HELP_STRING = (
     'Dilation distance.  Target images will be dilated, which increases the '
     'number of pixels labeled as frontal.  This accounts for uncertainty in the'
     ' placement of fronts.')
+WEIGHT_LOSS_FUNCTION_HELP_STRING = (
+    'Boolean flag.  If 1, classes will be weighted differently in loss function'
+    ' (class weights inversely proportional to `{0:s}`).').format(
+        CLASS_FRACTIONS_ARG_NAME)
 PRESSURE_LEVEL_HELP_STRING = (
     'NARR predictors will be taken from this pressure level (millibars).')
 TRAINING_TIME_HELP_STRING = (
@@ -112,6 +117,10 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
         '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=False,
         default=DEFAULT_DILATION_DISTANCE_METRES,
         help=DILATION_DISTANCE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + WEIGHT_LOSS_FUNCTION_ARG_NAME, type=int, required=False,
+        default=1, help=WEIGHT_LOSS_FUNCTION_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,

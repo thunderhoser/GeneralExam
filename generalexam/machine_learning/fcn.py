@@ -50,6 +50,8 @@ from generalexam.machine_learning import keras_losses
 # K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 #     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
+# TODO(thunderhoser): Allow FCN to not weight classes differently in loss
+# function.
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,

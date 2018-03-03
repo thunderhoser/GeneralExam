@@ -50,6 +50,7 @@ NUM_ROWS_IN_HALF_GRID_KEY = 'num_rows_in_half_grid'
 NUM_COLUMNS_IN_HALF_GRID_KEY = 'num_columns_in_half_grid'
 DILATION_DISTANCE_FOR_TARGET_KEY = 'dilation_distance_for_target_metres'
 CLASS_FRACTIONS_KEY = 'class_fractions'
+WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
 NARR_PREDICTOR_NAMES_KEY = 'narr_predictor_names'
 PRESSURE_LEVEL_KEY = 'pressure_level_mb'
 TRAINING_START_TIME_KEY = 'training_start_time_unix_sec'
@@ -64,10 +65,10 @@ MODEL_METADATA_KEYS = [
     NUM_EXAMPLES_PER_TARGET_TIME_KEY, NUM_TRAINING_BATCHES_PER_EPOCH_KEY,
     NUM_VALIDATION_BATCHES_PER_EPOCH_KEY, NUM_ROWS_IN_HALF_GRID_KEY,
     NUM_COLUMNS_IN_HALF_GRID_KEY, DILATION_DISTANCE_FOR_TARGET_KEY,
-    CLASS_FRACTIONS_KEY, NARR_PREDICTOR_NAMES_KEY, PRESSURE_LEVEL_KEY,
-    TRAINING_START_TIME_KEY, TRAINING_END_TIME_KEY, VALIDATION_START_TIME_KEY,
-    VALIDATION_END_TIME_KEY, NUM_PREDICTOR_TIME_STEPS_KEY,
-    NUM_LEAD_TIME_STEPS_KEY
+    CLASS_FRACTIONS_KEY, WEIGHT_LOSS_FUNCTION_KEY, NARR_PREDICTOR_NAMES_KEY,
+    PRESSURE_LEVEL_KEY, TRAINING_START_TIME_KEY, TRAINING_END_TIME_KEY,
+    VALIDATION_START_TIME_KEY, VALIDATION_END_TIME_KEY,
+    NUM_PREDICTOR_TIME_STEPS_KEY, NUM_LEAD_TIME_STEPS_KEY
 ]
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
@@ -197,10 +198,11 @@ def write_model_metadata(
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         num_rows_in_half_grid, num_columns_in_half_grid,
         dilation_distance_for_target_metres, class_fractions,
-        narr_predictor_names, pressure_level_mb, training_start_time_unix_sec,
-        training_end_time_unix_sec, validation_start_time_unix_sec,
-        validation_end_time_unix_sec, pickle_file_name,
-        num_predictor_time_steps=None, num_lead_time_steps=None):
+        weight_loss_function, narr_predictor_names, pressure_level_mb,
+        training_start_time_unix_sec, training_end_time_unix_sec,
+        validation_start_time_unix_sec, validation_end_time_unix_sec,
+        pickle_file_name, num_predictor_time_steps=None,
+        num_lead_time_steps=None):
     """Writes metadata to Pickle file.
 
     :param num_epochs: See documentation for `train_with_3d_examples`.
@@ -212,6 +214,7 @@ def write_model_metadata(
     :param num_columns_in_half_grid: Same.
     :param dilation_distance_for_target_metres: Same.
     :param class_fractions: Same.
+    :param weight_loss_function: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param training_start_time_unix_sec: Same.
@@ -236,6 +239,7 @@ def write_model_metadata(
         NUM_COLUMNS_IN_HALF_GRID_KEY: num_columns_in_half_grid,
         DILATION_DISTANCE_FOR_TARGET_KEY: dilation_distance_for_target_metres,
         CLASS_FRACTIONS_KEY: class_fractions,
+        WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         NARR_PREDICTOR_NAMES_KEY: narr_predictor_names,
         PRESSURE_LEVEL_KEY: pressure_level_mb,
         TRAINING_START_TIME_KEY: training_start_time_unix_sec,
@@ -295,6 +299,7 @@ def read_keras_model(hdf5_file_name):
 def train_with_3d_examples_from_files(
         model_object, output_file_name, num_examples_per_batch,
         training_file_pattern, num_epochs, num_training_batches_per_epoch,
+        weight_loss_function=True,
         assumed_positive_fraction=DEFAULT_ASSUMED_POSITIVE_FRACTION,
         validation_file_pattern=None, num_validation_batches_per_epoch=None):
     """Trains CNN, using 3-D examples read from pre-existing files.
@@ -309,6 +314,9 @@ def train_with_3d_examples_from_files(
         be used for training data.
     :param num_epochs: Number of epochs.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
+    :param weight_loss_function: Boolean flag.  If True, classes will be
+        weighted differently in the loss function (see input arg
+        `assumed_positive_fraction`).
     :param assumed_positive_fraction: Assumed fraction of positive cases.  This
         will be used to weight classes in the loss function.
     :param validation_file_pattern: Glob pattern for validation files (example:
@@ -323,12 +331,16 @@ def train_with_3d_examples_from_files(
     error_checking.assert_is_geq(num_epochs, 1)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-
+    error_checking.assert_is_boolean(weight_loss_function)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     class_fractions = numpy.array(
         [1. - assumed_positive_fraction, assumed_positive_fraction])
-    class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
+
+    if weight_loss_function:
+        class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
+    else:
+        class_weight_dict = None
 
     if validation_file_pattern is None:
         checkpoint_object = ModelCheckpoint(
@@ -374,7 +386,7 @@ def train_with_3d_examples(
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
-        num_validation_batches_per_epoch=None,
+        weight_loss_function=True, num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
     """Trains CNN, using 3-D examples created on the fly.
 
@@ -397,6 +409,9 @@ def train_with_3d_examples(
     :param class_fractions: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
+    :param weight_loss_function: Boolean flag.  If True, classes will be
+        weighted differently in the loss function (class weights inversely
+        proportional to `class_fractions`).
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param validation_start_time_unix_sec: See documentation for
@@ -408,9 +423,13 @@ def train_with_3d_examples(
     error_checking.assert_is_geq(num_epochs, 1)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-
+    error_checking.assert_is_boolean(weight_loss_function)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
+
+    if weight_loss_function:
+        class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
+    else:
+        class_weight_dict = None
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -489,7 +508,7 @@ def train_with_4d_examples(
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
-        num_validation_batches_per_epoch=None,
+        weight_loss_function=True, num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
     """Trains CNN, using 4-D examples created on the fly.
 
@@ -513,6 +532,9 @@ def train_with_4d_examples(
     :param class_fractions: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
+    :param weight_loss_function: Boolean flag.  If True, classes will be
+        weighted differently in the loss function (class weights inversely
+        proportional to `class_fractions`).
     :param num_validation_batches_per_epoch: Same.
     :param validation_start_time_unix_sec: Same.
     :param validation_end_time_unix_sec: Same.
@@ -522,9 +544,13 @@ def train_with_4d_examples(
     error_checking.assert_is_geq(num_epochs, 1)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-
+    error_checking.assert_is_boolean(weight_loss_function)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
+
+    if weight_loss_function:
+        class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
+    else:
+        class_weight_dict = None
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
