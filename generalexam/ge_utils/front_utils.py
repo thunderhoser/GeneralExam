@@ -330,19 +330,33 @@ def _close_frontal_image(image_matrix):
     return image_matrix
 
 
-def check_front_type(front_string_id):
+def check_front_type(front_type_string):
     """Ensures that front type is valid.
 
-    :param front_string_id: String ID for front type.
+    :param front_type_string: String ID for front type.
     :raises: ValueError: if front type is unrecognized.
     """
 
-    error_checking.assert_is_string(front_string_id)
-    if front_string_id not in VALID_STRING_IDS:
+    error_checking.assert_is_string(front_type_string)
+    if front_type_string not in VALID_STRING_IDS:
         error_string = (
             '\n\n{0:s}\nValid front types (listed above) do not include '
-            '"{1:s}".').format(VALID_STRING_IDS, front_string_id)
+            '"{1:s}".').format(VALID_STRING_IDS, front_type_string)
         raise ValueError(error_string)
+
+
+def string_id_to_integer(front_type_string):
+    """Converts front type from string to integer.
+
+    :param front_type_string: String ID for front type.
+    :return: front_type_integer: Integer ID for front type.
+    """
+
+    check_front_type(front_type_string)
+    if front_type_string == WARM_FRONT_STRING_ID:
+        return WARM_FRONT_INTEGER_ID
+
+    return COLD_FRONT_INTEGER_ID
 
 
 def buffer_distance_to_narr_mask(buffer_distance_metres):
