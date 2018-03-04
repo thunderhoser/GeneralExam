@@ -107,6 +107,7 @@ def apply_model_for_each_class(
         (num_examples, num_classes), numpy.nan)
 
     for k in range(num_classes):
+        print 'Applying isotonic-regression model for class {0:d}...'.format(k)
         new_class_probability_matrix[:, k] = model_object_by_class[k].predict(
             orig_class_probability_matrix[:, k])
 
