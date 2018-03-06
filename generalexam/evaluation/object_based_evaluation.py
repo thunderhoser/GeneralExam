@@ -11,11 +11,13 @@ N = number of columns in grid (unique x-coordinates at grid points)
 K = number of classes (possible target values)
 """
 
+import pickle
 import numpy
 import pandas
 import skimage.measure
 import skimage.morphology
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
@@ -38,6 +40,17 @@ NUM_ACTUAL_FRONTS_PREDICTED_KEY = 'num_actual_fronts_predicted'
 NUM_PREDICTED_FRONTS_VERIFIED_KEY = 'num_predicted_fronts_verified'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
+
+PREDICTED_REGION_TABLE_KEY = 'predicted_region_table'
+ACTUAL_POLYLINE_TABLE_KEY = 'actual_polyline_table'
+NEIGH_DISTANCE_METRES_KEY = 'neigh_distance_metres'
+BINARY_CONTINGENCY_TABLE_KEY = 'binary_contingency_table_as_dict'
+BINARY_POD_KEY = 'binary_pod'
+BINARY_SUCCESS_RATIO_KEY = 'binary_success_ratio'
+BINARY_CSI_KEY = 'binary_csi'
+BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
+ROW_NORMALIZED_CONTINGENCY_TABLE_KEY = 'row_normalized_ct_as_matrix'
+COLUMN_NORMALIZED_CONTINGENCY_TABLE_KEY = 'column_normalized_ct_as_matrix'
 
 
 def _check_prediction_images(prediction_matrix, probabilistic):
@@ -896,3 +909,54 @@ def get_binary_frequency_bias(binary_contingency_table_as_dict):
         return binary_pod / binary_success_ratio
     except ZeroDivisionError:
         return numpy.nan
+
+
+def write_evaluation_results(
+        predicted_region_table, actual_polyline_table, neigh_distance_metres,
+        binary_contingency_table_as_dict, binary_pod, binary_success_ratio,
+        binary_csi, binary_frequency_bias, row_normalized_ct_as_matrix,
+        column_normalized_ct_as_matrix, pickle_file_name):
+    """Writes evaluation results to Pickle file.
+
+    K = number of classes
+
+    :param predicted_region_table: pandas DataFrame created by
+        `convert_regions_rowcol_to_narr_xy`.  Each row is one predicted front.
+    :param actual_polyline_table: pandas DataFrame created by
+        `project_polylines_latlng_to_narr`.  Each row is one actual front
+        ("ground truth").
+    :param neigh_distance_metres: Neighbourhood distance.  Used to define when
+        actual front f_A and predicted front f_P are "matching".
+    :param binary_contingency_table_as_dict: Dictionary created by
+        `get_binary_contingency_table`.
+    :param binary_pod: Binary probability of detection.
+    :param binary_success_ratio: Binary success ratio.
+    :param binary_csi: Binary critical success index.
+    :param binary_frequency_bias: Binary frequency bias.
+    :param row_normalized_ct_as_matrix: (K - 1)-by-K numpy array.
+        row_normalized_ct_as_matrix[i, j] is the conditional probability, when
+        the [i + 1]th class is predicted, that the [j]th class will be observed.
+    :param column_normalized_ct_as_matrix: K-by-(K - 1) numpy array.
+        column_normalized_ct_as_matrix[i, j] is the conditional probability,
+        when the [j]th class is observed, that the [i]th class will be
+        predicted.
+    :param pickle_file_name: Path to output file.
+    """
+
+    evaluation_dict = {
+        PREDICTED_REGION_TABLE_KEY: predicted_region_table,
+        ACTUAL_POLYLINE_TABLE_KEY: actual_polyline_table,
+        NEIGH_DISTANCE_METRES_KEY: neigh_distance_metres,
+        BINARY_CONTINGENCY_TABLE_KEY: binary_contingency_table_as_dict,
+        BINARY_POD_KEY: binary_pod,
+        BINARY_SUCCESS_RATIO_KEY: binary_success_ratio,
+        BINARY_CSI_KEY: binary_csi,
+        BINARY_FREQUENCY_BIAS_KEY: binary_frequency_bias,
+        ROW_NORMALIZED_CONTINGENCY_TABLE_KEY: row_normalized_ct_as_matrix,
+        COLUMN_NORMALIZED_CONTINGENCY_TABLE_KEY: column_normalized_ct_as_matrix
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(evaluation_dict, pickle_file_handle)
+    pickle_file_handle.close()

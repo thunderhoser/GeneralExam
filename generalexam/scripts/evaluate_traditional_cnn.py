@@ -62,7 +62,8 @@ NARR_DIR_HELP_STRING = (
 FRONTAL_GRID_DIR_HELP_STRING = (
     'Name of top-level directory with frontal grids (one per file, indicating '
     'which NARR grid cells are intersected by a front).')
-OUTPUT_DIR_HELP_STRING = 'Name of output directory for evaluation results.'
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  Evaluation results will be saved here.')
 
 DEFAULT_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_FRONTAL_GRID_DIR_NAME = (
@@ -91,7 +92,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + USE_ISOTONIC_REGRESSION_ARG_NAME, type=int, required=False,
-    default=0, help=USE_ISOTONIC_REGRESSION_ARG_NAME)
+    default=0, help=USE_ISOTONIC_REGRESSION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NARR_DIR_ARG_NAME, type=str, required=False,
@@ -303,7 +304,8 @@ def _evaluate_model(
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
         grids (one per file, indicating which NARR grid cells are intersected by
         a front).
-    :param output_dir_name: Name of output directory for evaluation results.
+    :param output_dir_name: Name of output directory.  Evaluation results will
+        be saved here.
     """
 
     first_eval_time_unix_sec = time_conversion.string_to_unix_sec(
