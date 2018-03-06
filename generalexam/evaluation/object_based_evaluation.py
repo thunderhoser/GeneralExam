@@ -476,8 +476,8 @@ def project_polylines_latlng_to_narr(polyline_table):
     """
 
     num_fronts = len(polyline_table.index)
-    x_coords_by_front_metres = [] * num_fronts
-    y_coords_by_front_metres = [] * num_fronts
+    x_coords_by_front_metres = [numpy.array([])] * num_fronts
+    y_coords_by_front_metres = [numpy.array([])] * num_fronts
 
     for i in range(num_fronts):
         x_coords_by_front_metres[i], y_coords_by_front_metres[i] = (
