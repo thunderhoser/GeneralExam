@@ -448,6 +448,9 @@ def _evaluate_model(
             actual_polyline_table=actual_polyline_table,
             neigh_distance_metres=matching_distance_metres))
 
+    print 'Binary contingency table is shown below:{0:s}\n'.format(
+        binary_contingency_table_as_dict)
+
     print 'Computing binary performance metrics...'
     binary_pod = object_based_eval.get_binary_pod(
         binary_contingency_table_as_dict)
