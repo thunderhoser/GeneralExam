@@ -475,7 +475,7 @@ def project_polylines_latlng_to_narr(polyline_table):
     polyline_table.y_coords_metres: length-V numpy array of y-coordinates.
     """
 
-    num_fronts = len(polyline_table)
+    num_fronts = len(polyline_table.index)
     x_coords_by_front_metres = [] * num_fronts
     y_coords_by_front_metres = [] * num_fronts
 
