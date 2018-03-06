@@ -8,7 +8,6 @@ import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
-from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import traditional_cnn
 from generalexam.scripts import machine_learning as ml_script_helper
 
