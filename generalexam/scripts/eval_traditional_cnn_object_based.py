@@ -381,12 +381,17 @@ def _evaluate_model(
                 y_grid_spacing_metres=NARR_GRID_SPACING_METRES,
                 min_area_metres2=min_object_area_metres2))
 
-        print 'Thinning regions...'
+        print 'Skeletonizing regions...'
         this_predicted_region_table = (
             object_based_eval.skeletonize_frontal_regions(
                 predicted_region_table=this_predicted_region_table,
                 num_grid_rows=NUM_ROWS_IN_NARR,
                 num_grid_columns=NUM_COLUMNS_IN_NARR))
+
+        this_predicted_region_table = object_based_eval.find_main_skeletons(
+            predicted_region_table=this_predicted_region_table,
+            class_probability_matrix=this_class_probability_matrix,
+            image_times_unix_sec=evaluation_times_unix_sec[[i]])
 
         print 'Discarding regions with length < {0:f} m...'.format(
             min_object_length_metres)
