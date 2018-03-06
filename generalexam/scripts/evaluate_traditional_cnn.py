@@ -7,6 +7,7 @@ explicit.  The opposite is a fully convolutional net (see fcn.py).
 import os.path
 import argparse
 import numpy
+from keras import backend as K
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
@@ -19,9 +20,8 @@ from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import evaluation_utils as eval_utils
 from generalexam.machine_learning import isotonic_regression
 
-# from keras import backend as K
-# K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-#     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
+K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4

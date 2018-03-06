@@ -6,10 +6,14 @@ explicit.  The opposite is a fully convolutional net (see fcn.py).
 
 import os.path
 import argparse
+from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import evaluation_utils as eval_utils
+
+K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
