@@ -110,6 +110,9 @@ def breadth_first_search(bfs_node_dict, start_node_key, end_node_key):
         from start to end).
     """
 
+    if start_node_key == end_node_key:
+        return [start_node_key]
+
     bfs_node_dict[start_node_key].set_colour(GREY_COLOUR)
     bfs_node_dict[start_node_key].set_distance_from_root(0)
 
@@ -150,4 +153,4 @@ def breadth_first_search(bfs_node_dict, start_node_key, end_node_key):
 
         visited_node_keys.append(this_key)
 
-    return visited_node_keys
+    return visited_node_keys[::-1]
