@@ -11,7 +11,9 @@ N = number of columns in grid (unique x-coordinates at grid points)
 K = number of classes (possible target values)
 """
 
+import copy
 import pickle
+import cv2
 import numpy
 import pandas
 import skimage.measure
@@ -20,6 +22,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
+from generalexam.ge_utils import search
 
 # TODO(thunderhoser): Many methods in this file will not work for FCN output
 # (which does not cover the full NARR grid).  I will need to allow for that.
@@ -51,6 +54,11 @@ BINARY_CSI_KEY = 'binary_csi'
 BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
 ROW_NORMALIZED_CONTINGENCY_TABLE_KEY = 'row_normalized_ct_as_matrix'
 COLUMN_NORMALIZED_CONTINGENCY_TABLE_KEY = 'column_normalized_ct_as_matrix'
+
+KERNEL_MATRIX_FOR_ENDPOINT_FILTER = numpy.array([[1, 1, 1],
+                                                 [1, 10, 1],
+                                                 [1, 1, 1]], dtype=numpy.uint8)
+FILTERED_VALUE_AT_ENDPOINT = 11
 
 
 def _check_prediction_images(prediction_matrix, probabilistic):
@@ -184,6 +192,77 @@ def _get_distance_between_fronts(
             (first_y_coords_metres[i] - second_y_coords_metres) ** 2))
 
     return numpy.median(shortest_distances_metres)
+
+
+def _find_endpoints_of_skeleton(binary_image_matrix):
+    """Finds endpoints of skeleton.
+
+    :param binary_image_matrix: M-by-N numpy array of integers in 0...1.  If
+        binary_image_matrix[i, j] = 1, grid cell [i, j] is part of the skeleton.
+    :return: binary_endpoint_matrix: M-by-N numpy array of integers in 0...1.
+        If binary_endpoint_matrix[i, j] = 1, grid cell [i, j] is an endpoint of
+        the skeleton.
+    """
+
+    filtered_image_matrix = numpy.pad(
+        binary_image_matrix, pad_width=2, mode='constant', constant_values=0)
+
+    filtered_image_matrix = cv2.filter2D(
+        filtered_image_matrix.astype(numpy.uint8), -1,
+        KERNEL_MATRIX_FOR_ENDPOINT_FILTER)
+    filtered_image_matrix = filtered_image_matrix[2:-2, 2:-2]
+
+    endpoint_flag_matrix = numpy.full(binary_image_matrix.shape, 0, dtype=int)
+    endpoint_flag_matrix[
+        filtered_image_matrix == FILTERED_VALUE_AT_ENDPOINT] = 1
+    return endpoint_flag_matrix
+
+
+def _points_to_search_nodes(binary_skeleton_matrix, binary_endpoint_matrix):
+    """Converts points in skeleton to search nodes for BFS.
+
+    BFS = breadth-first search
+
+    :param binary_skeleton_matrix: M-by-N numpy array of integers in 0...1.  If
+        binary_skeleton_matrix[i, j] = 1, grid cell [i, j] is part of the
+        skeleton.
+    :param binary_endpoint_matrix: M-by-N numpy array of integers in 0...1.
+        If binary_endpoint_matrix[i, j] = 1, grid cell [i, j] is an endpoint of
+        the skeleton.
+    :return: search_node_dict: Dictionary, where each key is an integer ID and
+        each value is an instance of `search.BfsNode`.
+    :return: endpoint_keys: 1-D numpy array of keys (those used in
+        `search_node_dict`) corresponding to endpoints.
+    """
+
+    rows_in_skeleton, columns_in_skeleton = numpy.where(
+        binary_skeleton_matrix == 1)
+
+    search_node_dict = {}
+    endpoint_keys = []
+    num_points_in_skeleton = len(rows_in_skeleton)
+
+    for i in range(num_points_in_skeleton):
+        these_row_flags = numpy.logical_and(
+            rows_in_skeleton >= rows_in_skeleton[i] - 1,
+            rows_in_skeleton <= rows_in_skeleton[i] + 1)
+        these_column_flags = numpy.logical_and(
+            columns_in_skeleton >= columns_in_skeleton[i] - 1,
+            columns_in_skeleton <= columns_in_skeleton[i] + 1)
+
+        these_adjacent_indices = numpy.where(
+            numpy.logical_and(these_row_flags, these_column_flags))[0]
+        search_node_dict.update(
+            {i: search.BfsNode(adjacent_keys=these_adjacent_indices)})
+
+        if binary_endpoint_matrix[rows_in_skeleton[i],
+                                  columns_in_skeleton[i]] == 0:
+            continue
+
+        endpoint_keys.append(i)
+
+    endpoint_keys = numpy.array(endpoint_keys)
+    return search_node_dict, endpoint_keys
 
 
 def determinize_probabilities(class_probability_matrix, binarization_threshold):
@@ -348,14 +427,13 @@ def regions_to_images(predicted_region_table, num_grid_rows, num_grid_columns):
     return predicted_label_matrix
 
 
-def thin_frontal_regions(
+def skeletonize_frontal_regions(
         predicted_region_table, num_grid_rows, num_grid_columns):
-    """Thins out frontal regions.
+    """Skeletonizes ("thins out") frontal regions.
 
     This makes frontal regions look more like polylines (with infinitesimal
-    width), which is the way that humans usually think of fronts.  This makes
-    frontal regions more easily comparable to the human labels (polylines),
-    which we consider as "ground truth".
+    width), which is how humans usually think of fronts (and also how the
+    verification data, or "ground truth," are formatted).
 
     :param predicted_region_table: See documentation for `images_to_regions`.
     :param num_grid_rows: M in discussion at top of file.
@@ -383,6 +461,105 @@ def thin_frontal_regions(
         (predicted_region_table[ROW_INDICES_COLUMN].values[i],
          predicted_region_table[COLUMN_INDICES_COLUMN].values[i]) = (
              _one_binary_image_to_region(this_binary_image_matrix))
+
+    return predicted_region_table
+
+
+def find_main_skeletons(
+        predicted_region_table, class_probability_matrix, image_times_unix_sec):
+    """Converts each (already skeletonized) frontal region to its main skeleton.
+
+    The "main skeleton" is a simple polyline***, whereas the original skeleton
+    is usually a complex polyline (with > 2 endpoints).  In other words, this
+    method removes "branches" from the original skeleton line, leaving only the
+    main skeleton line.
+
+    *** This method represents each skeleton line as a polygon with width of one
+    grid cell.
+
+    :param predicted_region_table: See documentation for `images_to_regions`.
+    :param class_probability_matrix: E-by-M-by-N-by-K numpy array of floats.
+        class_probability_matrix[i, j, k, m] is the predicted probability that
+        pixel [j, k] in the [i]th image belongs to the [m]th class.
+    :param image_times_unix_sec: length-E numpy array of valid times.
+    :return: predicted_region_table: Same as input, except that each region is
+        represented only by its main skeleton line.
+    """
+
+    _check_prediction_images(class_probability_matrix, probabilistic=True)
+    num_images = class_probability_matrix.shape[0]
+    error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        image_times_unix_sec, exact_dimensions=numpy.array([num_images]))
+
+    num_grid_rows = class_probability_matrix.shape[0]
+    num_grid_columns = class_probability_matrix.shape[1]
+    num_regions = len(predicted_region_table.index)
+
+    for i in range(num_regions):
+        print 'Finding main skeleton for {0:d}th of {1:d} regions...'.format(
+            i + 1, num_regions)
+
+        this_image_index = numpy.where(
+            image_times_unix_sec ==
+            predicted_region_table[front_utils.TIME_COLUMN].values[i])[0]
+        this_front_type_integer = front_utils.string_id_to_integer(
+            predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values[i])
+
+        this_binary_region_matrix = _one_region_to_binary_image(
+            row_indices_in_region=
+            predicted_region_table[ROW_INDICES_COLUMN].values[i],
+            column_indices_in_region=
+            predicted_region_table[COLUMN_INDICES_COLUMN].values[i],
+            num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
+
+        these_rows_in_region, these_columns_in_region = numpy.where(
+            this_binary_region_matrix == 1)
+
+        this_binary_endpoint_matrix = _find_endpoints_of_skeleton(
+            this_binary_region_matrix)
+        this_search_node_dict, these_endpoint_keys = _points_to_search_nodes(
+            binary_skeleton_matrix=this_binary_region_matrix,
+            binary_endpoint_matrix=this_binary_endpoint_matrix)
+
+        this_num_endpoints = len(these_endpoint_keys)
+        this_max_mean_probability = 0.
+        these_rows_in_best_skeleton = None
+        these_columns_in_best_skeleton = None
+
+        for j in range(this_num_endpoints):
+            for k in range(j + 1, this_num_endpoints):
+
+                # TODO(thunderhoser): Use better algorithm than BFS.
+                these_visited_keys = search.breadth_first_search(
+                    bfs_node_dict=this_search_node_dict,
+                    start_node_key=these_endpoint_keys[j],
+                    end_node_key=these_endpoint_keys[k])
+
+                if these_visited_keys is None:
+                    these_visited_keys = []
+
+                these_visited_keys = numpy.array(these_visited_keys)
+                these_row_indices = these_rows_in_region[these_visited_keys]
+                these_column_indices = these_columns_in_region[
+                    these_visited_keys]
+
+                this_mean_probability = numpy.mean(
+                    class_probability_matrix[
+                        this_image_index, these_row_indices,
+                        these_column_indices, this_front_type_integer])
+                if this_mean_probability <= this_max_mean_probability:
+                    continue
+
+                this_max_mean_probability = copy.deepcopy(this_mean_probability)
+                these_rows_in_best_skeleton = copy.deepcopy(these_row_indices)
+                these_columns_in_best_skeleton = copy.deepcopy(
+                    these_column_indices)
+
+        predicted_region_table[ROW_INDICES_COLUMN].values[
+            i] = these_rows_in_best_skeleton
+        predicted_region_table[COLUMN_INDICES_COLUMN].values[
+            i] = these_columns_in_best_skeleton
 
     return predicted_region_table
 

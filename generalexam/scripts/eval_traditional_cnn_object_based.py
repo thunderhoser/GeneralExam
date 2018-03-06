@@ -308,104 +308,98 @@ def _evaluate_model(
     num_classes = len(model_metadata_dict[traditional_cnn.CLASS_FRACTIONS_KEY])
 
     for i in range(num_evaluation_times):
-        # print 'Generating model predictions for {0:s}...\n'.format(
-        #     evaluation_time_strings[i])
-        #
-        # if model_metadata_dict[traditional_cnn.NUM_LEAD_TIME_STEPS_KEY] is None:
-        #     this_class_probability_matrix, _ = (
-        #         traditional_cnn.apply_model_to_3d_example(
-        #             model_object=model_object,
-        #             target_time_unix_sec=evaluation_times_unix_sec[i],
-        #             top_narr_directory_name=top_narr_directory_name,
-        #             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        #             narr_predictor_names=model_metadata_dict[
-        #                 traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        #             pressure_level_mb=model_metadata_dict[
-        #                 traditional_cnn.PRESSURE_LEVEL_KEY],
-        #             dilation_distance_for_target_metres=model_metadata_dict[
-        #                 traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY],
-        #             num_rows_in_half_grid=model_metadata_dict[
-        #                 traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        #             num_columns_in_half_grid=model_metadata_dict[
-        #                 traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
-        #             num_classes=num_classes,
-        #             isotonic_model_object_by_class=
-        #             isotonic_model_object_by_class))
-        #
-        # else:
-        #     this_class_probability_matrix, _ = (
-        #         traditional_cnn.apply_model_to_4d_example(
-        #             model_object=model_object,
-        #             target_time_unix_sec=evaluation_times_unix_sec[i],
-        #             num_predictor_time_steps=model_metadata_dict[
-        #                 traditional_cnn.NUM_PREDICTOR_TIME_STEPS_KEY],
-        #             num_lead_time_steps=model_metadata_dict[
-        #                 traditional_cnn.NUM_LEAD_TIME_STEPS_KEY],
-        #             top_narr_directory_name=top_narr_directory_name,
-        #             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        #             narr_predictor_names=model_metadata_dict[
-        #                 traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        #             pressure_level_mb=model_metadata_dict[
-        #                 traditional_cnn.PRESSURE_LEVEL_KEY],
-        #             dilation_distance_for_target_metres=model_metadata_dict[
-        #                 traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY],
-        #             num_rows_in_half_grid=model_metadata_dict[
-        #                 traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        #             num_columns_in_half_grid=model_metadata_dict[
-        #                 traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
-        #             num_classes=num_classes,
-        #             isotonic_model_object_by_class=
-        #             isotonic_model_object_by_class))
-        #
-        # print SEPARATOR_STRING
-        #
-        # print 'Determinizing probabilities for {0:s}...'.format(
-        #     evaluation_time_strings[i])
-        # this_predicted_label_matrix = (
-        #     object_based_eval.determinize_probabilities(
-        #         class_probability_matrix=this_class_probability_matrix,
-        #         binarization_threshold=binarization_threshold))
-        #
-        # print 'Converting image to region for {0:s}...'.format(
-        #     evaluation_time_strings[i])
-        # this_predicted_region_table = object_based_eval.images_to_regions(
-        #     predicted_label_matrix=this_predicted_label_matrix,
-        #     image_times_unix_sec=evaluation_times_unix_sec[[i]])
-        #
-        # print 'Discarding regions with area < {0:f} m2...'.format(
-        #     min_object_area_metres2)
-        # this_predicted_region_table = (
-        #     object_based_eval.discard_regions_with_small_area(
-        #         predicted_region_table=this_predicted_region_table,
-        #         x_grid_spacing_metres=NARR_GRID_SPACING_METRES,
-        #         y_grid_spacing_metres=NARR_GRID_SPACING_METRES,
-        #         min_area_metres2=min_object_area_metres2))
-        #
-        # print 'Thinning regions...'
-        # this_predicted_region_table = object_based_eval.thin_frontal_regions(
-        #     predicted_region_table=this_predicted_region_table,
-        #     num_grid_rows=NUM_ROWS_IN_NARR,
-        #     num_grid_columns=NUM_COLUMNS_IN_NARR)
-        #
-        # print 'Discarding regions with length < {0:f} m...'.format(
-        #     min_object_length_metres)
-        # this_predicted_region_table = (
-        #     object_based_eval.discard_regions_with_small_length(
-        #         predicted_region_table=this_predicted_region_table,
-        #         min_bounding_box_diag_length_metres=min_object_length_metres))
-        #
-        # _write_predicted_regions_one_time(
-        #     predicted_region_table=this_predicted_region_table,
-        #     output_dir_name=output_dir_name,
-        #     valid_time_string=evaluation_time_strings[i])
-        # print SEPARATOR_STRING
+        print 'Generating model predictions for {0:s}...\n'.format(
+            evaluation_time_strings[i])
 
-        this_file_name = '{0:s}/predicted_regions_{1:s}.p'.format(
-            output_dir_name, evaluation_time_strings[i])
+        if model_metadata_dict[traditional_cnn.NUM_LEAD_TIME_STEPS_KEY] is None:
+            this_class_probability_matrix, _ = (
+                traditional_cnn.apply_model_to_3d_example(
+                    model_object=model_object,
+                    target_time_unix_sec=evaluation_times_unix_sec[i],
+                    top_narr_directory_name=top_narr_directory_name,
+                    top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                    narr_predictor_names=model_metadata_dict[
+                        traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
+                    pressure_level_mb=model_metadata_dict[
+                        traditional_cnn.PRESSURE_LEVEL_KEY],
+                    dilation_distance_for_target_metres=model_metadata_dict[
+                        traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY],
+                    num_rows_in_half_grid=model_metadata_dict[
+                        traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
+                    num_columns_in_half_grid=model_metadata_dict[
+                        traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+                    num_classes=num_classes,
+                    isotonic_model_object_by_class=
+                    isotonic_model_object_by_class))
 
-        pickle_file_handle = open(this_file_name, 'rb')
-        this_predicted_region_table = pickle.load(pickle_file_handle)
-        pickle_file_handle.close()
+        else:
+            this_class_probability_matrix, _ = (
+                traditional_cnn.apply_model_to_4d_example(
+                    model_object=model_object,
+                    target_time_unix_sec=evaluation_times_unix_sec[i],
+                    num_predictor_time_steps=model_metadata_dict[
+                        traditional_cnn.NUM_PREDICTOR_TIME_STEPS_KEY],
+                    num_lead_time_steps=model_metadata_dict[
+                        traditional_cnn.NUM_LEAD_TIME_STEPS_KEY],
+                    top_narr_directory_name=top_narr_directory_name,
+                    top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                    narr_predictor_names=model_metadata_dict[
+                        traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
+                    pressure_level_mb=model_metadata_dict[
+                        traditional_cnn.PRESSURE_LEVEL_KEY],
+                    dilation_distance_for_target_metres=model_metadata_dict[
+                        traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY],
+                    num_rows_in_half_grid=model_metadata_dict[
+                        traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
+                    num_columns_in_half_grid=model_metadata_dict[
+                        traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+                    num_classes=num_classes,
+                    isotonic_model_object_by_class=
+                    isotonic_model_object_by_class))
+
+        print SEPARATOR_STRING
+
+        print 'Determinizing probabilities for {0:s}...'.format(
+            evaluation_time_strings[i])
+        this_predicted_label_matrix = (
+            object_based_eval.determinize_probabilities(
+                class_probability_matrix=this_class_probability_matrix,
+                binarization_threshold=binarization_threshold))
+
+        print 'Converting image to region for {0:s}...'.format(
+            evaluation_time_strings[i])
+        this_predicted_region_table = object_based_eval.images_to_regions(
+            predicted_label_matrix=this_predicted_label_matrix,
+            image_times_unix_sec=evaluation_times_unix_sec[[i]])
+
+        print 'Discarding regions with area < {0:f} m2...'.format(
+            min_object_area_metres2)
+        this_predicted_region_table = (
+            object_based_eval.discard_regions_with_small_area(
+                predicted_region_table=this_predicted_region_table,
+                x_grid_spacing_metres=NARR_GRID_SPACING_METRES,
+                y_grid_spacing_metres=NARR_GRID_SPACING_METRES,
+                min_area_metres2=min_object_area_metres2))
+
+        print 'Thinning regions...'
+        this_predicted_region_table = (
+            object_based_eval.skeletonize_frontal_regions(
+                predicted_region_table=this_predicted_region_table,
+                num_grid_rows=NUM_ROWS_IN_NARR,
+                num_grid_columns=NUM_COLUMNS_IN_NARR))
+
+        print 'Discarding regions with length < {0:f} m...'.format(
+            min_object_length_metres)
+        this_predicted_region_table = (
+            object_based_eval.discard_regions_with_small_length(
+                predicted_region_table=this_predicted_region_table,
+                min_bounding_box_diag_length_metres=min_object_length_metres))
+
+        _write_predicted_regions_one_time(
+            predicted_region_table=this_predicted_region_table,
+            output_dir_name=output_dir_name,
+            valid_time_string=evaluation_time_strings[i])
+        print SEPARATOR_STRING
 
         list_of_predicted_region_tables.append(this_predicted_region_table)
         if len(list_of_predicted_region_tables) == 1:
@@ -448,7 +442,7 @@ def _evaluate_model(
             actual_polyline_table=actual_polyline_table,
             neigh_distance_metres=matching_distance_metres))
 
-    print 'Binary contingency table is shown below:{0:s}\n'.format(
+    print 'Binary contingency table is shown below:\n{0:s}\n'.format(
         binary_contingency_table_as_dict)
 
     print 'Computing binary performance metrics...'
@@ -473,7 +467,7 @@ def _evaluate_model(
             actual_polyline_table=actual_polyline_table,
             neigh_distance_metres=matching_distance_metres))
 
-    print 'Row-normalized contingency table is shown below:{0:s}\n'.format(
+    print 'Row-normalized contingency table is shown below:\n{0:s}\n'.format(
         row_normalized_ct_as_matrix)
 
     print 'Creating column-normalized contingency table...'
@@ -483,7 +477,7 @@ def _evaluate_model(
             actual_polyline_table=actual_polyline_table,
             neigh_distance_metres=matching_distance_metres))
 
-    print 'Column-normalized contingency table is shown below:{0:s}\n'.format(
+    print 'Column-normalized contingency table is shown below:\n{0:s}\n'.format(
         row_normalized_ct_as_matrix)
 
     evaluation_file_name = '{0:s}/object_based_evaluation.p'.format(
