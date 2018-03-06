@@ -17,11 +17,6 @@ from generalexam.scripts import machine_learning as ml_script_helper
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NARR_PREDICTOR_NAMES = [
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.WET_BULB_TEMP_NAME]
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER, use_downsized_examples=True)
@@ -32,10 +27,10 @@ def _train_cnn(
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         num_rows_in_half_grid, num_columns_in_half_grid,
         dilation_distance_for_target_metres, class_fractions,
-        weight_loss_function, pressure_level_mb, training_start_time_string,
-        training_end_time_string, validation_start_time_string,
-        validation_end_time_string, top_narr_dir_name,
-        top_frontal_grid_dir_name, output_file_name):
+        weight_loss_function, pressure_level_mb, narr_predictor_names,
+        training_start_time_string, training_end_time_string,
+        validation_start_time_string, validation_end_time_string,
+        top_narr_dir_name, top_frontal_grid_dir_name, output_file_name):
     """Trains convolutional neural net with MNIST architecture.
 
     :param num_epochs: Number of training epochs.
@@ -62,6 +57,8 @@ def _train_cnn(
         `class_fractions`).
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
+    :param narr_predictor_names: 1-D list with names of NARR predictors (must be
+        in list `processed_narr_io.FIELD_NAMES`).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
         examples will be taken randomly from the time period
         `training_start_time_string`...`training_end_time_string`.
@@ -96,7 +93,7 @@ def _train_cnn(
     print 'Initializing model...'
     model_object = traditional_cnn.get_cnn_with_mnist_architecture(
         num_classes=len(class_fractions),
-        num_predictors=len(NARR_PREDICTOR_NAMES), convolve_over_time=False)
+        num_predictors=len(narr_predictor_names), convolve_over_time=False)
     print SEPARATOR_STRING
 
     model_dir_name, _ = os.path.split(output_file_name)
@@ -113,7 +110,7 @@ def _train_cnn(
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         class_fractions=class_fractions,
         weight_loss_function=weight_loss_function,
-        narr_predictor_names=NARR_PREDICTOR_NAMES,
+        narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb,
         training_start_time_unix_sec=training_start_time_unix_sec,
         training_end_time_unix_sec=training_end_time_unix_sec,
@@ -130,7 +127,7 @@ def _train_cnn(
         training_end_time_unix_sec=training_end_time_unix_sec,
         top_narr_directory_name=top_narr_dir_name,
         top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        narr_predictor_names=NARR_PREDICTOR_NAMES,
+        narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb,
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         class_fractions=class_fractions,
@@ -171,6 +168,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ml_script_helper.WEIGHT_LOSS_FUNCTION_ARG_NAME)),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
+        narr_predictor_names=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.NARR_PREDICTORS_ARG_NAME),
         training_start_time_string=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.TRAINING_START_TIME_ARG_NAME),
         training_end_time_string=getattr(

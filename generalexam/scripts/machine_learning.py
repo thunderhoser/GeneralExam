@@ -2,6 +2,7 @@
 
 import numpy
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_io import processed_narr_io
 
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
@@ -14,6 +15,7 @@ DILATION_DISTANCE_ARG_NAME = 'dilation_distance_for_target_metres'
 CLASS_FRACTIONS_ARG_NAME = 'class_fractions'
 WEIGHT_LOSS_FUNCTION_ARG_NAME = 'weight_loss_function'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
+NARR_PREDICTORS_ARG_NAME = 'narr_predictor_names'
 TRAINING_START_TIME_ARG_NAME = 'training_start_time_string'
 TRAINING_END_TIME_ARG_NAME = 'training_end_time_string'
 VALIDATION_START_TIME_ARG_NAME = 'validation_start_time_string'
@@ -48,6 +50,9 @@ WEIGHT_LOSS_FUNCTION_HELP_STRING = (
         CLASS_FRACTIONS_ARG_NAME)
 PRESSURE_LEVEL_HELP_STRING = (
     'NARR predictors will be taken from this pressure level (millibars).')
+NARR_PREDICTORS_HELP_STRING = (
+    'Names of NARR predictor variables (must be in the list '
+    '`processed_narr_io.FIELD_NAMES`).')
 TRAINING_TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Training examples will be taken randomly from'
     ' the time period `{0:s}`...`{1:s}`.').format(TRAINING_START_TIME_ARG_NAME,
@@ -74,6 +79,11 @@ DEFAULT_NUM_COLUMNS_IN_HALF_GRID = 32
 DEFAULT_DILATION_DISTANCE_METRES = float(1e5)
 DEFAULT_CLASS_FRACTIONS = numpy.array([0.9, 0.05, 0.05])
 DEFAULT_PRESSURE_LEVEL_MB = 1000
+DEFAULT_NARR_PREDICTOR_NAMES =[
+    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
+    processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
+    processed_narr_io.WET_BULB_TEMP_NAME]
+
 DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
@@ -125,6 +135,11 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
     argument_parser_object.add_argument(
         '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
         default=DEFAULT_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NARR_PREDICTORS_ARG_NAME, type=str, nargs='+',
+        required=False, default=DEFAULT_NARR_PREDICTOR_NAMES,
+        help=NARR_PREDICTORS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + TRAINING_START_TIME_ARG_NAME, type=str, required=True,
