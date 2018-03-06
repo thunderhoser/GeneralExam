@@ -244,6 +244,9 @@ def _create_attributes_diagrams(
             mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
             mean_observed_label_by_bin=this_class_freq_by_bin)
 
+        title_string = 'Reliability = {0:.4f}; BSS = {1:.4f}'.format(
+            reliability_by_class[k], bss_by_class[k])
+        pyplot.title(title_string)
         pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
         pyplot.close()
 
