@@ -13,6 +13,7 @@ import matplotlib.pyplot as pyplot
 from sklearn.metrics import roc_auc_score
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import model_evaluation as model_eval
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import model_eval_plotting
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import evaluation_utils as eval_utils
@@ -96,7 +97,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _create_roc_curves(
-        class_probability_matrix, observed_labels, model_directory_name):
+        class_probability_matrix, observed_labels, output_dir_name):
     """Creates one-vs-all ROC curve for each class.
 
     P = number of evaluation pairs
@@ -108,7 +109,7 @@ def _create_roc_curves(
     :param observed_labels: length-P numpy array of integers.  If
         observed_labels[i] = k, the [i]th example truly belongs to the [k]th
         class.
-    :param model_directory_name: Path to output directory.
+    :param output_dir_name: Path to output directory.
     :return: auc_by_class: length-K numpy array with area under ROC curve (AUC)
         from GewitterGefahr for each class.
     :return: scikit_learn_auc_by_class: Same but with scikit-learn calculations.
@@ -138,7 +139,7 @@ def _create_roc_curves(
                '{1:.4f}').format(auc_by_class[k], scikit_learn_auc_by_class[k])
 
         this_figure_file_name = '{0:s}/roc_curve_class{1:d}.jpg'.format(
-            model_directory_name, k)
+            output_dir_name, k)
         print 'Saving ROC curve to: "{0:s}"...\n'.format(this_figure_file_name)
 
         _, axes_object = pyplot.subplots(
@@ -158,12 +159,12 @@ def _create_roc_curves(
 
 
 def _create_performance_diagrams(
-        class_probability_matrix, observed_labels, model_directory_name):
+        class_probability_matrix, observed_labels, output_dir_name):
     """Creates one-vs-all performance diagram for each class.
 
     :param class_probability_matrix: See documentation for `_create_roc_curves`.
     :param observed_labels: Same.
-    :param model_directory_name: Same.
+    :param output_dir_name: Same.
     """
 
     num_classes = class_probability_matrix.shape[1]
@@ -178,7 +179,7 @@ def _create_performance_diagrams(
 
         this_figure_file_name = (
             '{0:s}/performance_diagram_class{1:d}.jpg'.format(
-                model_directory_name, k))
+                output_dir_name, k))
         print 'Saving performance diagram to: "{0:s}"...'.format(
             this_figure_file_name)
 
@@ -193,15 +194,22 @@ def _create_performance_diagrams(
 
 
 def _create_attributes_diagrams(
-        class_probability_matrix, observed_labels, model_directory_name):
+        class_probability_matrix, observed_labels, output_dir_name):
     """Creates one-vs-all attributes diagram for each class.
 
     :param class_probability_matrix: See documentation for `_create_roc_curves`.
     :param observed_labels: Same.
-    :param model_directory_name: Same.
+    :param output_dir_name: Same.
+    :return: reliability_by_class: length-K numpy array with reliability for
+        each class.
+    :return: bss_by_class: length-K numpy array with Brier skill score for each
+        class.
     """
 
     num_classes = class_probability_matrix.shape[1]
+    reliability_by_class = numpy.full(num_classes, numpy.nan)
+    bss_by_class = numpy.full(num_classes, numpy.nan)
+
     for k in range(num_classes):
         print 'Creating reliability curve for class {0:d}...'.format(k)
         (this_mean_forecast_by_bin,
@@ -210,9 +218,22 @@ def _create_attributes_diagrams(
              forecast_probabilities=class_probability_matrix[:, k],
              observed_labels=(observed_labels == k).astype(int))
 
+        this_climatology = numpy.mean(observed_labels == k)
+        this_bss_dict = model_eval.get_brier_skill_score(
+            mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
+            mean_observed_label_by_bin=this_class_freq_by_bin,
+            num_examples_by_bin=this_num_examples_by_bin,
+            climatology=this_climatology)
+
+        reliability_by_class[k] = this_bss_dict[model_eval.RELIABILITY_KEY]
+        bss_by_class[k] = this_bss_dict[model_eval.BRIER_SKILL_SCORE_KEY]
+
+        print ('Climatology = {0:.4f} ... reliability = {1:.4f} ... Brier skill'
+               ' score = {2:.4f}').format(
+                   this_climatology, reliability_by_class[k], bss_by_class[k])
+
         this_figure_file_name = (
-            '{0:s}/reliability_curve_class{1:d}.jpg'.format(
-                model_directory_name, k))
+            '{0:s}/reliability_curve_class{1:d}.jpg'.format(output_dir_name, k))
         print 'Saving reliability curve to: "{0:s}"...'.format(
             this_figure_file_name)
 
@@ -228,7 +249,7 @@ def _create_attributes_diagrams(
 
         this_figure_file_name = (
             '{0:s}/attributes_diagram_class{1:d}.jpg'.format(
-                model_directory_name, k))
+                output_dir_name, k))
         print 'Saving attributes diagram to: "{0:s}"...'.format(
             this_figure_file_name)
 
@@ -242,6 +263,8 @@ def _create_attributes_diagrams(
 
         pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
         pyplot.close()
+
+    return reliability_by_class, bss_by_class
 
 
 def _evaluate_model(
@@ -297,6 +320,18 @@ def _evaluate_model(
                 isotonic_regression_file_name))
     else:
         isotonic_model_object_by_class = None
+
+    if use_isotonic_regression:
+        evaluation_dir_name = '{0:s}/evaluation_with_isotonic'.format(
+            model_directory_name)
+    else:
+        evaluation_dir_name = '{0:s}/evaluation_no_isotonic'.format(
+            model_directory_name)
+
+    print 'Creating output directory: "{0:s}"...'.format(
+        evaluation_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=evaluation_dir_name)
 
     print SEPARATOR_STRING
     num_classes = len(model_metadata_dict[traditional_cnn.CLASS_FRACTIONS_KEY])
@@ -390,11 +425,17 @@ def _evaluate_model(
     auc_by_class, scikit_learn_auc_by_class = _create_roc_curves(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels,
-        model_directory_name=model_directory_name)
+        output_dir_name=evaluation_dir_name)
+    print '\n'
+
+    reliability_by_class, bss_by_class = _create_attributes_diagrams(
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels,
+        output_dir_name=evaluation_dir_name)
     print '\n'
 
     evaluation_file_name = '{0:s}/model_evaluation.p'.format(
-        model_directory_name)
+        evaluation_dir_name)
 
     print 'Writing evaluation results to: "{0:s}"...\n'.format(
         evaluation_file_name)
@@ -409,18 +450,14 @@ def _evaluate_model(
         binary_csi=binary_csi, binary_frequency_bias=binary_frequency_bias,
         auc_by_class=auc_by_class,
         scikit_learn_auc_by_class=scikit_learn_auc_by_class,
+        reliability_by_class=reliability_by_class, bss_by_class=bss_by_class,
         pickle_file_name=evaluation_file_name)
 
     _create_performance_diagrams(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels,
-        model_directory_name=model_directory_name)
+        output_dir_name=evaluation_dir_name)
     print '\n'
-
-    _create_attributes_diagrams(
-        class_probability_matrix=class_probability_matrix,
-        observed_labels=observed_labels,
-        model_directory_name=model_directory_name)
 
 
 if __name__ == '__main__':

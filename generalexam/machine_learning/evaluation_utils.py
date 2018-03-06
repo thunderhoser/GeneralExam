@@ -68,6 +68,8 @@ BINARY_CSI_KEY = 'binary_csi'
 BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
 AUC_BY_CLASS_KEY = 'auc_by_class'
 SCIKIT_LEARN_AUC_BY_CLASS_KEY = 'scikit_learn_auc_by_class'
+RELIABILITY_BY_CLASS_KEY = 'reliability_by_class'
+BSS_BY_CLASS_KEY = 'bss_by_class'
 
 EVALUATION_DICT_KEYS = [
     CLASS_PROBABILITY_MATRIX_KEY, OBSERVED_LABELS_KEY,
@@ -75,7 +77,7 @@ EVALUATION_DICT_KEYS = [
     HEIDKE_SCORE_KEY, GERRITY_SCORE_KEY, BINARY_POD_KEY, BINARY_POFD_KEY,
     BINARY_SUCCESS_RATIO_KEY, BINARY_FOCN_KEY, BINARY_ACCURACY_KEY,
     BINARY_CSI_KEY, BINARY_FREQUENCY_BIAS_KEY, AUC_BY_CLASS_KEY,
-    SCIKIT_LEARN_AUC_BY_CLASS_KEY
+    SCIKIT_LEARN_AUC_BY_CLASS_KEY, RELIABILITY_BY_CLASS_KEY, BSS_BY_CLASS_KEY
 ]
 
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
@@ -825,7 +827,8 @@ def write_evaluation_results(
         accuracy, peirce_score, heidke_score, gerrity_score, binary_pod,
         binary_pofd, binary_success_ratio, binary_focn, binary_accuracy,
         binary_csi, binary_frequency_bias, auc_by_class,
-        scikit_learn_auc_by_class, pickle_file_name):
+        scikit_learn_auc_by_class, reliability_by_class, bss_by_class,
+        pickle_file_name):
     """Writes evaluation results to Pickle file.
 
     P = number of evaluation pairs
@@ -854,6 +857,10 @@ def write_evaluation_results(
     :param auc_by_class: length-K numpy array with area under one-vs-all ROC
         curve for each class (calculated by GewitterGefahr).
     :param scikit_learn_auc_by_class: Same but calculated by scikit-learn.
+    :param reliability_by_class: length-K numpy array with reliability for each
+        class.
+    :param bss_by_class: length-K numpy array with Brier skill score for each
+        class.
     :param pickle_file_name: Path to output file.
     """
 
@@ -873,7 +880,9 @@ def write_evaluation_results(
         BINARY_CSI_KEY: binary_csi,
         BINARY_FREQUENCY_BIAS_KEY: binary_frequency_bias,
         AUC_BY_CLASS_KEY: auc_by_class,
-        SCIKIT_LEARN_AUC_BY_CLASS_KEY: scikit_learn_auc_by_class
+        SCIKIT_LEARN_AUC_BY_CLASS_KEY: scikit_learn_auc_by_class,
+        RELIABILITY_BY_CLASS_KEY: reliability_by_class,
+        BSS_BY_CLASS_KEY: bss_by_class
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
