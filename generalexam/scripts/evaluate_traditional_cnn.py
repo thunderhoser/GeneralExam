@@ -35,6 +35,7 @@ NUM_EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
 USE_ISOTONIC_REGRESSION_ARG_NAME = 'use_isotonic_regression'
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to model file, containing a trained CNN.  This file should be '
@@ -57,6 +58,7 @@ NARR_DIR_HELP_STRING = (
 FRONTAL_GRID_DIR_HELP_STRING = (
     'Name of top-level directory with frontal grids (one per file, indicating '
     'which NARR grid cells are intersected by a front).')
+OUTPUT_DIR_HELP_STRING = 'Name of output directory for evaluation results.'
 
 DEFAULT_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_FRONTAL_GRID_DIR_NAME = (
@@ -94,6 +96,11 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_FRONTAL_GRID_DIR_NAME, help=FRONTAL_GRID_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER = argparse.ArgumentParser()
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 
 def _create_roc_curves(
@@ -273,7 +280,7 @@ def _create_attributes_diagrams(
 def _evaluate_model(
         model_file_name, first_eval_time_string, last_eval_time_string,
         num_evaluation_times, num_examples_per_time, use_isotonic_regression,
-        top_narr_directory_name, top_frontal_grid_dir_name):
+        top_narr_directory_name, top_frontal_grid_dir_name, output_dir_name):
     """Evaluates a traditional CNN, preferably on non-training data.
 
     :param model_file_name: Path to model file, containing a trained CNN.  This
@@ -293,12 +300,15 @@ def _evaluate_model(
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal
         grids (one per file, indicating which NARR grid cells are intersected by
         a front).
+    :param output_dir_name: Name of output directory for evaluation results.
     """
 
     first_eval_time_unix_sec = time_conversion.string_to_unix_sec(
         first_eval_time_string, INPUT_TIME_FORMAT)
     last_eval_time_unix_sec = time_conversion.string_to_unix_sec(
         last_eval_time_string, INPUT_TIME_FORMAT)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = traditional_cnn.read_keras_model(model_file_name)
@@ -323,18 +333,6 @@ def _evaluate_model(
                 isotonic_regression_file_name))
     else:
         isotonic_model_object_by_class = None
-
-    if use_isotonic_regression:
-        evaluation_dir_name = '{0:s}/evaluation_with_isotonic'.format(
-            model_directory_name)
-    else:
-        evaluation_dir_name = '{0:s}/evaluation_no_isotonic'.format(
-            model_directory_name)
-
-    print 'Creating output directory: "{0:s}"...'.format(
-        evaluation_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=evaluation_dir_name)
 
     print SEPARATOR_STRING
     num_classes = len(model_metadata_dict[traditional_cnn.CLASS_FRACTIONS_KEY])
@@ -428,17 +426,16 @@ def _evaluate_model(
     auc_by_class, scikit_learn_auc_by_class = _create_roc_curves(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels,
-        output_dir_name=evaluation_dir_name)
+        output_dir_name=output_dir_name)
     print '\n'
 
     reliability_by_class, bss_by_class = _create_attributes_diagrams(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels,
-        output_dir_name=evaluation_dir_name)
+        output_dir_name=output_dir_name)
     print '\n'
 
-    evaluation_file_name = '{0:s}/model_evaluation.p'.format(
-        evaluation_dir_name)
+    evaluation_file_name = '{0:s}/model_evaluation.p'.format(output_dir_name)
 
     print 'Writing evaluation results to: "{0:s}"...\n'.format(
         evaluation_file_name)
@@ -459,7 +456,7 @@ def _evaluate_model(
     _create_performance_diagrams(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels,
-        output_dir_name=evaluation_dir_name)
+        output_dir_name=output_dir_name)
     print '\n'
 
 
@@ -477,6 +474,7 @@ if __name__ == '__main__':
     TOP_NARR_DIRECTORY_NAME = getattr(INPUT_ARG_OBJECT, NARR_DIR_ARG_NAME)
     TOP_FRONTAL_GRID_DIR_NAME = getattr(
         INPUT_ARG_OBJECT, FRONTAL_GRID_DIR_ARG_NAME)
+    OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
 
     _evaluate_model(
         model_file_name=MODEL_FILE_NAME,
@@ -486,4 +484,5 @@ if __name__ == '__main__':
         num_examples_per_time=NUM_EXAMPLES_PER_TIME,
         use_isotonic_regression=USE_ISOTONIC_REGRESSION,
         top_narr_directory_name=TOP_NARR_DIRECTORY_NAME,
-        top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME)
+        top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME,
+        output_dir_name=OUTPUT_DIR_NAME)
