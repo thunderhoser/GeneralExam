@@ -204,6 +204,9 @@ def _find_endpoints_of_skeleton(binary_image_matrix):
         the skeleton.
     """
 
+    if numpy.sum(binary_image_matrix) == 1:
+        return copy.deepcopy(binary_image_matrix)
+
     filtered_image_matrix = numpy.pad(
         binary_image_matrix, pad_width=2, mode='constant', constant_values=0)
 
@@ -219,20 +222,17 @@ def _find_endpoints_of_skeleton(binary_image_matrix):
 
 
 def _points_to_search_nodes(binary_skeleton_matrix, binary_endpoint_matrix):
-    """Converts points in skeleton to search nodes for BFS.
-
-    BFS = breadth-first search
+    """Converts points in skeleton to BFS (breadth-first search) nodes.
 
     :param binary_skeleton_matrix: M-by-N numpy array of integers in 0...1.  If
-        binary_skeleton_matrix[i, j] = 1, grid cell [i, j] is part of the
-        skeleton.
+        binary_image_matrix[i, j] = 1, grid cell [i, j] is part of the skeleton.
     :param binary_endpoint_matrix: M-by-N numpy array of integers in 0...1.
         If binary_endpoint_matrix[i, j] = 1, grid cell [i, j] is an endpoint of
         the skeleton.
     :return: search_node_dict: Dictionary, where each key is an integer ID and
         each value is an instance of `search.BfsNode`.
-    :return: endpoint_keys: 1-D numpy array of keys (those used in
-        `search_node_dict`) corresponding to endpoints.
+    :return: endpoint_keys: 1-D numpy array of keys (in `search_node_dict`)
+         corresponding to endpoints.
     """
 
     rows_in_skeleton, columns_in_skeleton = numpy.where(
@@ -252,6 +252,9 @@ def _points_to_search_nodes(binary_skeleton_matrix, binary_endpoint_matrix):
 
         these_adjacent_indices = numpy.where(
             numpy.logical_and(these_row_flags, these_column_flags))[0]
+        these_adjacent_indices = these_adjacent_indices.tolist()
+        these_adjacent_indices.remove(i)
+
         search_node_dict.update(
             {i: search.BfsNode(adjacent_keys=these_adjacent_indices)})
 
@@ -492,8 +495,8 @@ def find_main_skeletons(
     error_checking.assert_is_numpy_array(
         image_times_unix_sec, exact_dimensions=numpy.array([num_images]))
 
-    num_grid_rows = class_probability_matrix.shape[0]
-    num_grid_columns = class_probability_matrix.shape[1]
+    num_grid_rows = class_probability_matrix.shape[1]
+    num_grid_columns = class_probability_matrix.shape[2]
     num_regions = len(predicted_region_table.index)
 
     for i in range(num_regions):
@@ -523,9 +526,20 @@ def find_main_skeletons(
             binary_endpoint_matrix=this_binary_endpoint_matrix)
 
         this_num_endpoints = len(these_endpoint_keys)
-        this_max_mean_probability = 0.
-        these_rows_in_best_skeleton = None
-        these_columns_in_best_skeleton = None
+
+        if this_num_endpoints == 1:
+            these_rows_in_best_skeleton = these_rows_in_region[
+                numpy.array(these_endpoint_keys)]
+            these_columns_in_best_skeleton = these_columns_in_region[
+                numpy.array(these_endpoint_keys)]
+            this_max_mean_probability = class_probability_matrix[
+                this_image_index, these_rows_in_best_skeleton[0],
+                these_columns_in_best_skeleton[0], this_front_type_integer]
+
+        else:
+            this_max_mean_probability = 0.
+            these_rows_in_best_skeleton = None
+            these_columns_in_best_skeleton = None
 
         for j in range(this_num_endpoints):
             for k in range(j + 1, this_num_endpoints):
@@ -536,8 +550,8 @@ def find_main_skeletons(
                     start_node_key=these_endpoint_keys[j],
                     end_node_key=these_endpoint_keys[k])
 
-                if these_visited_keys is None:
-                    these_visited_keys = []
+                if these_visited_keys is None or not len(these_visited_keys):
+                    continue
 
                 these_visited_keys = numpy.array(these_visited_keys)
                 these_row_indices = these_rows_in_region[these_visited_keys]

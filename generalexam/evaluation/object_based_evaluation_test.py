@@ -7,6 +7,7 @@ import pandas
 from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.evaluation import object_based_evaluation as object_based_eval
 from generalexam.ge_utils import front_utils
+from generalexam.ge_utils import search
 
 TOLERANCE = 1e-6
 ARRAY_COLUMN_NAMES = [
@@ -45,6 +46,42 @@ SHORTEST_DISTANCES_FIRST_TO_SECOND_METRES = numpy.array(
     [1., 0., 1., 0., 3., 3., 3.])
 MEDIAN_DISTANCE_FIRST_TO_SECOND_METRES = numpy.median(
     SHORTEST_DISTANCES_FIRST_TO_SECOND_METRES)
+
+# The following constants are used to test _find_endpoints_of_skeleton.
+BINARY_SKELETON_MATRIX = numpy.array([[1, 0, 0, 0, 0, 0, 0, 0],
+                                      [0, 1, 1, 0, 0, 0, 1, 0],
+                                      [0, 0, 1, 1, 0, 0, 1, 0],
+                                      [0, 0, 0, 1, 1, 0, 1, 0],
+                                      [0, 0, 0, 0, 1, 1, 0, 0]], dtype=int)
+BINARY_ENDPOINT_MATRIX = numpy.array([[1, 0, 0, 0, 0, 0, 0, 0],
+                                      [0, 0, 0, 0, 0, 0, 1, 0],
+                                      [0, 0, 0, 0, 0, 0, 0, 0],
+                                      [0, 0, 0, 0, 0, 0, 0, 0],
+                                      [0, 0, 0, 0, 0, 0, 0, 0]], dtype=int)
+
+# The following constants are used to test _points_to_search_nodes.
+# NODE_KEY_MATRIX = numpy.array([[0,  -1, -1, -1, -1, -1, -1, -1],
+#                                [-1,  1,  2, -1, -1, -1,  3, -1],
+#                                [-1, -1,  4,  5, -1, -1,  6, -1],
+#                                [-1, -1, -1,  7,  8, -1,  9, -1],
+#                                [-1, -1, -1, -1, 10, 11, -1, -1]], dtype=int)
+
+SEARCH_NODE_DICT = {
+    0: search.BfsNode(adjacent_keys=[1]),
+    1: search.BfsNode(adjacent_keys=[0, 2, 4]),
+    2: search.BfsNode(adjacent_keys=[1, 4, 5]),
+    3: search.BfsNode(adjacent_keys=[6]),
+    4: search.BfsNode(adjacent_keys=[1, 2, 5, 7]),
+    5: search.BfsNode(adjacent_keys=[2, 4, 7, 8]),
+    6: search.BfsNode(adjacent_keys=[3, 9]),
+    7: search.BfsNode(adjacent_keys=[4, 5, 8, 10]),
+    8: search.BfsNode(adjacent_keys=[5, 7, 10, 11]),
+    9: search.BfsNode(adjacent_keys=[6, 11]),
+    10: search.BfsNode(adjacent_keys=[7, 8, 11]),
+    11: search.BfsNode(adjacent_keys=[8, 9, 10])
+}
+
+ENDPOINT_KEYS = numpy.array([0, 3], dtype=int)
 
 # The following constants are used to test determinize_probabilities.
 PROBABILITY_MATRIX_CLASS0 = numpy.array(
@@ -126,6 +163,66 @@ PREDICTED_REGION_TABLE_SANS_SMALL_LENGTH = PREDICTED_REGION_TABLE.drop(
 MIN_REGION_AREA_METRES2 = 1.2e10  # 12 000 km^2 (~11 grid cells)
 PREDICTED_REGION_TABLE_SANS_SMALL_AREA = PREDICTED_REGION_TABLE.drop(
     PREDICTED_REGION_TABLE.index[[0, 2]], axis=0, inplace=False)
+
+# The following constants are used to test skeletonize_frontal_regions.
+# SKELETON_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 2, 2],
+#                                [0, 1, 0, 0, 0, 2, 0, 0],
+#                                [1, 0, 1, 0, 2, 0, 0, 0],
+#                                [0, 0, 1, 2, 0, 2, 0, 0],
+#                                [1, 0, 0, 1, 2, 2, 2, 2]], dtype=int)
+
+ROW_INDICES_LARGE_WF_SKELETON = numpy.array([1, 2, 2, 3, 4], dtype=int)
+COLUMN_INDICES_LARGE_WF_SKELETON = numpy.array([1, 0, 2, 2, 3], dtype=int)
+ROW_INDICES_SMALL_WF_SKELETON = numpy.array([4], dtype=int)
+COLUMN_INDICES_SMALL_WF_SKELETON = numpy.array([0], dtype=int)
+ROW_INDICES_CF_SKELETON = numpy.array([0, 0, 1, 2, 3, 3, 4, 4, 4, 4], dtype=int)
+COLUMN_INDICES_CF_SKELETON = numpy.array(
+    [6, 7, 5, 4, 3, 5, 4, 5, 6, 7], dtype=int)
+
+ROW_INDICES_BY_SKELETON = [
+    ROW_INDICES_LARGE_WF_SKELETON, ROW_INDICES_CF_SKELETON,
+    ROW_INDICES_SMALL_WF_SKELETON]
+COLUMN_INDICES_BY_SKELETON = [
+    COLUMN_INDICES_LARGE_WF_SKELETON, COLUMN_INDICES_CF_SKELETON,
+    COLUMN_INDICES_SMALL_WF_SKELETON]
+
+PREDICTED_SKELETON_DICT = {
+    front_utils.TIME_COLUMN: REGION_TIMES_UNIX_SEC,
+    front_utils.FRONT_TYPE_COLUMN: FRONT_TYPES,
+    object_based_eval.ROW_INDICES_COLUMN: ROW_INDICES_BY_SKELETON,
+    object_based_eval.COLUMN_INDICES_COLUMN: COLUMN_INDICES_BY_SKELETON
+}
+PREDICTED_SKELETON_TABLE = pandas.DataFrame.from_dict(PREDICTED_SKELETON_DICT)
+
+# The following constants are used to test find_main_skeletons.
+# MAIN_SKELETON_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 2, 2],
+#                                     [0, 1, 0, 0, 0, 2, 0, 0],
+#                                     [1, 0, 1, 0, 2, 0, 0, 0],
+#                                     [0, 0, 1, 0, 0, 2, 0, 0],
+#                                     [1, 0, 0, 1, 0, 0, 2, 2]], dtype=int)
+
+ROW_INDICES_LARGE_WF_MAIN_SKELETON = numpy.array([2, 1, 2, 3, 4], dtype=int)
+COLUMN_INDICES_LARGE_WF_MAIN_SKELETON = numpy.array([0, 1, 2, 2, 3], dtype=int)
+ROW_INDICES_SMALL_WF_MAIN_SKELETON = numpy.array([4], dtype=int)
+COLUMN_INDICES_SMALL_WF_MAIN_SKELETON = numpy.array([0], dtype=int)
+ROW_INDICES_CF_MAIN_SKELETON = numpy.array([0, 0, 1, 2, 3, 4, 4], dtype=int)
+COLUMN_INDICES_CF_MAIN_SKELETON = numpy.array([7, 6, 5, 4, 5, 6, 7], dtype=int)
+
+ROW_INDICES_BY_MAIN_SKELETON = [
+    ROW_INDICES_LARGE_WF_MAIN_SKELETON, ROW_INDICES_CF_MAIN_SKELETON,
+    ROW_INDICES_SMALL_WF_MAIN_SKELETON]
+COLUMN_INDICES_BY_MAIN_SKELETON = [
+    COLUMN_INDICES_LARGE_WF_MAIN_SKELETON, COLUMN_INDICES_CF_MAIN_SKELETON,
+    COLUMN_INDICES_SMALL_WF_MAIN_SKELETON]
+
+PREDICTED_MAIN_SKELETON_DICT = {
+    front_utils.TIME_COLUMN: REGION_TIMES_UNIX_SEC,
+    front_utils.FRONT_TYPE_COLUMN: FRONT_TYPES,
+    object_based_eval.ROW_INDICES_COLUMN: ROW_INDICES_BY_MAIN_SKELETON,
+    object_based_eval.COLUMN_INDICES_COLUMN: COLUMN_INDICES_BY_MAIN_SKELETON
+}
+PREDICTED_MAIN_SKELETON_TABLE = pandas.DataFrame.from_dict(
+    PREDICTED_MAIN_SKELETON_DICT)
 
 # The following constants are used to test convert_regions_rowcol_to_narr_xy.
 X_COORDS_LARGE_WF_REGION_METRES = (
@@ -368,6 +465,32 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             this_predicted_region_table,
             PREDICTED_REGION_TABLE_SANS_SMALL_AREA))
 
+    def test_skeletonize_frontal_regions(self):
+        """Ensures correct output from skeletonize_frontal_regions."""
+
+        this_input_table = copy.deepcopy(PREDICTED_REGION_TABLE)
+        this_predicted_skeleton_table = (
+            object_based_eval.skeletonize_frontal_regions(
+                predicted_region_table=this_input_table,
+                num_grid_rows=PREDICTED_LABEL_MATRIX.shape[1],
+                num_grid_columns=PREDICTED_LABEL_MATRIX.shape[2]))
+
+        self.assertTrue(_compare_tables(
+            this_predicted_skeleton_table, PREDICTED_SKELETON_TABLE))
+
+    def test_find_main_skeletons(self):
+        """Ensures correct output from find_main_skeletons."""
+
+        this_input_table = copy.deepcopy(PREDICTED_SKELETON_TABLE)
+        this_predicted_main_skeleton_table = (
+            object_based_eval.find_main_skeletons(
+                predicted_region_table=this_input_table,
+                class_probability_matrix=PROBABILITY_MATRIX,
+                image_times_unix_sec=IMAGE_TIMES_UNIX_SEC))
+
+        self.assertTrue(_compare_tables(
+            this_predicted_main_skeleton_table, PREDICTED_MAIN_SKELETON_TABLE))
+
     def test_get_distance_between_fronts(self):
         """Ensures correct output from _get_distance_between_fronts."""
 
@@ -381,6 +504,38 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             this_distance_metres, MEDIAN_DISTANCE_FIRST_TO_SECOND_METRES,
             atol=TOLERANCE))
 
+    def test_find_endpoints_of_skeleton(self):
+        """Ensures correct output from _find_endpoints_of_skeleton."""
+
+        this_binary_endpoint_matrix = (
+            object_based_eval._find_endpoints_of_skeleton(
+                BINARY_SKELETON_MATRIX))
+        self.assertTrue(numpy.array_equal(
+            this_binary_endpoint_matrix, BINARY_ENDPOINT_MATRIX))
+
+    def test_points_to_search_nodes(self):
+        """Ensures correct output from _points_to_search_nodes."""
+
+        this_search_node_dict, these_endpoint_keys = (
+            object_based_eval._points_to_search_nodes(
+                binary_skeleton_matrix=BINARY_SKELETON_MATRIX,
+                binary_endpoint_matrix=BINARY_ENDPOINT_MATRIX))
+
+        self.assertTrue(numpy.array_equal(these_endpoint_keys, ENDPOINT_KEYS))
+
+        these_keys = this_search_node_dict.keys()
+        expected_keys = SEARCH_NODE_DICT.keys()
+        self.assertTrue(set(these_keys) == set(expected_keys))
+
+        for this_key in these_keys:
+            these_adjacent_keys = numpy.array(
+                this_search_node_dict[this_key].get_adjacency_list())
+            expected_adjacent_keys = numpy.array(
+                SEARCH_NODE_DICT[this_key].get_adjacency_list())
+
+            self.assertTrue(numpy.array_equal(
+                these_adjacent_keys, expected_adjacent_keys))
+
     def test_convert_regions_rowcol_to_narr_xy(self):
         """Ensures correct output from convert_regions_rowcol_to_narr_xy."""
 
@@ -389,8 +544,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             object_based_eval.convert_regions_rowcol_to_narr_xy(
                 this_input_table))
 
-        _compare_tables(this_predicted_region_table,
-                        PREDICTED_REGION_TABLE_WITH_XY_COORDS)
+        self.assertTrue(_compare_tables(
+            this_predicted_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS))
 
     def test_get_binary_contingency_table(self):
         """Ensures correct output from get_binary_contingency_table."""
