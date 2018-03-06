@@ -26,7 +26,7 @@ INPUT_TIME_FORMAT = '%Y%m%d%H'
 DEFAULT_TIME_FORMAT = '%Y-%m-%d-%H'
 
 NARR_TIME_INTERVAL_SECONDS = 10800
-NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
+NARR_GRID_SPACING_METRES, _ = nwp_model_utils.get_xy_grid_spacing(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
