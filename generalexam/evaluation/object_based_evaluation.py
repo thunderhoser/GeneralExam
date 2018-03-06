@@ -22,7 +22,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
-from generalexam.ge_utils import search
+from generalexam.ge_utils import a_star_search
 
 # TODO(thunderhoser): Many methods in this file will not work for FCN output
 # (which does not cover the full NARR grid).  I will need to allow for that.
@@ -219,53 +219,6 @@ def _find_endpoints_of_skeleton(binary_image_matrix):
     endpoint_flag_matrix[
         filtered_image_matrix == FILTERED_VALUE_AT_ENDPOINT] = 1
     return endpoint_flag_matrix
-
-
-def _points_to_search_nodes(binary_skeleton_matrix, binary_endpoint_matrix):
-    """Converts points in skeleton to BFS (breadth-first search) nodes.
-
-    :param binary_skeleton_matrix: M-by-N numpy array of integers in 0...1.  If
-        binary_image_matrix[i, j] = 1, grid cell [i, j] is part of the skeleton.
-    :param binary_endpoint_matrix: M-by-N numpy array of integers in 0...1.
-        If binary_endpoint_matrix[i, j] = 1, grid cell [i, j] is an endpoint of
-        the skeleton.
-    :return: search_node_dict: Dictionary, where each key is an integer ID and
-        each value is an instance of `search.BfsNode`.
-    :return: endpoint_keys: 1-D numpy array of keys (in `search_node_dict`)
-         corresponding to endpoints.
-    """
-
-    rows_in_skeleton, columns_in_skeleton = numpy.where(
-        binary_skeleton_matrix == 1)
-
-    search_node_dict = {}
-    endpoint_keys = []
-    num_points_in_skeleton = len(rows_in_skeleton)
-
-    for i in range(num_points_in_skeleton):
-        these_row_flags = numpy.logical_and(
-            rows_in_skeleton >= rows_in_skeleton[i] - 1,
-            rows_in_skeleton <= rows_in_skeleton[i] + 1)
-        these_column_flags = numpy.logical_and(
-            columns_in_skeleton >= columns_in_skeleton[i] - 1,
-            columns_in_skeleton <= columns_in_skeleton[i] + 1)
-
-        these_adjacent_indices = numpy.where(
-            numpy.logical_and(these_row_flags, these_column_flags))[0]
-        these_adjacent_indices = these_adjacent_indices.tolist()
-        these_adjacent_indices.remove(i)
-
-        search_node_dict.update(
-            {i: search.BfsNode(adjacent_keys=these_adjacent_indices)})
-
-        if binary_endpoint_matrix[rows_in_skeleton[i],
-                                  columns_in_skeleton[i]] == 0:
-            continue
-
-        endpoint_keys.append(i)
-
-    endpoint_keys = numpy.array(endpoint_keys)
-    return search_node_dict, endpoint_keys
 
 
 def determinize_probabilities(class_probability_matrix, binarization_threshold):
@@ -477,16 +430,16 @@ def find_main_skeletons(
     method removes "branches" from the original skeleton line, leaving only the
     main skeleton line.
 
-    *** This method represents each skeleton line as a polygon with width of one
-    grid cell.
+    *** This method represents each skeleton line as a polygon with
+        one-grid-cell width, rather than an explicit polyline.
 
     :param predicted_region_table: See documentation for `images_to_regions`.
     :param class_probability_matrix: E-by-M-by-N-by-K numpy array of floats.
         class_probability_matrix[i, j, k, m] is the predicted probability that
         pixel [j, k] in the [i]th image belongs to the [m]th class.
     :param image_times_unix_sec: length-E numpy array of valid times.
-    :return: predicted_region_table: Same as input, except that each region is
-        represented only by its main skeleton line.
+    :return: predicted_region_table: Same as input, except that each region has
+        been reduced to its main skeleton line.
     """
 
     _check_prediction_images(class_probability_matrix, probabilistic=True)
@@ -516,64 +469,59 @@ def find_main_skeletons(
             predicted_region_table[COLUMN_INDICES_COLUMN].values[i],
             num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
-        these_rows_in_region, these_columns_in_region = numpy.where(
-            this_binary_region_matrix == 1)
-
         this_binary_endpoint_matrix = _find_endpoints_of_skeleton(
             this_binary_region_matrix)
-        this_search_node_dict, these_endpoint_keys = _points_to_search_nodes(
-            binary_skeleton_matrix=this_binary_region_matrix,
-            binary_endpoint_matrix=this_binary_endpoint_matrix)
-
-        this_num_endpoints = len(these_endpoint_keys)
+        these_endpoint_rows, these_endpoint_columns = numpy.where(
+            this_binary_endpoint_matrix == 1)
+        this_num_endpoints = len(these_endpoint_rows)
 
         if this_num_endpoints == 1:
-            these_rows_in_best_skeleton = these_rows_in_region[
-                numpy.array(these_endpoint_keys)]
-            these_columns_in_best_skeleton = these_columns_in_region[
-                numpy.array(these_endpoint_keys)]
+            these_main_skeleton_rows = numpy.array([these_endpoint_rows[0]])
+            these_main_skeleton_columns = numpy.array(
+                [these_endpoint_columns[0]])
+
             this_max_mean_probability = class_probability_matrix[
-                this_image_index, these_rows_in_best_skeleton[0],
-                these_columns_in_best_skeleton[0], this_front_type_integer]
+                this_image_index, these_main_skeleton_rows[0],
+                these_main_skeleton_columns[0], this_front_type_integer]
 
         else:
             this_max_mean_probability = 0.
-            these_rows_in_best_skeleton = None
-            these_columns_in_best_skeleton = None
+            these_main_skeleton_rows = numpy.array([], dtype=int)
+            these_main_skeleton_columns = numpy.array([], dtype=int)
 
         for j in range(this_num_endpoints):
             for k in range(j + 1, this_num_endpoints):
+                this_grid_search_object = a_star_search.GridSearch(
+                    binary_region_matrix=this_binary_region_matrix)
 
-                # TODO(thunderhoser): Use better algorithm than BFS.
-                these_visited_keys = search.breadth_first_search(
-                    bfs_node_dict=this_search_node_dict,
-                    start_node_key=these_endpoint_keys[j],
-                    end_node_key=these_endpoint_keys[k])
+                this_start_rowcol_as_tuple = (
+                    these_endpoint_columns[j], these_endpoint_rows[j])
+                this_end_rowcol_as_tuple = (
+                    these_endpoint_columns[k], these_endpoint_rows[k])
+                this_list_of_visited_rowcol_tuples = list(
+                    this_grid_search_object.astar(
+                        this_start_rowcol_as_tuple, this_end_rowcol_as_tuple))
 
-                if these_visited_keys is None or not len(these_visited_keys):
-                    continue
-
-                these_visited_keys = numpy.array(these_visited_keys)
-                these_row_indices = these_rows_in_region[these_visited_keys]
-                these_column_indices = these_columns_in_region[
-                    these_visited_keys]
+                these_skeleton_rows = numpy.array(
+                    [x[1] for x in this_list_of_visited_rowcol_tuples])
+                these_skeleton_columns = numpy.array(
+                    [x[0] for x in this_list_of_visited_rowcol_tuples])
 
                 this_mean_probability = numpy.mean(
                     class_probability_matrix[
-                        this_image_index, these_row_indices,
-                        these_column_indices, this_front_type_integer])
+                        this_image_index, these_skeleton_rows,
+                        these_skeleton_columns, this_front_type_integer])
                 if this_mean_probability <= this_max_mean_probability:
                     continue
 
-                this_max_mean_probability = copy.deepcopy(this_mean_probability)
-                these_rows_in_best_skeleton = copy.deepcopy(these_row_indices)
-                these_columns_in_best_skeleton = copy.deepcopy(
-                    these_column_indices)
+                this_max_mean_probability = this_mean_probability + 0.
+                these_main_skeleton_rows = these_skeleton_rows + 0
+                these_main_skeleton_columns = these_skeleton_columns + 0
 
         predicted_region_table[ROW_INDICES_COLUMN].values[
-            i] = these_rows_in_best_skeleton
+            i] = these_main_skeleton_rows
         predicted_region_table[COLUMN_INDICES_COLUMN].values[
-            i] = these_columns_in_best_skeleton
+            i] = these_main_skeleton_columns
 
     return predicted_region_table
 

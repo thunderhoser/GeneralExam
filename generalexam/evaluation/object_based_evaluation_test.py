@@ -7,7 +7,6 @@ import pandas
 from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.evaluation import object_based_evaluation as object_based_eval
 from generalexam.ge_utils import front_utils
-from generalexam.ge_utils import search
 
 TOLERANCE = 1e-6
 ARRAY_COLUMN_NAMES = [
@@ -58,30 +57,6 @@ BINARY_ENDPOINT_MATRIX = numpy.array([[1, 0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0, 0]], dtype=int)
-
-# The following constants are used to test _points_to_search_nodes.
-# NODE_KEY_MATRIX = numpy.array([[0,  -1, -1, -1, -1, -1, -1, -1],
-#                                [-1,  1,  2, -1, -1, -1,  3, -1],
-#                                [-1, -1,  4,  5, -1, -1,  6, -1],
-#                                [-1, -1, -1,  7,  8, -1,  9, -1],
-#                                [-1, -1, -1, -1, 10, 11, -1, -1]], dtype=int)
-
-SEARCH_NODE_DICT = {
-    0: search.BfsNode(adjacent_keys=[1]),
-    1: search.BfsNode(adjacent_keys=[0, 2, 4]),
-    2: search.BfsNode(adjacent_keys=[1, 4, 5]),
-    3: search.BfsNode(adjacent_keys=[6]),
-    4: search.BfsNode(adjacent_keys=[1, 2, 5, 7]),
-    5: search.BfsNode(adjacent_keys=[2, 4, 7, 8]),
-    6: search.BfsNode(adjacent_keys=[3, 9]),
-    7: search.BfsNode(adjacent_keys=[4, 5, 8, 10]),
-    8: search.BfsNode(adjacent_keys=[5, 7, 10, 11]),
-    9: search.BfsNode(adjacent_keys=[6, 11]),
-    10: search.BfsNode(adjacent_keys=[7, 8, 11]),
-    11: search.BfsNode(adjacent_keys=[8, 9, 10])
-}
-
-ENDPOINT_KEYS = numpy.array([0, 3], dtype=int)
 
 # The following constants are used to test determinize_probabilities.
 PROBABILITY_MATRIX_CLASS0 = numpy.array(
@@ -512,29 +487,6 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
                 BINARY_SKELETON_MATRIX))
         self.assertTrue(numpy.array_equal(
             this_binary_endpoint_matrix, BINARY_ENDPOINT_MATRIX))
-
-    def test_points_to_search_nodes(self):
-        """Ensures correct output from _points_to_search_nodes."""
-
-        this_search_node_dict, these_endpoint_keys = (
-            object_based_eval._points_to_search_nodes(
-                binary_skeleton_matrix=BINARY_SKELETON_MATRIX,
-                binary_endpoint_matrix=BINARY_ENDPOINT_MATRIX))
-
-        self.assertTrue(numpy.array_equal(these_endpoint_keys, ENDPOINT_KEYS))
-
-        these_keys = this_search_node_dict.keys()
-        expected_keys = SEARCH_NODE_DICT.keys()
-        self.assertTrue(set(these_keys) == set(expected_keys))
-
-        for this_key in these_keys:
-            these_adjacent_keys = numpy.array(
-                this_search_node_dict[this_key].get_adjacency_list())
-            expected_adjacent_keys = numpy.array(
-                SEARCH_NODE_DICT[this_key].get_adjacency_list())
-
-            self.assertTrue(numpy.array_equal(
-                these_adjacent_keys, expected_adjacent_keys))
 
     def test_convert_regions_rowcol_to_narr_xy(self):
         """Ensures correct output from convert_regions_rowcol_to_narr_xy."""

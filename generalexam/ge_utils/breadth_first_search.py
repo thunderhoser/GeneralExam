@@ -97,8 +97,8 @@ class BfsNode:
         return self.adjacent_keys
 
 
-def breadth_first_search(bfs_node_dict, start_node_key, end_node_key):
-    """Runs breadth-first search (BFS).
+def run_bfs(bfs_node_dict, start_node_key, end_node_key):
+    """Runs BFS.
 
     If BFS cannot reach the end node, returns None.
 
