@@ -494,18 +494,16 @@ def find_main_skeletons(
                 this_grid_search_object = a_star_search.GridSearch(
                     binary_region_matrix=this_binary_region_matrix)
 
-                this_start_rowcol_as_tuple = (
-                    these_endpoint_columns[j], these_endpoint_rows[j])
-                this_end_rowcol_as_tuple = (
-                    these_endpoint_columns[k], these_endpoint_rows[k])
-                this_list_of_visited_rowcol_tuples = list(
-                    this_grid_search_object.astar(
-                        this_start_rowcol_as_tuple, this_end_rowcol_as_tuple))
+                these_skeleton_rows, these_skeleton_columns = (
+                    a_star_search.run_a_star(
+                        grid_search_object=this_grid_search_object,
+                        start_row=these_endpoint_rows[j],
+                        start_column=these_endpoint_columns[j],
+                        end_row=these_endpoint_rows[k],
+                        end_column=these_endpoint_columns[k]))
 
-                these_skeleton_rows = numpy.array(
-                    [x[1] for x in this_list_of_visited_rowcol_tuples])
-                these_skeleton_columns = numpy.array(
-                    [x[0] for x in this_list_of_visited_rowcol_tuples])
+                if these_skeleton_rows is None:
+                    continue
 
                 this_mean_probability = numpy.mean(
                     class_probability_matrix[
