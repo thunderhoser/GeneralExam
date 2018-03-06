@@ -97,7 +97,6 @@ INPUT_ARG_PARSER.add_argument(
     '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_FRONTAL_GRID_DIR_NAME, help=FRONTAL_GRID_DIR_HELP_STRING)
 
-INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
