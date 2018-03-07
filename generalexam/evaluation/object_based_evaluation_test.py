@@ -7,6 +7,7 @@ import pandas
 from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.evaluation import object_based_evaluation as object_based_eval
 from generalexam.ge_utils import front_utils
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TOLERANCE = 1e-6
 ARRAY_COLUMN_NAMES = [
@@ -419,6 +420,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
         this_predicted_region_table = (
             object_based_eval.discard_regions_with_small_length(
                 predicted_region_table=this_input_table,
+                x_grid_spacing_metres=X_GRID_SPACING_METRES,
+                y_grid_spacing_metres=Y_GRID_SPACING_METRES,
                 min_bounding_box_diag_length_metres=MIN_REGION_LENGTH_METRES))
 
         self.assertTrue(_compare_tables(
@@ -488,13 +491,44 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_binary_endpoint_matrix, BINARY_ENDPOINT_MATRIX))
 
-    def test_convert_regions_rowcol_to_narr_xy(self):
-        """Ensures correct output from convert_regions_rowcol_to_narr_xy."""
+    def test_convert_regions_rowcol_to_narr_xy_fcn_false(self):
+        """Ensures correct output from convert_regions_rowcol_to_narr_xy.
+
+        In this case, `are_predictions_from_fcn` is False.
+        """
 
         this_input_table = copy.deepcopy(PREDICTED_REGION_TABLE)
         this_predicted_region_table = (
             object_based_eval.convert_regions_rowcol_to_narr_xy(
-                this_input_table))
+                this_input_table, are_predictions_from_fcn=False))
+
+        self.assertTrue(_compare_tables(
+            this_predicted_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS))
+
+    def test_convert_regions_rowcol_to_narr_xy_fcn_true(self):
+        """Ensures correct output from convert_regions_rowcol_to_narr_xy.
+
+        In this case, `are_predictions_from_fcn` is True.
+        """
+
+        this_input_table = copy.deepcopy(PREDICTED_REGION_TABLE)
+        this_input_table[
+            object_based_eval.ROW_INDICES_COLUMN
+        ] -= ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT
+        this_input_table[
+            object_based_eval.COLUMN_INDICES_COLUMN
+        ] -= ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT
+
+        this_predicted_region_table = (
+            object_based_eval.convert_regions_rowcol_to_narr_xy(
+                this_input_table, are_predictions_from_fcn=True))
+
+        this_predicted_region_table[
+            object_based_eval.ROW_INDICES_COLUMN
+        ] += ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT
+        this_predicted_region_table[
+            object_based_eval.COLUMN_INDICES_COLUMN
+        ] += ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT
 
         self.assertTrue(_compare_tables(
             this_predicted_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS))

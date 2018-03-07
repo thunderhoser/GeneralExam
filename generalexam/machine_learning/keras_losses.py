@@ -37,7 +37,7 @@ import tensorflow
 def weighted_cross_entropy(class_weights):
     """Computes weighted binary cross-entropy.
 
-    :param class_weights: K-by-1 tensor of class weights.
+    :param class_weights: length-K numpy array of class weights.
     :return: loss: Loss (weighted binary cross-entropy).
     """
 
@@ -51,6 +51,8 @@ def weighted_cross_entropy(class_weights):
 
         these_weights = tensorflow.convert_to_tensor(
             class_weights, dtype='float32')
+        these_weights = K.reshape(these_weights, (class_weights.size, 1))
+
         sample_weight_matrix = K.dot(true_label_tensor, these_weights)
         sample_weight_matrix = K.reshape(
             sample_weight_matrix, K.shape(sample_weight_matrix)[:-1])

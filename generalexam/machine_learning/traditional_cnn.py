@@ -37,10 +37,6 @@ from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import keras_metrics
 
-# from keras import backend as K
-# K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-#     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
-
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_TARGET_TIME_KEY = 'num_examples_per_target_time'

@@ -23,13 +23,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import a_star_search
-
-# TODO(thunderhoser): Many methods in this file will not work for FCN output
-# (which does not cover the full NARR grid).  I will need to allow for that.
-
-NARR_X_GRID_SPACING_METRES, NARR_Y_GRID_SPACING_METRES = (
-    nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME))
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 ROW_INDICES_COLUMN = 'row_indices'
 COLUMN_INDICES_COLUMN = 'column_indices'
@@ -37,7 +31,7 @@ X_COORDS_COLUMN = 'x_coords_metres'
 Y_COORDS_COLUMN = 'y_coords_metres'
 
 DEFAULT_MIN_REGION_LENGTH_METRES = 5e5  # 500 km
-DEFAULT_MIN_REGION_AREA_METRES2 = 1e11  # 0.1 million km^2
+DEFAULT_MIN_REGION_AREA_METRES2 = 2e11  # 0.2 million km^2
 
 NUM_ACTUAL_FRONTS_PREDICTED_KEY = 'num_actual_fronts_predicted'
 NUM_PREDICTED_FRONTS_VERIFIED_KEY = 'num_predicted_fronts_verified'
@@ -525,7 +519,7 @@ def find_main_skeletons(
 
 
 def discard_regions_with_small_length(
-        predicted_region_table,
+        predicted_region_table, x_grid_spacing_metres, y_grid_spacing_metres,
         min_bounding_box_diag_length_metres=DEFAULT_MIN_REGION_LENGTH_METRES):
     """Throws out frontal regions with small length.
 
@@ -533,11 +527,17 @@ def discard_regions_with_small_length(
     its bounding box.
 
     :param predicted_region_table: See documentation for `images_to_regions`.
+    :param x_grid_spacing_metres: Spacing between adjacent grid points in the
+        same row (same y-coord, different x-coords).
+    :param y_grid_spacing_metres: Spacing between adjacent grid points in the
+        same column (same x-coord, different y-coords).
     :param min_bounding_box_diag_length_metres: Minimum length.  Any region with
         a smaller length will be thrown out.
     :return: predicted_region_table: Same as input, but maybe with fewer rows.
     """
 
+    error_checking.assert_is_greater(x_grid_spacing_metres, 0.)
+    error_checking.assert_is_greater(y_grid_spacing_metres, 0.)
     error_checking.assert_is_greater(min_bounding_box_diag_length_metres, 0.)
 
     num_regions = len(predicted_region_table.index)
@@ -549,8 +549,8 @@ def discard_regions_with_small_length(
             predicted_region_table[ROW_INDICES_COLUMN].values[i],
             column_indices_in_region=
             predicted_region_table[COLUMN_INDICES_COLUMN].values[i],
-            x_grid_spacing_metres=NARR_X_GRID_SPACING_METRES,
-            y_grid_spacing_metres=NARR_Y_GRID_SPACING_METRES)
+            x_grid_spacing_metres=x_grid_spacing_metres,
+            y_grid_spacing_metres=y_grid_spacing_metres)
 
         if this_length_metres < min_bounding_box_diag_length_metres:
             rows_to_drop.append(i)
@@ -632,7 +632,8 @@ def project_polylines_latlng_to_narr(polyline_table):
     return polyline_table.assign(**argument_dict)
 
 
-def convert_regions_rowcol_to_narr_xy(predicted_region_table):
+def convert_regions_rowcol_to_narr_xy(
+        predicted_region_table, are_predictions_from_fcn):
     """Converts frontal regions from row-column to x-y coordinates.
 
     This method assumes that rows and columns are on the NARR grid.
@@ -640,6 +641,11 @@ def convert_regions_rowcol_to_narr_xy(predicted_region_table):
     P = number of grid points in a given region.
 
     :param predicted_region_table: See documentation for `images_to_regions`.
+    :param are_predictions_from_fcn: Boolean flag.  If True, predictions in
+        `predicted_region_table` are from an FCN (fully convolutional network),
+        in which case an offset must be applied to line up the FCN grid with the
+        NARR grid.  (The FCN is trained with, and thus predicts, only a subset
+        of the NARR grid.)
     :return: predicted_region_table: Same as input, but with extra columns
         listed below.
     predicted_region_table.x_coords_metres: length-P numpy array of
@@ -647,6 +653,14 @@ def convert_regions_rowcol_to_narr_xy(predicted_region_table):
     predicted_region_table.y_coords_metres: length-P numpy array of
         y-coordinates.
     """
+
+    error_checking.assert_is_boolean(are_predictions_from_fcn)
+    if are_predictions_from_fcn:
+        row_offset = ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT
+        column_offset = ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT
+    else:
+        row_offset = 0
+        column_offset = 0
 
     grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
         nwp_model_utils.get_xy_grid_point_matrices(
@@ -657,9 +671,9 @@ def convert_regions_rowcol_to_narr_xy(predicted_region_table):
     y_coords_by_region_metres = [numpy.array([], dtype=int)] * num_regions
 
     for i in range(num_regions):
-        these_row_indices = numpy.array(
+        these_row_indices = row_offset + numpy.array(
             predicted_region_table[ROW_INDICES_COLUMN].values[i]).astype(int)
-        these_column_indices = numpy.array(
+        these_column_indices = column_offset + numpy.array(
             predicted_region_table[COLUMN_INDICES_COLUMN].values[i]).astype(int)
 
         x_coords_by_region_metres[i] = grid_point_x_matrix_metres[

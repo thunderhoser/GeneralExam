@@ -17,7 +17,7 @@ DEFAULT_LINE_STYLE = 'solid'
 DEFAULT_GRID_OPACITY = 0.5
 
 
-def _get_colour_map_for_grid():
+def get_colour_map_for_grid():
     """Returns colour map for frontal grid (to be used by `plot_frontal_grid`).
 
     N = number of colours
@@ -121,7 +121,7 @@ def plot_narr_grid(
             [front_utils.COLD_FRONT_INTEGER_ID,
              front_utils.WARM_FRONT_INTEGER_ID]))
 
-    colour_map_object, _, colour_bounds = _get_colour_map_for_grid()
+    colour_map_object, _, colour_bounds = get_colour_map_for_grid()
 
     narr_plotting.plot_xy_grid(
         data_matrix=frontal_grid_matrix, axes_object=axes_object,

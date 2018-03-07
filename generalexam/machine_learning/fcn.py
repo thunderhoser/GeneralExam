@@ -46,13 +46,6 @@ from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import keras_metrics
 from generalexam.machine_learning import keras_losses
 
-# from keras import backend as K
-# K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-#     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
-
-# TODO(thunderhoser): Allow FCN to not weight classes differently in loss
-# function.
-
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
     'binary_accuracy': keras_metrics.binary_accuracy,
@@ -73,38 +66,50 @@ LIST_OF_METRIC_FUNCTIONS = [
 
 
 def _check_unet_input_args(
-        assumed_class_frequencies, num_predictors, convolve_over_time=False,
+        num_predictors, weight_loss_function, convolve_over_time,
+        assumed_class_frequencies=None, num_classes=None,
         num_predictor_time_steps=None):
     """Checks input arguments for U-net.
 
     K = number of classes
 
-    :param assumed_class_frequencies: See documentation for
-        `get_unet_with_3d_convolution`.
-    :param num_predictors: Same.
+    :param num_predictors: See documentation for
+        `get_unet_with_2d_convolution`.
+    :param weight_loss_function: Same.
     :param convolve_over_time: Same.
-    :param num_predictor_time_steps: Same.
-    :return: class_weights: K-by-1 numpy array of class weights for loss
+    :param assumed_class_frequencies: [used only if weight_loss_function = True]
+        Same.
+    :param num_classes: [used only if weight_loss_function = False]
+        Same.
+    :param num_predictor_time_steps: [used only if convolve_over_time = True]
+        Same.
+    :return: class_weights: length-K numpy array of class weights for loss
         function.
     """
 
-    class_weight_dict = ml_utils.get_class_weight_dict(
-        assumed_class_frequencies)
-    class_weights = numpy.array(class_weight_dict.values())
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_geq(num_predictors, 1)
+    error_checking.assert_is_boolean(weight_loss_function)
+    error_checking.assert_is_boolean(convolve_over_time)
 
-    num_classes = len(class_weights)
+    if weight_loss_function:
+        class_weight_dict = ml_utils.get_class_weight_dict(
+            assumed_class_frequencies)
+        class_weights = numpy.array(class_weight_dict.values())
+        num_classes = len(class_weights)
+
+    error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
-    error_checking.assert_is_integer(num_predictors)
-    error_checking.assert_is_geq(num_predictors, 1)
-    error_checking.assert_is_boolean(convolve_over_time)
+    if not weight_loss_function:
+        class_weights = numpy.array(num_classes, 1. / num_classes)
 
     if convolve_over_time:
         error_checking.assert_is_integer(num_predictor_time_steps)
         error_checking.assert_is_geq(num_predictor_time_steps, 6)
 
-    return numpy.reshape(class_weights, (num_classes, 1))
+    return class_weights
 
 
 def read_keras_model(hdf5_file_name, assumed_class_frequencies):
@@ -129,25 +134,33 @@ def read_keras_model(hdf5_file_name, assumed_class_frequencies):
         hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
 
 
-def get_unet_with_2d_convolution(assumed_class_frequencies, num_predictors=3):
+def get_unet_with_2d_convolution(
+        weight_loss_function, num_predictors=3, assumed_class_frequencies=None,
+        num_classes=None):
     """Creates U-net with architecture used in the following example.
 
     https://github.com/zhixuhao/unet/blob/master/unet.py
 
-    For more on U-nets in general, see Ronneberger et al. (2015):
+    For more on U-nets in general, see Ronneberger et al. (2015).
 
-    :param assumed_class_frequencies: 1-D numpy array, where the [k]th element
-        is the estimated frequency of the [k]th class.  These frequencies will
-        be used to create weights for the loss function.  The weight for each
-        class will be inversely proportional to its assumed frequency.
+    :param weight_loss_function: Boolean flag.  If True, the loss function will
+        weight each class by the inverse of its assumed frequency (see
+        `assumed_class_frequencies`).
     :param num_predictors: Number of predictor variables (image channels).
+    :param assumed_class_frequencies: [used only if weight_loss_function = True]
+        1-D numpy array, where the [k]th element is the estimated frequency of
+        the [k]th class.
+    :param num_classes: [used only if weight_loss_function = False]
+        Number of classes.
     :return: model_object: Instance of `keras.models.Model`, with the
         aforementioned architecture.
     """
 
     class_weights = _check_unet_input_args(
+        num_predictors=num_predictors,
+        weight_loss_function=weight_loss_function, convolve_over_time=False,
         assumed_class_frequencies=assumed_class_frequencies,
-        num_predictors=num_predictors, convolve_over_time=False)
+        num_classes=num_classes)
     num_classes = len(class_weights)
 
     input_dimensions = (
@@ -324,7 +337,8 @@ def get_unet_with_2d_convolution(assumed_class_frequencies, num_predictors=3):
     conv_layer10_object = keras.layers.Conv2D(
         filters=num_classes, kernel_size=(1, 1), activation='softmax')(
             conv_layer9_object)
-    print 'Shape of convolutional layer: {0:s}'.format(conv_layer10_object.shape)
+    print 'Shape of convolutional layer: {0:s}'.format(
+        conv_layer10_object.shape)
 
     model_object = keras.models.Model(
         input=input_layer_object, output=conv_layer10_object)

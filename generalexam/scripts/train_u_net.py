@@ -21,11 +21,6 @@ from generalexam.scripts import machine_learning as ml_script_helper
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NARR_PREDICTOR_NAMES = [
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.WET_BULB_TEMP_NAME]
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER, use_downsized_examples=True)
@@ -34,7 +29,8 @@ INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
 def _train_u_net(
         num_epochs, num_examples_per_batch, num_training_batches_per_epoch,
         num_validation_batches_per_epoch, dilation_distance_for_target_metres,
-        class_fractions, pressure_level_mb, training_start_time_string,
+        weight_loss_function, assumed_class_frequencies, num_classes,
+        pressure_level_mb, narr_predictor_names, training_start_time_string,
         training_end_time_string, validation_start_time_string,
         validation_end_time_string, top_narr_dir_name,
         top_frontal_grid_dir_name, output_file_name):
@@ -49,11 +45,19 @@ def _train_u_net(
     :param dilation_distance_for_target_metres: Dilation distance.  Target
         images will be dilated, which increases the number of pixels labeled as
         frontal.  This accounts for uncertainty in the placement of fronts.
-    :param class_fractions: Assumed fraction of examples in each class.  These
-        fractions will be used to create weights for the loss function.  Said
-        weights will be inversely proportional to the fractions.
+    :param weight_loss_function: Boolean flag.  If 1, classes will be weighted
+        differently in loss function (class weights inversely proportional to
+        `assumed_class_frequencies`).
+    :param assumed_class_frequencies: [used only if weight_loss_function = True]
+        Assumed fraction of examples in each class.  These fractions will be
+        used to create weights for the loss function.  Said weights will be
+        inversely proportional to the fractions.
+    :param num_classes: [used only if weight_loss_function = False]
+        Number of classes.
     :param pressure_level_mb: NARR predictors will be taken from this pressure
         level (millibars).
+    :param narr_predictor_names: 1-D list with names of NARR predictors (must be
+        in list `processed_narr_io.FIELD_NAMES`).
     :param training_start_time_string: Time (format "yyyymmddHH").  Training
         examples will be taken randomly from the time period
         `training_start_time_string`...`training_end_time_string`.
@@ -71,7 +75,9 @@ def _train_u_net(
         model.
     """
 
-    class_fractions = numpy.array(class_fractions)
+    if weight_loss_function:
+        assumed_class_frequencies = numpy.array(assumed_class_frequencies)
+        num_classes = len(assumed_class_frequencies)
 
     training_start_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, INPUT_TIME_FORMAT)
@@ -84,7 +90,12 @@ def _train_u_net(
         validation_end_time_string, INPUT_TIME_FORMAT)
 
     print 'Initializing model...'
-    model_object = fcn.get_u_net(assumed_class_fractions=class_fractions)
+
+    model_object = fcn.get_unet_with_2d_convolution(
+        weight_loss_function=weight_loss_function,
+        num_predictors=len(narr_predictor_names),
+        assumed_class_frequencies=assumed_class_frequencies,
+        num_classes=num_classes)
     print SEPARATOR_STRING
 
     fcn.train_model_with_3d_examples(
@@ -95,8 +106,8 @@ def _train_u_net(
         training_end_time_unix_sec=training_end_time_unix_sec,
         top_narr_directory_name=top_narr_dir_name,
         top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        narr_predictor_names=NARR_PREDICTOR_NAMES,
-        pressure_level_mb=pressure_level_mb, num_classes=len(class_fractions),
+        narr_predictor_names=narr_predictor_names,
+        pressure_level_mb=pressure_level_mb, num_classes=num_classes,
         dilation_distance_for_target_metres=dilation_distance_for_target_metres,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
@@ -119,10 +130,16 @@ if __name__ == '__main__':
             ml_script_helper.NUM_VALIDN_BATCHES_PER_EPOCH_ARG_NAME),
         dilation_distance_for_target_metres=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
-        class_fractions=getattr(
+        weight_loss_function=bool(getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.WEIGHT_LOSS_FUNCTION_ARG_NAME)),
+        assumed_class_frequencies=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.CLASS_FRACTIONS_ARG_NAME),
+        num_classes=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.NUM_CLASSES_ARG_NAME),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
+        narr_predictor_names=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.NARR_PREDICTORS_ARG_NAME),
         training_start_time_string=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.TRAINING_START_TIME_ARG_NAME),
         training_end_time_string=getattr(
