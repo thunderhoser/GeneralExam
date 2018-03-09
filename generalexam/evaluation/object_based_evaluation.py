@@ -727,16 +727,8 @@ def get_binary_contingency_table(
     num_false_negatives = 0
 
     for i in range(num_actual_fronts):
-        this_actual_front_type = actual_polyline_table[
-            front_utils.FRONT_TYPE_COLUMN].values[i]
-        these_front_type_flags = numpy.array(
-            [s == this_actual_front_type for s in
-             predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values])
-
-        these_predicted_front_indices = numpy.where(numpy.logical_and(
-            predicted_front_times_unix_sec == actual_front_times_unix_sec[i],
-            these_front_type_flags))[0]
-
+        these_predicted_front_indices = numpy.where(
+            predicted_front_times_unix_sec == actual_front_times_unix_sec[i])[0]
         found_match = False
 
         for j in these_predicted_front_indices:
@@ -764,16 +756,8 @@ def get_binary_contingency_table(
     num_false_positives = 0
 
     for i in range(num_predicted_fronts):
-        this_predicted_front_type = predicted_region_table[
-            front_utils.FRONT_TYPE_COLUMN].values[i]
-        these_front_type_flags = numpy.array(
-            [s == this_predicted_front_type for s in
-             actual_polyline_table[front_utils.FRONT_TYPE_COLUMN].values])
-
-        these_actual_front_indices = numpy.where(numpy.logical_and(
-            actual_front_times_unix_sec == predicted_front_times_unix_sec[i],
-            these_front_type_flags))[0]
-
+        these_actual_front_indices = numpy.where(
+            actual_front_times_unix_sec == predicted_front_times_unix_sec[i])[0]
         found_match = False
 
         for j in these_actual_front_indices:

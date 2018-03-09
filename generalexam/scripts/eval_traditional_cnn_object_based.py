@@ -393,13 +393,6 @@ def _evaluate_model(
             class_probability_matrix=this_class_probability_matrix,
             image_times_unix_sec=evaluation_times_unix_sec[[i]])
 
-        print 'Discarding regions with length < {0:f} m...'.format(
-            min_object_length_metres)
-        this_predicted_region_table = (
-            object_based_eval.discard_regions_with_small_length(
-                predicted_region_table=this_predicted_region_table,
-                min_bounding_box_diag_length_metres=min_object_length_metres))
-
         _write_predicted_regions_one_time(
             predicted_region_table=this_predicted_region_table,
             output_dir_name=output_dir_name,

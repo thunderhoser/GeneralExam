@@ -274,8 +274,8 @@ PREDICTED_REGION_TABLE_FOR_CT = pandas.DataFrame.from_dict(THIS_DICT)
 
 NEIGH_DISTANCE_METRES = 2.
 BINARY_CONTINGENCY_TABLE_AS_DICT = {
-    object_based_eval.NUM_ACTUAL_FRONTS_PREDICTED_KEY: 3,
-    object_based_eval.NUM_FALSE_NEGATIVES_KEY: 4,
+    object_based_eval.NUM_ACTUAL_FRONTS_PREDICTED_KEY: 5,
+    object_based_eval.NUM_FALSE_NEGATIVES_KEY: 2,
     object_based_eval.NUM_PREDICTED_FRONTS_VERIFIED_KEY: 3,
     object_based_eval.NUM_FALSE_POSITIVES_KEY: 2
 }
