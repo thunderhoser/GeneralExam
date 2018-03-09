@@ -370,19 +370,18 @@ def _evaluate_model(
     print SEPARATOR_STRING
 
     print 'Finding best binarization threshold (front vs. no front)...'
-    binarization_threshold, best_binary_peirce_score = (
+    binarization_threshold, best_gerrity_score = (
         eval_utils.find_best_binarization_threshold(
             class_probability_matrix=class_probability_matrix,
             observed_labels=observed_labels,
             threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-            criterion_function=model_eval.get_peirce_score,
+            criterion_function=eval_utils.get_gerrity_score,
             optimization_direction=eval_utils.MAX_OPTIMIZATION_DIRECTION,
             forecast_precision_for_thresholds=
             FORECAST_PRECISION_FOR_THRESHOLDS))
 
-    print ('Best binarization threshold = {0:.4f} (corresponding binary Peirce '
-           'score = {1:.4f})\n').format(binarization_threshold,
-                                        best_binary_peirce_score)
+    print ('Best binarization threshold = {0:.4f} (corresponding Gerrity score '
+           '= {1:.4f})\n').format(binarization_threshold, best_gerrity_score)
 
     print 'Determinizing probabilities...'
     predicted_labels = eval_utils.determinize_probabilities(

@@ -38,6 +38,7 @@ from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import fcn
 from generalexam.machine_learning import isotonic_regression
+from generalexam.machine_learning import gerrity_score
 
 # TODO(thunderhoser): This file contains a lot of duplicated code.  Should
 # combine downsized 3-D and 4-D into one method, full-size 3-D and 4-D into one
@@ -556,7 +557,7 @@ def full_size_examples_to_eval_pairs(
 
 def find_best_binarization_threshold(
         class_probability_matrix, observed_labels, threshold_arg,
-        criterion_function=model_eval.get_peirce_score,
+        criterion_function=gerrity_score.get_gerrity_score,
         optimization_direction=MAX_OPTIMIZATION_DIRECTION,
         forecast_precision_for_thresholds=
         DEFAULT_FORECAST_PRECISION_FOR_THRESHOLDS):
@@ -582,8 +583,9 @@ def find_best_binarization_threshold(
         `model_evaluation.get_binarization_thresholds`.  Determines which
         thresholds will be tried.
     :param criterion_function: Criterion to be either minimized or maximized.
-        This must be a function that takes input `contingency_table_as_dict` and
-        returns a single float.  See `model_evaluation.get_csi` for an example.
+        This must be a function that takes input `contingency_table_as_matrix`
+        and returns a single float.  See `get_gerrity_score` in this module for
+        an example.
     :param optimization_direction: Direction in which criterion function is
         optimized.  Options are "min" and "max".
     :param forecast_precision_for_thresholds: See documentation for
@@ -614,19 +616,33 @@ def find_best_binarization_threshold(
     num_thresholds = len(possible_thresholds)
     criterion_values = numpy.full(num_thresholds, numpy.nan)
 
+    # for i in range(num_thresholds):
+    #     these_predicted_labels = model_eval.binarize_forecast_probs(
+    #         forecast_probabilities=class_probability_matrix[:, 0],
+    #         binarization_threshold=possible_thresholds[i])
+    #
+    #     these_predicted_labels = numpy.invert(
+    #         these_predicted_labels.astype(bool)).astype(int)
+    #
+    #     this_contingency_table_as_dict = model_eval.get_contingency_table(
+    #         forecast_labels=these_predicted_labels,
+    #         observed_labels=(observed_labels > 0).astype(int))
+    #
+    #     criterion_values[i] = criterion_function(
+    #         this_contingency_table_as_dict)
+
     for i in range(num_thresholds):
-        these_predicted_labels = model_eval.binarize_forecast_probs(
-            forecast_probabilities=class_probability_matrix[:, 0],
+        these_predicted_labels = determinize_probabilities(
+            class_probability_matrix=class_probability_matrix,
             binarization_threshold=possible_thresholds[i])
 
-        these_predicted_labels = numpy.invert(
-            these_predicted_labels.astype(bool)).astype(int)
+        this_contingency_table_as_matrix = get_contingency_table(
+            predicted_labels=these_predicted_labels,
+            observed_labels=observed_labels,
+            num_classes=class_probability_matrix.shape[1])
 
-        this_contingency_table_as_dict = model_eval.get_contingency_table(
-            forecast_labels=these_predicted_labels,
-            observed_labels=(observed_labels > 0).astype(int))
-
-        criterion_values[i] = criterion_function(this_contingency_table_as_dict)
+        criterion_values[i] = criterion_function(
+            this_contingency_table_as_matrix)
 
     if optimization_direction == MAX_OPTIMIZATION_DIRECTION:
         best_criterion_value = numpy.nanmax(criterion_values)
