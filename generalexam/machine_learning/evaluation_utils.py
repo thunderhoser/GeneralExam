@@ -38,7 +38,6 @@ from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import fcn
 from generalexam.machine_learning import isotonic_regression
-from generalexam.machine_learning import gerrity_score
 
 # TODO(thunderhoser): This file contains a lot of duplicated code.  Should
 # combine downsized 3-D and 4-D into one method, full-size 3-D and 4-D into one
@@ -557,8 +556,7 @@ def full_size_examples_to_eval_pairs(
 
 def find_best_binarization_threshold(
         class_probability_matrix, observed_labels, threshold_arg,
-        criterion_function=gerrity_score.get_gerrity_score,
-        optimization_direction=MAX_OPTIMIZATION_DIRECTION,
+        criterion_function, optimization_direction=MAX_OPTIMIZATION_DIRECTION,
         forecast_precision_for_thresholds=
         DEFAULT_FORECAST_PRECISION_FOR_THRESHOLDS):
     """Finds the best binarization threshold.
