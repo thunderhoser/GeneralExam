@@ -672,7 +672,7 @@ def determinize_probabilities(class_probability_matrix, binarization_threshold):
     error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
     error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
     error_checking.assert_is_geq(binarization_threshold, 0.)
-    error_checking.assert_is_leq(binarization_threshold, 1.)
+    error_checking.assert_is_leq(binarization_threshold, 1.01)
 
     num_evaluation_pairs = class_probability_matrix.shape[0]
     predicted_labels = numpy.full(num_evaluation_pairs, -1, dtype=int)
