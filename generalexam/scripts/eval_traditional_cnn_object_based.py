@@ -150,6 +150,31 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _write_probability_image_one_time(
+        class_probability_matrix, output_dir_name, valid_time_string):
+    """Writes grid of predicted class probabilities at one time to Pickle file.
+
+    M = number of grid rows (unique y-coordinates at grid points)
+    N = number of grid columns (unique x-coordinates at grid points)
+    K = number of classes = 3
+
+    :param class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
+        class probabilities.
+    :param output_dir_name: Path to output directory.
+    :param valid_time_string: Valid time (format "yyyy-mm-dd-HH").
+    """
+
+    pickle_file_name = '{0:s}/class_probability_matrix_{1:s}.p'.format(
+        output_dir_name, valid_time_string)
+    print (
+        'Writing grid of predicted class probabilities to file: "{0:s}"...'
+    ).format(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(class_probability_matrix, pickle_file_handle)
+    pickle_file_handle.close()
+
+
 def _write_predicted_regions_one_time(
         predicted_region_table, output_dir_name, valid_time_string):
     """Writes predicted regions at one time step to Pickle file.
@@ -359,6 +384,11 @@ def _evaluate_model(
 
         print SEPARATOR_STRING
 
+        _write_probability_image_one_time(
+            class_probability_matrix=this_class_probability_matrix,
+            output_dir_name=output_dir_name,
+            valid_time_string=evaluation_time_strings[i])
+
         print 'Determinizing probabilities for {0:s}...'.format(
             evaluation_time_strings[i])
         this_predicted_label_matrix = (
@@ -414,7 +444,7 @@ def _evaluate_model(
     print 'Converting predicted regions from row-column to x-y coordinates...'
     predicted_region_table = (
         object_based_eval.convert_regions_rowcol_to_narr_xy(
-            predicted_region_table))
+            predicted_region_table, are_predictions_from_fcn=False))
 
     _write_predicted_regions_time_period(
         predicted_region_table=predicted_region_table,
