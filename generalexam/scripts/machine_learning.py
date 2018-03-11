@@ -15,6 +15,8 @@ DILATION_DISTANCE_ARG_NAME = 'dilation_distance_for_target_metres'
 WEIGHT_LOSS_FUNCTION_ARG_NAME = 'weight_loss_function'
 CLASS_FRACTIONS_ARG_NAME = 'class_fractions'
 NUM_CLASSES_ARG_NAME = 'num_classes'
+NUM_LEAD_TIME_STEPS_ARG_NAME = 'num_lead_time_steps'
+PREDICTOR_TIME_STEP_OFFSETS_ARG_NAME = 'predictor_time_step_offsets'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 NARR_PREDICTORS_ARG_NAME = 'narr_predictor_names'
 TRAINING_START_TIME_ARG_NAME = 'training_start_time_string'
@@ -50,6 +52,15 @@ WEIGHT_LOSS_FUNCTION_HELP_STRING = (
     ' (class weights inversely proportional to `{0:s}`).').format(
         CLASS_FRACTIONS_ARG_NAME)
 NUM_CLASSES_HELP_STRING = 'Number of classes.'
+NUM_LEAD_TIME_STEPS_HELP_STRING = (
+    'Number of time steps (3 hours each) between target time and last possible '
+    'predictor time.')
+PREDICTOR_TIME_STEP_OFFSETS_HELP_STRING = (
+    'List of offsets between last possible predictor time and actual predictor '
+    'times.  For example, if this is [0, 2, 4], the model will be trained with '
+    'predictor images from [0, 6, 12] + 3 * `{0:s}` hours before the target '
+    'time.').format(NUM_LEAD_TIME_STEPS_ARG_NAME)
+
 PRESSURE_LEVEL_HELP_STRING = (
     'NARR predictors will be taken from this pressure level (millibars).')
 NARR_PREDICTORS_HELP_STRING = (
@@ -138,6 +149,15 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
     argument_parser_object.add_argument(
         '--' + NUM_CLASSES_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_CLASSES, help=NUM_CLASSES_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_LEAD_TIME_STEPS_ARG_NAME, type=int, required=False,
+        default=-1, help=NUM_LEAD_TIME_STEPS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + PREDICTOR_TIME_STEP_OFFSETS_ARG_NAME, type=int, nargs='+',
+        required=False, default=[-1],
+        help=PREDICTOR_TIME_STEP_OFFSETS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,

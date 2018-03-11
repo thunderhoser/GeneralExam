@@ -18,6 +18,8 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import fcn
 from generalexam.scripts import machine_learning as ml_script_helper
 
+# TODO(thunderhoser): Generalize for 3-D convolution.
+
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 

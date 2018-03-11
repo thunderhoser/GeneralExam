@@ -155,8 +155,8 @@ def _train_isotonic_regression(
             num_columns_in_half_grid=model_metadata_dict[
                 traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
             num_classes=num_classes,
-            num_predictor_time_steps=model_metadata_dict[
-                traditional_cnn.NUM_PREDICTOR_TIME_STEPS_KEY],
+            predictor_time_step_offsets=model_metadata_dict[
+                traditional_cnn.PREDICTOR_TIME_STEP_OFFSETS_KEY],
             num_lead_time_steps=model_metadata_dict[
                 traditional_cnn.NUM_LEAD_TIME_STEPS_KEY]))
     print SEPARATOR_STRING

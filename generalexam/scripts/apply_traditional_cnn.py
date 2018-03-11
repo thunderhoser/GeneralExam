@@ -320,8 +320,8 @@ def _apply_model(
                 traditional_cnn.apply_model_to_4d_example(
                     model_object=model_object,
                     target_time_unix_sec=target_times_unix_sec[i],
-                    num_predictor_time_steps=model_metadata_dict[
-                        traditional_cnn.NUM_PREDICTOR_TIME_STEPS_KEY],
+                    predictor_time_step_offsets=model_metadata_dict[
+                        traditional_cnn.PREDICTOR_TIME_STEP_OFFSETS_KEY],
                     num_lead_time_steps=model_metadata_dict[
                         traditional_cnn.NUM_LEAD_TIME_STEPS_KEY],
                     top_narr_directory_name=top_narr_directory_name,

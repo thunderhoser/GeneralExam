@@ -11,8 +11,6 @@ from gewittergefahr.gg_utils import time_conversion
 from generalexam.machine_learning import traditional_cnn
 from generalexam.scripts import machine_learning as ml_script_helper
 
-# TODO(thunderhoser): Explore regularization and batch normalization.
-
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -26,10 +24,11 @@ def _train_cnn(
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         num_rows_in_half_grid, num_columns_in_half_grid,
         dilation_distance_for_target_metres, class_fractions,
-        weight_loss_function, pressure_level_mb, narr_predictor_names,
-        training_start_time_string, training_end_time_string,
-        validation_start_time_string, validation_end_time_string,
-        top_narr_dir_name, top_frontal_grid_dir_name, output_file_name):
+        num_lead_time_steps, predictor_time_step_offsets, weight_loss_function,
+        pressure_level_mb, narr_predictor_names, training_start_time_string,
+        training_end_time_string, validation_start_time_string,
+        validation_end_time_string, top_narr_dir_name,
+        top_frontal_grid_dir_name, output_file_name):
     """Trains convolutional neural net with MNIST architecture.
 
     :param num_epochs: Number of training epochs.
@@ -51,6 +50,12 @@ def _train_cnn(
     :param class_fractions: 1-D numpy array with fraction of examples in each
         class.  Data will be sampled according to these fractions for both
         training and validation.
+    :param num_lead_time_steps: Number of time steps (3 hours each) between
+        target time and last possible predictor time.
+    :param predictor_time_step_offsets: List of offsets between last possible
+        predictor time and actual predictor times.  For example, if this is
+        [0, 2, 4], the model will be trained with predictor images from
+        [0, 6, 12] + 3 * `num_lead_time_steps` hours before the target time.
     :param weight_loss_function: Boolean flag.  If 1, classes will be weighted
         differently in loss function (class weights inversely proportional to
         `class_fractions`).
@@ -89,10 +94,25 @@ def _train_cnn(
     validation_end_time_unix_sec = time_conversion.string_to_unix_sec(
         validation_end_time_string, INPUT_TIME_FORMAT)
 
+    if num_lead_time_steps == -1:
+        num_dimensions_per_example = 3
+        num_lead_time_steps = None
+        predictor_time_step_offsets = None
+    else:
+        num_dimensions_per_example = 4
+        predictor_time_step_offsets = numpy.array(predictor_time_step_offsets)
+
     print 'Initializing model...'
-    model_object = traditional_cnn.get_cnn_with_mnist_architecture(
-        num_classes=len(class_fractions),
-        num_predictors=len(narr_predictor_names), convolve_over_time=False)
+    if num_dimensions_per_example == 3:
+        model_object = traditional_cnn.get_2d_cnn_with_mnist_architecture(
+            num_classes=len(class_fractions),
+            num_predictors=len(narr_predictor_names))
+    else:
+        model_object = traditional_cnn.get_3d_cnn(
+            num_predictor_time_steps=len(predictor_time_step_offsets),
+            num_classes=len(class_fractions),
+            num_predictors=len(narr_predictor_names))
+
     print SEPARATOR_STRING
 
     model_dir_name, _ = os.path.split(output_file_name)
@@ -115,27 +135,56 @@ def _train_cnn(
         training_end_time_unix_sec=training_end_time_unix_sec,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
-        pickle_file_name=metadata_file_name)
+        pickle_file_name=metadata_file_name,
+        num_lead_time_steps=num_lead_time_steps,
+        predictor_time_step_offsets=predictor_time_step_offsets)
 
-    traditional_cnn.train_with_3d_examples(
-        model_object=model_object, output_file_name=output_file_name,
-        num_examples_per_batch=num_examples_per_batch, num_epochs=num_epochs,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        num_examples_per_target_time=num_examples_per_time,
-        training_start_time_unix_sec=training_start_time_unix_sec,
-        training_end_time_unix_sec=training_end_time_unix_sec,
-        top_narr_directory_name=top_narr_dir_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        narr_predictor_names=narr_predictor_names,
-        pressure_level_mb=pressure_level_mb,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
-        class_fractions=class_fractions,
-        weight_loss_function=weight_loss_function,
-        num_rows_in_half_grid=num_rows_in_half_grid,
-        num_columns_in_half_grid=num_columns_in_half_grid,
-        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validation_start_time_unix_sec=validation_start_time_unix_sec,
-        validation_end_time_unix_sec=validation_end_time_unix_sec)
+    if num_dimensions_per_example == 3:
+        traditional_cnn.train_with_3d_examples(
+            model_object=model_object, output_file_name=output_file_name,
+            num_examples_per_batch=num_examples_per_batch,
+            num_epochs=num_epochs,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            num_examples_per_target_time=num_examples_per_time,
+            training_start_time_unix_sec=training_start_time_unix_sec,
+            training_end_time_unix_sec=training_end_time_unix_sec,
+            top_narr_directory_name=top_narr_dir_name,
+            top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+            narr_predictor_names=narr_predictor_names,
+            pressure_level_mb=pressure_level_mb,
+            dilation_distance_for_target_metres=
+            dilation_distance_for_target_metres,
+            class_fractions=class_fractions,
+            weight_loss_function=weight_loss_function,
+            num_rows_in_half_grid=num_rows_in_half_grid,
+            num_columns_in_half_grid=num_columns_in_half_grid,
+            num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+            validation_start_time_unix_sec=validation_start_time_unix_sec,
+            validation_end_time_unix_sec=validation_end_time_unix_sec)
+    else:
+        traditional_cnn.train_with_4d_examples(
+            model_object=model_object, output_file_name=output_file_name,
+            num_examples_per_batch=num_examples_per_batch,
+            num_epochs=num_epochs,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            num_examples_per_target_time=num_examples_per_time,
+            training_start_time_unix_sec=training_start_time_unix_sec,
+            training_end_time_unix_sec=training_end_time_unix_sec,
+            top_narr_directory_name=top_narr_dir_name,
+            top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+            narr_predictor_names=narr_predictor_names,
+            pressure_level_mb=pressure_level_mb,
+            dilation_distance_for_target_metres=
+            dilation_distance_for_target_metres,
+            class_fractions=class_fractions,
+            num_lead_time_steps=num_lead_time_steps,
+            predictor_time_step_offsets=predictor_time_step_offsets,
+            weight_loss_function=weight_loss_function,
+            num_rows_in_half_grid=num_rows_in_half_grid,
+            num_columns_in_half_grid=num_columns_in_half_grid,
+            num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+            validation_start_time_unix_sec=validation_start_time_unix_sec,
+            validation_end_time_unix_sec=validation_end_time_unix_sec)
 
 
 if __name__ == '__main__':
@@ -163,6 +212,11 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
         class_fractions=getattr(
             INPUT_ARG_OBJECT, ml_script_helper.CLASS_FRACTIONS_ARG_NAME),
+        num_lead_time_steps=getattr(
+            INPUT_ARG_OBJECT, ml_script_helper.NUM_LEAD_TIME_STEPS_ARG_NAME),
+        predictor_time_step_offsets=getattr(
+            INPUT_ARG_OBJECT,
+            ml_script_helper.PREDICTOR_TIME_STEP_OFFSETS_ARG_NAME),
         weight_loss_function=bool(getattr(
             INPUT_ARG_OBJECT, ml_script_helper.WEIGHT_LOSS_FUNCTION_ARG_NAME)),
         pressure_level_mb=getattr(
