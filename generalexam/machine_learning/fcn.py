@@ -46,6 +46,9 @@ from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import keras_metrics
 from generalexam.machine_learning import keras_losses
 
+# TODO(thunderhoser): 4-D examples no longer take the input argument
+# 'num_predictor_time_steps'.  Need 'predictor_time_step_offsets' instead.
+
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
     'binary_accuracy': keras_metrics.binary_accuracy,

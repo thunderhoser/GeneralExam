@@ -178,7 +178,7 @@ def create_downsized_4d_examples(
         center_row_indices, center_column_indices, num_rows_in_half_grid,
         num_columns_in_half_grid, full_predictor_matrix=None,
         full_target_matrix=None, target_time_unix_sec=None,
-        num_predictor_time_steps=None, num_lead_time_steps=None,
+        predictor_time_step_offsets=None, num_lead_time_steps=None,
         top_narr_directory_name=None, top_frontal_grid_dir_name=None,
         narr_predictor_names=None, pressure_level_mb=None,
         dilation_distance_for_target_metres=None, num_classes=None):
@@ -209,8 +209,10 @@ def create_downsized_4d_examples(
     :param full_predictor_matrix: Same.
     :param full_target_matrix: Same.
     :param target_time_unix_sec: Same.
-    :param num_predictor_time_steps:
-    :param num_lead_time_steps:
+    :param predictor_time_step_offsets: length-T numpy array of offsets between
+        predictor times and (target time - lead time).
+    :param num_lead_time_steps: Number of time steps separating latest
+        predictor time from target time.
     :param top_narr_directory_name: See documentation for
         `create_downsized_3d_examples`.
     :param top_frontal_grid_dir_name: Same.
@@ -235,7 +237,7 @@ def create_downsized_4d_examples(
             training_validation_io.find_input_files_for_4d_examples(
                 first_target_time_unix_sec=target_time_unix_sec,
                 last_target_time_unix_sec=target_time_unix_sec,
-                num_predictor_time_steps=num_predictor_time_steps,
+                predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -245,10 +247,11 @@ def create_downsized_4d_examples(
         narr_file_name_matrix = narr_file_name_matrix[0, ...]
         frontal_grid_file_name = frontal_grid_file_names[0]
 
+        num_predictor_times_per_example = len(predictor_time_step_offsets)
         num_predictors = len(narr_predictor_names)
         tuple_of_4d_predictor_matrices = ()
 
-        for i in range(num_predictor_time_steps):
+        for i in range(num_predictor_times_per_example):
             tuple_of_3d_predictor_matrices = ()
 
             for j in range(num_predictors):
@@ -417,7 +420,7 @@ def create_full_size_3d_example(
 
 
 def create_full_size_4d_example(
-        target_time_unix_sec, num_predictor_time_steps, num_lead_time_steps,
+        target_time_unix_sec, predictor_time_step_offsets, num_lead_time_steps,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_classes):
@@ -430,14 +433,15 @@ def create_full_size_4d_example(
     example:
 
     predictor_matrix, actual_target_matrix = create_full_size_4d_example(
-        target_time_unix_sec, num_predictor_time_steps, ...)
+        target_time_unix_sec, predictor_time_step_offsets, ...)
     predicted_target_matrix = model_object.predict(predictor_matrix, ...)
 
     :param target_time_unix_sec: See documentation for
         `downsized_3d_example_generator`.
-    :param num_predictor_time_steps: Number of predictor times per example.
-    :param num_lead_time_steps: Number of time steps separating latest predictor
-        time from target time.
+    :param predictor_time_step_offsets: length-T numpy array of offsets between
+        predictor times and (target time - lead time).
+    :param num_lead_time_steps: Number of time steps separating latest
+        predictor time from target time.
     :param top_narr_directory_name: See documentation for
         `downsized_3d_example_generator`.
     :param top_frontal_grid_dir_name: Same.
@@ -458,7 +462,7 @@ def create_full_size_4d_example(
         training_validation_io.find_input_files_for_4d_examples(
             first_target_time_unix_sec=target_time_unix_sec,
             last_target_time_unix_sec=target_time_unix_sec,
-            num_predictor_time_steps=num_predictor_time_steps,
+            predictor_time_step_offsets=predictor_time_step_offsets,
             num_lead_time_steps=num_lead_time_steps,
             top_narr_directory_name=top_narr_directory_name,
             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -467,11 +471,12 @@ def create_full_size_4d_example(
 
     narr_file_name_matrix = narr_file_name_matrix[0, ...]
     frontal_grid_file_name = frontal_grid_file_names[0]
-    num_predictors = len(narr_predictor_names)
 
+    num_predictor_times_per_example = len(predictor_time_step_offsets)
+    num_predictors = len(narr_predictor_names)
     tuple_of_4d_predictor_matrices = ()
 
-    for i in range(num_predictor_time_steps):
+    for i in range(num_predictor_times_per_example):
         tuple_of_3d_predictor_matrices = ()
 
         for j in range(num_predictors):

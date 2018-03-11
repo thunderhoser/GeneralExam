@@ -298,7 +298,7 @@ def downsized_examples_to_eval_pairs(
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
-        num_columns_in_half_grid, num_classes, num_predictor_time_steps=None,
+        num_columns_in_half_grid, num_classes, predictor_time_step_offsets=None,
         num_lead_time_steps=None, isotonic_model_object_by_class=None):
     """Creates evaluation pairs from downsized 3-D or 4-D examples.
 
@@ -334,8 +334,9 @@ def downsized_examples_to_eval_pairs(
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
     :param num_classes: Number of classes.
-    :param num_predictor_time_steps: [needed only if examples are 4-D]
-        Number of time steps per example (images per sequence).
+    :param predictor_time_step_offsets: [needed only if examples are 4-D]
+        length-T numpy array of offsets between predictor times and
+        (target time - lead time).
     :param num_lead_time_steps: [needed only if examples are 4-D]
         Number of time steps between latest predictor time (last image in the
         sequence) and target time.
@@ -354,7 +355,7 @@ def downsized_examples_to_eval_pairs(
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
 
-    if num_predictor_time_steps is None:
+    if predictor_time_step_offsets is None:
         num_dimensions_per_example = 3
     else:
         num_dimensions_per_example = 4
@@ -410,7 +411,7 @@ def downsized_examples_to_eval_pairs(
                  num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  target_time_unix_sec=target_times_unix_sec[i],
-                 num_predictor_time_steps=num_predictor_time_steps,
+                 predictor_time_step_offsets=predictor_time_step_offsets,
                  num_lead_time_steps=num_lead_time_steps,
                  top_narr_directory_name=top_narr_directory_name,
                  top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -445,7 +446,7 @@ def full_size_examples_to_eval_pairs(
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_classes,
-        num_predictor_time_steps=None, num_lead_time_steps=None,
+        predictor_time_step_offsets=None, num_lead_time_steps=None,
         isotonic_model_object_by_class=None):
     """Creates evaluation pairs from full-size 3-D or 4-D examples.
 
@@ -464,7 +465,7 @@ def full_size_examples_to_eval_pairs(
     :param pressure_level_mb: Same.
     :param dilation_distance_for_target_metres: Same.
     :param num_classes: Same.
-    :param num_predictor_time_steps: Same.
+    :param predictor_time_step_offsets: Same.
     :param num_lead_time_steps: Same.
     :param isotonic_model_object_by_class: Same.
     :return: class_probability_matrix: Same.
@@ -478,7 +479,7 @@ def full_size_examples_to_eval_pairs(
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
 
-    if num_predictor_time_steps is None:
+    if predictor_time_step_offsets is None:
         num_dimensions_per_example = 3
     else:
         num_dimensions_per_example = 4
@@ -523,7 +524,7 @@ def full_size_examples_to_eval_pairs(
                 fcn.apply_model_to_4d_example(
                     model_object=model_object,
                     target_time_unix_sec=target_times_unix_sec[i],
-                    num_predictor_time_steps=num_predictor_time_steps,
+                    predictor_time_step_offsets=predictor_time_step_offsets,
                     num_lead_time_steps=num_lead_time_steps,
                     top_narr_directory_name=top_narr_directory_name,
                     top_frontal_grid_dir_name=top_frontal_grid_dir_name,

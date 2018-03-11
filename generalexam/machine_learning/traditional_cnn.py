@@ -54,6 +54,7 @@ TRAINING_END_TIME_KEY = 'training_end_time_unix_sec'
 VALIDATION_START_TIME_KEY = 'validation_start_time_unix_sec'
 VALIDATION_END_TIME_KEY = 'validation_end_time_unix_sec'
 NUM_PREDICTOR_TIME_STEPS_KEY = 'num_predictor_time_steps'
+PREDICTOR_TIME_STEP_OFFSETS_KEY = 'predictor_time_step_offsets'
 NUM_LEAD_TIME_STEPS_KEY = 'num_lead_time_steps'
 
 MODEL_METADATA_KEYS = [
@@ -64,7 +65,8 @@ MODEL_METADATA_KEYS = [
     CLASS_FRACTIONS_KEY, WEIGHT_LOSS_FUNCTION_KEY, NARR_PREDICTOR_NAMES_KEY,
     PRESSURE_LEVEL_KEY, TRAINING_START_TIME_KEY, TRAINING_END_TIME_KEY,
     VALIDATION_START_TIME_KEY, VALIDATION_END_TIME_KEY,
-    NUM_PREDICTOR_TIME_STEPS_KEY, NUM_LEAD_TIME_STEPS_KEY
+    NUM_PREDICTOR_TIME_STEPS_KEY, PREDICTOR_TIME_STEP_OFFSETS_KEY,
+    NUM_LEAD_TIME_STEPS_KEY
 ]
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
@@ -77,6 +79,9 @@ CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'binary_success_ratio': keras_metrics.binary_success_ratio,
     'binary_focn': keras_metrics.binary_focn
 }
+
+DEFAULT_NUM_CLASSES = 3
+DEFAULT_NUM_PREDICTORS = 3
 
 DEFAULT_NUM_PIXEL_ROWS = 65
 DEFAULT_NUM_PIXEL_COLUMNS = 65
@@ -93,9 +98,112 @@ NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
 
 
-def get_cnn_with_mnist_architecture(
-        num_classes=2, num_predictors=3, convolve_over_time=False):
-    """Creates CNN with architecture used in the following example.
+def get_3d_cnn(
+        num_predictor_time_steps, num_classes=DEFAULT_NUM_CLASSES,
+        num_predictors=DEFAULT_NUM_PREDICTORS):
+    """Creates 3-D CNN with similar architecture to the following example.
+
+    https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
+
+    :param num_predictor_time_steps: Number of time steps per example (images
+        per sequence).
+    :param num_classes: Number of classes.
+    :param num_predictors: Number of predictor variables (image channels).
+    :return: model_object: Instance of `keras.models.Sequential`, with the
+        aforementioned architecture.
+    """
+
+    error_checking.assert_is_integer(num_predictor_time_steps)
+    error_checking.assert_is_geq(num_predictor_time_steps, 2)
+    error_checking.assert_is_leq(num_predictor_time_steps, 9)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
+    error_checking.assert_is_integer(num_predictors)
+    error_checking.assert_is_geq(num_predictors, 1)
+
+    model_object = Sequential()
+    layer_object = cnn_utils.get_3d_convolution_layer(
+        num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
+        num_kernel_time_steps=min([3, num_predictor_time_steps]),
+        stride_length_in_rows=1, stride_length_in_columns=1,
+        stride_length_in_time_steps=1, activation_function='relu',
+        is_first_layer=True, num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
+        num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
+        num_input_time_steps=num_predictor_time_steps,
+        num_input_channels=num_predictors)
+
+    model_object.add(layer_object)
+    print layer_object.output_shape
+
+    num_predictor_time_steps_left = layer_object.output_shape[-2]
+    layer_object = cnn_utils.get_3d_convolution_layer(
+        num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
+        num_kernel_time_steps=min([3, num_predictor_time_steps_left]),
+        stride_length_in_rows=1, stride_length_in_columns=1,
+        stride_length_in_time_steps=1, activation_function='relu')
+
+    model_object.add(layer_object)
+    print layer_object.output_shape
+
+    num_predictor_time_steps_left = layer_object.output_shape[-2]
+    layer_object = cnn_utils.get_3d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        num_time_steps_in_window=min([2, num_predictor_time_steps_left]),
+        pooling_type=cnn_utils.MAX_POOLING_TYPE)
+
+    model_object.add(layer_object)
+    print layer_object.output_shape
+    num_predictor_time_steps_left = layer_object.output_shape[-2]
+
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
+    model_object.add(layer_object)
+
+    if num_predictor_time_steps_left > 1:
+        layer_object = cnn_utils.get_3d_convolution_layer(
+            num_filters=128, num_kernel_rows=3, num_kernel_columns=3,
+            num_kernel_time_steps=min([3, num_predictor_time_steps_left]),
+            stride_length_in_rows=1, stride_length_in_columns=1,
+            stride_length_in_time_steps=1, activation_function='relu')
+
+        model_object.add(layer_object)
+        print layer_object.output_shape
+
+        num_predictor_time_steps_left = layer_object.output_shape[-2]
+        layer_object = cnn_utils.get_3d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            num_time_steps_in_window=min([2, num_predictor_time_steps_left]),
+            pooling_type=cnn_utils.MAX_POOLING_TYPE)
+
+        model_object.add(layer_object)
+        print layer_object.output_shape
+
+        layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
+        model_object.add(layer_object)
+
+    layer_object = cnn_utils.get_flattening_layer()
+    model_object.add(layer_object)
+
+    layer_object = cnn_utils.get_fully_connected_layer(
+        num_output_units=128, activation_function='relu')
+    model_object.add(layer_object)
+
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.5)
+    model_object.add(layer_object)
+
+    layer_object = cnn_utils.get_fully_connected_layer(
+        num_output_units=num_classes, activation_function='softmax')
+    model_object.add(layer_object)
+
+    model_object.compile(
+        loss=keras.losses.categorical_crossentropy,
+        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
+    return model_object
+
+
+def get_2d_cnn_with_mnist_architecture(
+        num_classes=DEFAULT_NUM_CLASSES, num_predictors=DEFAULT_NUM_PREDICTORS):
+    """Creates 2-D CNN with architecture used in the following example.
 
     https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
 
@@ -104,9 +212,6 @@ def get_cnn_with_mnist_architecture(
 
     :param num_classes: Number of classes.
     :param num_predictors: Number of predictor variables (image channels).
-    :param convolve_over_time: Boolean flag.  If True, the net will do 3-D
-        convolution (over x, y, and time).  If False, only 2-D convolution (over
-        x and y).
     :return: model_object: Instance of `keras.models.Sequential`, with the
         aforementioned architecture.
     """
@@ -116,54 +221,27 @@ def get_cnn_with_mnist_architecture(
     error_checking.assert_is_leq(num_classes, 3)
     error_checking.assert_is_integer(num_predictors)
     error_checking.assert_is_geq(num_predictors, 1)
-    error_checking.assert_is_boolean(convolve_over_time)
 
     model_object = Sequential()
 
-    if convolve_over_time:
-        layer_object = cnn_utils.get_3d_convolution_layer(
-            num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
-            num_kernel_time_steps=3, stride_length_in_rows=1,
-            stride_length_in_columns=1, stride_length_in_time_steps=1,
-            activation_function='relu', is_first_layer=True,
-            num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
-            num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-            num_input_time_steps=DEFAULT_NUM_PREDICTOR_TIME_STEPS,
-            num_input_channels=num_predictors)
-    else:
-        layer_object = cnn_utils.get_2d_convolution_layer(
-            num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
-            stride_length_in_rows=1, stride_length_in_columns=1,
-            activation_function='relu', is_first_layer=True,
-            num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
-            num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-            num_input_channels=num_predictors)
-
+    layer_object = cnn_utils.get_2d_convolution_layer(
+        num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
+        stride_length_in_rows=1, stride_length_in_columns=1,
+        activation_function='relu', is_first_layer=True,
+        num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
+        num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
+        num_input_channels=num_predictors)
     model_object.add(layer_object)
 
-    if convolve_over_time:
-        layer_object = cnn_utils.get_3d_convolution_layer(
-            num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
-            num_kernel_time_steps=3, stride_length_in_rows=1,
-            stride_length_in_columns=1, stride_length_in_time_steps=1,
-            activation_function='relu')
-    else:
-        layer_object = cnn_utils.get_2d_convolution_layer(
-            num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
-            stride_length_in_rows=1, stride_length_in_columns=1,
-            activation_function='relu')
-
+    layer_object = cnn_utils.get_2d_convolution_layer(
+        num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
+        stride_length_in_rows=1, stride_length_in_columns=1,
+        activation_function='relu')
     model_object.add(layer_object)
 
-    if convolve_over_time:
-        layer_object = cnn_utils.get_3d_pooling_layer(
-            num_rows_in_window=2, num_columns_in_window=2,
-            num_time_steps_in_window=2, pooling_type=cnn_utils.MAX_POOLING_TYPE)
-    else:
-        layer_object = cnn_utils.get_2d_pooling_layer(
-            num_rows_in_window=2, num_columns_in_window=2,
-            pooling_type=cnn_utils.MAX_POOLING_TYPE)
-
+    layer_object = cnn_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        pooling_type=cnn_utils.MAX_POOLING_TYPE)
     model_object.add(layer_object)
 
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
@@ -197,7 +275,7 @@ def write_model_metadata(
         weight_loss_function, narr_predictor_names, pressure_level_mb,
         training_start_time_unix_sec, training_end_time_unix_sec,
         validation_start_time_unix_sec, validation_end_time_unix_sec,
-        pickle_file_name, num_predictor_time_steps=None,
+        pickle_file_name, predictor_time_step_offsets=None,
         num_lead_time_steps=None):
     """Writes metadata to Pickle file.
 
@@ -218,11 +296,11 @@ def write_model_metadata(
     :param validation_start_time_unix_sec: Same.
     :param validation_end_time_unix_sec: Same.
     :param pickle_file_name: Path to output file.
-    :param num_predictor_time_steps: See documentation for
+    :param predictor_time_step_offsets: See documentation for
         `train_with_4d_examples`.  If model does not convolve over time --
         i.e., model does 2-D convolution, not 3-D convolution -- leave this as
         None.
-    :param num_lead_time_steps: Same as `num_predictor_time_steps`.
+    :param num_lead_time_steps: Same as `predictor_time_step_offsets`.
     """
 
     model_metadata_dict = {
@@ -242,7 +320,7 @@ def write_model_metadata(
         TRAINING_END_TIME_KEY: training_end_time_unix_sec,
         VALIDATION_START_TIME_KEY: validation_start_time_unix_sec,
         VALIDATION_END_TIME_KEY: validation_end_time_unix_sec,
-        NUM_PREDICTOR_TIME_STEPS_KEY: num_predictor_time_steps,
+        PREDICTOR_TIME_STEP_OFFSETS_KEY: predictor_time_step_offsets,
         NUM_LEAD_TIME_STEPS_KEY: num_lead_time_steps
     }
 
@@ -265,6 +343,10 @@ def read_model_metadata(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     model_metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if NUM_PREDICTOR_TIME_STEPS_KEY in model_metadata_dict:
+        del model_metadata_dict[NUM_PREDICTOR_TIME_STEPS_KEY]
+        model_metadata_dict.update({PREDICTOR_TIME_STEP_OFFSETS_KEY: None})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
@@ -498,7 +580,7 @@ def train_with_3d_examples(
 def train_with_4d_examples(
         model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, num_examples_per_target_time,
-        num_predictor_time_steps, num_lead_time_steps,
+        predictor_time_step_offsets, num_lead_time_steps,
         training_start_time_unix_sec, training_end_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
@@ -514,7 +596,8 @@ def train_with_4d_examples(
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param num_examples_per_target_time: Same.
-    :param num_predictor_time_steps: Number of predictor times per example.
+    :param predictor_time_step_offsets: length-T numpy array of offsets between
+        predictor times and (target time - lead time).
     :param num_lead_time_steps: Number of time steps separating latest predictor
         time from target time.
     :param training_start_time_unix_sec: See documentation for
@@ -559,7 +642,7 @@ def train_with_4d_examples(
                 num_examples_per_target_time=num_examples_per_target_time,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
-                num_predictor_time_steps=num_predictor_time_steps,
+                predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -588,7 +671,7 @@ def train_with_4d_examples(
                 num_examples_per_target_time=num_examples_per_target_time,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
-                num_predictor_time_steps=num_predictor_time_steps,
+                predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -608,7 +691,7 @@ def train_with_4d_examples(
                 num_examples_per_target_time=num_examples_per_target_time,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
                 last_target_time_unix_sec=validation_end_time_unix_sec,
-                num_predictor_time_steps=num_predictor_time_steps,
+                predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -720,7 +803,7 @@ def apply_model_to_3d_example(
 
 
 def apply_model_to_4d_example(
-        model_object, target_time_unix_sec, num_predictor_time_steps,
+        model_object, target_time_unix_sec, predictor_time_step_offsets,
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
@@ -731,7 +814,7 @@ def apply_model_to_4d_example(
     :param model_object: Instance of `keras.models.Sequential`.
     :param target_time_unix_sec: See documentation for
         `testing_io.create_downsized_4d_examples`.
-    :param num_predictor_time_steps: Same.
+    :param predictor_time_step_offsets: Same.
     :param num_lead_time_steps: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
@@ -775,7 +858,7 @@ def apply_model_to_4d_example(
                  num_rows_in_half_grid=num_rows_in_half_grid,
                  num_columns_in_half_grid=num_columns_in_half_grid,
                  target_time_unix_sec=target_time_unix_sec,
-                 num_predictor_time_steps=num_predictor_time_steps,
+                 predictor_time_step_offsets=predictor_time_step_offsets,
                  num_lead_time_steps=num_lead_time_steps,
                  top_narr_directory_name=top_narr_directory_name,
                  top_frontal_grid_dir_name=top_frontal_grid_dir_name,

@@ -109,19 +109,20 @@ def find_input_files_for_3d_examples(
 
 def find_input_files_for_4d_examples(
         first_target_time_unix_sec, last_target_time_unix_sec,
-        num_predictor_time_steps, num_lead_time_steps, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb):
+        predictor_time_step_offsets, num_lead_time_steps,
+        top_narr_directory_name, top_frontal_grid_dir_name,
+        narr_predictor_names, pressure_level_mb):
     """Finds input files for 4-D machine-learning examples.
 
     Q = number of target times
-    T = num_predictor_time_steps
+    T = number of predictor times per example
     C = number of channels (predictor variables) in each image
 
     :param first_target_time_unix_sec: See documentation for
         `find_input_files_for_3d_examples`.
     :param last_target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Number of predictor times per example
-        (images per sequence).  This is T in the general discussion above.
+    :param predictor_time_step_offsets: length-T numpy array of offsets between
+        predictor times and (target time - lead time).
     :param num_lead_time_steps: Number of time steps separating latest
         predictor time from target time.
     :param top_narr_directory_name: See documentation for
@@ -136,6 +137,14 @@ def find_input_files_for_4d_examples(
         at one time step.
     """
 
+    error_checking.assert_is_integer_numpy_array(predictor_time_step_offsets)
+    error_checking.assert_is_numpy_array(
+        predictor_time_step_offsets, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(predictor_time_step_offsets, 0)
+
+    predictor_time_step_offsets = numpy.unique(
+        predictor_time_step_offsets)[::-1]
+
     target_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_target_time_unix_sec,
         end_time_unix_sec=last_target_time_unix_sec,
@@ -143,10 +152,11 @@ def find_input_files_for_4d_examples(
     numpy.random.shuffle(target_times_unix_sec)
 
     num_target_times = len(target_times_unix_sec)
+    num_predictor_times_per_example = len(predictor_time_step_offsets)
     num_predictors = len(narr_predictor_names)
     frontal_grid_file_names = [''] * num_target_times
     narr_file_name_matrix = numpy.full(
-        (num_target_times, num_predictor_time_steps, num_predictors), '',
+        (num_target_times, num_predictor_times_per_example, num_predictors), '',
         dtype=numpy.object)
 
     for i in range(num_target_times):
@@ -156,16 +166,12 @@ def find_input_files_for_4d_examples(
             valid_time_unix_sec=target_times_unix_sec[i],
             raise_error_if_missing=True)
 
-        this_last_narr_time_unix_sec = target_times_unix_sec[i] - (
+        this_last_time_unix_sec = target_times_unix_sec[i] - (
             num_lead_time_steps * NARR_TIME_INTERVAL_SECONDS)
-        this_first_narr_time_unix_sec = this_last_narr_time_unix_sec - (
-            (num_predictor_time_steps - 1) * NARR_TIME_INTERVAL_SECONDS)
-        these_narr_times_unix_sec = time_periods.range_and_interval_to_list(
-            start_time_unix_sec=this_first_narr_time_unix_sec,
-            end_time_unix_sec=this_last_narr_time_unix_sec,
-            time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
+        these_narr_times_unix_sec = this_last_time_unix_sec - (
+            predictor_time_step_offsets * NARR_TIME_INTERVAL_SECONDS)
 
-        for j in range(num_predictor_time_steps):
+        for j in range(num_predictor_times_per_example):
             for k in range(num_predictors):
                 narr_file_name_matrix[i, j, k] = (
                     processed_narr_io.find_file_for_one_time(
@@ -571,7 +577,7 @@ def downsized_3d_example_generator(
 def downsized_4d_example_generator(
         num_examples_per_batch, num_examples_per_target_time,
         first_target_time_unix_sec, last_target_time_unix_sec,
-        num_predictor_time_steps, num_lead_time_steps,
+        predictor_time_step_offsets, num_lead_time_steps,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, class_fractions,
@@ -602,7 +608,8 @@ def downsized_4d_example_generator(
     :param first_target_time_unix_sec: See documentation for
         `find_input_files_for_4d_examples`.
     :param last_target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Same.
+    :param predictor_time_step_offsets: length-T numpy array of offsets between
+        predictor times and (target time - lead time).
     :param num_lead_time_steps: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
@@ -632,7 +639,7 @@ def downsized_4d_example_generator(
         find_input_files_for_4d_examples(
             first_target_time_unix_sec=first_target_time_unix_sec,
             last_target_time_unix_sec=last_target_time_unix_sec,
-            num_predictor_time_steps=num_predictor_time_steps,
+            predictor_time_step_offsets=predictor_time_step_offsets,
             num_lead_time_steps=num_lead_time_steps,
             top_narr_directory_name=top_narr_directory_name,
             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -640,6 +647,7 @@ def downsized_4d_example_generator(
             pressure_level_mb=pressure_level_mb))
 
     num_target_times = len(frontal_grid_file_names)
+    num_predictor_times_per_example = len(predictor_time_step_offsets)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
@@ -656,7 +664,7 @@ def downsized_4d_example_generator(
             print '\n'
             tuple_of_4d_predictor_matrices = ()
 
-            for i in range(num_predictor_time_steps):
+            for i in range(num_predictor_times_per_example):
                 tuple_of_3d_predictor_matrices = ()
 
                 for j in range(num_predictors):
@@ -910,7 +918,7 @@ def full_size_3d_example_generator(
 
 def full_size_4d_example_generator(
         num_examples_per_batch, first_target_time_unix_sec,
-        last_target_time_unix_sec, num_predictor_time_steps,
+        last_target_time_unix_sec, predictor_time_step_offsets,
         num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_classes):
@@ -930,14 +938,14 @@ def full_size_4d_example_generator(
         ...)
 
     E = num_examples_per_batch
-    T = num_predictor_time_steps
+    T = number of predictor times per example
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
     :param first_target_time_unix_sec: See documentation for
         `find_input_files_for_4d_examples`.
     :param last_target_time_unix_sec: Same.
-    :param num_predictor_time_steps: Same.
+    :param predictor_time_step_offsets: Same.
     :param num_lead_time_steps: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
@@ -963,7 +971,7 @@ def full_size_4d_example_generator(
         find_input_files_for_4d_examples(
             first_target_time_unix_sec=first_target_time_unix_sec,
             last_target_time_unix_sec=last_target_time_unix_sec,
-            num_predictor_time_steps=num_predictor_time_steps,
+            predictor_time_step_offsets=predictor_time_step_offsets,
             num_lead_time_steps=num_lead_time_steps,
             top_narr_directory_name=top_narr_directory_name,
             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
@@ -971,6 +979,7 @@ def full_size_4d_example_generator(
             pressure_level_mb=pressure_level_mb))
 
     num_target_times = len(frontal_grid_file_names)
+    num_predictor_times_per_example = len(predictor_time_step_offsets)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
@@ -985,7 +994,7 @@ def full_size_4d_example_generator(
             print '\n'
             tuple_of_4d_predictor_matrices = ()
 
-            for i in range(num_predictor_time_steps):
+            for i in range(num_predictor_times_per_example):
                 tuple_of_3d_predictor_matrices = ()
 
                 for j in range(num_predictors):

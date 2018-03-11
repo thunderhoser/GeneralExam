@@ -86,11 +86,11 @@ def _check_input_args_for_conv_layer(
     else:
         num_dimensions = 3
         error_checking.assert_is_integer(num_kernel_time_steps)
-        error_checking.assert_is_geq(num_kernel_time_steps, 3)
+        error_checking.assert_is_geq(num_kernel_time_steps, 1)
 
         error_checking.assert_is_integer(stride_length_in_time_steps)
         error_checking.assert_is_greater(stride_length_in_time_steps, 0)
-        error_checking.assert_is_less_than(
+        error_checking.assert_is_leq(
             stride_length_in_time_steps, num_kernel_time_steps)
 
     error_checking.assert_is_string(activation_function)
@@ -145,7 +145,7 @@ def _check_input_args_for_pooling_layer(
     else:
         num_dimensions = 3
         error_checking.assert_is_integer(num_time_steps_in_window)
-        error_checking.assert_is_geq(num_time_steps_in_window, 2)
+        error_checking.assert_is_geq(num_time_steps_in_window, 1)
 
     if (stride_length_in_rows is None or stride_length_in_columns is None or
             stride_length_in_time_steps is None):
