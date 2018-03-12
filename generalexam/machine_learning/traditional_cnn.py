@@ -343,9 +343,10 @@ def read_model_metadata(pickle_file_name):
     model_metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if NUM_PREDICTOR_TIME_STEPS_KEY in model_metadata_dict:
-        del model_metadata_dict[NUM_PREDICTOR_TIME_STEPS_KEY]
+    if PREDICTOR_TIME_STEP_OFFSETS_KEY not in model_metadata_dict:
         model_metadata_dict.update({PREDICTOR_TIME_STEP_OFFSETS_KEY: None})
+    if NUM_PREDICTOR_TIME_STEPS_KEY not in model_metadata_dict:
+        model_metadata_dict.update({NUM_PREDICTOR_TIME_STEPS_KEY: None})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
