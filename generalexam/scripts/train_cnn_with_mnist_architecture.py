@@ -102,6 +102,10 @@ def _train_cnn(
         num_dimensions_per_example = 4
         predictor_time_step_offsets = numpy.array(predictor_time_step_offsets)
 
+        print ('Number of lead-time steps = {0:d} ... predictor time-step '
+               'offsets = {1:s}').format(num_lead_time_steps,
+                                         str(predictor_time_step_offsets))
+
     print 'Initializing model...'
     if num_dimensions_per_example == 3:
         model_object = traditional_cnn.get_2d_cnn_with_mnist_architecture(

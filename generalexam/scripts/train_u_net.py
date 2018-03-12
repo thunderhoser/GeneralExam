@@ -14,7 +14,6 @@ Ronneberger, O., P. Fischer, and T. Brox (2015): "U-net: Convolutional networks
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
-from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import fcn
 from generalexam.scripts import machine_learning as ml_script_helper
 

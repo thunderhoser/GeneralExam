@@ -40,7 +40,6 @@ NUM_EVAL_TIMES_ARG_NAME = 'num_evaluation_times'
 USE_ISOTONIC_REGRESSION_ARG_NAME = 'use_isotonic_regression'
 BINARIZATION_THRESHOLD_ARG_NAME = 'binarization_threshold'
 MIN_AREA_ARG_NAME = 'min_object_area_metres2'
-MIN_LENGTH_ARG_NAME = 'min_object_length_metres'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_metres'
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
@@ -67,9 +66,6 @@ BINARIZATION_THRESHOLD_HELP_STRING = (
 MIN_AREA_HELP_STRING = (
     'Minimum area of frontal region (BEFORE thinning into skeleton line).  '
     'Smaller regions will be thrown out.')
-MIN_LENGTH_HELP_STRING = (
-    'Minimum length of frontal region (AFTER thinning into skeleton line).  '
-    'Smaller regions will be thrown out.')
 MATCHING_DISTANCE_HELP_STRING = (
     'Matching distance (or neighbourhood distance).  If actual front f_A and '
     'predicted front f_P have the same type, occur at the same time, and are '
@@ -86,8 +82,7 @@ FRONTAL_POLYLINE_DIR_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Evaluation results will be saved here.')
 
-DEFAULT_MIN_AREA_METRES2 = 2e11  # ~200 grid cells
-DEFAULT_MIN_LENGTH_METRES = 5e5  # 500 km
+DEFAULT_MIN_AREA_METRES2 = 5e11  # ~500 grid cells
 DEFAULT_MATCHING_DISTANCE_METRES = 1e5
 DEFAULT_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_FRONTAL_GRID_DIR_NAME = (
@@ -122,10 +117,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_AREA_ARG_NAME, type=float, required=False,
     default=DEFAULT_MIN_AREA_METRES2, help=MIN_AREA_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_LENGTH_ARG_NAME, type=float, required=False,
-    default=DEFAULT_MIN_LENGTH_METRES, help=MIN_LENGTH_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MATCHING_DISTANCE_ARG_NAME, type=float, required=False,
@@ -246,10 +237,9 @@ def _read_actual_polylines(top_input_dir_name, valid_times_unix_sec):
 def _evaluate_model(
         model_file_name, first_eval_time_string, last_eval_time_string,
         num_evaluation_times, use_isotonic_regression, binarization_threshold,
-        min_object_area_metres2, min_object_length_metres,
-        matching_distance_metres, top_narr_directory_name,
-        top_frontal_grid_dir_name, top_frontal_polyline_dir_name,
-        output_dir_name):
+        min_object_area_metres2, matching_distance_metres,
+        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_frontal_polyline_dir_name, output_dir_name):
     """Object-based eval for traditional CNN, preferably on non-training data.
 
     :param model_file_name: Path to model file, containing a trained CNN.  This
@@ -266,8 +256,6 @@ def _evaluate_model(
         and no front.  See documentation for
         `object_based_evaluation.determinize_probabilities`.
     :param min_object_area_metres2: Minimum area of frontal region (BEFORE
-        thinning into skeleton line).  Smaller regions will be thrown out.
-    :param min_object_length_metres: Minimum length of frontal region (AFTER
         thinning into skeleton line).  Smaller regions will be thrown out.
     :param matching_distance_metres: Matching distance (or neighbourhood
         distance).  If actual front f_A and predicted front f_P have the same
@@ -537,7 +525,6 @@ if __name__ == '__main__':
     BINARIZATION_THRESHOLD = getattr(
         INPUT_ARG_OBJECT, BINARIZATION_THRESHOLD_ARG_NAME)
     MIN_OBJECT_AREA_METRES2 = getattr(INPUT_ARG_OBJECT, MIN_AREA_ARG_NAME)
-    MIN_OBJECT_LENGTH_METRES = getattr(INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME)
     MATCHING_DISTANCE_METRES = getattr(
         INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME)
 
@@ -556,7 +543,6 @@ if __name__ == '__main__':
         use_isotonic_regression=USE_ISOTONIC_REGRESSION,
         binarization_threshold=BINARIZATION_THRESHOLD,
         min_object_area_metres2=MIN_OBJECT_AREA_METRES2,
-        min_object_length_metres=MIN_OBJECT_LENGTH_METRES,
         matching_distance_metres=MATCHING_DISTANCE_METRES,
         top_narr_directory_name=TOP_NARR_DIRECTORY_NAME,
         top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME,
