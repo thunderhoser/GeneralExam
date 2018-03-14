@@ -762,14 +762,24 @@ def get_binary_contingency_table(
 
         for j in these_actual_front_indices:
             this_distance_metres = _get_distance_between_fronts(
-                first_x_coords_metres=
-                predicted_region_table[X_COORDS_COLUMN].values[i],
-                first_y_coords_metres=
-                predicted_region_table[Y_COORDS_COLUMN].values[i],
                 second_x_coords_metres=
-                actual_polyline_table[X_COORDS_COLUMN].values[j],
+                predicted_region_table[X_COORDS_COLUMN].values[i],
                 second_y_coords_metres=
+                predicted_region_table[Y_COORDS_COLUMN].values[i],
+                first_x_coords_metres=
+                actual_polyline_table[X_COORDS_COLUMN].values[j],
+                first_y_coords_metres=
                 actual_polyline_table[Y_COORDS_COLUMN].values[j])
+
+            # this_distance_metres = _get_distance_between_fronts(
+            #     first_x_coords_metres=
+            #     predicted_region_table[X_COORDS_COLUMN].values[i],
+            #     first_y_coords_metres=
+            #     predicted_region_table[Y_COORDS_COLUMN].values[i],
+            #     second_x_coords_metres=
+            #     actual_polyline_table[X_COORDS_COLUMN].values[j],
+            #     second_y_coords_metres=
+            #     actual_polyline_table[Y_COORDS_COLUMN].values[j])
 
             if this_distance_metres < neigh_distance_metres:
                 found_match = True
@@ -826,14 +836,24 @@ def get_row_normalized_contingency_table(
         these_distances_to_actual_metres = []
 
         for j in these_actual_front_indices:
+            # this_distance_metres = _get_distance_between_fronts(
+            #     first_x_coords_metres=
+            #     predicted_region_table[X_COORDS_COLUMN].values[i],
+            #     first_y_coords_metres=
+            #     predicted_region_table[Y_COORDS_COLUMN].values[i],
+            #     second_x_coords_metres=
+            #     actual_polyline_table[X_COORDS_COLUMN].values[j],
+            #     second_y_coords_metres=
+            #     actual_polyline_table[Y_COORDS_COLUMN].values[j])
+
             this_distance_metres = _get_distance_between_fronts(
-                first_x_coords_metres=
-                predicted_region_table[X_COORDS_COLUMN].values[i],
-                first_y_coords_metres=
-                predicted_region_table[Y_COORDS_COLUMN].values[i],
                 second_x_coords_metres=
-                actual_polyline_table[X_COORDS_COLUMN].values[j],
+                predicted_region_table[X_COORDS_COLUMN].values[i],
                 second_y_coords_metres=
+                predicted_region_table[Y_COORDS_COLUMN].values[i],
+                first_x_coords_metres=
+                actual_polyline_table[X_COORDS_COLUMN].values[j],
+                first_y_coords_metres=
                 actual_polyline_table[Y_COORDS_COLUMN].values[j])
 
             these_distances_to_actual_metres.append(this_distance_metres)
