@@ -494,7 +494,7 @@ def _evaluate_model(
             neigh_distance_metres=matching_distance_metres))
 
     print 'Column-normalized contingency table is shown below:\n{0:s}\n'.format(
-        row_normalized_ct_as_matrix)
+        column_normalized_ct_as_matrix)
 
     evaluation_file_name = '{0:s}/object_based_evaluation.p'.format(
         output_dir_name)
