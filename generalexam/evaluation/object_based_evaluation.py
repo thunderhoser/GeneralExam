@@ -456,6 +456,7 @@ def find_main_skeletons(
     num_grid_rows = class_probability_matrix.shape[1]
     num_grid_columns = class_probability_matrix.shape[2]
     num_regions = len(predicted_region_table.index)
+    rows_to_drop = []
 
     for i in range(num_regions):
         print 'Finding main skeleton for {0:d}th of {1:d} regions...'.format(
@@ -533,8 +534,15 @@ def find_main_skeletons(
             i] = these_main_skeleton_rows
         predicted_region_table[COLUMN_INDICES_COLUMN].values[
             i] = these_main_skeleton_columns
+        if not len(these_main_skeleton_rows):
+            rows_to_drop.append(i)
 
-    return predicted_region_table
+    if not len(rows_to_drop):
+        return predicted_region_table
+
+    rows_to_drop = numpy.array(rows_to_drop)
+    return predicted_region_table.drop(
+        predicted_region_table.index[rows_to_drop], axis=0, inplace=False)
 
 
 def discard_regions_with_small_length(
@@ -751,15 +759,21 @@ def get_binary_contingency_table(
         found_match = False
 
         for j in these_predicted_front_indices:
-            this_distance_metres = _get_distance_between_fronts(
-                first_x_coords_metres=
-                actual_polyline_table[X_COORDS_COLUMN].values[i],
-                first_y_coords_metres=
-                actual_polyline_table[Y_COORDS_COLUMN].values[i],
-                second_x_coords_metres=
-                predicted_region_table[X_COORDS_COLUMN].values[j],
-                second_y_coords_metres=
-                predicted_region_table[Y_COORDS_COLUMN].values[j])
+            try:
+                this_distance_metres = _get_distance_between_fronts(
+                    first_x_coords_metres=
+                    actual_polyline_table[X_COORDS_COLUMN].values[i],
+                    first_y_coords_metres=
+                    actual_polyline_table[Y_COORDS_COLUMN].values[i],
+                    second_x_coords_metres=
+                    predicted_region_table[X_COORDS_COLUMN].values[j],
+                    second_y_coords_metres=
+                    predicted_region_table[Y_COORDS_COLUMN].values[j])
+            except:
+                print actual_polyline_table[X_COORDS_COLUMN].values[i]
+                print actual_polyline_table[Y_COORDS_COLUMN].values[i]
+                print predicted_region_table[X_COORDS_COLUMN].values[j]
+                print predicted_region_table[Y_COORDS_COLUMN].values[j]
 
             if this_distance_metres < neigh_distance_metres:
                 found_match = True
