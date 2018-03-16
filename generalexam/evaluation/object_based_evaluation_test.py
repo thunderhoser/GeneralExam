@@ -464,7 +464,9 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             object_based_eval.find_main_skeletons(
                 predicted_region_table=this_input_table,
                 class_probability_matrix=PROBABILITY_MATRIX,
-                image_times_unix_sec=IMAGE_TIMES_UNIX_SEC))
+                image_times_unix_sec=IMAGE_TIMES_UNIX_SEC,
+                x_grid_spacing_metres=1., y_grid_spacing_metres=1.,
+                min_length_metres=0.001))
 
         self.assertTrue(_compare_tables(
             this_predicted_main_skeleton_table, PREDICTED_MAIN_SKELETON_TABLE))

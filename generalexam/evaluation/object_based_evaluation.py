@@ -32,6 +32,7 @@ Y_COORDS_COLUMN = 'y_coords_metres'
 
 DEFAULT_MIN_REGION_LENGTH_METRES = 5e5  # 500 km
 DEFAULT_MIN_REGION_AREA_METRES2 = 2e11  # 0.2 million km^2
+DEFAULT_MIN_MAIN_SKELETON_LENGTH_METRES = 5e5
 
 NUM_ACTUAL_FRONTS_PREDICTED_KEY = 'num_actual_fronts_predicted'
 NUM_PREDICTED_FRONTS_VERIFIED_KEY = 'num_predicted_fronts_verified'
@@ -416,7 +417,9 @@ def skeletonize_frontal_regions(
 
 
 def find_main_skeletons(
-        predicted_region_table, class_probability_matrix, image_times_unix_sec):
+        predicted_region_table, class_probability_matrix, image_times_unix_sec,
+        x_grid_spacing_metres, y_grid_spacing_metres,
+        min_length_metres=DEFAULT_MIN_MAIN_SKELETON_LENGTH_METRES):
     """Converts each (already skeletonized) frontal region to its main skeleton.
 
     The "main skeleton" is a simple polyline***, whereas the original skeleton
@@ -432,6 +435,12 @@ def find_main_skeletons(
         class_probability_matrix[i, j, k, m] is the predicted probability that
         pixel [j, k] in the [i]th image belongs to the [m]th class.
     :param image_times_unix_sec: length-E numpy array of valid times.
+    :param x_grid_spacing_metres: See documentation for
+        `_get_length_of_bounding_box_diagonal`.
+    :param y_grid_spacing_metres: See documentation for
+        `_get_length_of_bounding_box_diagonal`.
+    :param min_length_metres: Minimum length of skeleton line (across bounding
+        box of diagonal).
     :return: predicted_region_table: Same as input, except that each region has
         been reduced to its main skeleton line.
     """
@@ -441,6 +450,8 @@ def find_main_skeletons(
     error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
     error_checking.assert_is_numpy_array(
         image_times_unix_sec, exact_dimensions=numpy.array([num_images]))
+
+    error_checking.assert_is_greater(min_length_metres, 0.)
 
     num_grid_rows = class_probability_matrix.shape[1]
     num_grid_columns = class_probability_matrix.shape[2]
@@ -497,6 +508,14 @@ def find_main_skeletons(
                         end_column=these_endpoint_columns[k]))
 
                 if these_skeleton_rows is None:
+                    continue
+
+                this_length_metres = _get_length_of_bounding_box_diagonal(
+                    row_indices_in_region=these_skeleton_rows,
+                    column_indices_in_region=these_skeleton_columns,
+                    x_grid_spacing_metres=x_grid_spacing_metres,
+                    y_grid_spacing_metres=y_grid_spacing_metres)
+                if this_length_metres < min_length_metres:
                     continue
 
                 this_mean_probability = numpy.mean(
