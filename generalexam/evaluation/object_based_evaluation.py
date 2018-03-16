@@ -877,9 +877,14 @@ def get_row_normalized_contingency_table(
 
             these_distances_to_actual_metres.append(this_distance_metres)
 
-        this_min_distance = numpy.min(these_distances_to_actual_metres)
-        this_actual_front_index = these_actual_front_indices[
-            numpy.argmin(these_distances_to_actual_metres)]
+        if len(these_distances_to_actual_metres):
+            these_distances_to_actual_metres = numpy.array(
+                these_distances_to_actual_metres)
+            this_min_distance = numpy.min(these_distances_to_actual_metres)
+            this_actual_front_index = these_actual_front_indices[
+                numpy.argmin(these_distances_to_actual_metres)]
+        else:
+            this_min_distance = numpy.inf
 
         this_predicted_front_type_int = front_utils.string_id_to_integer(
             predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values[i])
@@ -957,9 +962,14 @@ def get_column_normalized_contingency_table(
 
             these_distances_to_predicted_metres.append(this_distance_metres)
 
-        this_min_distance = numpy.min(these_distances_to_predicted_metres)
-        this_predicted_front_index = these_predicted_front_indices[
-            numpy.argmin(these_distances_to_predicted_metres)]
+        if len(these_distances_to_predicted_metres):
+            these_distances_to_predicted_metres = numpy.array(
+                these_distances_to_predicted_metres)
+            this_min_distance = numpy.min(these_distances_to_predicted_metres)
+            this_predicted_front_index = these_predicted_front_indices[
+                numpy.argmin(these_distances_to_predicted_metres)]
+        else:
+            this_min_distance = numpy.inf
 
         this_actual_front_type_int = front_utils.string_id_to_integer(
             actual_polyline_table[front_utils.FRONT_TYPE_COLUMN].values[i])
