@@ -50,6 +50,14 @@ BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
 ROW_NORMALIZED_CONTINGENCY_TABLE_KEY = 'row_normalized_ct_as_matrix'
 COLUMN_NORMALIZED_CONTINGENCY_TABLE_KEY = 'column_normalized_ct_as_matrix'
 
+EVALUATION_DICT_KEYS = [
+    PREDICTED_REGION_TABLE_KEY, ACTUAL_POLYLINE_TABLE_KEY,
+    NEIGH_DISTANCE_METRES_KEY, BINARY_CONTINGENCY_TABLE_KEY, BINARY_POD_KEY,
+    BINARY_SUCCESS_RATIO_KEY, BINARY_CSI_KEY, BINARY_FREQUENCY_BIAS_KEY,
+    ROW_NORMALIZED_CONTINGENCY_TABLE_KEY,
+    COLUMN_NORMALIZED_CONTINGENCY_TABLE_KEY
+]
+
 KERNEL_MATRIX_FOR_ENDPOINT_FILTER = numpy.array([[1, 1, 1],
                                                  [1, 10, 1],
                                                  [1, 1, 1]], dtype=numpy.uint8)
@@ -1158,3 +1166,31 @@ def write_evaluation_results(
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(evaluation_dict, pickle_file_handle)
     pickle_file_handle.close()
+
+
+def read_evaluation_results(pickle_file_name):
+    """Reads evaluation results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: evaluation_dict: Dictionary with all keys in the list
+        `EVALUATION_DICT_KEYS`.
+    :raises: ValueError: if dictionary does not contain all keys in the list
+        `EVALUATION_DICT_KEYS`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    evaluation_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    expected_keys_as_set = set(EVALUATION_DICT_KEYS)
+    actual_keys_as_set = set(evaluation_dict.keys())
+    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+        error_string = (
+            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
+            '("{1:s}") are listed below.  Some expected keys were not found.'
+            '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
+                                evaluation_dict.keys())
+
+        raise ValueError(error_string)
+
+    return evaluation_dict
