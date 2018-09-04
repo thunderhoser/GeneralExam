@@ -25,23 +25,19 @@ def dewpoint_to_wet_bulb_temperature(
     error_checking.assert_is_real_numpy_array(temperatures_kelvins)
     error_checking.assert_is_real_numpy_array(total_pressures_pascals)
 
-    orig_dimensions_tuple = dewpoints_kelvins.shape
+    orig_dimensions = numpy.array(dewpoints_kelvins.shape, dtype=int)
     error_checking.assert_is_numpy_array(
-        temperatures_kelvins,
-        exact_dimensions=numpy.array(orig_dimensions_tuple))
+        temperatures_kelvins, exact_dimensions=orig_dimensions)
     error_checking.assert_is_numpy_array(
-        total_pressures_pascals,
-        exact_dimensions=numpy.array(orig_dimensions_tuple))
+        total_pressures_pascals, exact_dimensions=orig_dimensions)
 
-    # Convert units and convert to 1-D arrays.
-    dewpoints_1d_celsius = -ZERO_CELSIUS_IN_KELVINS + numpy.reshape(
-        dewpoints_kelvins, dewpoints_kelvins.size)
-    temperatures_1d_celsius = -ZERO_CELSIUS_IN_KELVINS + numpy.reshape(
-        temperatures_kelvins, temperatures_kelvins.size)
-    total_pressures_1d_millibars = PASCALS_TO_MILLIBARS * numpy.reshape(
-        total_pressures_pascals, total_pressures_pascals.size)
+    dewpoints_1d_celsius = -ZERO_CELSIUS_IN_KELVINS + numpy.ravel(
+        dewpoints_kelvins)
+    temperatures_1d_celsius = -ZERO_CELSIUS_IN_KELVINS + numpy.ravel(
+        temperatures_kelvins)
+    total_pressures_1d_millibars = PASCALS_TO_MILLIBARS * numpy.ravel(
+        total_pressures_pascals)
 
-    # Find array positions without NaN.
     nan_flags = numpy.logical_or(
         numpy.isnan(dewpoints_1d_celsius), numpy.isnan(temperatures_1d_celsius))
     nan_flags = numpy.logical_or(
@@ -49,6 +45,7 @@ def dewpoint_to_wet_bulb_temperature(
 
     num_points = len(dewpoints_1d_celsius)
     wet_bulb_temperatures_1d_celsius = numpy.full(num_points, numpy.nan)
+
     for i in range(num_points):
         if nan_flags[i]:
             continue
@@ -57,7 +54,5 @@ def dewpoint_to_wet_bulb_temperature(
             p=total_pressures_1d_millibars[i], t=temperatures_1d_celsius[i],
             td=dewpoints_1d_celsius[i])
 
-    # Convert units and convert back to original dimensions.
-    wet_bulb_temperatures_kelvins = ZERO_CELSIUS_IN_KELVINS + numpy.reshape(
-        wet_bulb_temperatures_1d_celsius, orig_dimensions_tuple)
-    return wet_bulb_temperatures_kelvins
+    return ZERO_CELSIUS_IN_KELVINS + numpy.reshape(
+        wet_bulb_temperatures_1d_celsius, tuple(orig_dimensions.tolist()))

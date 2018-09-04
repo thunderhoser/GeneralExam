@@ -16,7 +16,6 @@ import copy
 import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import processed_narr_io
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 
@@ -41,12 +40,6 @@ NARR_COLUMNS_FOR_FCN_INPUT = numpy.linspace(
 
 ROW_INDICES_BY_TIME_KEY = 'row_indices_by_time'
 COLUMN_INDICES_BY_TIME_KEY = 'column_indices_by_time'
-
-DEFAULT_PREDICTOR_NORMALIZATION_DICT = {
-    processed_narr_io.WET_BULB_TEMP_NAME: numpy.array([240., 305.]),
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME: numpy.array([-20., 20.]),
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME: numpy.array([-20., 20.])
-}
 
 
 def _check_full_narr_matrix(full_narr_matrix):
@@ -368,8 +361,7 @@ def get_class_weight_dict(class_frequencies):
 
 def normalize_predictor_matrix(
         predictor_matrix, normalize_by_example=False, predictor_names=None,
-        normalization_dict=DEFAULT_PREDICTOR_NORMALIZATION_DICT,
-        percentile_offset=1.):
+        normalization_dict=None, percentile_offset=1.):
     """Normalizes predictor matrix.
 
     Specifically, each value will be normalized as follows.

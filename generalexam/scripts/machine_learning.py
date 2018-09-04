@@ -96,7 +96,8 @@ DEFAULT_PRESSURE_LEVEL_MB = 1000
 DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.WET_BULB_TEMP_NAME]
+    processed_narr_io.WET_BULB_THETA_NAME
+]
 
 DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = (
