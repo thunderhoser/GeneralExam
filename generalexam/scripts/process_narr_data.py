@@ -273,6 +273,13 @@ def _run(
                     rotation_angle_cosines=rotation_angle_cos_matrix,
                     rotation_angle_sines=rotation_angle_sin_matrix)
 
+            field_name = processed_narr_io.field_name_to_grid_relative(
+                field_name)
+            field_name_other_component = (
+                processed_narr_io.field_name_to_grid_relative(
+                    field_name_other_component)
+            )
+
         this_processed_file_name = processed_narr_io.find_file_for_one_time(
             top_directory_name=top_processed_dir_name, field_name=field_name,
             pressure_level_mb=pressure_level_mb,

@@ -85,6 +85,84 @@ class ProcessedNarrIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             processed_narr_io.check_field_name(FAKE_FIELD_NAME)
 
+    def test_field_name_to_grid_relative_temperature(self):
+        """Ensures correct output from field_name_to_grid_relative.
+
+        In this case the field is temperature, so the method has no effect.
+        """
+
+        self.assertTrue(
+            processed_narr_io.field_name_to_grid_relative(
+                processed_narr_io.TEMPERATURE_NAME) ==
+            processed_narr_io.TEMPERATURE_NAME
+        )
+
+    def test_field_name_to_grid_relative_u_grid(self):
+        """Ensures correct output from field_name_to_grid_relative.
+
+        In this case the field is grid-relative u-wind, so the method has no
+        effect.
+        """
+
+        self.assertTrue(
+            processed_narr_io.field_name_to_grid_relative(
+                processed_narr_io.U_WIND_GRID_RELATIVE_NAME) ==
+            processed_narr_io.U_WIND_GRID_RELATIVE_NAME
+        )
+
+    def test_field_name_to_grid_relative_u_earth(self):
+        """Ensures correct output from field_name_to_grid_relative.
+
+        In this case the field is Earth-relative u-wind, so the method has an
+        effect.
+        """
+
+        self.assertTrue(
+            processed_narr_io.field_name_to_grid_relative(
+                processed_narr_io.U_WIND_EARTH_RELATIVE_NAME) ==
+            processed_narr_io.U_WIND_GRID_RELATIVE_NAME
+        )
+
+    def test_field_name_to_earth_relative_spfh(self):
+        """Ensures correct output from field_name_to_earth_relative.
+
+        In this case the field is specific humidity, so the method has no
+        effect.
+        """
+
+        self.assertTrue(
+            processed_narr_io.field_name_to_earth_relative(
+                processed_narr_io.SPECIFIC_HUMIDITY_NAME) ==
+            processed_narr_io.SPECIFIC_HUMIDITY_NAME
+        )
+
+    def test_field_name_to_earth_relative_v_grid(self):
+        """Ensures correct output from field_name_to_earth_relative.
+
+        In this case the field is grid-relative v-wind, so the method has an
+        effect.
+        """
+
+        self.assertTrue(
+            processed_narr_io.field_name_to_earth_relative(
+                processed_narr_io.V_WIND_GRID_RELATIVE_NAME) ==
+            processed_narr_io.V_WIND_EARTH_RELATIVE_NAME
+        )
+
+    def test_field_name_to_earth_relative_v_earth(self):
+        """Ensures correct output from field_name_to_earth_relative.
+
+        In this case the field is Earth-relative v-wind, so the method has no
+        effect.
+        """
+
+        self.assertTrue(
+            processed_narr_io.field_name_to_earth_relative(
+                processed_narr_io.V_WIND_EARTH_RELATIVE_NAME) ==
+            processed_narr_io.V_WIND_EARTH_RELATIVE_NAME
+        )
+
+
     def test_find_file_for_time_period(self):
         """Ensures correct output from find_file_for_time_period."""
 

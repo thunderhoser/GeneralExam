@@ -131,6 +131,40 @@ def check_field_name(field_name, require_standard=False):
         raise ValueError(error_string)
 
 
+def field_name_to_grid_relative(field_name):
+    """Converts field name to grid-relative.
+
+    If the field is Earth-relative u-wind or v-wind, its name will change.
+    Otherwise, its name will stay the same.
+
+    :param field_name: See doc for `check_field_name`.
+    :return: field_name_grid_relative: Grid-relative version of field name.
+    """
+
+    check_field_name(field_name=field_name, require_standard=False)
+    field_name_grid_relative = field_name.replace(
+        U_WIND_EARTH_RELATIVE_NAME, U_WIND_GRID_RELATIVE_NAME)
+    return field_name_grid_relative.replace(
+        V_WIND_EARTH_RELATIVE_NAME, V_WIND_GRID_RELATIVE_NAME)
+
+
+def field_name_to_earth_relative(field_name):
+    """Converts field name to Earth-relative.
+
+    If the field is grid-relative u-wind or v-wind, its name will change.
+    Otherwise, its name will stay the same.
+
+    :param field_name: See doc for `check_field_name`.
+    :return: field_name_earth_relative: Earth-relative version of field name.
+    """
+
+    check_field_name(field_name=field_name, require_standard=False)
+    field_name_earth_relative = field_name.replace(
+        U_WIND_GRID_RELATIVE_NAME, U_WIND_EARTH_RELATIVE_NAME)
+    return field_name_earth_relative.replace(
+        V_WIND_GRID_RELATIVE_NAME, V_WIND_EARTH_RELATIVE_NAME)
+
+
 def write_fields_to_file(
         pickle_file_name, field_matrix, field_name, pressure_level_pascals,
         valid_times_unix_sec):
