@@ -496,7 +496,8 @@ def check_downsized_examples(
 
 
 def sample_target_points(
-        target_matrix, class_fractions, num_points_to_sample, test_mode=False):
+        target_matrix, class_fractions, num_points_to_sample, mask_matrix=None,
+        test_mode=False):
     """Samples target points to achieve desired class balance.
 
     If any class is missing from `target_matrix`, this method will return None.
@@ -509,7 +510,10 @@ def sample_target_points(
         `target_matrix` is binary, this array must have length 2; if
         `target_matrix` is ternary, this array must have length 3.
     :param num_points_to_sample: Number of points to sample.
-    :param test_mode: Boolean flag.  Always leave this False.
+    :param mask_matrix: M-by-N numpy array of integers (0 or 1).  If
+        mask_matrix[i, j] = 0, grid cell [i, j] will never be sampled as a
+        target point.  If `mask_matrix is None`, any grid cell may be sampled.
+    :param test_mode: Leave this alone.
     :return: target_point_dict: Dictionary with the following keys.
     target_point_dict['row_indices_by_time']: length-T list, where the [i]th
         element is a numpy array (length P_i) with row indices of grid points
@@ -538,6 +542,21 @@ def sample_target_points(
     _check_target_matrix(
         target_matrix, assert_binary=num_classes == 2, num_dimensions=3)
 
+    if mask_matrix is None:
+        mask_matrix_2d = numpy.full(target_matrix.shape[1:], 1, dtype=int)
+    else:
+        mask_matrix_2d = mask_matrix + 0
+
+    error_checking.assert_is_integer_numpy_array(mask_matrix_2d)
+    error_checking.assert_is_geq_numpy_array(mask_matrix_2d, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix_2d, 1)
+    error_checking.assert_is_numpy_array(
+        mask_matrix_2d,
+        exact_dimensions=numpy.array(target_matrix.shape[1:], dtype=int))
+
+    mask_matrix = numpy.expand_dims(mask_matrix_2d, 0)
+    mask_matrix = numpy.tile(mask_matrix, (target_matrix.shape[0], 1, 1))
+
     error_checking.assert_is_integer(num_points_to_sample)
     error_checking.assert_is_geq(num_points_to_sample, 3)
     error_checking.assert_is_boolean(test_mode)
@@ -552,9 +571,9 @@ def sample_target_points(
     column_indices_by_class = [numpy.array([], dtype=int)] * num_classes
 
     for i in range(num_classes):
-        (time_indices_by_class[i],
-         row_indices_by_class[i],
-         column_indices_by_class[i]) = numpy.where(target_matrix == i)
+        (time_indices_by_class[i], row_indices_by_class[i],
+         column_indices_by_class[i]
+        ) = numpy.where(numpy.logical_and(target_matrix == i, mask_matrix == 1))
 
         num_points_found_by_class[i] = len(time_indices_by_class[i])
         if num_points_found_by_class[i] == 0:

@@ -228,82 +228,6 @@ PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT = numpy.stack(
     (PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT,
      PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT), axis=-2)
 
-# The following constants are used to test sample_target_points with 2 classes.
-CLASS_FRACTIONS_FOR_BINARY_SAMPLING = numpy.array([0.5, 0.5])
-NUM_POINTS_TO_SAMPLE = 50
-
-NEGATIVE_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 0, 0,
-                                          1,
-                                          2, 2, 2, 2, 2, 2, 2,
-                                          3, 3, 3, 3, 3, 3, 3,
-                                          4, 4, 4, 4, 4])
-NEGATIVE_COLUMN_INDICES_TIME1 = numpy.array([0, 3, 4, 5, 6,
-                                             0,
-                                             0, 2, 3, 4, 5, 6, 7,
-                                             0, 2, 3, 4, 5, 6, 7,
-                                             2, 3, 4, 5, 6])
-
-POSITIVE_ROW_INDICES_TIME1 = numpy.array(
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5])
-POSITIVE_COLUMN_INDICES_TIME1 = numpy.array(
-    [1, 2, 7, 1, 2, 3, 4, 5, 6, 7, 1, 1, 0, 1, 0])
-
-THESE_ROW_INDICES_TIME1 = numpy.concatenate((
-    NEGATIVE_ROW_INDICES_TIME1, POSITIVE_ROW_INDICES_TIME1)).astype(int)
-THESE_COLUMN_INDICES_TIME1 = numpy.concatenate((
-    NEGATIVE_COLUMN_INDICES_TIME1, POSITIVE_COLUMN_INDICES_TIME1)).astype(int)
-
-THESE_ROW_INDICES_TIME2 = numpy.array(
-    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], dtype=int)
-THESE_COLUMN_INDICES_TIME2 = numpy.array(
-    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6], dtype=int)
-
-THESE_ROW_INDICES_BY_TIME = [
-    THESE_ROW_INDICES_TIME1, THESE_ROW_INDICES_TIME2]
-THESE_COLUMN_INDICES_BY_TIME = [
-    THESE_COLUMN_INDICES_TIME1, THESE_COLUMN_INDICES_TIME2]
-
-SAMPLED_TARGET_POINT_DICT_BINARY = {
-    ml_utils.ROW_INDICES_BY_TIME_KEY: THESE_ROW_INDICES_BY_TIME,
-    ml_utils.COLUMN_INDICES_BY_TIME_KEY: THESE_COLUMN_INDICES_BY_TIME
-}
-
-# The following constants are used to test sample_target_points with 3 classes.
-CLASS_FRACTIONS_FOR_TERNARY_SAMPLING = numpy.array([0.5, 0.2, 0.3])
-
-WARM_FRONT_ROW_INDICES_TIME1 = numpy.array([0, 0, 0, 1, 1, 1, 1, 1, 1])
-WARM_FRONT_COLUMN_INDICES_TIME1 = numpy.array([1, 2, 7, 2, 3, 4, 5, 6, 7])
-WARM_FRONT_ROW_INDICES_TIME2 = numpy.array([1])
-WARM_FRONT_COLUMN_INDICES_TIME2 = numpy.array([4])
-
-COLD_FRONT_ROW_INDICES_TIME1 = numpy.array([1, 2, 3, 4, 4, 5])
-COLD_FRONT_COLUMN_INDICES_TIME1 = numpy.array([1, 1, 1, 0, 1, 0])
-COLD_FRONT_ROW_INDICES_TIME2 = numpy.array([0, 0, 1, 1, 2, 2, 3, 3, 4])
-COLD_FRONT_COLUMN_INDICES_TIME2 = numpy.array([2, 3, 1, 2, 0, 1, 0, 1, 0])
-
-THESE_ROW_INDICES_TIME1 = numpy.concatenate((
-    NEGATIVE_ROW_INDICES_TIME1, WARM_FRONT_ROW_INDICES_TIME1,
-    COLD_FRONT_ROW_INDICES_TIME1)).astype(int)
-THESE_COLUMN_INDICES_TIME1 = numpy.concatenate((
-    NEGATIVE_COLUMN_INDICES_TIME1, WARM_FRONT_COLUMN_INDICES_TIME1,
-    COLD_FRONT_COLUMN_INDICES_TIME1)).astype(int)
-
-THESE_ROW_INDICES_TIME2 = numpy.concatenate((
-    WARM_FRONT_ROW_INDICES_TIME2, COLD_FRONT_ROW_INDICES_TIME2)).astype(int)
-THESE_COLUMN_INDICES_TIME2 = numpy.concatenate((
-    WARM_FRONT_COLUMN_INDICES_TIME2,
-    COLD_FRONT_COLUMN_INDICES_TIME2)).astype(int)
-
-THESE_ROW_INDICES_BY_TIME = [
-    THESE_ROW_INDICES_TIME1, THESE_ROW_INDICES_TIME2]
-THESE_COLUMN_INDICES_BY_TIME = [
-    THESE_COLUMN_INDICES_TIME1, THESE_COLUMN_INDICES_TIME2]
-
-SAMPLED_TARGET_POINT_DICT_TERNARY = {
-    ml_utils.ROW_INDICES_BY_TIME_KEY: THESE_ROW_INDICES_BY_TIME,
-    ml_utils.COLUMN_INDICES_BY_TIME_KEY: THESE_COLUMN_INDICES_BY_TIME
-}
-
 # The following constants are used to test front_table_to_images.
 NUM_GRID_ROWS = 6
 NUM_GRID_COLUMNS = 8
@@ -371,6 +295,186 @@ THIS_SECOND_MATRIX = numpy.array([[0, 0, 1, 1, 0, 0, 0, 0],
 
 FRONTAL_GRID_MATRIX_BINARY = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0).astype(int)
+
+# The following constants are used to test sample_target_points with 2 classes.
+NUM_POINTS_TO_SAMPLE = 50
+CLASS_FRACTIONS_FOR_BINARY_SAMPLING = numpy.array([0.5, 0.5])
+
+MASK_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 1, 1, 1, 1, 1, 1, 0],
+                           [0, 1, 1, 1, 1, 1, 1, 0],
+                           [0, 1, 1, 1, 1, 1, 1, 0],
+                           [0, 1, 1, 1, 1, 1, 1, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0]], dtype=int)
+
+NEGATIVE_ROWS_TIME1_NO_MASK = numpy.array(
+    [0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4],
+    dtype=int)
+NEGATIVE_COLUMNS_TIME1_NO_MASK = numpy.array(
+    [0, 3, 4, 5, 6, 0, 0, 2, 3, 4, 5, 6, 7, 0, 2, 3, 4, 5, 6, 7, 2, 3, 4, 5, 6],
+    dtype=int)
+
+POSITIVE_ROWS_TIME1_NO_MASK = numpy.array(
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 4, 5], dtype=int)
+POSITIVE_COLUMNS_TIME1_NO_MASK = numpy.array(
+    [1, 2, 7, 1, 2, 3, 4, 5, 6, 7, 1, 1, 0, 1, 0], dtype=int)
+
+ROW_INDICES_TIME1_NO_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME1_NO_MASK, POSITIVE_ROWS_TIME1_NO_MASK)).astype(int)
+COLUMN_INDICES_TIME1_NO_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME1_NO_MASK, POSITIVE_COLUMNS_TIME1_NO_MASK)).astype(int)
+
+NEGATIVE_ROWS_TIME1_WITH_MASK = numpy.array(
+    [2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4], dtype=int)
+NEGATIVE_COLUMNS_TIME1_WITH_MASK = numpy.array(
+    [2, 3, 4, 5, 6, 2, 3, 4, 5, 6, 2, 3, 4, 5, 6], dtype=int)
+
+POSITIVE_ROWS_TIME1_WITH_MASK = numpy.array(
+    [1, 1, 1, 1, 1, 1, 2, 3, 4], dtype=int)
+POSITIVE_COLUMNS_TIME1_WITH_MASK = numpy.array(
+    [1, 2, 3, 4, 5, 6, 1, 1, 1], dtype=int)
+
+ROW_INDICES_TIME1_WITH_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME1_WITH_MASK, POSITIVE_ROWS_TIME1_WITH_MASK)).astype(int)
+COLUMN_INDICES_TIME1_WITH_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME1_WITH_MASK, POSITIVE_COLUMNS_TIME1_WITH_MASK
+)).astype(int)
+
+NEGATIVE_ROWS_TIME2_NO_MASK = numpy.array([], dtype=int)
+NEGATIVE_COLUMNS_TIME2_NO_MASK = numpy.array([], dtype=int)
+
+POSITIVE_ROWS_TIME2_NO_MASK = numpy.array(
+    [0, 0, 1, 1, 1, 1, 2, 2, 2, 2], dtype=int)
+POSITIVE_COLUMNS_TIME2_NO_MASK = numpy.array(
+    [2, 3, 1, 2, 4, 5, 0, 1, 5, 6], dtype=int)
+
+ROW_INDICES_TIME2_NO_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME2_NO_MASK, POSITIVE_ROWS_TIME2_NO_MASK)).astype(int)
+COLUMN_INDICES_TIME2_NO_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME2_NO_MASK, POSITIVE_COLUMNS_TIME2_NO_MASK)).astype(int)
+
+NEGATIVE_ROWS_TIME2_WITH_MASK = numpy.array([1, 1, 2, 2], dtype=int)
+NEGATIVE_COLUMNS_TIME2_WITH_MASK = numpy.array([3, 6, 2, 3], dtype=int)
+
+POSITIVE_ROWS_TIME2_WITH_MASK = numpy.array(
+    [1, 1, 1, 1, 2, 2, 2, 3, 3, 4], dtype=int)
+POSITIVE_COLUMNS_TIME2_WITH_MASK = numpy.array(
+    [1, 2, 4, 5, 1, 5, 6, 1, 6, 1], dtype=int)
+
+ROW_INDICES_TIME2_WITH_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME2_WITH_MASK, POSITIVE_ROWS_TIME2_WITH_MASK)).astype(int)
+COLUMN_INDICES_TIME2_WITH_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME2_WITH_MASK, POSITIVE_COLUMNS_TIME2_WITH_MASK
+)).astype(int)
+
+TARGET_POINT_DICT_BINARY_NO_MASK = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY:
+        [ROW_INDICES_TIME1_NO_MASK, ROW_INDICES_TIME2_NO_MASK],
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+        [COLUMN_INDICES_TIME1_NO_MASK, COLUMN_INDICES_TIME2_NO_MASK]
+}
+
+TARGET_POINT_DICT_BINARY_WITH_MASK = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY:
+        [ROW_INDICES_TIME1_WITH_MASK, ROW_INDICES_TIME2_WITH_MASK],
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+        [COLUMN_INDICES_TIME1_WITH_MASK, COLUMN_INDICES_TIME2_WITH_MASK]
+}
+
+# The following constants are used to test sample_target_points with 3 classes.
+CLASS_FRACTIONS_FOR_TERNARY_SAMPLING = numpy.array([0.5, 0.2, 0.3])
+
+NEGATIVE_ROWS_TIME1_NO_MASK = numpy.array(
+    [0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4],
+    dtype=int)
+NEGATIVE_COLUMNS_TIME1_NO_MASK = numpy.array(
+    [0, 3, 4, 5, 6, 0, 0, 2, 3, 4, 5, 6, 7, 0, 2, 3, 4, 5, 6, 7, 2, 3, 4, 5, 6],
+    dtype=int)
+
+NEGATIVE_ROWS_TIME2_NO_MASK = numpy.array([], dtype=int)
+NEGATIVE_COLUMNS_TIME2_NO_MASK = numpy.array([], dtype=int)
+
+WARM_FRONT_ROWS_TIME1_NO_MASK = numpy.array(
+    [0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=int)
+WARM_FRONT_COLUMNS_TIME1_NO_MASK = numpy.array(
+    [1, 2, 7, 2, 3, 4, 5, 6, 7], dtype=int)
+WARM_FRONT_ROWS_TIME2_NO_MASK = numpy.array([1], dtype=int)
+WARM_FRONT_COLUMNS_TIME2_NO_MASK = numpy.array([4], dtype=int)
+
+COLD_FRONT_ROWS_TIME1_NO_MASK = numpy.array([1, 2, 3, 4, 4, 5], dtype=int)
+COLD_FRONT_COLUMNS_TIME1_NO_MASK = numpy.array([1, 1, 1, 0, 1, 0], dtype=int)
+COLD_FRONT_ROWS_TIME2_NO_MASK = numpy.array(
+    [0, 0, 1, 1, 2, 2, 3, 3, 4], dtype=int)
+COLD_FRONT_COLUMNS_TIME2_NO_MASK = numpy.array(
+    [2, 3, 1, 2, 0, 1, 0, 1, 0], dtype=int)
+
+ROW_INDICES_TIME1_NO_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME1_NO_MASK, WARM_FRONT_ROWS_TIME1_NO_MASK,
+    COLD_FRONT_ROWS_TIME1_NO_MASK
+)).astype(int)
+COLUMN_INDICES_TIME1_NO_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME1_NO_MASK, WARM_FRONT_COLUMNS_TIME1_NO_MASK,
+    COLD_FRONT_COLUMNS_TIME1_NO_MASK
+)).astype(int)
+
+ROW_INDICES_TIME2_NO_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME2_NO_MASK, WARM_FRONT_ROWS_TIME2_NO_MASK,
+    COLD_FRONT_ROWS_TIME2_NO_MASK
+)).astype(int)
+COLUMN_INDICES_TIME2_NO_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME2_NO_MASK, WARM_FRONT_COLUMNS_TIME2_NO_MASK,
+    COLD_FRONT_COLUMNS_TIME2_NO_MASK
+)).astype(int)
+
+TARGET_POINT_DICT_TERNARY_NO_MASK = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY:
+        [ROW_INDICES_TIME1_NO_MASK, ROW_INDICES_TIME2_NO_MASK],
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+        [COLUMN_INDICES_TIME1_NO_MASK, COLUMN_INDICES_TIME2_NO_MASK]
+}
+
+NEGATIVE_ROWS_TIME1_WITH_MASK = numpy.array(
+    [2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4], dtype=int)
+NEGATIVE_COLUMNS_TIME1_WITH_MASK = numpy.array(
+    [2, 3, 4, 5, 6, 2, 3, 4, 5, 6, 2, 3, 4, 5, 6], dtype=int)
+
+NEGATIVE_ROWS_TIME2_WITH_MASK = numpy.array([], dtype=int)
+NEGATIVE_COLUMNS_TIME2_WITH_MASK = numpy.array([], dtype=int)
+
+WARM_FRONT_ROWS_TIME1_WITH_MASK = numpy.array([1, 1, 1, 1, 1], dtype=int)
+WARM_FRONT_COLUMNS_TIME1_WITH_MASK = numpy.array([2, 3, 4, 5, 6], dtype=int)
+WARM_FRONT_ROWS_TIME2_WITH_MASK = numpy.array([1], dtype=int)
+WARM_FRONT_COLUMNS_TIME2_WITH_MASK = numpy.array([4], dtype=int)
+
+COLD_FRONT_ROWS_TIME1_WITH_MASK = numpy.array([1, 2, 3, 4], dtype=int)
+COLD_FRONT_COLUMNS_TIME1_WITH_MASK = numpy.array([1, 1, 1, 1], dtype=int)
+COLD_FRONT_ROWS_TIME2_WITH_MASK = numpy.array([1, 1, 2, 3, 4], dtype=int)
+COLD_FRONT_COLUMNS_TIME2_WITH_MASK = numpy.array([1, 2, 1, 1, 1], dtype=int)
+
+ROW_INDICES_TIME1_WITH_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME1_WITH_MASK, WARM_FRONT_ROWS_TIME1_WITH_MASK,
+    COLD_FRONT_ROWS_TIME1_WITH_MASK
+)).astype(int)
+COLUMN_INDICES_TIME1_WITH_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME1_WITH_MASK, WARM_FRONT_COLUMNS_TIME1_WITH_MASK,
+    COLD_FRONT_COLUMNS_TIME1_WITH_MASK
+)).astype(int)
+
+ROW_INDICES_TIME2_WITH_MASK = numpy.concatenate((
+    NEGATIVE_ROWS_TIME2_WITH_MASK, WARM_FRONT_ROWS_TIME2_WITH_MASK,
+    COLD_FRONT_ROWS_TIME2_WITH_MASK
+)).astype(int)
+COLUMN_INDICES_TIME2_WITH_MASK = numpy.concatenate((
+    NEGATIVE_COLUMNS_TIME2_WITH_MASK, WARM_FRONT_COLUMNS_TIME2_WITH_MASK,
+    COLD_FRONT_COLUMNS_TIME2_WITH_MASK
+)).astype(int)
+
+TARGET_POINT_DICT_TERNARY_WITH_MASK = {
+    ml_utils.ROW_INDICES_BY_TIME_KEY:
+        [ROW_INDICES_TIME1_WITH_MASK, ROW_INDICES_TIME2_WITH_MASK],
+    ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+        [COLUMN_INDICES_TIME1_WITH_MASK, COLUMN_INDICES_TIME2_WITH_MASK]
+}
 
 # The following constants are used to test dilate_target_images.
 DILATION_DISTANCE_METRES = 50000.
@@ -476,6 +580,37 @@ TARGET_VECTOR_AT_SELECTED_POINTS = numpy.array([1, 0, 0, 2], dtype=int)
 EXAMPLE_INDICES_AT_SELECTED_POINTS = numpy.array([0, 0, 0, 0], dtype=int)
 CENTER_ROWS_AT_SELECTED_POINTS = numpy.array([0, 0, 1, 1], dtype=int)
 CENTER_COLUMNS_AT_SELECTED_POINTS = numpy.array([2, 1, 3, 0], dtype=int)
+
+
+def _compare_target_point_dicts(
+        first_target_point_dict, second_target_point_dict):
+    """Compares two dictionaries with sampled target points.
+
+    :param first_target_point_dict: First dictionary (in the format produced by
+        `machine_learning_utils.sample_target_points`).
+    :param second_target_point_dict: Second dictionary.
+    :return: are_dicts_equal: Boolean flag.
+    """
+
+    first_keys = first_target_point_dict.keys()
+    second_keys = second_target_point_dict.keys()
+    if set(first_keys) != set(second_keys):
+        return False
+
+    first_num_times = len(
+        first_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
+    second_num_times = len(
+        second_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
+    if first_num_times != second_num_times:
+        return False
+
+    for i in range(first_num_times):
+        for this_key in first_keys:
+            if not numpy.array_equal(first_target_point_dict[this_key][i],
+                                     second_target_point_dict[this_key][i]):
+                return False
+
+    return True
 
 
 class MachineLearningUtilsTests(unittest.TestCase):
@@ -1056,40 +1191,40 @@ class MachineLearningUtilsTests(unittest.TestCase):
             this_normalized_matrix, PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_sample_target_points_binary(self):
+    def test_sample_target_points_binary_no_mask(self):
         """Ensures correct output from sample_target_points.
 
-        In this case there are 2 classes.
+        In this case, there are 2 classes and no mask.
         """
 
         this_target_point_dict = ml_utils.sample_target_points(
             target_matrix=FRONTAL_GRID_MATRIX_BINARY,
             class_fractions=CLASS_FRACTIONS_FOR_BINARY_SAMPLING,
-            num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
+            num_points_to_sample=NUM_POINTS_TO_SAMPLE, mask_matrix=None,
+            test_mode=True)
 
-        self.assertTrue(set(this_target_point_dict.keys()) ==
-                        set(SAMPLED_TARGET_POINT_DICT_BINARY.keys()))
+        self.assertTrue(_compare_target_point_dicts(
+            this_target_point_dict, TARGET_POINT_DICT_BINARY_NO_MASK))
 
-        this_num_times = len(
-            this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
-        expected_num_times = len(
-            SAMPLED_TARGET_POINT_DICT_BINARY[ml_utils.ROW_INDICES_BY_TIME_KEY])
-        self.assertTrue(this_num_times == expected_num_times)
-
-        for i in range(expected_num_times):
-            self.assertTrue(numpy.array_equal(
-                this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY][i],
-                SAMPLED_TARGET_POINT_DICT_BINARY[
-                    ml_utils.ROW_INDICES_BY_TIME_KEY][i]))
-            self.assertTrue(numpy.array_equal(
-                this_target_point_dict[ml_utils.COLUMN_INDICES_BY_TIME_KEY][i],
-                SAMPLED_TARGET_POINT_DICT_BINARY[
-                    ml_utils.COLUMN_INDICES_BY_TIME_KEY][i]))
-
-    def test_sample_target_points_ternary(self):
+    def test_sample_target_points_binary_with_mask(self):
         """Ensures correct output from sample_target_points.
 
-        In this case there are 3 classes.
+        In this case, there are 2 classes with a mask.
+        """
+
+        this_target_point_dict = ml_utils.sample_target_points(
+            target_matrix=FRONTAL_GRID_MATRIX_BINARY,
+            class_fractions=CLASS_FRACTIONS_FOR_BINARY_SAMPLING,
+            num_points_to_sample=NUM_POINTS_TO_SAMPLE, mask_matrix=MASK_MATRIX,
+            test_mode=True)
+
+        self.assertTrue(_compare_target_point_dicts(
+            this_target_point_dict, TARGET_POINT_DICT_BINARY_WITH_MASK))
+
+    def test_sample_target_points_ternary_no_mask(self):
+        """Ensures correct output from sample_target_points.
+
+        In this case, there are 3 classes and no mask.
         """
 
         this_target_point_dict = ml_utils.sample_target_points(
@@ -1097,24 +1232,23 @@ class MachineLearningUtilsTests(unittest.TestCase):
             class_fractions=CLASS_FRACTIONS_FOR_TERNARY_SAMPLING,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
-        self.assertTrue(set(this_target_point_dict.keys()) ==
-                        set(SAMPLED_TARGET_POINT_DICT_TERNARY.keys()))
+        self.assertTrue(_compare_target_point_dicts(
+            this_target_point_dict, TARGET_POINT_DICT_TERNARY_NO_MASK))
 
-        this_num_times = len(
-            this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY])
-        expected_num_times = len(
-            SAMPLED_TARGET_POINT_DICT_TERNARY[ml_utils.ROW_INDICES_BY_TIME_KEY])
-        self.assertTrue(this_num_times == expected_num_times)
+    def test_sample_target_points_ternary_with_mask(self):
+        """Ensures correct output from sample_target_points.
 
-        for i in range(expected_num_times):
-            self.assertTrue(numpy.array_equal(
-                this_target_point_dict[ml_utils.ROW_INDICES_BY_TIME_KEY][i],
-                SAMPLED_TARGET_POINT_DICT_TERNARY[
-                    ml_utils.ROW_INDICES_BY_TIME_KEY][i]))
-            self.assertTrue(numpy.array_equal(
-                this_target_point_dict[ml_utils.COLUMN_INDICES_BY_TIME_KEY][i],
-                SAMPLED_TARGET_POINT_DICT_TERNARY[
-                    ml_utils.COLUMN_INDICES_BY_TIME_KEY][i]))
+        In this case, there are 3 classes with a mask.
+        """
+
+        this_target_point_dict = ml_utils.sample_target_points(
+            target_matrix=FRONTAL_GRID_MATRIX_TERNARY,
+            class_fractions=CLASS_FRACTIONS_FOR_TERNARY_SAMPLING,
+            num_points_to_sample=NUM_POINTS_TO_SAMPLE, mask_matrix=MASK_MATRIX,
+            test_mode=True)
+
+        self.assertTrue(_compare_target_point_dicts(
+            this_target_point_dict, TARGET_POINT_DICT_TERNARY_WITH_MASK))
 
     def test_front_table_to_images(self):
         """Ensures correct output from front_table_to_images."""

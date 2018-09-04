@@ -25,12 +25,10 @@ steps, C predictor variables).
 """
 
 import copy
-import pickle
 import numpy
 import keras
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import time_periods
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
@@ -38,8 +36,6 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
-
-NUM_CLASSES_IN_DOWNSIZED_FILES = 2
 
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
@@ -180,55 +176,13 @@ def find_input_files_for_4d_examples(
     return narr_file_name_matrix, frontal_grid_file_names
 
 
-def write_downsized_examples_to_file(
-        predictor_matrix, target_values, target_times_unix_sec,
-        center_grid_rows, center_grid_columns, predictor_names,
-        pickle_file_name, predictor_time_matrix_unix_sec=None):
-    """Writes downsized machine-learning examples to file.
-
-    Downsized ML examples are created by
-    `machine_learning_utils.downsize_grids_around_selected_points`.
-
-    :param predictor_matrix: See documentation for
-        `machine_learning_utils.check_downsized_examples`.
-    :param target_values: Same.
-    :param target_times_unix_sec: Same.
-    :param center_grid_rows: Same.
-    :param center_grid_columns: Same.
-    :param predictor_names: Same.
-    :param pickle_file_name: Path to output file.
-    :param predictor_time_matrix_unix_sec: See documentation for
-        `machine_learning_utils.check_downsized_examples`.
-    """
-
-    ml_utils.check_downsized_examples(
-        predictor_matrix=predictor_matrix, target_values=target_values,
-        target_times_unix_sec=target_times_unix_sec,
-        center_grid_rows=center_grid_rows,
-        center_grid_columns=center_grid_columns,
-        predictor_names=predictor_names,
-        predictor_time_matrix_unix_sec=predictor_time_matrix_unix_sec,
-        assert_binary_target_matrix=False)
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(predictor_matrix, pickle_file_handle)
-    pickle.dump(target_values, pickle_file_handle)
-    pickle.dump(target_times_unix_sec, pickle_file_handle)
-    pickle.dump(center_grid_rows, pickle_file_handle)
-    pickle.dump(center_grid_columns, pickle_file_handle)
-    pickle.dump(predictor_names, pickle_file_handle)
-    pickle.dump(predictor_time_matrix_unix_sec, pickle_file_handle)
-    pickle_file_handle.close()
-
-
 def downsized_3d_example_generator(
         num_examples_per_batch, num_examples_per_target_time,
         first_target_time_unix_sec, last_target_time_unix_sec,
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, class_fractions,
-        num_rows_in_half_grid, num_columns_in_half_grid):
+        num_rows_in_half_grid, num_columns_in_half_grid, mask_matrix=None):
     """Generates downsized 3-D examples for a Keras model.
 
     This function fits the template specified by `keras.models.*.fit_generator`.
@@ -244,6 +198,9 @@ def downsized_3d_example_generator(
     M = number of pixel rows = 2 * num_rows_in_half_grid + 1
     N = number of pixel columns = 2 * num_columns_in_half_grid + 1
     C = number of channels (predictor variables) in each image
+
+    m = number of rows in full grid (before downsizing)
+    n = number of columns in full grid (before downsizing)
 
     :param num_examples_per_batch: Number of examples per batch.  This argument
         is known as "batch_size" in Keras.
@@ -266,6 +223,11 @@ def downsized_3d_example_generator(
         make it (no_front_fraction, warm_front_fraction, cold_front_fraction).
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
+    :param mask_matrix: m-by-n numpy array of integers (0 or 1).  If
+        mask_matrix[i, j] = 0, cell [i, j] in the full grid will never be used
+        for downsizing -- i.e., it will never be used as the center of a
+        downsized grid.  If `mask_matrix is None`, any cell in the full grid can
+        be used as the center of a downsized grid.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
     :return: target_matrix: E-by-K numpy array of Boolean labels (all 0 or 1,
         although technically the type is "float64").
@@ -370,7 +332,8 @@ def downsized_3d_example_generator(
         print 'Creating downsized 3-D machine-learning examples...'
         sampled_target_point_dict = ml_utils.sample_target_points(
             target_matrix=full_target_matrix, class_fractions=class_fractions,
-            num_points_to_sample=num_examples_per_batch)
+            num_points_to_sample=num_examples_per_batch,
+            mask_matrix=mask_matrix)
 
         downsized_predictor_matrix, target_values, _, _, _ = (
             ml_utils.downsize_grids_around_selected_points(
@@ -404,7 +367,7 @@ def downsized_4d_example_generator(
         top_narr_directory_name, top_frontal_grid_dir_name,
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, class_fractions,
-        num_rows_in_half_grid, num_columns_in_half_grid):
+        num_rows_in_half_grid, num_columns_in_half_grid, mask_matrix=None):
     """Generates downsized 4-D examples for a Keras model.
 
     This function creates examples on the fly, rather than reading them from
@@ -443,6 +406,7 @@ def downsized_4d_example_generator(
     :param class_fractions: Same.
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
+    :param mask_matrix: See doc for `downsized_3d_example_generator`.
     :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
         images.
     :return: target_matrix: E-by-K numpy array of Boolean labels (all 0 or 1,
@@ -558,7 +522,8 @@ def downsized_4d_example_generator(
 
         sampled_target_point_dict = ml_utils.sample_target_points(
             target_matrix=full_target_matrix, class_fractions=class_fractions,
-            num_points_to_sample=num_examples_per_batch)
+            num_points_to_sample=num_examples_per_batch,
+            mask_matrix=mask_matrix)
 
         downsized_predictor_matrix, target_values, _, _, _ = (
             ml_utils.downsize_grids_around_selected_points(
