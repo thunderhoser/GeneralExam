@@ -188,6 +188,7 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
         this_frontal_grid_matrix = ml_utils.dilate_ternary_target_images(
             target_matrix=this_frontal_grid_matrix,
             dilation_distance_metres=dilation_distance_metres, verbose=False)
+        this_frontal_grid_matrix = this_frontal_grid_matrix[0, ...]
 
         this_num_cold_fronts_matrix = (
             this_frontal_grid_matrix == front_utils.COLD_FRONT_INTEGER_ID
