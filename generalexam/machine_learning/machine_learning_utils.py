@@ -13,8 +13,10 @@ C = number of channels (predictor variables) in each image
 """
 
 import copy
+import pickle
 import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
@@ -156,6 +158,25 @@ def _check_predictor_and_target_matrices(
 
     error_checking.assert_is_numpy_array(
         target_matrix, exact_dimensions=expected_target_dimensions)
+
+
+def _check_narr_mask(mask_matrix):
+    """Error-checks NARR mask.
+
+    :param mask_matrix: M-by-N numpy array of integers (0 or 1).  If
+        mask_matrix[i, j] = 0, grid cell [i, j] will never be used as the center
+        of a downsized grid.
+    """
+
+    num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+
+    error_checking.assert_is_integer_numpy_array(mask_matrix)
+    error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
+    error_checking.assert_is_numpy_array(
+        mask_matrix,
+        exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
 
 
 def _check_downsizing_args(
@@ -510,9 +531,8 @@ def sample_target_points(
         `target_matrix` is binary, this array must have length 2; if
         `target_matrix` is ternary, this array must have length 3.
     :param num_points_to_sample: Number of points to sample.
-    :param mask_matrix: M-by-N numpy array of integers (0 or 1).  If
-        mask_matrix[i, j] = 0, grid cell [i, j] will never be sampled as a
-        target point.  If `mask_matrix is None`, any grid cell may be sampled.
+    :param mask_matrix: See doc for `_check_narr_mask`.  If
+        `mask_matrix is None`, any target point may be sampled.
     :param test_mode: Leave this alone.
     :return: target_point_dict: Dictionary with the following keys.
     target_point_dict['row_indices_by_time']: length-T list, where the [i]th
@@ -547,13 +567,7 @@ def sample_target_points(
     else:
         mask_matrix_2d = mask_matrix + 0
 
-    error_checking.assert_is_integer_numpy_array(mask_matrix_2d)
-    error_checking.assert_is_geq_numpy_array(mask_matrix_2d, 0)
-    error_checking.assert_is_leq_numpy_array(mask_matrix_2d, 1)
-    error_checking.assert_is_numpy_array(
-        mask_matrix_2d,
-        exact_dimensions=numpy.array(target_matrix.shape[1:], dtype=int))
-
+    _check_narr_mask(mask_matrix_2d)
     mask_matrix = numpy.expand_dims(mask_matrix_2d, 0)
     mask_matrix = numpy.tile(mask_matrix, (target_matrix.shape[0], 1, 1))
 
@@ -970,3 +984,33 @@ def downsize_grids_around_selected_points(
 
     return (new_predictor_matrix, target_values, example_indices,
             center_grid_rows, center_grid_columns)
+
+
+def write_narr_mask(mask_matrix, pickle_file_name):
+    """Writes NARR mask to Pickle file.
+
+    :param mask_matrix: See doc for `_check_narr_mask`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    _check_narr_mask(mask_matrix)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mask_matrix, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_narr_mask(pickle_file_name):
+    """Reads NARR mask from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mask_matrix: See doc for `_check_narr_mask`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mask_matrix = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    _check_narr_mask(mask_matrix)
+    return mask_matrix

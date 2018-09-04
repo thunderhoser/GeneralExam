@@ -23,14 +23,11 @@ C = number of channels (predictor variables) in each image
 
 import pickle
 import numpy
-import keras.losses
-import keras.optimizers
-from keras.models import Sequential, load_model
+from keras.models import load_model
 from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.machine_learning import cnn_utils
 from generalexam.machine_learning import training_validation_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
@@ -80,190 +77,8 @@ CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'binary_focn': keras_metrics.binary_focn
 }
 
-DEFAULT_NUM_CLASSES = 3
-DEFAULT_NUM_PREDICTORS = 3
-
-DEFAULT_NUM_PIXEL_ROWS = 65
-DEFAULT_NUM_PIXEL_COLUMNS = 65
-DEFAULT_ASSUMED_POSITIVE_FRACTION = 0.935
-
-LIST_OF_METRIC_FUNCTIONS = [
-    keras_metrics.accuracy, keras_metrics.binary_accuracy,
-    keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
-    keras_metrics.binary_pod, keras_metrics.binary_pofd,
-    keras_metrics.binary_success_ratio, keras_metrics.binary_focn]
-
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
-
-
-def get_3d_cnn(
-        num_predictor_time_steps, num_classes=DEFAULT_NUM_CLASSES,
-        num_predictors=DEFAULT_NUM_PREDICTORS):
-    """Creates 3-D CNN with similar architecture to the following example.
-
-    https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
-
-    :param num_predictor_time_steps: Number of time steps per example (images
-        per sequence).
-    :param num_classes: Number of classes.
-    :param num_predictors: Number of predictor variables (image channels).
-    :return: model_object: Instance of `keras.models.Sequential`, with the
-        aforementioned architecture.
-    """
-
-    error_checking.assert_is_integer(num_predictor_time_steps)
-    error_checking.assert_is_geq(num_predictor_time_steps, 2)
-    error_checking.assert_is_leq(num_predictor_time_steps, 9)
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-    error_checking.assert_is_leq(num_classes, 3)
-    error_checking.assert_is_integer(num_predictors)
-    error_checking.assert_is_geq(num_predictors, 1)
-
-    model_object = Sequential()
-    layer_object = cnn_utils.get_3d_convolution_layer(
-        num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
-        num_kernel_time_steps=min([3, num_predictor_time_steps]),
-        stride_length_in_rows=1, stride_length_in_columns=1,
-        stride_length_in_time_steps=1, activation_function='relu',
-        is_first_layer=True, num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
-        num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-        num_input_time_steps=num_predictor_time_steps,
-        num_input_channels=num_predictors)
-
-    model_object.add(layer_object)
-    print layer_object.output_shape
-
-    num_predictor_time_steps_left = layer_object.output_shape[-2]
-    layer_object = cnn_utils.get_3d_convolution_layer(
-        num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
-        num_kernel_time_steps=min([3, num_predictor_time_steps_left]),
-        stride_length_in_rows=1, stride_length_in_columns=1,
-        stride_length_in_time_steps=1, activation_function='relu')
-
-    model_object.add(layer_object)
-    print layer_object.output_shape
-
-    num_predictor_time_steps_left = layer_object.output_shape[-2]
-    layer_object = cnn_utils.get_3d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        num_time_steps_in_window=min([2, num_predictor_time_steps_left]),
-        pooling_type=cnn_utils.MAX_POOLING_TYPE)
-
-    model_object.add(layer_object)
-    print layer_object.output_shape
-    num_predictor_time_steps_left = layer_object.output_shape[-2]
-
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    if num_predictor_time_steps_left > 1:
-        layer_object = cnn_utils.get_3d_convolution_layer(
-            num_filters=128, num_kernel_rows=3, num_kernel_columns=3,
-            num_kernel_time_steps=min([3, num_predictor_time_steps_left]),
-            stride_length_in_rows=1, stride_length_in_columns=1,
-            stride_length_in_time_steps=1, activation_function='relu')
-
-        model_object.add(layer_object)
-        print layer_object.output_shape
-
-        num_predictor_time_steps_left = layer_object.output_shape[-2]
-        layer_object = cnn_utils.get_3d_pooling_layer(
-            num_rows_in_window=2, num_columns_in_window=2,
-            num_time_steps_in_window=min([2, num_predictor_time_steps_left]),
-            pooling_type=cnn_utils.MAX_POOLING_TYPE)
-
-        model_object.add(layer_object)
-        print layer_object.output_shape
-
-        layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
-        model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=128, activation_function='relu')
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax')
-    model_object.add(layer_object)
-
-    model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
-    return model_object
-
-
-def get_2d_cnn_with_mnist_architecture(
-        num_classes=DEFAULT_NUM_CLASSES, num_predictors=DEFAULT_NUM_PREDICTORS):
-    """Creates 2-D CNN with architecture used in the following example.
-
-    https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
-
-    Said architecture was used to classify handwritten digits from the MNIST
-    (Modified National Institute of Standards and Technology) dataset.
-
-    :param num_classes: Number of classes.
-    :param num_predictors: Number of predictor variables (image channels).
-    :return: model_object: Instance of `keras.models.Sequential`, with the
-        aforementioned architecture.
-    """
-
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-    error_checking.assert_is_leq(num_classes, 3)
-    error_checking.assert_is_integer(num_predictors)
-    error_checking.assert_is_geq(num_predictors, 1)
-
-    model_object = Sequential()
-
-    layer_object = cnn_utils.get_2d_convolution_layer(
-        num_filters=32, num_kernel_rows=3, num_kernel_columns=3,
-        stride_length_in_rows=1, stride_length_in_columns=1,
-        activation_function='relu', is_first_layer=True,
-        num_input_rows=DEFAULT_NUM_PIXEL_ROWS,
-        num_input_columns=DEFAULT_NUM_PIXEL_COLUMNS,
-        num_input_channels=num_predictors)
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_2d_convolution_layer(
-        num_filters=64, num_kernel_rows=3, num_kernel_columns=3,
-        stride_length_in_rows=1, stride_length_in_columns=1,
-        activation_function='relu')
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=cnn_utils.MAX_POOLING_TYPE)
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=128, activation_function='relu')
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax')
-    model_object.add(layer_object)
-
-    model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
-    return model_object
 
 
 def write_model_metadata(
@@ -278,7 +93,7 @@ def write_model_metadata(
         num_lead_time_steps=None):
     """Writes metadata to Pickle file.
 
-    :param num_epochs: See documentation for `train_with_3d_examples`.
+    :param num_epochs: See doc for `train_with_3d_examples`.
     :param num_examples_per_batch: Same.
     :param num_examples_per_target_time: Same.
     :param num_training_batches_per_epoch: Same.
@@ -295,10 +110,9 @@ def write_model_metadata(
     :param validation_start_time_unix_sec: Same.
     :param validation_end_time_unix_sec: Same.
     :param pickle_file_name: Path to output file.
-    :param predictor_time_step_offsets: See documentation for
-        `train_with_4d_examples`.  If model does not convolve over time --
-        i.e., model does 2-D convolution, not 3-D convolution -- leave this as
-        None.
+    :param predictor_time_step_offsets: See doc for `train_with_4d_examples`.
+        If model does not convolve over time -- i.e., model does 2-D
+        convolution, not 3-D convolution -- leave this as None.
     :param num_lead_time_steps: Same as `predictor_time_step_offsets`.
     """
 
@@ -383,7 +197,8 @@ def train_with_3d_examples(
         dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
-        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
+        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
+        mask_file_name=None):
     """Trains CNN, using 3-D examples created on the fly.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -393,7 +208,7 @@ def train_with_3d_examples(
         is known as "batch_size" in Keras.
     :param num_epochs: Number of epochs.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param num_examples_per_target_time: See documentation for
+    :param num_examples_per_target_time: See doc for
         `training_validation_io.downsized_3d_example_generator`.
     :param training_start_time_unix_sec: Same.
     :param training_end_time_unix_sec: Same.
@@ -410,9 +225,13 @@ def train_with_3d_examples(
         proportional to `class_fractions`).
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
-    :param validation_start_time_unix_sec: See documentation for
+    :param validation_start_time_unix_sec: See doc for
         `training_validation_io.downsized_3d_example_generator`.
     :param validation_end_time_unix_sec: Same.
+    :param mask_file_name: See doc for
+        `machine_learning_utils._check_narr_mask`.  This determines which grid
+        cells can be used as the center of a downsized grid.  If
+        `mask_file_name is None`, there will be no mask.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -426,6 +245,11 @@ def train_with_3d_examples(
         class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
     else:
         class_weight_dict = None
+
+    if mask_file_name is None:
+        mask_matrix = None
+    else:
+        mask_matrix = ml_utils.read_narr_mask(mask_file_name)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -446,7 +270,8 @@ def train_with_3d_examples(
                 dilation_distance_for_target_metres,
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                mask_matrix=mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object])
@@ -473,7 +298,8 @@ def train_with_3d_examples(
                 dilation_distance_for_target_metres,
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                mask_matrix=mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object],
@@ -491,7 +317,8 @@ def train_with_3d_examples(
                 dilation_distance_for_target_metres,
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                mask_matrix=mask_matrix),
             validation_steps=num_validation_batches_per_epoch)
 
 
@@ -505,10 +332,11 @@ def train_with_4d_examples(
         dilation_distance_for_target_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
-        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
+        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
+        mask_file_name=None):
     """Trains CNN, using 4-D examples created on the fly.
 
-    :param model_object: See documentation for `train_with_3d_examples`.
+    :param model_object: See doc for `train_with_3d_examples`.
     :param output_file_name: Same.
     :param num_examples_per_batch: Same.
     :param num_epochs: Same.
@@ -518,8 +346,7 @@ def train_with_4d_examples(
         predictor times and (target time - lead time).
     :param num_lead_time_steps: Number of time steps separating latest predictor
         time from target time.
-    :param training_start_time_unix_sec: See documentation for
-        `train_with_3d_examples`.
+    :param training_start_time_unix_sec: See doc for `train_with_3d_examples`.
     :param training_end_time_unix_sec: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
@@ -532,9 +359,11 @@ def train_with_4d_examples(
     :param weight_loss_function: Boolean flag.  If True, classes will be
         weighted differently in the loss function (class weights inversely
         proportional to `class_fractions`).
-    :param num_validation_batches_per_epoch: Same.
+    :param num_validation_batches_per_epoch: See doc for
+        `train_with_3d_examples`.
     :param validation_start_time_unix_sec: Same.
     :param validation_end_time_unix_sec: Same.
+    :param mask_file_name: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -548,6 +377,11 @@ def train_with_4d_examples(
         class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
     else:
         class_weight_dict = None
+
+    if mask_file_name is None:
+        mask_matrix = None
+    else:
+        mask_matrix = ml_utils.read_narr_mask(mask_file_name)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -570,7 +404,8 @@ def train_with_4d_examples(
                 dilation_distance_for_target_metres,
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                mask_matrix=mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object])
@@ -599,7 +434,8 @@ def train_with_4d_examples(
                 dilation_distance_for_target_metres,
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                mask_matrix=mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object],
@@ -619,7 +455,8 @@ def train_with_4d_examples(
                 dilation_distance_for_target_metres,
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid),
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                mask_matrix=mask_matrix),
             validation_steps=num_validation_batches_per_epoch)
 
 
@@ -632,7 +469,7 @@ def apply_model_to_3d_example(
     """Applies trained CNN to one 3-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
-    :param target_time_unix_sec: See documentation for
+    :param target_time_unix_sec: See doc for
         `testing_io.create_downsized_3d_examples`.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
@@ -730,7 +567,7 @@ def apply_model_to_4d_example(
     """Applies trained CNN to one 4-D example.
 
     :param model_object: Instance of `keras.models.Sequential`.
-    :param target_time_unix_sec: See documentation for
+    :param target_time_unix_sec: See doc for
         `testing_io.create_downsized_4d_examples`.
     :param predictor_time_step_offsets: Same.
     :param num_lead_time_steps: Same.

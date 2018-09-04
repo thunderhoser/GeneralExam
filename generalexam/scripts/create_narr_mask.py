@@ -3,7 +3,6 @@
 This mask will be defined over the NARR grid.
 """
 
-import pickle
 import argparse
 import numpy
 import matplotlib
@@ -235,9 +234,8 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
 
     pickle_file_name = '{0:s}/narr_mask.p'.format(output_dir_name)
     print 'Writing mask to: "{0:s}"...'.format(pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(mask_matrix, pickle_file_handle)
-    pickle_file_handle.close()
+    ml_utils.write_narr_mask(
+        mask_matrix=mask_matrix, pickle_file_name=pickle_file_name)
 
     cold_front_map_file_name = '{0:s}/num_cold_fronts.jpg'.format(
         output_dir_name)
