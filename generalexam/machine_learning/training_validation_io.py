@@ -25,14 +25,10 @@ steps, C predictor variables).
 """
 
 import copy
-import glob
-import random
-import os.path
 import pickle
 import numpy
 import keras
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
