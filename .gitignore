@@ -12,9 +12,10 @@ dist/
 .idea/
 *.iml
 
-# Slurm scripts and figure-plotting scripts.
+# Slurm scripts, figure-plotting scripts, and old code.
 slurm/
 figures/
+old/
 
 # Code that I don't intend to commit.
 generalexam/*.py
