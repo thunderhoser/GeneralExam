@@ -33,7 +33,7 @@ PROCESSED_DIR_ARG_NAME = 'processed_narr_dir_name'
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  theta_w will be computed at each time step '
     'from `{0:s}`...`{1:s}`.'
-).format(FIRST_TIME_ARG_NAME, LAST_GRIB_TIME_UNIX_SEC)
+).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
 PRESSURE_LEVEL_HELP_STRING = (
     'theta_w will be computed at this pressure level (millibars) at each time '
