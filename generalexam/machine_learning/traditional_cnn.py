@@ -77,6 +77,13 @@ CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'binary_focn': keras_metrics.binary_focn
 }
 
+LIST_OF_METRIC_FUNCTIONS = [
+    keras_metrics.accuracy, keras_metrics.binary_accuracy,
+    keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
+    keras_metrics.binary_pod, keras_metrics.binary_pofd,
+    keras_metrics.binary_success_ratio, keras_metrics.binary_focn
+]
+
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
 

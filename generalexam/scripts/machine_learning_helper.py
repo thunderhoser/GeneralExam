@@ -34,11 +34,11 @@ ACTIVATION_FUNCTION_ARG_NAME = 'conv_activation_function_string'
 ALPHA_FOR_ELU_ARG_NAME = 'alpha_for_elu'
 ALPHA_FOR_RELU_ARG_NAME = 'alpha_for_relu'
 USE_BATCH_NORM_ARG_NAME = 'use_batch_normalization'
+INIT_NUM_FILTERS_ARG_NAME = 'init_num_filters'
 CONV_LAYER_DROPOUT_ARG_NAME = 'conv_layer_dropout_fraction'
 DENSE_LAYER_DROPOUT_ARG_NAME = 'dense_layer_dropout_fraction'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
-
 
 NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
 NUM_EXAMPLES_PER_BATCH_HELP_STRING = (
@@ -112,7 +112,7 @@ FRONTAL_GRID_DIR_HELP_STRING = (
 NARR_MASK_FILE_HELP_STRING = (
     'See doc for `machine_learning_utils.read_narr_mask`.  Determines which '
     'grid cells can be used as the center of a downsized grid.  If you do not '
-    'want a mask, leave this alone.')
+    'want a mask, make this the empty string ("").')
 
 NUM_CONV_LAYER_SETS_HELP_STRING = (
     'Number of sets of convolutional layers.  Each successive conv-layer set '
@@ -141,6 +141,10 @@ ALPHA_FOR_RELU_HELP_STRING = (
 USE_BATCH_NORM_HELP_STRING = (
     'Boolean flag.  If 1, the net will include a batch-normalization layer '
     'after each conv layer and each dense ("fully connected") layer.')
+
+INIT_NUM_FILTERS_HELP_STRING = (
+    'Initial number of filters (in the first conv-layer set).  Each successive '
+    'conv-layer set will double the number of filters.')
 
 CONV_LAYER_DROPOUT_HELP_STRING = (
     'Dropout fraction (will be applied to each conv layer).  If you want no '
@@ -182,6 +186,7 @@ DEFAULT_ACTIVATION_FUNCTION_STRING = architecture_utils.RELU_FUNCTION_STRING
 DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
 DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
 DEFAULT_USE_BATCH_NORM_FLAG = 0
+DEFAULT_INIT_NUM_FILTERS = 16
 DEFAULT_CONV_LAYER_DROPOUT_FRACTION = -1.
 DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = 0.25
 DEFAULT_L2_WEIGHT = 0.001
@@ -310,6 +315,10 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
     argument_parser_object.add_argument(
         '--' + USE_BATCH_NORM_ARG_NAME, type=int, required=False,
         default=DEFAULT_USE_BATCH_NORM_FLAG, help=USE_BATCH_NORM_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + INIT_NUM_FILTERS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_INIT_NUM_FILTERS, help=INIT_NUM_FILTERS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + CONV_LAYER_DROPOUT_ARG_NAME, type=float, required=False,
