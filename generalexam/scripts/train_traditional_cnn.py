@@ -10,6 +10,7 @@ import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import cnn_architecture
 from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.scripts import machine_learning_helper as ml_helper
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
@@ -104,6 +105,12 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         ).format(num_lead_time_steps)
         raise ValueError(error_string)
 
+    if narr_mask_file_name is None:
+        narr_mask_matrix = None
+    else:
+        print 'Reading NARR mask from: "{0:s}"...'.format(narr_mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
+
     model_dir_name = os.path.split(output_file_name)[0]
     metadata_file_name = '{0:s}/model_metadata.p'.format(model_dir_name)
     print 'Writing metadata to: "{0:s}"...'.format(metadata_file_name)
@@ -126,7 +133,8 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
         num_lead_time_steps=num_lead_time_steps,
-        predictor_time_step_offsets=predictor_time_step_offsets)
+        predictor_time_step_offsets=predictor_time_step_offsets,
+        narr_mask_matrix=narr_mask_matrix)
 
     num_rows_in_grid = 2 * num_rows_in_half_grid + 1
     num_columns_in_grid = 2 * num_columns_in_half_grid + 1
@@ -166,7 +174,7 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
-        narr_mask_file_name=narr_mask_file_name)
+        narr_mask_matrix=narr_mask_matrix)
 
 
 if __name__ == '__main__':

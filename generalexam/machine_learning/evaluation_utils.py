@@ -68,6 +68,7 @@ BINARY_CSI_KEY = 'binary_csi'
 BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
 AUC_BY_CLASS_KEY = 'auc_by_class'
 SCIKIT_LEARN_AUC_BY_CLASS_KEY = 'scikit_learn_auc_by_class'
+AUPD_BY_CLASS_KEY = 'aupd_by_class'
 RELIABILITY_BY_CLASS_KEY = 'reliability_by_class'
 BSS_BY_CLASS_KEY = 'bss_by_class'
 
@@ -77,7 +78,8 @@ EVALUATION_DICT_KEYS = [
     HEIDKE_SCORE_KEY, GERRITY_SCORE_KEY, BINARY_POD_KEY, BINARY_POFD_KEY,
     BINARY_SUCCESS_RATIO_KEY, BINARY_FOCN_KEY, BINARY_ACCURACY_KEY,
     BINARY_CSI_KEY, BINARY_FREQUENCY_BIAS_KEY, AUC_BY_CLASS_KEY,
-    SCIKIT_LEARN_AUC_BY_CLASS_KEY, RELIABILITY_BY_CLASS_KEY, BSS_BY_CLASS_KEY
+    SCIKIT_LEARN_AUC_BY_CLASS_KEY, AUPD_BY_CLASS_KEY, RELIABILITY_BY_CLASS_KEY,
+    BSS_BY_CLASS_KEY
 ]
 
 
@@ -843,8 +845,8 @@ def write_evaluation_results(
         accuracy, peirce_score, heidke_score, gerrity_score, binary_pod,
         binary_pofd, binary_success_ratio, binary_focn, binary_accuracy,
         binary_csi, binary_frequency_bias, auc_by_class,
-        scikit_learn_auc_by_class, reliability_by_class, bss_by_class,
-        pickle_file_name):
+        scikit_learn_auc_by_class, aupd_by_class, reliability_by_class,
+        bss_by_class, pickle_file_name):
     """Writes evaluation results to Pickle file.
 
     P = number of evaluation pairs
@@ -870,9 +872,11 @@ def write_evaluation_results(
     :param binary_accuracy: Binary accuracy.
     :param binary_csi: Binary critical success index.
     :param binary_frequency_bias: Binary frequency bias.
-    :param auc_by_class: length-K numpy array with area under one-vs-all ROC
+    :param auc_by_class: length-K numpy array with area under one-versus-all ROC
         curve for each class (calculated by GewitterGefahr).
     :param scikit_learn_auc_by_class: Same but calculated by scikit-learn.
+    :param aupd_by_class: length-K numpy array with area under one-versus-all
+        performance diagram for each class.
     :param reliability_by_class: length-K numpy array with reliability for each
         class.
     :param bss_by_class: length-K numpy array with Brier skill score for each
@@ -897,6 +901,7 @@ def write_evaluation_results(
         BINARY_FREQUENCY_BIAS_KEY: binary_frequency_bias,
         AUC_BY_CLASS_KEY: auc_by_class,
         SCIKIT_LEARN_AUC_BY_CLASS_KEY: scikit_learn_auc_by_class,
+        AUPD_BY_CLASS_KEY: aupd_by_class,
         RELIABILITY_BY_CLASS_KEY: reliability_by_class,
         BSS_BY_CLASS_KEY: bss_by_class
     }
@@ -920,6 +925,11 @@ def read_evaluation_results(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     evaluation_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if AUPD_BY_CLASS_KEY not in evaluation_dict:
+        evaluation_dict.update(
+            {AUPD_BY_CLASS_KEY: evaluation_dict[AUC_BY_CLASS_KEY] + numpy.nan}
+        )
 
     expected_keys_as_set = set(EVALUATION_DICT_KEYS)
     actual_keys_as_set = set(evaluation_dict.keys())

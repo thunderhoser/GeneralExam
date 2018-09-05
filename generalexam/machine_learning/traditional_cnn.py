@@ -53,6 +53,7 @@ VALIDATION_END_TIME_KEY = 'validation_end_time_unix_sec'
 NUM_PREDICTOR_TIME_STEPS_KEY = 'num_predictor_time_steps'
 PREDICTOR_TIME_STEP_OFFSETS_KEY = 'predictor_time_step_offsets'
 NUM_LEAD_TIME_STEPS_KEY = 'num_lead_time_steps'
+NARR_MASK_MATRIX_KEY = 'narr_mask_matrix'
 
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY,
@@ -63,7 +64,7 @@ MODEL_METADATA_KEYS = [
     PRESSURE_LEVEL_KEY, TRAINING_START_TIME_KEY, TRAINING_END_TIME_KEY,
     VALIDATION_START_TIME_KEY, VALIDATION_END_TIME_KEY,
     NUM_PREDICTOR_TIME_STEPS_KEY, PREDICTOR_TIME_STEP_OFFSETS_KEY,
-    NUM_LEAD_TIME_STEPS_KEY
+    NUM_LEAD_TIME_STEPS_KEY, NARR_MASK_MATRIX_KEY
 ]
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
@@ -97,7 +98,7 @@ def write_model_metadata(
         training_start_time_unix_sec, training_end_time_unix_sec,
         validation_start_time_unix_sec, validation_end_time_unix_sec,
         pickle_file_name, predictor_time_step_offsets=None,
-        num_lead_time_steps=None):
+        num_lead_time_steps=None, narr_mask_matrix=None):
     """Writes metadata to Pickle file.
 
     :param num_epochs: See doc for `train_with_3d_examples`.
@@ -120,6 +121,7 @@ def write_model_metadata(
     :param predictor_time_step_offsets: See doc for `train_with_4d_examples`.
         If model does not convolve over time -- i.e., model does 2-D
         convolution, not 3-D convolution -- leave this as None.
+    :param narr_mask_matrix: See doc for `train_with_3d_examples`.
     :param num_lead_time_steps: Same as `predictor_time_step_offsets`.
     """
 
@@ -141,7 +143,8 @@ def write_model_metadata(
         VALIDATION_START_TIME_KEY: validation_start_time_unix_sec,
         VALIDATION_END_TIME_KEY: validation_end_time_unix_sec,
         PREDICTOR_TIME_STEP_OFFSETS_KEY: predictor_time_step_offsets,
-        NUM_LEAD_TIME_STEPS_KEY: num_lead_time_steps
+        NUM_LEAD_TIME_STEPS_KEY: num_lead_time_steps,
+        NARR_MASK_MATRIX_KEY: narr_mask_matrix
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -168,6 +171,8 @@ def read_model_metadata(pickle_file_name):
         model_metadata_dict.update({PREDICTOR_TIME_STEP_OFFSETS_KEY: None})
     if NUM_PREDICTOR_TIME_STEPS_KEY not in model_metadata_dict:
         model_metadata_dict.update({NUM_PREDICTOR_TIME_STEPS_KEY: None})
+    if NARR_MASK_MATRIX_KEY not in model_metadata_dict:
+        model_metadata_dict.update({NARR_MASK_MATRIX_KEY: None})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
@@ -205,7 +210,7 @@ def train_with_3d_examples(
         num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
-        narr_mask_file_name=None):
+        narr_mask_matrix=None):
     """Trains CNN, using 3-D examples created on the fly.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -235,10 +240,7 @@ def train_with_3d_examples(
     :param validation_start_time_unix_sec: See doc for
         `training_validation_io.downsized_3d_example_generator`.
     :param validation_end_time_unix_sec: Same.
-    :param narr_mask_file_name: See doc for
-        `machine_learning_utils.read_narr_mask`.  This determines which grid
-        cells can be used as the center of a downsized grid.  If
-        `narr_mask_file_name is None`, there will be no mask.
+    :param narr_mask_matrix: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -252,11 +254,6 @@ def train_with_3d_examples(
         class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
     else:
         class_weight_dict = None
-
-    if narr_mask_file_name is None:
-        narr_mask_matrix = None
-    else:
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -340,7 +337,7 @@ def train_with_4d_examples(
         num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
-        narr_mask_file_name=None):
+        narr_mask_matrix=None):
     """Trains CNN, using 4-D examples created on the fly.
 
     :param model_object: See doc for `train_with_3d_examples`.
@@ -370,7 +367,7 @@ def train_with_4d_examples(
         `train_with_3d_examples`.
     :param validation_start_time_unix_sec: Same.
     :param validation_end_time_unix_sec: Same.
-    :param narr_mask_file_name: Same.
+    :param narr_mask_matrix: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -384,11 +381,6 @@ def train_with_4d_examples(
         class_weight_dict = ml_utils.get_class_weight_dict(class_fractions)
     else:
         class_weight_dict = None
-
-    if narr_mask_file_name is None:
-        narr_mask_matrix = None
-    else:
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -495,8 +487,6 @@ def apply_model_to_3d_example(
         the NARR grid.
     """
 
-    # TODO(thunderhoser): Allow masking.
-
     class_probability_matrix = numpy.full(
         (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
         dtype=float)
@@ -596,8 +586,6 @@ def apply_model_to_4d_example(
     :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
         the NARR grid.
     """
-
-    # TODO(thunderhoser): Allow masking.
 
     class_probability_matrix = numpy.full(
         (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
