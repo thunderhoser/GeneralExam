@@ -27,7 +27,6 @@ steps, C predictor variables).
 
 import pickle
 import numpy
-from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -44,13 +43,14 @@ from generalexam.machine_learning import isotonic_regression
 # method.
 
 NARR_TIME_INTERVAL_SECONDS = 10800
-DEFAULT_FORECAST_PRECISION_FOR_THRESHOLDS = 1e-3
+DEFAULT_FORECAST_PRECISION = 1e-3
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
 
 MIN_OPTIMIZATION_DIRECTION = 'min'
 MAX_OPTIMIZATION_DIRECTION = 'max'
 VALID_OPTIMIZATION_DIRECTIONS = [
-    MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION]
+    MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION
+]
 
 CLASS_PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
 OBSERVED_LABELS_KEY = 'observed_labels'
@@ -79,34 +79,6 @@ EVALUATION_DICT_KEYS = [
     BINARY_CSI_KEY, BINARY_FREQUENCY_BIAS_KEY, AUC_BY_CLASS_KEY,
     SCIKIT_LEARN_AUC_BY_CLASS_KEY, RELIABILITY_BY_CLASS_KEY, BSS_BY_CLASS_KEY
 ]
-
-NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
-    model_name=nwp_model_utils.NARR_MODEL_NAME)
-THESE_ROW_INDICES = numpy.linspace(
-    0, NUM_ROWS_IN_NARR - 1, num=NUM_ROWS_IN_NARR, dtype=int)
-THESE_COLUMN_INDICES = numpy.linspace(
-    0, NUM_COLUMNS_IN_NARR - 1, num=NUM_COLUMNS_IN_NARR, dtype=int)
-THIS_COLUMN_INDEX_MATRIX, THIS_ROW_INDEX_MATRIX = grids.xy_vectors_to_matrices(
-    x_unique_metres=THESE_COLUMN_INDICES, y_unique_metres=THESE_ROW_INDICES)
-
-ALL_ROW_INDICES_FOR_DOWNSIZED_EXAMPLES = numpy.reshape(
-    THIS_ROW_INDEX_MATRIX, THIS_ROW_INDEX_MATRIX.size).astype(int)
-ALL_COLUMN_INDICES_FOR_DOWNSIZED_EXAMPLES = numpy.reshape(
-    THIS_COLUMN_INDEX_MATRIX, THIS_COLUMN_INDEX_MATRIX.size).astype(int)
-
-THESE_ROW_INDICES = numpy.linspace(
-    0, len(ml_utils.NARR_ROWS_FOR_FCN_INPUT) - 1,
-    num=len(ml_utils.NARR_ROWS_FOR_FCN_INPUT), dtype=int)
-THESE_COLUMN_INDICES = numpy.linspace(
-    0, len(ml_utils.NARR_COLUMNS_FOR_FCN_INPUT) - 1,
-    num=len(ml_utils.NARR_COLUMNS_FOR_FCN_INPUT), dtype=int)
-THIS_COLUMN_INDEX_MATRIX, THIS_ROW_INDEX_MATRIX = grids.xy_vectors_to_matrices(
-    x_unique_metres=THESE_COLUMN_INDICES, y_unique_metres=THESE_ROW_INDICES)
-
-ALL_ROW_INDICES_FOR_FULL_SIZE_EXAMPLES = numpy.reshape(
-    THIS_ROW_INDEX_MATRIX, THIS_ROW_INDEX_MATRIX.size).astype(int)
-ALL_COLUMN_INDICES_FOR_FULL_SIZE_EXAMPLES = numpy.reshape(
-    THIS_COLUMN_INDEX_MATRIX, THIS_COLUMN_INDEX_MATRIX.size).astype(int)
 
 
 def _check_contingency_table(contingency_table_as_matrix):
@@ -172,38 +144,60 @@ def _get_num_true_labels_in_class(contingency_table_as_matrix, class_index):
     return numpy.sum(contingency_table_as_matrix[:, class_index])
 
 
-def _get_random_sample_points(num_points, for_downsized_examples):
+def _get_random_sample_points(
+        num_points, for_downsized_examples, narr_mask_matrix=None):
     """Samples random points from NARR grid.
 
-    P = num_points
+    M = number of rows in NARR grid
+    N = number of columns in NARR grid
+    P = number of points sampled
 
     :param num_points: Number of points to sample.
     :param for_downsized_examples: Boolean flag.  If True, this method will
-        sample center points for downsized images.  If False, this method will
-        sample evaluation points from a full-size image.
-    :return: row_indices: length-P numpy array with row indices for sampled
+        sample center points for downsized images.  If False, will sample
+        evaluation points from a full-size image.
+    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
+        narr_mask_matrix[i, j] = 0, cell [i, j] in the full grid will never be
+        sampled.  If `narr_mask_matrix is None`, any grid cell can be sampled.
+    :return: row_indices: length-P numpy array with row indices of sampled
         points.
-    :return: column_indices: length-P numpy array with column indices for
-        sampled points.
+    :return: column_indices: length-P numpy array with column indices of sampled
+        points.
     """
 
     if for_downsized_examples:
-        row_indices = numpy.random.choice(
-            ALL_ROW_INDICES_FOR_DOWNSIZED_EXAMPLES, size=num_points,
-            replace=False)
-        column_indices = numpy.random.choice(
-            ALL_COLUMN_INDICES_FOR_DOWNSIZED_EXAMPLES, size=num_points,
-            replace=False)
-
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
     else:
-        row_indices = numpy.random.choice(
-            ALL_ROW_INDICES_FOR_FULL_SIZE_EXAMPLES, size=num_points,
-            replace=False)
-        column_indices = numpy.random.choice(
-            ALL_COLUMN_INDICES_FOR_FULL_SIZE_EXAMPLES, size=num_points,
-            replace=False)
+        num_grid_rows = (
+            ml_utils.LAST_NARR_ROW_FOR_FCN_INPUT -
+            ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT + 1
+        )
+        num_grid_columns = (
+            ml_utils.LAST_NARR_COLUMN_FOR_FCN_INPUT -
+            ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1
+        )
+        narr_mask_matrix = None
 
-    return row_indices, column_indices
+    if narr_mask_matrix is None:
+        num_grid_cells = num_grid_rows * num_grid_columns
+        possible_linear_indices = numpy.linspace(
+            0, num_grid_cells - 1, num=num_grid_cells, dtype=int)
+    else:
+        error_checking.assert_is_integer_numpy_array(narr_mask_matrix)
+        error_checking.assert_is_geq_numpy_array(narr_mask_matrix, 0)
+        error_checking.assert_is_leq_numpy_array(narr_mask_matrix, 1)
+        error_checking.assert_is_numpy_array(
+            narr_mask_matrix,
+            exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
+
+        possible_linear_indices = numpy.where(
+            numpy.ravel(narr_mask_matrix) == 1)[0]
+
+    linear_indices = numpy.random.choice(
+        possible_linear_indices, size=num_points, replace=False)
+    return numpy.unravel_index(
+        linear_indices, (num_grid_rows, num_grid_columns))
 
 
 def _get_a_for_gerrity_score(contingency_table_as_matrix):
@@ -299,7 +293,8 @@ def downsized_examples_to_eval_pairs(
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
         num_columns_in_half_grid, num_classes, predictor_time_step_offsets=None,
-        num_lead_time_steps=None, isotonic_model_object_by_class=None):
+        num_lead_time_steps=None, isotonic_model_object_by_class=None,
+        narr_mask_matrix=None):
     """Creates evaluation pairs from downsized 3-D or 4-D examples.
 
     M = number of pixel rows in full NARR grid
@@ -343,6 +338,11 @@ def downsized_examples_to_eval_pairs(
     :param isotonic_model_object_by_class: length-K list with trained instances
         of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
         regression.
+    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
+        narr_mask_matrix[i, j] = 0, cell [i, j] in the full grid will never be
+        used to create an evaluation pair -- i.e., will never be used as the
+        center of a downsized grid.  If `narr_mask_matrix is None`, any cell in
+        the full grid can be used to create an evaluation pair.
     :return: class_probability_matrix: See documentation for
         `check_evaluation_pairs`.
     :return: observed_labels: See doc for `check_evaluation_pairs`.
@@ -369,7 +369,8 @@ def downsized_examples_to_eval_pairs(
     target_times_unix_sec = target_times_unix_sec[:num_target_times_to_sample]
     target_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
-        for t in target_times_unix_sec]
+        for t in target_times_unix_sec
+    ]
 
     class_probability_matrix = numpy.full(
         (num_target_times_to_sample, num_examples_per_time, num_classes),
@@ -381,51 +382,51 @@ def downsized_examples_to_eval_pairs(
         print 'Drawing evaluation pairs from {0:s}...'.format(
             target_time_strings[i])
 
-        these_center_row_indices, these_center_column_indices = (
-            _get_random_sample_points(
-                num_points=num_examples_per_time, for_downsized_examples=True))
+        (these_center_row_indices, these_center_column_indices
+        ) = _get_random_sample_points(
+            num_points=num_examples_per_time, for_downsized_examples=True,
+            narr_mask_matrix=narr_mask_matrix)
 
         if num_dimensions_per_example == 3:
-            (this_downsized_predictor_matrix,
-             observed_labels[i, :],
-             _, _) = testing_io.create_downsized_3d_examples(
-                 center_row_indices=these_center_row_indices,
-                 center_column_indices=these_center_column_indices,
-                 num_rows_in_half_grid=num_rows_in_half_grid,
-                 num_columns_in_half_grid=num_columns_in_half_grid,
-                 target_time_unix_sec=target_times_unix_sec[i],
-                 top_narr_directory_name=top_narr_directory_name,
-                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                 narr_predictor_names=narr_predictor_names,
-                 pressure_level_mb=pressure_level_mb,
-                 dilation_distance_for_target_metres=
-                 dilation_distance_for_target_metres,
-                 num_classes=num_classes)
+            (this_downsized_predictor_matrix, observed_labels[i, :], _, _
+            ) = testing_io.create_downsized_3d_examples(
+                center_row_indices=these_center_row_indices,
+                center_column_indices=these_center_column_indices,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                target_time_unix_sec=target_times_unix_sec[i],
+                top_narr_directory_name=top_narr_directory_name,
+                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                pressure_level_mb=pressure_level_mb,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
+                num_classes=num_classes)
 
         else:
-            (this_downsized_predictor_matrix,
-             observed_labels[i, :],
-             _, _) = testing_io.create_downsized_4d_examples(
-                 center_row_indices=these_center_row_indices,
-                 center_column_indices=these_center_column_indices,
-                 num_rows_in_half_grid=num_rows_in_half_grid,
-                 num_columns_in_half_grid=num_columns_in_half_grid,
-                 target_time_unix_sec=target_times_unix_sec[i],
-                 predictor_time_step_offsets=predictor_time_step_offsets,
-                 num_lead_time_steps=num_lead_time_steps,
-                 top_narr_directory_name=top_narr_directory_name,
-                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                 narr_predictor_names=narr_predictor_names,
-                 pressure_level_mb=pressure_level_mb,
-                 dilation_distance_for_target_metres=
-                 dilation_distance_for_target_metres,
-                 num_classes=num_classes)
+            (this_downsized_predictor_matrix, observed_labels[i, :], _, _
+            ) = testing_io.create_downsized_4d_examples(
+                center_row_indices=these_center_row_indices,
+                center_column_indices=these_center_column_indices,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                target_time_unix_sec=target_times_unix_sec[i],
+                predictor_time_step_offsets=predictor_time_step_offsets,
+                num_lead_time_steps=num_lead_time_steps,
+                top_narr_directory_name=top_narr_directory_name,
+                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                pressure_level_mb=pressure_level_mb,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres,
+                num_classes=num_classes)
 
         class_probability_matrix[i, ...] = model_object.predict(
             this_downsized_predictor_matrix, batch_size=num_examples_per_time)
 
     new_dimensions = (
-        num_target_times_to_sample * num_examples_per_time, num_classes)
+        num_target_times_to_sample * num_examples_per_time, num_classes
+    )
     class_probability_matrix = numpy.reshape(
         class_probability_matrix, new_dimensions)
     observed_labels = numpy.reshape(observed_labels, observed_labels.size)
@@ -559,7 +560,7 @@ def find_best_binarization_threshold(
         class_probability_matrix, observed_labels, threshold_arg,
         criterion_function, optimization_direction=MAX_OPTIMIZATION_DIRECTION,
         forecast_precision_for_thresholds=
-        DEFAULT_FORECAST_PRECISION_FOR_THRESHOLDS):
+        DEFAULT_FORECAST_PRECISION):
     """Finds the best binarization threshold.
 
     A "binarization threshold" is used to determinize probabilistic (either

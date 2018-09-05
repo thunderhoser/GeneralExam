@@ -31,15 +31,6 @@ LAST_NARR_COLUMN_FOR_FCN_INPUT = 335
 FIRST_NARR_ROW_FOR_FCN_INPUT = 5
 LAST_NARR_ROW_FOR_FCN_INPUT = 276
 
-NARR_ROWS_FOR_FCN_INPUT = numpy.linspace(
-    FIRST_NARR_ROW_FOR_FCN_INPUT, LAST_NARR_ROW_FOR_FCN_INPUT,
-    num=LAST_NARR_ROW_FOR_FCN_INPUT - FIRST_NARR_ROW_FOR_FCN_INPUT + 1,
-    dtype=int)
-NARR_COLUMNS_FOR_FCN_INPUT = numpy.linspace(
-    FIRST_NARR_COLUMN_FOR_FCN_INPUT, LAST_NARR_COLUMN_FOR_FCN_INPUT,
-    num=LAST_NARR_COLUMN_FOR_FCN_INPUT - FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1,
-    dtype=int)
-
 ROW_INDICES_BY_TIME_KEY = 'row_indices_by_time'
 COLUMN_INDICES_BY_TIME_KEY = 'column_indices_by_time'
 
@@ -567,7 +558,13 @@ def sample_target_points(
     else:
         mask_matrix_2d = mask_matrix + 0
 
-    _check_narr_mask(mask_matrix_2d)
+    error_checking.assert_is_integer_numpy_array(mask_matrix_2d)
+    error_checking.assert_is_geq_numpy_array(mask_matrix_2d, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix_2d, 1)
+    error_checking.assert_is_numpy_array(
+        mask_matrix_2d,
+        exact_dimensions=numpy.array(target_matrix.shape[1:], dtype=int))
+
     mask_matrix = numpy.expand_dims(mask_matrix_2d, 0)
     mask_matrix = numpy.tile(mask_matrix, (target_matrix.shape[0], 1, 1))
 
@@ -883,8 +880,13 @@ def subset_narr_grid_for_fcn_input(narr_matrix):
     """
 
     _check_full_narr_matrix(narr_matrix)
-    narr_matrix = numpy.take(narr_matrix, NARR_ROWS_FOR_FCN_INPUT, axis=1)
-    return numpy.take(narr_matrix, NARR_COLUMNS_FOR_FCN_INPUT, axis=2)
+
+    return narr_matrix[
+        :,
+        FIRST_NARR_ROW_FOR_FCN_INPUT:(LAST_NARR_ROW_FOR_FCN_INPUT + 1),
+        FIRST_NARR_COLUMN_FOR_FCN_INPUT:(LAST_NARR_COLUMN_FOR_FCN_INPUT + 1),
+        ...
+    ]
 
 
 def downsize_grids_around_selected_points(

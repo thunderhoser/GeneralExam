@@ -2,10 +2,38 @@
 
 import unittest
 import numpy
+from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import error_checking
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import evaluation_utils
 
 TOLERANCE = 1e-6
 TOLERANCE_FOR_GERRITY_SCORE = 1e-4
+
+# The following constants are used to test _get_random_sample_points.
+NUM_POINTS_TO_SAMPLE = 10000
+NUM_ROWS_FOR_FCN_INPUT = (
+    ml_utils.LAST_NARR_ROW_FOR_FCN_INPUT -
+    ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT + 1
+)
+NUM_COLUMNS_FOR_FCN_INPUT = (
+    ml_utils.LAST_NARR_COLUMN_FOR_FCN_INPUT -
+    ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1
+)
+
+NARR_MASK_MATRIX = numpy.full(
+    nwp_model_utils.get_grid_dimensions(
+        nwp_model_utils.NARR_MODEL_NAME), 0, dtype=int)
+
+FIRST_UNMASKED_ROW = 20
+LAST_UNMASKED_ROW = 200
+FIRST_UNMASKED_COLUMN = 10
+LAST_UNMASKED_COLUMN = 100
+
+NARR_MASK_MATRIX[
+    FIRST_UNMASKED_ROW:(LAST_UNMASKED_ROW + 1),
+    FIRST_UNMASKED_COLUMN:(LAST_UNMASKED_COLUMN + 1)
+] = 1
 
 # The following constants are used to test determinize_probabilities.
 CLASS_PROBABILITY_MATRIX = numpy.array([[0.5, 0.3, 0.2],
@@ -47,6 +75,72 @@ GERRITY_SCORE = numpy.sum(
 
 class EvaluationUtilsTests(unittest.TestCase):
     """Each method is a unit test for evaluation_utils.py."""
+
+    def test_get_random_sample_points_downsized_no_mask(self):
+        """Ensures correct output from _get_random_sample_points.
+
+        In this case,
+        `for_downsized_examples = True and narr_mask_matrix is None`.
+        """
+
+        (these_row_indices, these_column_indices
+        ) = evaluation_utils._get_random_sample_points(
+            num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=True,
+            narr_mask_matrix=None)
+
+        error_checking.assert_is_integer_numpy_array(these_row_indices)
+        error_checking.assert_is_geq_numpy_array(these_row_indices, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            these_row_indices, NARR_MASK_MATRIX.shape[0])
+
+        error_checking.assert_is_integer_numpy_array(these_column_indices)
+        error_checking.assert_is_geq_numpy_array(these_column_indices, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            these_column_indices, NARR_MASK_MATRIX.shape[1])
+
+    def test_get_random_sample_points_downsized_with_mask(self):
+        """Ensures correct output from _get_random_sample_points.
+
+        In this case,
+        `for_downsized_examples = True and narr_mask_matrix is not None`.
+        """
+
+        (these_row_indices, these_column_indices
+        ) = evaluation_utils._get_random_sample_points(
+            num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=True,
+            narr_mask_matrix=NARR_MASK_MATRIX)
+
+        error_checking.assert_is_integer_numpy_array(these_row_indices)
+        error_checking.assert_is_geq_numpy_array(
+            these_row_indices, FIRST_UNMASKED_ROW)
+        error_checking.assert_is_leq_numpy_array(
+            these_row_indices, LAST_UNMASKED_ROW)
+
+        error_checking.assert_is_integer_numpy_array(these_column_indices)
+        error_checking.assert_is_geq_numpy_array(
+            these_column_indices, FIRST_UNMASKED_COLUMN)
+        error_checking.assert_is_leq_numpy_array(
+            these_column_indices, LAST_UNMASKED_COLUMN)
+
+    def test_get_random_sample_points_full_size(self):
+        """Ensures correct output from _get_random_sample_points.
+
+        In this case, for_downsized_examples = False.
+        """
+
+        (these_row_indices, these_column_indices
+        ) = evaluation_utils._get_random_sample_points(
+            num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=False)
+
+        error_checking.assert_is_integer_numpy_array(these_row_indices)
+        error_checking.assert_is_geq_numpy_array(these_row_indices, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            these_row_indices, NUM_ROWS_FOR_FCN_INPUT)
+
+        error_checking.assert_is_integer_numpy_array(these_column_indices)
+        error_checking.assert_is_geq_numpy_array(these_column_indices, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            these_column_indices, NUM_COLUMNS_FOR_FCN_INPUT)
 
     def test_determinize_probabilities(self):
         """Ensures correct output from determinize_probabilities."""

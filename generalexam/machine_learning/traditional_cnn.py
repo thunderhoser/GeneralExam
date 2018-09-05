@@ -495,6 +495,8 @@ def apply_model_to_3d_example(
         the NARR grid.
     """
 
+    # TODO(thunderhoser): Allow masking.
+
     class_probability_matrix = numpy.full(
         (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
         dtype=float)
@@ -594,6 +596,8 @@ def apply_model_to_4d_example(
     :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
         the NARR grid.
     """
+
+    # TODO(thunderhoser): Allow masking.
 
     class_probability_matrix = numpy.full(
         (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,

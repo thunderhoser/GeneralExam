@@ -166,9 +166,16 @@ def get_unet_with_2d_convolution(
         num_classes=num_classes)
     num_classes = len(class_weights)
 
-    input_dimensions = (
-        len(ml_utils.NARR_ROWS_FOR_FCN_INPUT),
-        len(ml_utils.NARR_COLUMNS_FOR_FCN_INPUT), num_predictors)
+    num_grid_rows = (
+        ml_utils.LAST_NARR_ROW_FOR_FCN_INPUT -
+        ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT + 1
+    )
+    num_grid_columns = (
+        ml_utils.LAST_NARR_COLUMN_FOR_FCN_INPUT -
+        ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1
+    )
+
+    input_dimensions = (num_grid_rows, num_grid_columns, num_predictors)
     input_layer_object = keras.layers.Input(shape=input_dimensions)
 
     conv_layer1_object = keras.layers.Conv2D(
