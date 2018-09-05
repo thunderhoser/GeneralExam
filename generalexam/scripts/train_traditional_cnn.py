@@ -166,7 +166,7 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
-        mask_file_name=narr_mask_file_name)
+        narr_mask_file_name=narr_mask_file_name)
 
 
 if __name__ == '__main__':

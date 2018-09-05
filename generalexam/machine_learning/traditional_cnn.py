@@ -205,7 +205,7 @@ def train_with_3d_examples(
         num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
-        mask_file_name=None):
+        narr_mask_file_name=None):
     """Trains CNN, using 3-D examples created on the fly.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -235,10 +235,10 @@ def train_with_3d_examples(
     :param validation_start_time_unix_sec: See doc for
         `training_validation_io.downsized_3d_example_generator`.
     :param validation_end_time_unix_sec: Same.
-    :param mask_file_name: See doc for
+    :param narr_mask_file_name: See doc for
         `machine_learning_utils.read_narr_mask`.  This determines which grid
         cells can be used as the center of a downsized grid.  If
-        `mask_file_name is None`, there will be no mask.
+        `narr_mask_file_name is None`, there will be no mask.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -253,10 +253,10 @@ def train_with_3d_examples(
     else:
         class_weight_dict = None
 
-    if mask_file_name is None:
-        mask_matrix = None
+    if narr_mask_file_name is None:
+        narr_mask_matrix = None
     else:
-        mask_matrix = ml_utils.read_narr_mask(mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -278,7 +278,7 @@ def train_with_3d_examples(
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid,
-                mask_matrix=mask_matrix),
+                narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object])
@@ -306,7 +306,7 @@ def train_with_3d_examples(
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid,
-                mask_matrix=mask_matrix),
+                narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object],
@@ -325,7 +325,7 @@ def train_with_3d_examples(
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid,
-                mask_matrix=mask_matrix),
+                narr_mask_matrix=narr_mask_matrix),
             validation_steps=num_validation_batches_per_epoch)
 
 
@@ -340,7 +340,7 @@ def train_with_4d_examples(
         num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
-        mask_file_name=None):
+        narr_mask_file_name=None):
     """Trains CNN, using 4-D examples created on the fly.
 
     :param model_object: See doc for `train_with_3d_examples`.
@@ -370,7 +370,7 @@ def train_with_4d_examples(
         `train_with_3d_examples`.
     :param validation_start_time_unix_sec: Same.
     :param validation_end_time_unix_sec: Same.
-    :param mask_file_name: Same.
+    :param narr_mask_file_name: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -385,10 +385,10 @@ def train_with_4d_examples(
     else:
         class_weight_dict = None
 
-    if mask_file_name is None:
-        mask_matrix = None
+    if narr_mask_file_name is None:
+        narr_mask_matrix = None
     else:
-        mask_matrix = ml_utils.read_narr_mask(mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = ModelCheckpoint(
@@ -412,7 +412,7 @@ def train_with_4d_examples(
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid,
-                mask_matrix=mask_matrix),
+                narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object])
@@ -442,7 +442,7 @@ def train_with_4d_examples(
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid,
-                mask_matrix=mask_matrix),
+                narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object],
@@ -463,7 +463,7 @@ def train_with_4d_examples(
                 class_fractions=class_fractions,
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid,
-                mask_matrix=mask_matrix),
+                narr_mask_matrix=narr_mask_matrix),
             validation_steps=num_validation_batches_per_epoch)
 
 
