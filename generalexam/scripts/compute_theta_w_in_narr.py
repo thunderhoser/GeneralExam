@@ -105,7 +105,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
         print 'Reading data from: "{0:s}"...'.format(this_temperature_file_name)
         this_temperature_matrix_kelvins = (
             processed_narr_io.read_fields_from_file(
-                this_temperature_file_name)[0][0, ...]
+                this_temperature_file_name)[0]
         )
 
         this_spfh_file_name = processed_narr_io.find_file_for_one_time(
@@ -117,8 +117,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
 
         print 'Reading data from: "{0:s}"...'.format(this_spfh_file_name)
         this_specific_humidity_matrix_kg_kg01 = (
-            processed_narr_io.read_fields_from_file(
-                this_spfh_file_name)[0][0, ...]
+            processed_narr_io.read_fields_from_file(this_spfh_file_name)[0]
         )
 
         this_dewpoint_matrix_kelvins = (
