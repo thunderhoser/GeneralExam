@@ -15,7 +15,7 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.machine_learning import fcn
-from generalexam.scripts import machine_learning as ml_script_helper
+from generalexam.scripts import machine_learning_helper as ml_helper
 
 # TODO(thunderhoser): Generalize for 3-D convolution.
 
@@ -23,7 +23,7 @@ INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
-INPUT_ARG_PARSER = ml_script_helper.add_input_arguments(
+INPUT_ARG_PARSER = ml_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER, use_downsized_examples=True)
 
 
@@ -120,38 +120,36 @@ if __name__ == '__main__':
 
     _train_u_net(
         num_epochs=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.NUM_EPOCHS_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NUM_EPOCHS_ARG_NAME),
         num_examples_per_batch=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
         num_training_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT,
-            ml_script_helper.NUM_TRAIN_BATCHES_PER_EPOCH_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NUM_TRAIN_BATCHES_ARG_NAME),
         num_validation_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT,
-            ml_script_helper.NUM_VALIDN_BATCHES_PER_EPOCH_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NUM_VALIDN_BATCHES_ARG_NAME),
         dilation_distance_for_target_metres=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.DILATION_DISTANCE_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.DILATION_DISTANCE_ARG_NAME),
         weight_loss_function=bool(getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.WEIGHT_LOSS_FUNCTION_ARG_NAME)),
+            INPUT_ARG_OBJECT, ml_helper.WEIGHT_LOSS_ARG_NAME)),
         assumed_class_frequencies=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.CLASS_FRACTIONS_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.CLASS_FRACTIONS_ARG_NAME),
         num_classes=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.NUM_CLASSES_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NUM_CLASSES_ARG_NAME),
         pressure_level_mb=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.PRESSURE_LEVEL_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.PRESSURE_LEVEL_ARG_NAME),
         narr_predictor_names=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.NARR_PREDICTORS_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NARR_PREDICTORS_ARG_NAME),
         training_start_time_string=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.TRAINING_START_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.TRAINING_START_TIME_ARG_NAME),
         training_end_time_string=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.TRAINING_END_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.TRAINING_END_TIME_ARG_NAME),
         validation_start_time_string=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.VALIDATION_START_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.VALIDN_START_TIME_ARG_NAME),
         validation_end_time_string=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.VALIDATION_END_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.VALIDN_END_TIME_ARG_NAME),
         top_narr_dir_name=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.TOP_NARR_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.NARR_DIRECTORY_ARG_NAME),
         top_frontal_grid_dir_name=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.TOP_FRONTAL_GRID_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, ml_helper.FRONTAL_GRID_DIR_ARG_NAME),
         output_file_name=getattr(
-            INPUT_ARG_OBJECT, ml_script_helper.OUTPUT_FILE_ARG_NAME))
+            INPUT_ARG_OBJECT, ml_helper.OUTPUT_FILE_ARG_NAME))

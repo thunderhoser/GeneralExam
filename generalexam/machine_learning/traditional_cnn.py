@@ -229,7 +229,7 @@ def train_with_3d_examples(
         `training_validation_io.downsized_3d_example_generator`.
     :param validation_end_time_unix_sec: Same.
     :param mask_file_name: See doc for
-        `machine_learning_utils._check_narr_mask`.  This determines which grid
+        `machine_learning_utils.read_narr_mask`.  This determines which grid
         cells can be used as the center of a downsized grid.  If
         `mask_file_name is None`, there will be no mask.
     """
