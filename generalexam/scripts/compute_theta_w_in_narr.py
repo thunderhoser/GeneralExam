@@ -92,7 +92,8 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
 
     pressure_level_pascals = int(numpy.round(pressure_level_mb * MB_TO_PASCALS))
     pressure_matrix_pascals = numpy.full(
-        (num_grid_rows, num_grid_columns), pressure_level_pascals, dtype=float)
+        (1, num_grid_rows, num_grid_columns), pressure_level_pascals,
+        dtype=float)
 
     for i in range(num_times):
         this_temperature_file_name = processed_narr_io.find_file_for_one_time(
