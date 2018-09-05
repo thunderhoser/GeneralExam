@@ -1,65 +1,104 @@
 """Custom loss functions for Keras models.
 
---- INPUT FORMATS ---
-
-Inputs to all methods must be in one of two formats.
+--- NOTATION ---
 
 E = number of examples
-M = number of pixel rows
-N = number of pixel columns
+M = number of rows in grid
+N = number of columns in grid
 K = number of classes (possible values of target variable)
 
-FORMAT 1:
+--- FORMAT 1: BINARY PATCH CLASSIFICATION ---
 
-true_label_tensor: E-by-K tensor of true labels.  If true_label_tensor[i, m]
-    = 1, the [i]th example belongs to the [m]th class.
+target_tensor: length-E tensor of target values (observed classes).  If
+    target_tensor[i] = k, the [i]th example belongs to the [k]th class.
 
-predicted_probability_tensor: E-by-K tensor of predicted probabilities.
-    predicted_probability_tensor[i, m] is the estimated probability that the
-    [i]th example belongs to the [m]th class.
+forecast_probability_tensor: length-E tensor of forecast probabilities.
+    forecast_probability_tensor[i] = forecast probability that the [i]th example
+    belongs to class 1 (as opposed to 0).
 
-FORMAT 2:
+--- FORMAT 2: NON-BINARY PATCH CLASSIFICATION ---
 
-true_label_tensor: E-by-M-by-N-by-K tensor of true labels.  If
-    true_label_tensor[i, j, k, m] = 1, pixel [j, k] in the [i]th example belongs
-    to the [m]th class.
+target_tensor: E-by-K tensor of target values (observed classes).  If
+    target_tensor[i, k] = 1, the [i]th example belongs to the [k]th class.
 
-predicted_probability_tensor: E-by-M-by-N-by-K tensor of predicted
-    probabilities.  predicted_probability_tensor[i, j, k, m] is the estimated
-    probability that pixel [j, k] in the [i]th example belongs to the [m]th
-    class.
+forecast_probability_tensor: E-by-K tensor of forecast probabilities.
+    forecast_probability_tensor[i, k] = forecast probability that the [i]th
+    example belongs to the [k]th class.
+
+--- FORMAT 3: SEMANTIC SEGMENTATION ---
+
+target_tensor: E-by-M-by-N-by-K tensor of target values (observed classes).  If
+    target_tensor[i, m, n, k] = 1, grid cell [m, n] in the [i]th example belongs
+    to the [k]th class.
+
+forecast_probability_tensor: E-by-M-by-N-by-K tensor of forecast probabilities.
+    forecast_probability_tensor[i, m, n, k] = forecast probability that grid
+    cell [m, n] in the [i]th example belongs to the [k]th class.
 """
 
+import numpy
+import keras.utils
 import keras.backend as K
 import tensorflow
+from gewittergefahr.gg_utils import error_checking
+
+
+def _get_num_tensor_dimensions(input_tensor):
+    """Returns number of dimensions in tensor.
+
+    :param input_tensor: Keras tensor.
+    :return: num_dimensions: Number of dimensions.
+    """
+
+    return len(input_tensor.get_shape().as_list())
 
 
 def weighted_cross_entropy(class_weights):
-    """Computes weighted binary cross-entropy.
+    """Computes weighted cross-entropy.
+
+    The weight for each example is based on its true class.
 
     :param class_weights: length-K numpy array of class weights.
-    :return: loss: Loss (weighted binary cross-entropy).
+    :return: loss: Loss function (defined below).
     """
 
-    def loss(true_label_tensor, predicted_probability_tensor):
-        """Computes weighted binary cross-entropy.
+    def loss(target_tensor, forecast_probability_tensor):
+        """Computes weighted cross-entropy.
 
-        :param true_label_tensor: See docstring.
-        :param predicted_probability_tensor: See docstring.
-        :return: loss: Loss (weighted binary cross-entropy).
+        :param target_tensor: See docstring for the 3 possible formats.
+        :param forecast_probability_tensor: Same.
+        :return: loss: Weighted cross-entropy.
         """
 
-        these_weights = tensorflow.convert_to_tensor(
-            class_weights, dtype='float32')
-        these_weights = K.reshape(these_weights, (class_weights.size, 1))
+        error_checking.assert_is_greater_numpy_array(class_weights, 0.)
 
-        sample_weight_matrix = K.dot(true_label_tensor, these_weights)
-        sample_weight_matrix = K.reshape(
-            sample_weight_matrix, K.shape(sample_weight_matrix)[:-1])
+        num_dimensions = _get_num_tensor_dimensions(target_tensor)
+        if num_dimensions == 1:
+            error_checking.assert_is_numpy_array(
+                class_weights, exact_dimensions=numpy.array([2]))
+        else:
+            error_checking.assert_is_numpy_array(
+                class_weights, num_dimensions=1)
+
+        num_classes = len(class_weights)
+        class_weight_tensor = tensorflow.convert_to_tensor(
+            class_weights, dtype='float32')
+        class_weight_tensor = K.reshape(class_weight_tensor, (num_classes, 1))
+
+        if num_dimensions == 1:
+            example_weight_tensor = K.dot(
+                keras.utils.to_categorical(target_tensor, num_classes),
+                class_weight_tensor)
+        else:
+            example_weight_tensor = K.dot(target_tensor, class_weight_tensor)
+
+        example_weight_tensor = K.reshape(
+            example_weight_tensor, K.shape(example_weight_tensor)[:-1])
 
         return K.mean(
-            sample_weight_matrix *
+            example_weight_tensor *
             K.categorical_crossentropy(
-                true_label_tensor, predicted_probability_tensor))
+                target_tensor, forecast_probability_tensor)
+        )
 
     return loss

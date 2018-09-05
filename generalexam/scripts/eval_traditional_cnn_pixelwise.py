@@ -284,10 +284,6 @@ def _create_attributes_diagrams(
         reliability_by_class[k] = this_bss_dict[model_eval.RELIABILITY_KEY]
         bss_by_class[k] = this_bss_dict[model_eval.BRIER_SKILL_SCORE_KEY]
 
-        print (
-            'Climatology = {0:.4f} ... reliability = {1:.4f} ... BSS = {2:.4f}'
-        ).format(this_climatology, reliability_by_class[k], bss_by_class[k])
-
         _, this_axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
         model_eval_plotting.plot_reliability_curve(
@@ -295,8 +291,11 @@ def _create_attributes_diagrams(
             mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
             mean_observed_label_by_bin=this_class_freq_by_bin)
 
-        this_title_string = 'Reliability = {0:.4f} ... BSS = {1:.4f}'.format(
-            reliability_by_class[k], bss_by_class[k])
+        this_title_string = (
+            'REL = {0:.4f} ... RES = {1:.4f} ... BSS = {2:.4f}'
+        ).format(this_bss_dict[model_eval.RELIABILITY_KEY],
+                 this_bss_dict[model_eval.RESOLUTION_KEY],
+                 this_bss_dict[model_eval.BRIER_SKILL_SCORE_KEY])
         print this_title_string
         pyplot.title(this_title_string)
 
