@@ -492,10 +492,10 @@ def apply_model_to_3d_example(
         top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
         num_columns_in_half_grid, num_classes,
-        isotonic_model_object_by_class=None):
-    """Applies trained CNN to one 3-D example.
+        isotonic_model_object_by_class=None, narr_mask_matrix=None):
+    """Applies trained CNN to a 3-D example.
 
-    :param model_object: Instance of `keras.models.Sequential`.
+    :param model_object: Trained instance of `keras.models.Sequential`.
     :param target_time_unix_sec: See doc for
         `testing_io.create_downsized_3d_examples`.
     :param top_narr_directory_name: Same.
@@ -507,81 +507,90 @@ def apply_model_to_3d_example(
     :param num_columns_in_half_grid: Same.
     :param num_classes: Same.
     :param isotonic_model_object_by_class: length-K list with trained instances
-        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
+        of `sklearn.isotonic.IsotonicRegression`.  If
+        `isotonic_model_object_by_class is None`, will not use isotonic
         regression.
+    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
+        narr_mask_matrix[i, j] = 0, the model will not be applied to grid cell
+        [i, j].  If `narr_mask_matrix is None`, the model will be applied to all
+        grid cells.
     :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
-        class probabilities.
-    :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
-        the NARR grid.
+        class probabilities.  If grid cell [i, j] is masked out (due to
+        `narr_mask_matrix`), class_probability_matrix[0, i, j, :] = NaN.
+    :return: target_matrix: 1-by-M-by-N numpy array with actual target classes.
+        If grid cell [i, j] is masked out (due to `narr_mask_matrix`),
+        target_matrix[0, i, j] = -1.
     """
 
+    if narr_mask_matrix is None:
+        narr_mask_matrix = numpy.full(
+            (NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR), 1, dtype=int)
+
+    ml_utils.check_narr_mask(narr_mask_matrix)
+
     class_probability_matrix = numpy.full(
-        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
-        dtype=float)
-    actual_target_matrix = numpy.full(
+        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), numpy.nan)
+    target_matrix = numpy.full(
         (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR), -1, dtype=int)
 
     full_predictor_matrix = None
     full_target_matrix = None
 
     for i in range(NUM_ROWS_IN_NARR):
-        these_center_row_indices = numpy.linspace(
-            i, i, num=NUM_COLUMNS_IN_NARR, dtype=int)
-        these_center_column_indices = numpy.linspace(
-            0, NUM_COLUMNS_IN_NARR - 1, num=NUM_COLUMNS_IN_NARR, dtype=int)
+        these_column_indices = numpy.where(narr_mask_matrix[i, :] == 1)[0]
+        if len(these_column_indices) == 0:
+            continue
+
+        these_row_indices = numpy.full(len(these_column_indices), i, dtype=int)
 
         if i == 0:
             (this_downsized_predictor_matrix,
-             actual_target_matrix[:, i, :],
-             full_predictor_matrix,
-             full_target_matrix) = testing_io.create_downsized_3d_examples(
-                 center_row_indices=these_center_row_indices,
-                 center_column_indices=these_center_column_indices,
-                 num_rows_in_half_grid=num_rows_in_half_grid,
-                 num_columns_in_half_grid=num_columns_in_half_grid,
-                 target_time_unix_sec=target_time_unix_sec,
-                 top_narr_directory_name=top_narr_directory_name,
-                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                 narr_predictor_names=narr_predictor_names,
-                 pressure_level_mb=pressure_level_mb,
-                 dilation_distance_for_target_metres=
-                 dilation_distance_for_target_metres, num_classes=num_classes)
+             target_matrix[:, these_row_indices, these_column_indices],
+             full_predictor_matrix, full_target_matrix
+            ) = testing_io.create_downsized_3d_examples(
+                center_row_indices=these_row_indices,
+                center_column_indices=these_column_indices,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                target_time_unix_sec=target_time_unix_sec,
+                top_narr_directory_name=top_narr_directory_name,
+                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                pressure_level_mb=pressure_level_mb,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres, num_classes=num_classes)
 
         else:
             (this_downsized_predictor_matrix,
-             actual_target_matrix[:, i, :],
-             _, _) = testing_io.create_downsized_3d_examples(
-                 center_row_indices=these_center_row_indices,
-                 center_column_indices=these_center_column_indices,
-                 num_rows_in_half_grid=num_rows_in_half_grid,
-                 num_columns_in_half_grid=num_columns_in_half_grid,
-                 full_predictor_matrix=full_predictor_matrix,
-                 full_target_matrix=full_target_matrix, num_classes=num_classes)
+             target_matrix[:, these_row_indices, these_column_indices]
+            ) = testing_io.create_downsized_3d_examples(
+                center_row_indices=these_row_indices,
+                center_column_indices=these_column_indices,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                full_predictor_matrix=full_predictor_matrix,
+                full_target_matrix=full_target_matrix, num_classes=num_classes
+            )[:2]
 
-        class_probability_matrix[0, i, ...] = model_object.predict(
-            this_downsized_predictor_matrix, batch_size=NUM_COLUMNS_IN_NARR)
+        class_probability_matrix[
+            0, these_row_indices, these_column_indices, ...
+        ] = model_object.predict(
+            this_downsized_predictor_matrix, batch_size=len(these_row_indices))
 
     if isotonic_model_object_by_class is not None:
-        this_class_probability_matrix = numpy.reshape(
-            class_probability_matrix[0, ...],
-            (NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR, num_classes))
+        these_row_indices, these_column_indices = numpy.where(
+            narr_mask_matrix == 1)
 
-        these_observed_labels = numpy.reshape(
-            actual_target_matrix[0, ...],
-            NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR)
+        class_probability_matrix[
+            0, these_row_indices, these_column_indices, ...
+        ] = isotonic_regression.apply_model_for_each_class(
+            orig_class_probability_matrix=class_probability_matrix[
+                0, these_row_indices, these_column_indices, ...],
+            observed_labels=target_matrix[
+                0, these_row_indices, these_column_indices],
+            model_object_by_class=isotonic_model_object_by_class)
 
-        this_class_probability_matrix = (
-            isotonic_regression.apply_model_for_each_class(
-                orig_class_probability_matrix=this_class_probability_matrix,
-                observed_labels=these_observed_labels,
-                model_object_by_class=isotonic_model_object_by_class))
-
-        this_class_probability_matrix = numpy.reshape(
-            this_class_probability_matrix,
-            (NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes))
-        class_probability_matrix[0, ...] = this_class_probability_matrix
-
-    return class_probability_matrix, actual_target_matrix
+    return class_probability_matrix, target_matrix
 
 
 def apply_model_to_4d_example(
@@ -590,10 +599,10 @@ def apply_model_to_4d_example(
         narr_predictor_names, pressure_level_mb,
         dilation_distance_for_target_metres, num_rows_in_half_grid,
         num_columns_in_half_grid, num_classes,
-        isotonic_model_object_by_class=None):
-    """Applies trained CNN to one 4-D example.
+        isotonic_model_object_by_class=None, narr_mask_matrix=None):
+    """Applies trained CNN to a 4-D example.
 
-    :param model_object: Instance of `keras.models.Sequential`.
+    :param model_object: Trained instance of `keras.models.Sequential`.
     :param target_time_unix_sec: See doc for
         `testing_io.create_downsized_4d_examples`.
     :param predictor_time_step_offsets: Same.
@@ -606,81 +615,81 @@ def apply_model_to_4d_example(
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
     :param num_classes: Same.
-    :param isotonic_model_object_by_class: length-K list with trained instances
-        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
-        regression.
-    :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
-        class probabilities.
-    :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
-        the NARR grid.
+    :param isotonic_model_object_by_class: See doc for
+        `apply_model_to_3d_example`.
+    :param narr_mask_matrix: Same.
+    :return: class_probability_matrix: Same.
+    :return: target_matrix: Same.
     """
 
+    if narr_mask_matrix is None:
+        narr_mask_matrix = numpy.full(
+            (NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR), 1, dtype=int)
+
+    ml_utils.check_narr_mask(narr_mask_matrix)
+
     class_probability_matrix = numpy.full(
-        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), -1,
-        dtype=float)
-    actual_target_matrix = numpy.full(
+        (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes), numpy.nan)
+    target_matrix = numpy.full(
         (1, NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR), -1, dtype=int)
 
     full_predictor_matrix = None
     full_target_matrix = None
 
     for i in range(NUM_ROWS_IN_NARR):
-        these_center_row_indices = numpy.linspace(
-            i, i, num=NUM_COLUMNS_IN_NARR, dtype=int)
-        these_center_column_indices = numpy.linspace(
-            0, NUM_COLUMNS_IN_NARR - 1, num=NUM_COLUMNS_IN_NARR, dtype=int)
+        these_column_indices = numpy.where(narr_mask_matrix[i, :] == 1)[0]
+        if len(these_column_indices) == 0:
+            continue
+
+        these_row_indices = numpy.full(len(these_column_indices), i, dtype=int)
 
         if i == 0:
             (this_downsized_predictor_matrix,
-             actual_target_matrix[:, i, :],
-             full_predictor_matrix,
-             full_target_matrix) = testing_io.create_downsized_4d_examples(
-                 center_row_indices=these_center_row_indices,
-                 center_column_indices=these_center_column_indices,
-                 num_rows_in_half_grid=num_rows_in_half_grid,
-                 num_columns_in_half_grid=num_columns_in_half_grid,
-                 target_time_unix_sec=target_time_unix_sec,
-                 predictor_time_step_offsets=predictor_time_step_offsets,
-                 num_lead_time_steps=num_lead_time_steps,
-                 top_narr_directory_name=top_narr_directory_name,
-                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                 narr_predictor_names=narr_predictor_names,
-                 pressure_level_mb=pressure_level_mb,
-                 dilation_distance_for_target_metres=
-                 dilation_distance_for_target_metres, num_classes=num_classes)
+             target_matrix[:, these_row_indices, these_column_indices],
+             full_predictor_matrix, full_target_matrix
+            ) = testing_io.create_downsized_4d_examples(
+                center_row_indices=these_row_indices,
+                center_column_indices=these_column_indices,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                target_time_unix_sec=target_time_unix_sec,
+                predictor_time_step_offsets=predictor_time_step_offsets,
+                num_lead_time_steps=num_lead_time_steps,
+                top_narr_directory_name=top_narr_directory_name,
+                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                pressure_level_mb=pressure_level_mb,
+                dilation_distance_for_target_metres=
+                dilation_distance_for_target_metres, num_classes=num_classes)
 
         else:
             (this_downsized_predictor_matrix,
-             actual_target_matrix[:, i, :],
-             _, _) = testing_io.create_downsized_4d_examples(
-                 center_row_indices=these_center_row_indices,
-                 center_column_indices=these_center_column_indices,
-                 num_rows_in_half_grid=num_rows_in_half_grid,
-                 num_columns_in_half_grid=num_columns_in_half_grid,
-                 full_predictor_matrix=full_predictor_matrix,
-                 full_target_matrix=full_target_matrix, num_classes=num_classes)
+             target_matrix[:, these_row_indices, these_column_indices]
+            ) = testing_io.create_downsized_4d_examples(
+                center_row_indices=these_row_indices,
+                center_column_indices=these_column_indices,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid,
+                full_predictor_matrix=full_predictor_matrix,
+                full_target_matrix=full_target_matrix, num_classes=num_classes
+            )[:2]
 
-        class_probability_matrix[0, i, ...] = model_object.predict(
-            this_downsized_predictor_matrix, batch_size=NUM_COLUMNS_IN_NARR)
+        class_probability_matrix[
+            0, these_row_indices, these_column_indices, ...
+        ] = model_object.predict(
+            this_downsized_predictor_matrix, batch_size=len(these_row_indices))
 
     if isotonic_model_object_by_class is not None:
-        this_class_probability_matrix = numpy.reshape(
-            class_probability_matrix[0, ...],
-            (NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR, num_classes))
+        these_row_indices, these_column_indices = numpy.where(
+            narr_mask_matrix == 1)
 
-        these_observed_labels = numpy.reshape(
-            actual_target_matrix[0, ...],
-            NUM_ROWS_IN_NARR * NUM_COLUMNS_IN_NARR)
+        class_probability_matrix[
+            0, these_row_indices, these_column_indices, ...
+        ] = isotonic_regression.apply_model_for_each_class(
+            orig_class_probability_matrix=class_probability_matrix[
+                0, these_row_indices, these_column_indices, ...],
+            observed_labels=target_matrix[
+                0, these_row_indices, these_column_indices],
+            model_object_by_class=isotonic_model_object_by_class)
 
-        this_class_probability_matrix = (
-            isotonic_regression.apply_model_for_each_class(
-                orig_class_probability_matrix=this_class_probability_matrix,
-                observed_labels=these_observed_labels,
-                model_object_by_class=isotonic_model_object_by_class))
-
-        this_class_probability_matrix = numpy.reshape(
-            this_class_probability_matrix,
-            (NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR, num_classes))
-        class_probability_matrix[0, ...] = this_class_probability_matrix
-
-    return class_probability_matrix, actual_target_matrix
+    return class_probability_matrix, target_matrix

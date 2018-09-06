@@ -198,7 +198,9 @@ def _run(model_file_name, first_time_string, last_time_string, randomize_times,
                 num_columns_in_half_grid=model_metadata_dict[
                     traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
                 num_classes=num_classes,
-                isotonic_model_object_by_class=isotonic_model_object_by_class)
+                isotonic_model_object_by_class=isotonic_model_object_by_class,
+                narr_mask_matrix=model_metadata_dict[
+                    traditional_cnn.NARR_MASK_MATRIX_KEY])
         else:
             (this_class_probability_matrix, this_target_matrix
             ) = traditional_cnn.apply_model_to_4d_example(
@@ -221,7 +223,9 @@ def _run(model_file_name, first_time_string, last_time_string, randomize_times,
                 num_columns_in_half_grid=model_metadata_dict[
                     traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
                 num_classes=num_classes,
-                isotonic_model_object_by_class=isotonic_model_object_by_class)
+                isotonic_model_object_by_class=isotonic_model_object_by_class,
+                narr_mask_matrix=model_metadata_dict[
+                    traditional_cnn.NARR_MASK_MATRIX_KEY])
 
         print MINOR_SEPARATOR_STRING
 
