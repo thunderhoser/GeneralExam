@@ -22,6 +22,7 @@ C = number of channels (predictor variables) in each image
 """
 
 import pickle
+import os.path
 import numpy
 from keras.models import load_model
 from keras.callbacks import ModelCheckpoint
@@ -89,6 +90,31 @@ LIST_OF_METRIC_FUNCTIONS = [
 
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
+
+
+def find_metafile(model_file_name, raise_error_if_missing=True):
+    """Finds metafile (should be written by `write_model_metadata`).
+
+    :param model_file_name: Path to HDF5 file, containing the trained model.
+    :param raise_error_if_missing: Boolean flag.  If metafile is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: metafile_name: Path to metafile.  If file is missing and
+        `raise_error_if_missing = False`, this will be the *expected* path.
+    :raises: ValueError: if metafile is missing and
+        `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    metafile_name = '{0:s}/model_metadata.p'.format(
+        os.path.split(model_file_name)[0])
+    if not os.path.isfile(metafile_name) and raise_error_if_missing:
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            metafile_name)
+        raise ValueError(error_string)
+
+    return metafile_name
 
 
 def write_model_metadata(

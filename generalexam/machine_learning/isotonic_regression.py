@@ -1,6 +1,7 @@
 """Training and testing methods for isotonic regression."""
 
 import pickle
+import os.path
 import numpy
 from sklearn.isotonic import IsotonicRegression
 from gewittergefahr.gg_utils import file_system_utils
@@ -122,6 +123,34 @@ def apply_model_for_each_class(
         observed_labels=observed_labels)
 
     return new_class_probability_matrix
+
+
+def find_model_file(base_model_file_name, raise_error_if_missing=True):
+    """Finds file containing isotonic-regression model(s).
+
+    This file should be written by `write_model_for_each_class`.
+
+    :param base_model_file_name: Path to file containing base model (e.g., CNN).
+    :param raise_error_if_missing: Boolean flag.  If isotonic-regression file is
+        missing and `raise_error_if_missing = True`, this method will error out.
+    :return: isotonic_file_name: Path to metafile.  If isotonic-regression file
+        is missing and `raise_error_if_missing = False`, this will be the
+        *expected* path.
+    :raises: ValueError: if isotonic-regression file is missing and
+        `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(base_model_file_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    isotonic_file_name = '{0:s}/isotonic_regression_models.p'.format(
+        os.path.split(base_model_file_name)[0])
+    if not os.path.isfile(isotonic_file_name) and raise_error_if_missing:
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            isotonic_file_name)
+        raise ValueError(error_string)
+
+    return isotonic_file_name
 
 
 def write_model_for_each_class(model_object_by_class, pickle_file_name):
