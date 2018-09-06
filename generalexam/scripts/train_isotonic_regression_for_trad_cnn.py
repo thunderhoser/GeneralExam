@@ -3,7 +3,6 @@
 A "traditional CNN" is one that does patch classification.
 """
 
-import os.path
 import argparse
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion

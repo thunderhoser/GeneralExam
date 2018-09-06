@@ -4,7 +4,6 @@ Each input to the CNN is a downsized image.  The CNN predicts the class (no
 front, warm front, or cold front) of the center pixel in the downsized image.
 """
 
-import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion

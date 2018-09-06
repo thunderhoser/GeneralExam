@@ -5,7 +5,6 @@ object-based evaluation, use eval_traditional_cnn_objects.py.
 """
 
 import random
-import os.path
 import argparse
 import numpy
 from keras import backend as K
@@ -359,7 +358,7 @@ def _run(model_file_name, first_eval_time_string, last_eval_time_string,
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=model_file_name, raise_error_if_missing=True)
-    
+
     print 'Reading model metadata from: "{0:s}"...'.format(
         model_metafile_name)
     model_metadata_dict = traditional_cnn.read_model_metadata(
