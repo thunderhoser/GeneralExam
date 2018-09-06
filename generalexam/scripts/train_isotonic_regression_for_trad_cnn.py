@@ -118,13 +118,13 @@ def _run(model_file_name, first_training_time_string, last_training_time_string,
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = traditional_cnn.read_keras_model(model_file_name)
 
-    model_dir_name = os.path.split(model_file_name)[0]
-    model_metadata_file_name = '{0:s}/model_metadata.p'.format(model_dir_name)
+    model_metafile_name = traditional_cnn.find_metafile(
+        model_file_name=model_file_name, raise_error_if_missing=True)
 
     print 'Reading model metadata from: "{0:s}"...'.format(
-        model_metadata_file_name)
+        model_metafile_name)
     model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metadata_file_name)
+        model_metafile_name)
 
     num_classes = len(model_metadata_dict[traditional_cnn.CLASS_FRACTIONS_KEY])
 
@@ -163,15 +163,14 @@ def _run(model_file_name, first_training_time_string, last_training_time_string,
             observed_labels=observed_labels)
     )
 
-    isotonic_regression_file_name = (
-        '{0:s}/isotonic_regression_models.p'
-    ).format(model_dir_name)
+    isotonic_file_name = isotonic_regression.find_model_file(
+        base_model_file_name=model_file_name, raise_error_if_missing=False)
 
     print '\nWriting trained models to: "{0:s}"...'.format(
-        isotonic_regression_file_name)
+        isotonic_file_name)
     isotonic_regression.write_model_for_each_class(
         model_object_by_class=isotonic_model_object_by_class,
-        pickle_file_name=isotonic_regression_file_name)
+        pickle_file_name=isotonic_file_name)
 
 
 if __name__ == '__main__':

@@ -357,28 +357,26 @@ def _run(model_file_name, first_eval_time_string, last_eval_time_string,
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = traditional_cnn.read_keras_model(model_file_name)
 
-    model_dir_name = os.path.split(model_file_name)[0]
-    model_metadata_file_name = '{0:s}/model_metadata.p'.format(model_dir_name)
-
+    model_metafile_name = traditional_cnn.find_metafile(
+        model_file_name=model_file_name, raise_error_if_missing=True)
+    
     print 'Reading model metadata from: "{0:s}"...'.format(
-        model_metadata_file_name)
+        model_metafile_name)
     model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metadata_file_name)
+        model_metafile_name)
 
     if dilation_distance_metres < 0:
         dilation_distance_metres = model_metadata_dict[
             traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY] + 0.
 
     if use_isotonic_regression:
-        isotonic_regression_file_name = (
-            '{0:s}/isotonic_regression_models.p'
-        ).format(model_dir_name)
+        isotonic_file_name = isotonic_regression.find_model_file(
+            base_model_file_name=model_file_name, raise_error_if_missing=True)
 
         print 'Reading isotonic-regression models from: "{0:s}"...'.format(
-            isotonic_regression_file_name)
+            isotonic_file_name)
         isotonic_model_object_by_class = (
-            isotonic_regression.read_model_for_each_class(
-                isotonic_regression_file_name)
+            isotonic_regression.read_model_for_each_class(isotonic_file_name)
         )
     else:
         isotonic_model_object_by_class = None

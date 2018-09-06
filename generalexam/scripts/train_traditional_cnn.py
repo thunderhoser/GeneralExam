@@ -111,12 +111,12 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         print 'Reading NARR mask from: "{0:s}"...'.format(narr_mask_file_name)
         narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
-    model_dir_name = os.path.split(output_file_name)[0]
-    metadata_file_name = '{0:s}/model_metadata.p'.format(model_dir_name)
-    print 'Writing metadata to: "{0:s}"...'.format(metadata_file_name)
+    model_metafile_name = traditional_cnn.find_metafile(
+        model_file_name=output_file_name, raise_error_if_missing=True)
+    print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
 
     traditional_cnn.write_model_metadata(
-        pickle_file_name=metadata_file_name, num_epochs=num_epochs,
+        pickle_file_name=model_metafile_name, num_epochs=num_epochs,
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_target_time=num_examples_per_time,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
