@@ -111,7 +111,7 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
     model_metafile_name = traditional_cnn.find_metafile(
-        model_file_name=output_file_name, raise_error_if_missing=True)
+        model_file_name=output_file_name, raise_error_if_missing=False)
     print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
 
     traditional_cnn.write_model_metadata(
