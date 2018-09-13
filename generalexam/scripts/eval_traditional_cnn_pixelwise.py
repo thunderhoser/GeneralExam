@@ -27,7 +27,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
-FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
+FORECAST_PRECISION_FOR_THRESHOLDS = 0.001
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DOTS_PER_INCH = 300
