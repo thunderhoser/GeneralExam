@@ -31,6 +31,7 @@ DOTS_PER_INCH = 600
 
 WARM_FRONT_COLOUR_MAP_OBJECT = pyplot.cm.YlOrRd
 COLD_FRONT_COLOUR_MAP_OBJECT = pyplot.cm.YlGnBu
+BOTH_FRONTS_COLOUR_MAP_OBJECT = pyplot.cm.winter
 MAX_PERCENTILE_FOR_COLOUR_MAP = 99.
 
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
@@ -95,8 +96,8 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_front_counts(
-        num_fronts_matrix, mask_matrix, colour_map_object, output_file_name):
+def _plot_front_counts(num_fronts_matrix, colour_map_object, output_file_name,
+                       mask_matrix=None, add_colour_bar=True):
     """Plots number of fronts at each NARR grid cell.
 
     M = number of grid rows (unique y-coordinates at grid points)
@@ -104,11 +105,13 @@ def _plot_front_counts(
 
     :param num_fronts_matrix: M-by-N numpy array with number of fronts at each
         grid cell.
-    :param mask_matrix: M-by-N numpy array of integers.  If
-        mask_matrix[i, j] = 0, grid cell [i, j] will be masked out in the map.
     :param colour_map_object: Instance of `matplotlib.pyplot.cm`.
     :param output_file_name: Path to output (image) file.  The figure will be
         saved here.
+    :param mask_matrix: M-by-N numpy array of integers.  If
+        mask_matrix[i, j] = 0, grid cell [i, j] will be masked out in the map.
+        If `mask_matrix is None`, there will be no masking.
+    :param add_colour_bar: Boolean flag.  If True, will add colour bar.
     """
 
     _, axes_object, basemap_object = narr_plotting.init_basemap()
@@ -134,18 +137,21 @@ def _plot_front_counts(
     num_fronts_matrix = num_fronts_matrix.astype(float)
     max_colour_value = numpy.percentile(
         num_fronts_matrix, MAX_PERCENTILE_FOR_COLOUR_MAP)
-    num_fronts_matrix[mask_matrix == 0] = numpy.nan
+
+    if mask_matrix is not None:
+        num_fronts_matrix[mask_matrix == 0] = numpy.nan
 
     narr_plotting.plot_xy_grid(
         data_matrix=num_fronts_matrix, axes_object=axes_object,
         basemap_object=basemap_object, colour_map=colour_map_object,
         colour_minimum=0., colour_maximum=max_colour_value)
 
-    plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object, values_to_colour=num_fronts_matrix,
-        colour_map=colour_map_object, colour_min=0.,
-        colour_max=max_colour_value, orientation='horizontal', extend_min=False,
-        extend_max=True)
+    if add_colour_bar:
+        plotting_utils.add_linear_colour_bar(
+            axes_object_or_list=axes_object, values_to_colour=num_fronts_matrix,
+            colour_map=colour_map_object, colour_min=0.,
+            colour_max=max_colour_value, orientation='horizontal',
+            extend_min=False, extend_max=True)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=DOTS_PER_INCH)
@@ -227,10 +233,8 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
 
     print 'Masking out grid cells with < {0:d} fronts...'.format(
         min_frontal_grid_cells)
-    mask_matrix = (
-        num_warm_fronts_matrix + num_cold_fronts_matrix >=
-        min_frontal_grid_cells
-    ).astype(int)
+    num_both_fronts_matrix = num_warm_fronts_matrix + num_cold_fronts_matrix
+    mask_matrix = (num_both_fronts_matrix >= min_frontal_grid_cells).astype(int)
 
     pickle_file_name = '{0:s}/narr_mask.p'.format(output_dir_name)
     print 'Writing mask to: "{0:s}"...'.format(pickle_file_name)
@@ -240,16 +244,24 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
     cold_front_map_file_name = '{0:s}/num_cold_fronts.jpg'.format(
         output_dir_name)
     _plot_front_counts(
-        num_fronts_matrix=num_cold_fronts_matrix, mask_matrix=mask_matrix,
+        num_fronts_matrix=num_cold_fronts_matrix, mask_matrix=None,
         colour_map_object=COLD_FRONT_COLOUR_MAP_OBJECT,
-        output_file_name=cold_front_map_file_name)
+        output_file_name=cold_front_map_file_name, add_colour_bar=True)
 
     warm_front_map_file_name = '{0:s}/num_warm_fronts.jpg'.format(
         output_dir_name)
     _plot_front_counts(
-        num_fronts_matrix=num_warm_fronts_matrix, mask_matrix=mask_matrix,
+        num_fronts_matrix=num_warm_fronts_matrix, mask_matrix=None,
         colour_map_object=WARM_FRONT_COLOUR_MAP_OBJECT,
-        output_file_name=warm_front_map_file_name)
+        output_file_name=warm_front_map_file_name, add_colour_bar=True)
+
+    both_fronts_map_file_name = '{0:s}/num_both_fronts.jpg'.format(
+        output_dir_name)
+    num_both_fronts_matrix[num_both_fronts_matrix > 1] = 1
+    _plot_front_counts(
+        num_fronts_matrix=num_both_fronts_matrix, mask_matrix=mask_matrix,
+        colour_map_object=BOTH_FRONTS_COLOUR_MAP_OBJECT,
+        output_file_name=both_fronts_map_file_name, add_colour_bar=False)
 
 
 if __name__ == '__main__':
