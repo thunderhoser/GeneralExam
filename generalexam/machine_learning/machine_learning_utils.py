@@ -592,6 +592,14 @@ def sample_target_points(
     column_indices_by_class = [numpy.array([], dtype=int)] * num_classes
 
     for i in range(num_classes):
+        this_num_examples_unmasked = numpy.sum(target_matrix == i)
+        this_num_examples_masked = numpy.sum(
+            numpy.logical_and(target_matrix == i, mask_matrix == 1))
+        print (
+            'Number of examples for class {0:d} before mask = {1:d} ... after '
+            'mask = {2:d}'
+        ).format(i, this_num_examples_unmasked, this_num_examples_masked)
+
         (time_indices_by_class[i], row_indices_by_class[i],
          column_indices_by_class[i]
         ) = numpy.where(numpy.logical_and(target_matrix == i, mask_matrix == 1))

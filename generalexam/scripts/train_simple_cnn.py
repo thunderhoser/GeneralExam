@@ -117,8 +117,8 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
     validation_end_time_unix_sec = time_conversion.string_to_unix_sec(
         VALIDATION_END_TIME_STRING, INPUT_TIME_FORMAT)
 
-    # print 'Reading NARR mask from: "{0:s}"...'.format(NARR_MASK_FILE_NAME)
-    # narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)
+    print 'Reading NARR mask from: "{0:s}"...'.format(NARR_MASK_FILE_NAME)
+    narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=output_file_name, raise_error_if_missing=False)
@@ -143,7 +143,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
         num_lead_time_steps=NUM_LEAD_TIME_STEPS,
         predictor_time_step_offsets=PREDICTOR_TIME_STEP_OFFSETS,
-        narr_mask_matrix=None)
+        narr_mask_matrix=narr_mask_matrix)
 
     num_rows_in_grid = 2 * num_rows_in_half_grid + 1
     num_columns_in_grid = 2 * num_columns_in_half_grid + 1
@@ -199,7 +199,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
         num_validation_batches_per_epoch=NUM_VALIDATION_BATCHES_PER_EPOCH,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
-        narr_mask_matrix=None)
+        narr_mask_matrix=narr_mask_matrix)
 
 
 if __name__ == '__main__':
