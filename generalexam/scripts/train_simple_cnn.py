@@ -12,9 +12,9 @@ from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import cnn_architecture
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-NUM_EPOCHS = 25
+NUM_EPOCHS = 100
 NUM_EXAMPLES_PER_BATCH = 1024
-NUM_EXAMPLES_PER_TIME = 16
+NUM_EXAMPLES_PER_TIME = 8
 NUM_TRAINING_BATCHES_PER_EPOCH = 32
 NUM_VALIDATION_BATCHES_PER_EPOCH = 16
 DILATION_DISTANCE_METRES = 50000.
@@ -29,9 +29,9 @@ NARR_PREDICTOR_NAMES = [
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 TRAINING_START_TIME_STRING = '2008110515'
-TRAINING_END_TIME_STRING = '2015122421'
-VALIDATION_START_TIME_STRING = '2016010100'
-VALIDATION_END_TIME_STRING = '2016122421'
+TRAINING_END_TIME_STRING = '2014122421'
+VALIDATION_START_TIME_STRING = '2015010100'
+VALIDATION_END_TIME_STRING = '2015122421'
 TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 TOP_FRONTAL_GRID_DIR_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
@@ -117,8 +117,8 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
     validation_end_time_unix_sec = time_conversion.string_to_unix_sec(
         VALIDATION_END_TIME_STRING, INPUT_TIME_FORMAT)
 
-    print 'Reading NARR mask from: "{0:s}"...'.format(NARR_MASK_FILE_NAME)
-    narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)
+    # print 'Reading NARR mask from: "{0:s}"...'.format(NARR_MASK_FILE_NAME)
+    # narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=output_file_name, raise_error_if_missing=False)
@@ -143,7 +143,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
         num_lead_time_steps=NUM_LEAD_TIME_STEPS,
         predictor_time_step_offsets=PREDICTOR_TIME_STEP_OFFSETS,
-        narr_mask_matrix=narr_mask_matrix)
+        narr_mask_matrix=None)
 
     num_rows_in_grid = 2 * num_rows_in_half_grid + 1
     num_columns_in_grid = 2 * num_columns_in_half_grid + 1
@@ -199,7 +199,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
         num_validation_batches_per_epoch=NUM_VALIDATION_BATCHES_PER_EPOCH,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
         validation_end_time_unix_sec=validation_end_time_unix_sec,
-        narr_mask_matrix=narr_mask_matrix)
+        narr_mask_matrix=None)
 
 
 if __name__ == '__main__':
