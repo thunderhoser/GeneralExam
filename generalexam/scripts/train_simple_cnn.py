@@ -19,7 +19,6 @@ NUM_TRAINING_BATCHES_PER_EPOCH = 32
 NUM_VALIDATION_BATCHES_PER_EPOCH = 16
 DILATION_DISTANCE_METRES = 50000.
 WEIGHT_LOSS_FUNCTION = False
-PRESSURE_LEVEL_MB = 1000
 CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
 NARR_PREDICTOR_NAMES = [
     processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
@@ -42,6 +41,7 @@ PREDICTOR_TIME_STEP_OFFSETS = None
 
 NUM_HALF_ROWS_ARG_NAME = 'num_rows_in_half_grid'
 NUM_HALF_COLUMNS_ARG_NAME = 'num_columns_in_half_grid'
+PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 ARCHITECTURE_ID_ARG_NAME = 'architecture_id'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
@@ -55,6 +55,11 @@ NUM_HALF_COLUMNS_HELP_STRING = (
     'Number of columns in half-grid for each downsized image.  Total number of '
     'columns will be 1 + 2 * `{0:s}`.'
 ).format(NUM_HALF_COLUMNS_ARG_NAME)
+
+PRESSURE_LEVEL_HELP_STRING = (
+    'Will train the CNN with the following fields at this pressure level '
+    '(millibars).\n{0:s}'
+).format(str(NARR_PREDICTOR_NAMES))
 
 ARCHITECTURE_ID_HELP_STRING = (
     'Integer ID for CNN architecture.  For example, if `{0:s}` = 1, the '
@@ -82,6 +87,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_NUM_HALF_COLUMNS, help=NUM_HALF_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=True,
+    help=PRESSURE_LEVEL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + ARCHITECTURE_ID_ARG_NAME, type=int, required=True,
     help=ARCHITECTURE_ID_HELP_STRING)
 
@@ -94,14 +103,15 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
-         l2_weight, output_file_name):
+def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
+         architecture_id, l2_weight, output_file_name):
     """Trains CNN with simple architecture for patch classification.
 
     This is effectively the main method.
 
     :param num_rows_in_half_grid: See documentation at top of file.
     :param num_columns_in_half_grid: Same.
+    :param pressure_level_mb: Same.
     :param architecture_id: Same.
     :param l2_weight: Same.
     :param output_file_name: Same.
@@ -136,7 +146,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
         class_fractions=CLASS_FRACTIONS,
         weight_loss_function=WEIGHT_LOSS_FUNCTION,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
-        pressure_level_mb=PRESSURE_LEVEL_MB,
+        pressure_level_mb=pressure_level_mb,
         training_start_time_unix_sec=training_start_time_unix_sec,
         training_end_time_unix_sec=training_end_time_unix_sec,
         validation_start_time_unix_sec=validation_start_time_unix_sec,
@@ -190,7 +200,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, architecture_id,
         top_narr_directory_name=TOP_NARR_DIR_NAME,
         top_frontal_grid_dir_name=TOP_FRONTAL_GRID_DIR_NAME,
         narr_predictor_names=NARR_PREDICTOR_NAMES,
-        pressure_level_mb=PRESSURE_LEVEL_MB,
+        pressure_level_mb=pressure_level_mb,
         dilation_distance_for_target_metres=DILATION_DISTANCE_METRES,
         class_fractions=CLASS_FRACTIONS,
         num_rows_in_half_grid=num_rows_in_half_grid,
@@ -210,6 +220,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, NUM_HALF_ROWS_ARG_NAME),
         num_columns_in_half_grid=getattr(
             INPUT_ARG_OBJECT, NUM_HALF_COLUMNS_ARG_NAME),
+        pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         architecture_id=getattr(INPUT_ARG_OBJECT, ARCHITECTURE_ID_ARG_NAME),
         l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
