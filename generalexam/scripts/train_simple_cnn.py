@@ -12,7 +12,7 @@ from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import cnn_architecture
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-NUM_EPOCHS = 100
+NUM_EPOCHS = 200
 NUM_EXAMPLES_PER_BATCH = 1024
 NUM_EXAMPLES_PER_TIME = 8
 NUM_TRAINING_BATCHES_PER_EPOCH = 32
