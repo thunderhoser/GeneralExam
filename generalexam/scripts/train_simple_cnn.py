@@ -12,8 +12,6 @@ from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import cnn_architecture
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-NUM_EPOCHS = 200
-NUM_EXAMPLES_PER_TIME = 8
 NUM_TRAINING_BATCHES_PER_EPOCH = 32
 NUM_VALIDATION_BATCHES_PER_EPOCH = 16
 DILATION_DISTANCE_METRES = 50000.
@@ -41,7 +39,9 @@ PREDICTOR_TIME_STEP_OFFSETS = None
 NUM_HALF_ROWS_ARG_NAME = 'num_rows_in_half_grid'
 NUM_HALF_COLUMNS_ARG_NAME = 'num_columns_in_half_grid'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
-BATCH_SIZE_ARG_NAME = 'num_examples_per_batch'
+NUM_EPOCHS_ARG_NAME = 'num_epochs'
+EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
+EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
 ARCHITECTURE_ID_ARG_NAME = 'architecture_id'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
@@ -61,8 +61,13 @@ PRESSURE_LEVEL_HELP_STRING = (
     '(millibars).\n{0:s}'
 ).format(str(NARR_PREDICTOR_NAMES))
 
-BATCH_SIZE_HELP_STRING = (
+NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
+
+EXAMPLES_PER_BATCH_HELP_STRING = (
     'Number of examples in each training or validation batch.')
+
+EXAMPLES_PER_TIME_HELP_STRING = (
+    'Average number of examples per time step in each batch.')
 
 ARCHITECTURE_ID_HELP_STRING = (
     'Integer ID for CNN architecture.  For example, if `{0:s}` = 1, the '
@@ -79,7 +84,9 @@ OUTPUT_FILE_HELP_STRING = (
 DEFAULT_NUM_HALF_ROWS = 16
 DEFAULT_NUM_HALF_COLUMNS = 16
 DEFAULT_L2_WEIGHT = 0.001
+NUM_EPOCHS_DEFAULT = 100
 NUM_EXAMPLES_PER_BATCH_DEFAULT = 1024
+NUM_EXAMPLES_PER_TIME_DEFAULT = 8
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -95,8 +102,16 @@ INPUT_ARG_PARSER.add_argument(
     help=PRESSURE_LEVEL_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + BATCH_SIZE_ARG_NAME, type=int, required=False,
-    default=NUM_EXAMPLES_PER_BATCH_DEFAULT, help=BATCH_SIZE_HELP_STRING)
+    '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
+    default=NUM_EPOCHS_DEFAULT, help=NUM_EPOCHS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + EXAMPLES_PER_BATCH_ARG_NAME, type=int, required=False,
+    default=NUM_EXAMPLES_PER_BATCH_DEFAULT, help=EXAMPLES_PER_BATCH_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + EXAMPLES_PER_TIME_ARG_NAME, type=int, required=False,
+    default=NUM_EXAMPLES_PER_TIME_DEFAULT, help=EXAMPLES_PER_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + ARCHITECTURE_ID_ARG_NAME, type=int, required=True,
@@ -112,7 +127,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
-         num_examples_per_batch, architecture_id, l2_weight, output_file_name):
+         num_epochs,  num_examples_per_batch, num_examples_per_time,
+         architecture_id, l2_weight, output_file_name):
     """Trains CNN with simple architecture for patch classification.
 
     This is effectively the main method.
@@ -120,7 +136,9 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
     :param num_rows_in_half_grid: See documentation at top of file.
     :param num_columns_in_half_grid: Same.
     :param pressure_level_mb: Same.
+    :param num_epochs: Same.
     :param num_examples_per_batch: Same.
+    :param num_examples_per_time: Same.
     :param architecture_id: Same.
     :param l2_weight: Same.
     :param output_file_name: Same.
@@ -144,9 +162,9 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
     print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
 
     traditional_cnn.write_model_metadata(
-        pickle_file_name=model_metafile_name, num_epochs=NUM_EPOCHS,
+        pickle_file_name=model_metafile_name, num_epochs=num_epochs,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_target_time=NUM_EXAMPLES_PER_TIME,
+        num_examples_per_target_time=num_examples_per_time,
         num_training_batches_per_epoch=NUM_TRAINING_BATCHES_PER_EPOCH,
         num_validation_batches_per_epoch=NUM_VALIDATION_BATCHES_PER_EPOCH,
         num_rows_in_half_grid=num_rows_in_half_grid,
@@ -201,9 +219,9 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
 
     traditional_cnn.train_with_3d_examples(
         model_object=model_object, output_file_name=output_file_name,
-        num_examples_per_batch=num_examples_per_batch, num_epochs=NUM_EPOCHS,
+        num_examples_per_batch=num_examples_per_batch, num_epochs=num_epochs,
         num_training_batches_per_epoch=NUM_TRAINING_BATCHES_PER_EPOCH,
-        num_examples_per_target_time=NUM_EXAMPLES_PER_TIME,
+        num_examples_per_target_time=num_examples_per_time,
         training_start_time_unix_sec=training_start_time_unix_sec,
         training_end_time_unix_sec=training_end_time_unix_sec,
         top_narr_directory_name=TOP_NARR_DIR_NAME,
@@ -230,7 +248,11 @@ if __name__ == '__main__':
         num_columns_in_half_grid=getattr(
             INPUT_ARG_OBJECT, NUM_HALF_COLUMNS_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
-        num_examples_per_batch=getattr(INPUT_ARG_OBJECT, BATCH_SIZE_ARG_NAME),
+        num_epochs=getattr(INPUT_ARG_OBJECT, NUM_EPOCHS_ARG_NAME),
+        num_examples_per_batch=getattr(
+            INPUT_ARG_OBJECT, EXAMPLES_PER_BATCH_ARG_NAME),
+        num_examples_per_time=getattr(
+            INPUT_ARG_OBJECT, EXAMPLES_PER_TIME_ARG_NAME),
         architecture_id=getattr(INPUT_ARG_OBJECT, ARCHITECTURE_ID_ARG_NAME),
         l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
