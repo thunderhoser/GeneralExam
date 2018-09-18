@@ -14,7 +14,7 @@ dist/
 
 # Slurm scripts, figure-plotting scripts, and old code.
 slurm/
-figures/
+figures_untracked/
 old/
 
 # Code that I don't intend to commit.
