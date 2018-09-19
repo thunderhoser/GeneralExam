@@ -26,13 +26,13 @@ TIME_INTERVAL_SECONDS = 10800
 
 PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
-BORDER_COLOUR = numpy.array([0, 0, 0], dtype=float)
-DOTS_PER_INCH = 600
+BORDER_COLOUR = numpy.full(3, 0.)
+OUTPUT_RESOLUTION_DPI = 600
 
 WARM_FRONT_COLOUR_MAP_OBJECT = pyplot.cm.YlOrRd
 COLD_FRONT_COLOUR_MAP_OBJECT = pyplot.cm.YlGnBu
 BOTH_FRONTS_COLOUR_MAP_OBJECT = pyplot.cm.winter
-MAX_PERCENTILE_FOR_COLOUR_MAP = 99.
+MAX_COLOUR_PERCENTILE = 99.
 
 FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
@@ -96,8 +96,9 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_front_counts(num_fronts_matrix, colour_map_object, output_file_name,
-                       mask_matrix=None, add_colour_bar=True):
+def _plot_front_densities(
+        num_fronts_matrix, colour_map_object, annotation_string,
+        output_file_name, mask_matrix=None, add_colour_bar=True):
     """Plots number of fronts at each NARR grid cell.
 
     M = number of grid rows (unique y-coordinates at grid points)
@@ -106,6 +107,8 @@ def _plot_front_counts(num_fronts_matrix, colour_map_object, output_file_name,
     :param num_fronts_matrix: M-by-N numpy array with number of fronts at each
         grid cell.
     :param colour_map_object: Instance of `matplotlib.pyplot.cm`.
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
     :param output_file_name: Path to output (image) file.  The figure will be
         saved here.
     :param mask_matrix: M-by-N numpy array of integers.  If
@@ -136,7 +139,7 @@ def _plot_front_counts(num_fronts_matrix, colour_map_object, output_file_name,
 
     num_fronts_matrix = num_fronts_matrix.astype(float)
     max_colour_value = numpy.percentile(
-        num_fronts_matrix, MAX_PERCENTILE_FOR_COLOUR_MAP)
+        num_fronts_matrix, MAX_COLOUR_PERCENTILE)
 
     if mask_matrix is not None:
         num_fronts_matrix[mask_matrix == 0] = numpy.nan
@@ -153,8 +156,11 @@ def _plot_front_counts(num_fronts_matrix, colour_map_object, output_file_name,
             colour_max=max_colour_value, orientation='horizontal',
             extend_min=False, extend_max=True)
 
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
+
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
-    pyplot.savefig(output_file_name, dpi=DOTS_PER_INCH)
+    pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
     pyplot.close()
 
 
@@ -241,27 +247,30 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
     ml_utils.write_narr_mask(
         mask_matrix=mask_matrix, pickle_file_name=pickle_file_name)
 
-    cold_front_map_file_name = '{0:s}/num_cold_fronts.jpg'.format(
-        output_dir_name)
-    _plot_front_counts(
-        num_fronts_matrix=num_cold_fronts_matrix, mask_matrix=None,
-        colour_map_object=COLD_FRONT_COLOUR_MAP_OBJECT,
-        output_file_name=cold_front_map_file_name, add_colour_bar=True)
-
     warm_front_map_file_name = '{0:s}/num_warm_fronts.jpg'.format(
         output_dir_name)
-    _plot_front_counts(
-        num_fronts_matrix=num_warm_fronts_matrix, mask_matrix=None,
-        colour_map_object=WARM_FRONT_COLOUR_MAP_OBJECT,
-        output_file_name=warm_front_map_file_name, add_colour_bar=True)
+    _plot_front_densities(
+        num_fronts_matrix=num_warm_fronts_matrix,
+        colour_map_object=WARM_FRONT_COLOUR_MAP_OBJECT, annotation_string='(a)',
+        output_file_name=warm_front_map_file_name, mask_matrix=None,
+        add_colour_bar=True)
+
+    cold_front_map_file_name = '{0:s}/num_cold_fronts.jpg'.format(
+        output_dir_name)
+    _plot_front_densities(
+        num_fronts_matrix=num_cold_fronts_matrix,
+        colour_map_object=COLD_FRONT_COLOUR_MAP_OBJECT, annotation_string='(b)',
+        output_file_name=cold_front_map_file_name, mask_matrix=None,
+        add_colour_bar=True)
 
     both_fronts_map_file_name = '{0:s}/num_both_fronts.jpg'.format(
         output_dir_name)
     num_both_fronts_matrix[num_both_fronts_matrix > 1] = 1
-    _plot_front_counts(
-        num_fronts_matrix=num_both_fronts_matrix, mask_matrix=mask_matrix,
+    _plot_front_densities(
+        num_fronts_matrix=num_both_fronts_matrix,
         colour_map_object=BOTH_FRONTS_COLOUR_MAP_OBJECT,
-        output_file_name=both_fronts_map_file_name, add_colour_bar=False)
+        annotation_string='(c)', output_file_name=both_fronts_map_file_name,
+        mask_matrix=mask_matrix, add_colour_bar=False)
 
 
 if __name__ == '__main__':
