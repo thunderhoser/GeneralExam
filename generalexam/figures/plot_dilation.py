@@ -43,15 +43,18 @@ AFTER_FILE_NAME = (
     'dilation/after_dilation.jpg')
 CONCAT_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-    'dilation/before_and_after_dilation.jpg')
+    'dilation/dilation.jpg')
 
 
-def _plot_fronts(front_line_table, ternary_front_matrix, output_file_name):
+def _plot_fronts(front_line_table, ternary_front_matrix, annotation_string,
+                 output_file_name):
     """Plots one set of WPC fronts (either before or after dilation).
 
     :param front_line_table: See doc for `fronts_io.write_polylines_to_file`.
     :param ternary_front_matrix: numpy array created by
         `machine_learning_utils.dilate_ternary_target_images`.
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -109,6 +112,9 @@ def _plot_fronts(front_line_table, ternary_front_matrix, output_file_name):
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             line_width=FRONT_LINE_WIDTH)
 
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
+
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
@@ -139,17 +145,19 @@ def _run():
         num_rows_per_image=num_grid_rows,
         num_columns_per_image=num_grid_columns)
 
-    _plot_fronts(front_line_table=front_line_table,
-                 ternary_front_matrix=ternary_front_matrix,
-                 output_file_name=BEFORE_FILE_NAME)
+    _plot_fronts(
+        front_line_table=front_line_table,
+        ternary_front_matrix=ternary_front_matrix, annotation_string='(a)',
+        output_file_name=BEFORE_FILE_NAME)
 
     ternary_front_matrix = ml_utils.dilate_ternary_target_images(
         target_matrix=ternary_front_matrix,
         dilation_distance_metres=DILATION_DISTANCE_METRES, verbose=False)
 
-    _plot_fronts(front_line_table=front_line_table,
-                 ternary_front_matrix=ternary_front_matrix,
-                 output_file_name=AFTER_FILE_NAME)
+    _plot_fronts(
+        front_line_table=front_line_table,
+        ternary_front_matrix=ternary_front_matrix, annotation_string='(b)',
+        output_file_name=AFTER_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(

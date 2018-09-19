@@ -8,6 +8,7 @@ from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
@@ -131,7 +132,8 @@ def _get_front_lengths(front_line_table):
     return front_lengths_metres
 
 
-def _plot_histogram(num_fronts_by_bin, front_type_string, output_file_name):
+def _plot_histogram(num_fronts_by_bin, front_type_string, annotation_string,
+                    output_file_name):
     """Plots histogram of either cold-front or warm-front lengths.
 
     B = number of bins
@@ -140,6 +142,8 @@ def _plot_histogram(num_fronts_by_bin, front_type_string, output_file_name):
         bin.
     :param front_type_string: Front type (must be accepted by
         `front_utils.check_front_type`).
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -190,6 +194,9 @@ def _plot_histogram(num_fronts_by_bin, front_type_string, output_file_name):
     pyplot.xticks(x_tick_values, x_tick_labels)
     pyplot.xlabel('Front length (km)')
     pyplot.ylabel('Frequency')
+
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -265,9 +272,10 @@ def _run():
     print 'Sum of bin counts for warm fronts = {0:d}'.format(
         numpy.sum(num_warm_fronts_by_bin))
 
-    _plot_histogram(num_fronts_by_bin=num_warm_fronts_by_bin,
-                    front_type_string=front_utils.WARM_FRONT_STRING_ID,
-                    output_file_name=WARM_FRONT_FILE_NAME)
+    _plot_histogram(
+        num_fronts_by_bin=num_warm_fronts_by_bin,
+        front_type_string=front_utils.WARM_FRONT_STRING_ID,
+        annotation_string='(a)', output_file_name=WARM_FRONT_FILE_NAME)
 
     _, num_cold_fronts_by_bin = histograms.create_histogram(
         input_values=cold_front_lengths_metres, num_bins=NUM_BINS,
@@ -276,9 +284,10 @@ def _run():
     print 'Sum of bin counts for cold fronts = {0:d}'.format(
         numpy.sum(num_cold_fronts_by_bin))
 
-    _plot_histogram(num_fronts_by_bin=num_cold_fronts_by_bin,
-                    front_type_string=front_utils.COLD_FRONT_STRING_ID,
-                    output_file_name=COLD_FRONT_FILE_NAME)
+    _plot_histogram(
+        num_fronts_by_bin=num_cold_fronts_by_bin,
+        front_type_string=front_utils.COLD_FRONT_STRING_ID,
+        annotation_string='(b)', output_file_name=COLD_FRONT_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(

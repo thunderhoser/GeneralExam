@@ -45,13 +45,16 @@ CONCAT_FILE_NAME = (
     'determinization/determinization.jpg')
 
 
-def _plot_predictions(output_file_name, class_probability_matrix=None,
-                      predicted_label_matrix=None):
+def _plot_predictions(
+        output_file_name, annotation_string, class_probability_matrix=None,
+        predicted_label_matrix=None):
     """Plots predicted front locations or probabilities.
 
     :param output_file_name: Path to output file (figure will be saved here).
     :param class_probability_matrix: See doc for
         `machine_learning_utils.write_gridded_predictions`.
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
     :param predicted_label_matrix: See doc for `target_matrix` in
         `machine_learning_utils.write_gridded_predictions`.
     """
@@ -146,6 +149,9 @@ def _plot_predictions(output_file_name, class_probability_matrix=None,
             orientation='vertical', extend_min=True, extend_max=False,
             fraction_of_axis_length=AXIS_LENGTH_FRACTION_FOR_CBAR)
 
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
+
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
@@ -167,15 +173,17 @@ def _run():
     class_probability_matrix = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    _plot_predictions(output_file_name=BEFORE_FILE_NAME,
-                      class_probability_matrix=class_probability_matrix)
+    _plot_predictions(
+        output_file_name=BEFORE_FILE_NAME, annotation_string='(a)',
+        class_probability_matrix=class_probability_matrix)
 
     predicted_label_matrix = obe.determinize_probabilities(
         class_probability_matrix=class_probability_matrix,
         binarization_threshold=BINARIZATION_THRESHOLD)
 
-    _plot_predictions(output_file_name=AFTER_FILE_NAME,
-                      predicted_label_matrix=predicted_label_matrix)
+    _plot_predictions(
+        output_file_name=AFTER_FILE_NAME, annotation_string='(b)',
+        predicted_label_matrix=predicted_label_matrix)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(

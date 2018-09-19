@@ -30,11 +30,6 @@ MAX_LONGITUDE_DEG = 360.
 PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
-LABEL_COLOUR = numpy.full(3, 0.)
-LABEL_FONT_SIZE = 50
-LABEL_X_COORD_IMAGE_RELATIVE = 0.
-LABEL_Y_COORD_IMAGE_RELATIVE = 1.
-
 BORDER_COLOUR = numpy.full(3, 0.)
 OUTPUT_RESOLUTION_DPI = 600
 OUTPUT_SIZE_PIXELS = int(1e7)
@@ -56,26 +51,14 @@ CONCAT_FILE_NAME = (
     'object_conversion/object_conversion.jpg')
 
 
-def _label_figure(axes_object, label_string):
-    """Adds text label to figure (always in the top left).
-
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param label_string: Text label.
-    """
-
-    axes_object.text(
-        LABEL_X_COORD_IMAGE_RELATIVE, LABEL_Y_COORD_IMAGE_RELATIVE,
-        label_string, fontsize=LABEL_FONT_SIZE, color=LABEL_COLOUR,
-        horizontalalignment='right', verticalalignment='bottom',
-        transform=axes_object.transAxes)
-
-
-def _plot_predictions(predicted_label_matrix, label_string, output_file_name):
+def _plot_predictions(
+        predicted_label_matrix, annotation_string, output_file_name):
     """Plots predicted front locations.
 
     :param predicted_label_matrix: See doc for `target_matrix` in
         `machine_learning_utils.write_gridded_predictions`.
-    :param label_string: Text label (will be placed in top left of figure).
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -121,7 +104,8 @@ def _plot_predictions(predicted_label_matrix, label_string, output_file_name):
         first_row_in_narr_grid=narr_row_limits[0],
         first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
-    _label_figure(axes_object=axes_object, label_string=label_string)
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -149,7 +133,7 @@ def _run():
         binarization_threshold=BINARIZATION_THRESHOLD)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, label_string='(a)',
+        predicted_label_matrix=predicted_label_matrix, annotation_string='(a)',
         output_file_name=ALL_REGIONS_FILE_NAME)
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -175,7 +159,7 @@ def _run():
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, label_string='(b)',
+        predicted_label_matrix=predicted_label_matrix, annotation_string='(b)',
         output_file_name=LARGE_REGIONS_FILE_NAME)
 
     predicted_region_table = obe.skeletonize_frontal_regions(
@@ -186,7 +170,7 @@ def _run():
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, label_string='(c)',
+        predicted_label_matrix=predicted_label_matrix, annotation_string='(c)',
         output_file_name=ALL_SKELETONS_FILE_NAME)
 
     predicted_region_table = obe.find_main_skeletons(
@@ -201,7 +185,7 @@ def _run():
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, label_string='(d)',
+        predicted_label_matrix=predicted_label_matrix, annotation_string='(d)',
         output_file_name=MAIN_SKELETONS_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)

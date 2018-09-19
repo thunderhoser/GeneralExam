@@ -4,6 +4,7 @@ import numpy
 from keras import backend as K
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 
 LARGE_NUMBER = 1e10
@@ -23,7 +24,8 @@ COLOUR_MAP_OBJECT = pyplot.cm.binary
 LINE_WIDTH = 4
 LINE_COLOUR = numpy.full(3, 0.)
 OVERLAY_FONT_SIZE = 50
-TEXT_COLOUR = numpy.array([55, 126, 184], dtype=float) / 255
+MAIN_COLOUR = numpy.array([55, 126, 184], dtype=float) / 255
+ANNOTATION_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -76,7 +78,7 @@ def _plot_feature_map_before_conv():
         for j in range(feature_matrix.shape[0]):
             axes_object.text(
                 i, j, '{0:d}'.format(feature_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=TEXT_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
                 horizontalalignment='center', verticalalignment='center')
 
     polygon_x_coords = numpy.array([0, 3, 3, 0, 0], dtype=float) - 0.5
@@ -84,6 +86,10 @@ def _plot_feature_map_before_conv():
     axes_object.plot(
         polygon_x_coords, polygon_y_coords, color=LINE_COLOUR,
         linewidth=LINE_WIDTH)
+
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string='(a)',
+        font_colour=ANNOTATION_COLOUR)
 
     print 'Saving figure to: "{0:s}"...'.format(BEFORE_CONV_FILE_NAME)
     file_system_utils.mkdir_recursive_if_necessary(
@@ -122,8 +128,12 @@ def _plot_kernel():
         for j in range(kernel_matrix.shape[0]):
             axes_object.text(
                 i, j, '{0:.1f}'.format(kernel_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=TEXT_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
                 horizontalalignment='center', verticalalignment='center')
+
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string='(b)',
+        font_colour=ANNOTATION_COLOUR)
 
     print 'Saving figure to: "{0:s}"...'.format(KERNEL_FILE_NAME)
     file_system_utils.mkdir_recursive_if_necessary(file_name=KERNEL_FILE_NAME)
@@ -182,7 +192,7 @@ def _plot_feature_map_after_conv(feature_matrix):
         for j in range(feature_matrix.shape[0]):
             axes_object.text(
                 i, j, '{0:.1f}'.format(feature_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=TEXT_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
                 horizontalalignment='center', verticalalignment='center')
 
     polygon_x_coords = numpy.array([0, 2, 2, 0, 0], dtype=float) - 0.5
@@ -190,6 +200,10 @@ def _plot_feature_map_after_conv(feature_matrix):
     axes_object.plot(
         polygon_x_coords, polygon_y_coords, color=LINE_COLOUR,
         linewidth=LINE_WIDTH)
+
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string='(c)',
+        font_colour=ANNOTATION_COLOUR)
 
     print 'Saving figure to: "{0:s}"...'.format(AFTER_CONV_FILE_NAME)
     file_system_utils.mkdir_recursive_if_necessary(
@@ -245,8 +259,12 @@ def _plot_feature_map_after_pooling(feature_matrix):
         for j in range(feature_matrix.shape[0]):
             axes_object.text(
                 i, j, '{0:.1f}'.format(feature_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=TEXT_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
                 horizontalalignment='center', verticalalignment='center')
+
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string='(d)',
+        font_colour=ANNOTATION_COLOUR)
 
     print 'Saving figure to: "{0:s}"...'.format(AFTER_POOLING_FILE_NAME)
     file_system_utils.mkdir_recursive_if_necessary(

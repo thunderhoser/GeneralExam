@@ -30,10 +30,10 @@ WIND_FIELD_NAMES = [
 ]
 NARR_FIELD_NAMES = WIND_FIELD_NAMES + [processed_narr_io.WET_BULB_THETA_NAME]
 
-BOTTOM_LEFT_LATITUDE_DEG = 20.
-BOTTOM_LEFT_LONGITUDE_DEG = 220.
-TOP_RIGHT_LATITUDE_DEG = 80.
-TOP_RIGHT_LONGITUDE_DEG = 290.
+MIN_LATITUDE_DEG = 20.
+MIN_LONGITUDE_DEG = 220.
+MAX_LATITUDE_DEG = 80.
+MAX_LONGITUDE_DEG = 290.
 PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
@@ -79,44 +79,22 @@ MORPH_CHANGE_TIME_STRINGS = ['2017-12-06-12', '2017-12-06-15']
 INCONSISTENCY_TIME_STRINGS = ['2017-12-08-00', '2017-12-08-03', '2017-12-08-06']
 
 
-def _latlng_limits_to_rowcol_limits():
-    """Converts plotting limits from lat-long to row-column coordinates.
-
-    :return: row_limits: length-2 numpy array (first and last NARR rows).
-    :return: column_limits: length-2 numpy array (first and last NARR columns).
-    """
-
-    (grid_point_lat_matrix_deg, grid_point_lng_matrix_deg
-    ) = nwp_model_utils.get_latlng_grid_point_matrices(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
-
-    good_lat_matrix = numpy.logical_and(
-        grid_point_lat_matrix_deg >= BOTTOM_LEFT_LATITUDE_DEG,
-        grid_point_lat_matrix_deg <= TOP_RIGHT_LATITUDE_DEG)
-    good_lng_matrix = numpy.logical_and(
-        grid_point_lng_matrix_deg >= BOTTOM_LEFT_LONGITUDE_DEG,
-        grid_point_lng_matrix_deg <= TOP_RIGHT_LONGITUDE_DEG)
-    good_row_indices, good_column_indices = numpy.where(
-        numpy.logical_and(good_lat_matrix, good_lng_matrix)
-    )
-
-    row_limits = numpy.array(
-        [numpy.min(good_row_indices), numpy.max(good_row_indices)], dtype=int)
-    column_limits = numpy.array(
-        [numpy.min(good_column_indices), numpy.max(good_column_indices)],
-        dtype=int)
-
-    return row_limits, column_limits
-
-
-def _plot_one_time(valid_time_string):
+def _plot_one_time(valid_time_string, annotation_string):
     """Plots WPC fronts and NARR fields at one time.
 
     :param valid_time_string: Valid time ("yyyy-mm-dd-HH").
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
     :return: figure_file_name: Path to output file (where the figure was saved).
     """
 
-    narr_row_limits, narr_column_limits = _latlng_limits_to_rowcol_limits()
+    (narr_row_limits, narr_column_limits
+    ) = nwp_plotting.latlng_limits_to_rowcol_limits(
+        min_latitude_deg=MIN_LATITUDE_DEG, max_latitude_deg=MAX_LATITUDE_DEG,
+        min_longitude_deg=MIN_LONGITUDE_DEG,
+        max_longitude_deg=MAX_LONGITUDE_DEG,
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         valid_time_string, TIME_FORMAT)
     front_file_name = fronts_io.find_file_for_one_time(
@@ -239,6 +217,9 @@ def _plot_one_time(valid_time_string):
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
+
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME)
     figure_file_name = '{0:s}/fronts_{1:s}.jpg'.format(
@@ -259,9 +240,14 @@ def _run():
     This is effectively the main method.
     """
 
+    annotation_strings = ['(a)', '(b)', '(c)']
     these_file_names = []
-    for this_time_string in INCONSISTENCY_TIME_STRINGS:
-        these_file_names.append(_plot_one_time(this_time_string))
+
+    for k in range(len(INCONSISTENCY_TIME_STRINGS)):
+        these_file_names.append(
+            _plot_one_time(valid_time_string=INCONSISTENCY_TIME_STRINGS[k],
+                           annotation_string=annotation_strings[k])
+        )
         print '\n'
 
     this_concat_file_name = '{0:s}/temporal_inconsistencies.jpg'.format(
@@ -275,9 +261,14 @@ def _run():
 
     print SEPARATOR_STRING
 
+    these_time_strings = MORPH_CHANGE_TIME_STRINGS + SHORT_LINE_TIME_STRINGS
     these_file_names = []
-    for this_time_string in MORPH_CHANGE_TIME_STRINGS + SHORT_LINE_TIME_STRINGS:
-        these_file_names.append(_plot_one_time(this_time_string))
+
+    for k in range(len(these_time_strings)):
+        these_file_names.append(
+            _plot_one_time(valid_time_string=these_time_strings[k],
+                           annotation_string=annotation_strings[k])
+        )
         print '\n'
 
     this_concat_file_name = '{0:s}/short_lines_and_morph_changes.jpg'.format(
