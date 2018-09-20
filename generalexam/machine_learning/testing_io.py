@@ -72,6 +72,7 @@ def create_downsized_3d_examples(
     :param full_predictor_matrix: 1-by-M-by-N-by-C numpy array with predictor
         image.
     :param full_target_matrix: 1-by-M-by-N numpy array with target image.
+    :param target_time_unix_sec: Target time.
     :param top_narr_directory_name: Name of top-level directory with NARR data
         (one file for each variable, pressure level, and time step).
     :param top_frontal_grid_dir_name: Name of top-level directory with frontal

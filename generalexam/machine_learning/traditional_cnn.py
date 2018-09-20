@@ -543,7 +543,7 @@ def apply_model_to_3d_example(
 
         these_row_indices = numpy.full(len(these_column_indices), i, dtype=int)
 
-        if i == 0:
+        if full_predictor_matrix is None:
             (this_downsized_predictor_matrix,
              target_matrix[:, these_row_indices, these_column_indices],
              full_predictor_matrix, full_target_matrix
@@ -643,7 +643,7 @@ def apply_model_to_4d_example(
 
         these_row_indices = numpy.full(len(these_column_indices), i, dtype=int)
 
-        if i == 0:
+        if full_predictor_matrix is None:
             (this_downsized_predictor_matrix,
              target_matrix[:, these_row_indices, these_column_indices],
              full_predictor_matrix, full_target_matrix

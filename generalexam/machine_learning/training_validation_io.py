@@ -68,10 +68,6 @@ def find_input_files_for_3d_examples(
         at one time step.
     """
 
-    print first_target_time_unix_sec
-    print last_target_time_unix_sec
-    print NARR_TIME_INTERVAL_SECONDS
-
     target_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_target_time_unix_sec,
         end_time_unix_sec=last_target_time_unix_sec,
