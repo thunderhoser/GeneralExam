@@ -68,6 +68,10 @@ def find_input_files_for_3d_examples(
         at one time step.
     """
 
+    print first_target_time_unix_sec
+    print last_target_time_unix_sec
+    print NARR_TIME_INTERVAL_SECONDS
+
     target_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_target_time_unix_sec,
         end_time_unix_sec=last_target_time_unix_sec,
@@ -339,7 +343,7 @@ def downsized_3d_example_generator(
         downsized_predictor_matrix, target_values, _, _, _ = (
             ml_utils.downsize_grids_around_selected_points(
                 predictor_matrix=full_predictor_matrix,
-                target_matrix=full_target_matrix,
+                target_matrix=full_target_matrix,target_times_unix_sec
                 num_rows_in_half_window=num_rows_in_half_grid,
                 num_columns_in_half_window=num_columns_in_half_grid,
                 target_point_dict=sampled_target_point_dict,
