@@ -10,6 +10,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_io import fronts_io
+from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
@@ -194,6 +195,15 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
         this_prediction_dict = ml_utils.read_gridded_predictions(
             this_prediction_file_name)
+
+        class_probability_matrix = this_prediction_dict[
+            ml_utils.PROBABILITY_MATRIX_KEY]
+        class_probability_matrix[..., front_utils.NO_FRONT_INTEGER_ID][
+            numpy.isnan(
+                class_probability_matrix[..., front_utils.NO_FRONT_INTEGER_ID]
+            )
+        ] = 1.
+        class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
 
         print 'Determinizing probabilities...'
         this_predicted_label_matrix = object_eval.determinize_probabilities(
