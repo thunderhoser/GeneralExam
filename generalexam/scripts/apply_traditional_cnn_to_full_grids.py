@@ -227,6 +227,7 @@ def _run(model_file_name, first_time_string, last_time_string, randomize_times,
                 narr_mask_matrix=model_metadata_dict[
                     traditional_cnn.NARR_MASK_MATRIX_KEY])
 
+        this_target_matrix[this_target_matrix == -1] = 0
         print MINOR_SEPARATOR_STRING
 
         this_prediction_file_name = ml_utils.find_gridded_prediction_file(
