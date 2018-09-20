@@ -343,7 +343,7 @@ def downsized_3d_example_generator(
         downsized_predictor_matrix, target_values, _, _, _ = (
             ml_utils.downsize_grids_around_selected_points(
                 predictor_matrix=full_predictor_matrix,
-                target_matrix=full_target_matrix,target_times_unix_sec
+                target_matrix=full_target_matrix,
                 num_rows_in_half_window=num_rows_in_half_grid,
                 num_columns_in_half_window=num_columns_in_half_grid,
                 target_point_dict=sampled_target_point_dict,
