@@ -147,6 +147,8 @@ def _run(model_file_name, first_time_string, last_time_string, randomize_times,
         numpy.random.shuffle(target_times_unix_sec)
         target_times_unix_sec = target_times_unix_sec[:num_target_times]
 
+    print target_times_unix_sec
+
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = traditional_cnn.read_keras_model(model_file_name)
 

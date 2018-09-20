@@ -14,6 +14,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
@@ -162,6 +163,9 @@ def _plot_front_densities(
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
     pyplot.close()
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=output_file_name, output_file_name=output_file_name)
 
 
 def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
