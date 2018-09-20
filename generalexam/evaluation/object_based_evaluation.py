@@ -1194,3 +1194,37 @@ def read_evaluation_results(pickle_file_name):
         raise ValueError(error_string)
 
     return evaluation_dict
+
+
+def write_predictions_and_obs(
+        predicted_region_table, actual_polyline_table, pickle_file_name):
+    """Writes predicted and observed fronts to Pickle file.
+
+    :param predicted_region_table: pandas DataFrame created by
+        `convert_regions_rowcol_to_narr_xy`.
+    :param actual_polyline_table: pandas DataFrame created by
+        `project_polylines_latlng_to_narr`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(predicted_region_table, pickle_file_handle)
+    pickle.dump(actual_polyline_table, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_predictions_and_obs(pickle_file_name):
+    """Reads predicted and observed fronts from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: predicted_region_table: See doc for `write_predictions_and_obs`.
+    :return: actual_polyline_table: See doc for `write_predictions_and_obs`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    predicted_region_table = pickle.load(pickle_file_handle)
+    actual_polyline_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return predicted_region_table, actual_polyline_table
