@@ -21,12 +21,9 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-METRES_TO_KM = 1e-3
 METRES2_TO_KM2 = 1e-6
-NARR_TIME_INTERVAL_SECONDS = 10800
-
 INPUT_TIME_FORMAT = '%Y%m%d%H'
-TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
+NARR_TIME_INTERVAL_SECONDS = 10800
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
