@@ -15,6 +15,7 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
 
@@ -62,9 +63,8 @@ TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
 TOP_NARR_DIRECTORY_NAME = (
     '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
 TOP_PREDICTION_DIR_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/traditional_cnn_experiment05/'
-    'no-front-fraction=0.500_num-examples-per-batch=1024_weight-loss-function=0'
-    '/object_based_eval_sans-isotonic')
+    '/localdata/ryan.lagerquist/general_exam/simple_cnn_experiment_1000mb/'
+    'architecture-id=5_l2-weight=-1.000000000/gridded_predictions')
 
 OUTPUT_DIR_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
@@ -79,7 +79,7 @@ VALID_TIMES_HELP_STRING = (
     'observations will be plotted for each valid time, with the top (bottom) '
     'row of the figure showing the first (second) valid time.')
 
-DEFAULT_VALID_TIME_STRINGS = ['2017-01-01-15', '2017-01-02-15']
+DEFAULT_VALID_TIME_STRINGS = ['2017-01-01-06', '2017-01-01-09']
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -353,20 +353,27 @@ def _run(valid_time_strings):
         numpy.array(valid_time_strings),
         exact_dimensions=numpy.array([num_times]))
 
+    valid_times_unix_sec = numpy.array(
+        [time_conversion.string_to_unix_sec(s, TIME_FORMAT)
+         for s in valid_time_strings],
+        dtype=int)
+
     prediction_annotation_strings = ['(a)', '(c)']
     observation_annotation_strings = ['(b)', '(d)']
     figure_file_names = []
 
     for i in range(num_times):
-        this_prediction_file_name = (
-            '{0:s}/class_probability_matrix_{1:s}.p'
-        ).format(TOP_PREDICTION_DIR_NAME, valid_time_strings[i])
+        this_prediction_file_name = ml_utils.find_gridded_prediction_file(
+            directory_name=TOP_PREDICTION_DIR_NAME,
+            first_target_time_unix_sec=valid_times_unix_sec[i],
+            last_target_time_unix_sec=valid_times_unix_sec[i])
 
-        # TODO(thunderhoser): Replace with new prediction file.
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
-        this_file_handle = open(this_prediction_file_name, 'rb')
-        this_probability_matrix = pickle.load(this_file_handle)
-        this_file_handle.close()
+        this_prediction_dict = ml_utils.read_gridded_predictions(
+            this_prediction_file_name)
+        this_probability_matrix = this_prediction_dict[
+            ml_utils.PROBABILITY_MATRIX_KEY]
+        this_probability_matrix[numpy.isnan(this_probability_matrix)] = 0.
 
         this_figure_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])

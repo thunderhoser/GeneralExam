@@ -25,6 +25,8 @@ from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import a_star_search
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
+NEGATIVE_SKELETON_LINE_QUALITY = -1.
+
 ROW_INDICES_COLUMN = 'row_indices'
 COLUMN_INDICES_COLUMN = 'column_indices'
 X_COORDS_COLUMN = 'x_coords_metres'
@@ -138,30 +140,103 @@ def _one_binary_image_to_region(binary_image_matrix):
     return numpy.where(binary_image_matrix)
 
 
-def _get_length_of_bounding_box_diagonal(
-        row_indices_in_region, column_indices_in_region, x_grid_spacing_metres,
-        y_grid_spacing_metres):
-    """Returns length of diagonal across bounding box of region.
+def _find_endpoints_of_skeleton(binary_image_matrix):
+    """Finds endpoints of skeleton.
 
-    P = number of points in region
-
-    :param row_indices_in_region: length-P numpy array with row indices
-        (integers) of grid cells in region.
-    :param column_indices_in_region: Same as above, except for columns.
-    :param x_grid_spacing_metres: Spacing between adjacent grid points in the
-        same row (same y-coord, different x-coords).
-    :param y_grid_spacing_metres: Spacing between adjacent grid points in the
-        same column (same x-coord, different y-coords).
-    :return: diagonal_length_metres: As advertised.
+    :param binary_image_matrix: M-by-N numpy array of integers in 0...1.  If
+        binary_image_matrix[i, j] = 1, grid cell [i, j] is part of the skeleton.
+    :return: binary_endpoint_matrix: M-by-N numpy array of integers in 0...1.
+        If binary_endpoint_matrix[i, j] = 1, grid cell [i, j] is an endpoint of
+        the skeleton.
     """
 
-    x_distance_metres = x_grid_spacing_metres * (
-        numpy.max(column_indices_in_region) -
-        numpy.min(column_indices_in_region))
-    y_distance_metres = y_grid_spacing_metres * (
-        numpy.max(row_indices_in_region) - numpy.min(row_indices_in_region))
+    if numpy.sum(binary_image_matrix) == 1:
+        return copy.deepcopy(binary_image_matrix)
 
-    return numpy.sqrt(x_distance_metres ** 2 + y_distance_metres ** 2)
+    filtered_image_matrix = numpy.pad(
+        binary_image_matrix, pad_width=2, mode='constant', constant_values=0)
+
+    filtered_image_matrix = cv2.filter2D(
+        filtered_image_matrix.astype(numpy.uint8), -1,
+        KERNEL_MATRIX_FOR_ENDPOINT_FILTER)
+    filtered_image_matrix = filtered_image_matrix[2:-2, 2:-2]
+
+    endpoint_flag_matrix = numpy.full(binary_image_matrix.shape, 0, dtype=int)
+    endpoint_flag_matrix[
+        filtered_image_matrix == FILTERED_VALUE_AT_ENDPOINT] = 1
+    return endpoint_flag_matrix
+
+
+def _get_skeleton_line_endpoint_length(
+        row_indices, column_indices, x_grid_spacing_metres,
+        y_grid_spacing_metres):
+    """Returns end-to-end length of skeleton line.
+
+    :param row_indices: See doc for `_get_skeleton_line_quality`.
+    :param column_indices: Same.
+    :param x_grid_spacing_metres: Same.
+    :param y_grid_spacing_metres: Same.
+    :return: endpoint_length_metres: End-to-end length.
+    """
+
+    x_length_metres = x_grid_spacing_metres * (
+        column_indices[-1] - column_indices[0])
+    y_length_metres = y_grid_spacing_metres * (row_indices[-1] - row_indices[0])
+    return numpy.sqrt(x_length_metres ** 2 + y_length_metres ** 2)
+
+
+def _get_skeleton_line_arc_length(
+        row_indices, column_indices, x_grid_spacing_metres,
+        y_grid_spacing_metres):
+    """Returns arc length of skeleton line.
+
+    :param row_indices: See doc for `_get_skeleton_line_quality`.
+    :param column_indices: Same.
+    :param x_grid_spacing_metres: Same.
+    :param y_grid_spacing_metres: Same.
+    :return: arc_length_metres: Arc length.
+    """
+
+    x_lengths_metres = x_grid_spacing_metres * numpy.diff(column_indices)
+    y_lengths_metres = y_grid_spacing_metres * numpy.diff(row_indices)
+    return numpy.sum(numpy.sqrt(x_lengths_metres ** 2 + y_lengths_metres ** 2))
+
+
+def _get_skeleton_line_quality(
+        row_indices, column_indices, x_grid_spacing_metres,
+        y_grid_spacing_metres, min_endpoint_length_metres):
+    """Returns "quality" of a skeleton line.
+
+    "Quality" is defined as end-to-end length over sinuosity.
+
+    P = number of points in skeleton line
+
+    :param row_indices: length-P numpy array with rows of grid points along
+        skeleton line.
+    :param column_indices: length-P numpy array with columns of grid points
+        along skeleton line.
+    :param x_grid_spacing_metres: Spacing between grid points in adjacent
+        columns.
+    :param y_grid_spacing_metres: Spacing between grid points in adjacent rows.
+    :param min_endpoint_length_metres: Minimum skeleton-line length from
+        endpoint to endpoint.  Shorter lines will be given negative quality.
+    :return: quality: Quality, defined as end-to-end length over sinuosity.
+    """
+
+    endpoint_length_metres = _get_skeleton_line_endpoint_length(
+        row_indices=row_indices, column_indices=column_indices,
+        x_grid_spacing_metres=x_grid_spacing_metres,
+        y_grid_spacing_metres=y_grid_spacing_metres)
+    if endpoint_length_metres < min_endpoint_length_metres:
+        return NEGATIVE_SKELETON_LINE_QUALITY
+
+    arc_length_metres = _get_skeleton_line_arc_length(
+        row_indices=row_indices, column_indices=column_indices,
+        x_grid_spacing_metres=x_grid_spacing_metres,
+        y_grid_spacing_metres=y_grid_spacing_metres)
+
+    sinuosity = arc_length_metres / endpoint_length_metres
+    return endpoint_length_metres / sinuosity
 
 
 def _get_distance_between_fronts(
@@ -195,33 +270,6 @@ def _get_distance_between_fronts(
             (first_y_coords_metres[i] - second_y_coords_metres) ** 2))
 
     return numpy.median(shortest_distances_metres)
-
-
-def _find_endpoints_of_skeleton(binary_image_matrix):
-    """Finds endpoints of skeleton.
-
-    :param binary_image_matrix: M-by-N numpy array of integers in 0...1.  If
-        binary_image_matrix[i, j] = 1, grid cell [i, j] is part of the skeleton.
-    :return: binary_endpoint_matrix: M-by-N numpy array of integers in 0...1.
-        If binary_endpoint_matrix[i, j] = 1, grid cell [i, j] is an endpoint of
-        the skeleton.
-    """
-
-    if numpy.sum(binary_image_matrix) == 1:
-        return copy.deepcopy(binary_image_matrix)
-
-    filtered_image_matrix = numpy.pad(
-        binary_image_matrix, pad_width=2, mode='constant', constant_values=0)
-
-    filtered_image_matrix = cv2.filter2D(
-        filtered_image_matrix.astype(numpy.uint8), -1,
-        KERNEL_MATRIX_FOR_ENDPOINT_FILTER)
-    filtered_image_matrix = filtered_image_matrix[2:-2, 2:-2]
-
-    endpoint_flag_matrix = numpy.full(binary_image_matrix.shape, 0, dtype=int)
-    endpoint_flag_matrix[
-        filtered_image_matrix == FILTERED_VALUE_AT_ENDPOINT] = 1
-    return endpoint_flag_matrix
 
 
 def determinize_probabilities(class_probability_matrix, binarization_threshold):
@@ -386,6 +434,42 @@ def regions_to_images(predicted_region_table, num_grid_rows, num_grid_columns):
     return predicted_label_matrix
 
 
+def discard_regions_with_small_area(
+        predicted_region_table, x_grid_spacing_metres, y_grid_spacing_metres,
+        min_area_metres2=DEFAULT_MIN_REGION_AREA_METRES2):
+    """Throws out frontal regions with small area.
+
+    :param predicted_region_table: See documentation for `images_to_regions`.
+    :param x_grid_spacing_metres: Spacing between adjacent grid points in the
+        same row (same y-coord, different x-coords).
+    :param y_grid_spacing_metres: Spacing between adjacent grid points in the
+        same column (same x-coord, different y-coords).
+    :param min_area_metres2: Minimum area.  Any region with a smaller area will
+        be thrown out.
+    :return: predicted_region_table: Same as input, but maybe with fewer rows.
+    """
+
+    error_checking.assert_is_greater(min_area_metres2, 0.)
+    error_checking.assert_is_greater(x_grid_spacing_metres, 0.)
+    error_checking.assert_is_greater(y_grid_spacing_metres, 0.)
+
+    grid_cell_area_metres2 = x_grid_spacing_metres * y_grid_spacing_metres
+    min_grid_cells_in_region = int(numpy.round(
+        min_area_metres2 / grid_cell_area_metres2))
+
+    num_regions = len(predicted_region_table.index)
+    rows_to_drop = []
+
+    for i in range(num_regions):
+        this_num_grid_cells = len(
+            predicted_region_table[ROW_INDICES_COLUMN].values[i])
+        if this_num_grid_cells < min_grid_cells_in_region:
+            rows_to_drop.append(i)
+
+    return predicted_region_table.drop(
+        predicted_region_table.index[rows_to_drop], axis=0, inplace=False)
+
+
 def skeletonize_frontal_regions(
         predicted_region_table, num_grid_rows, num_grid_columns):
     """Skeletonizes ("thins out") frontal regions.
@@ -427,39 +511,34 @@ def skeletonize_frontal_regions(
 def find_main_skeletons(
         predicted_region_table, class_probability_matrix, image_times_unix_sec,
         x_grid_spacing_metres, y_grid_spacing_metres,
-        min_length_metres=DEFAULT_MIN_MAIN_SKELETON_LENGTH_METRES):
+        min_endpoint_length_metres):
     """Converts each (already skeletonized) frontal region to its main skeleton.
 
-    The "main skeleton" is a simple polyline***, whereas the original skeleton
-    is usually a complex polyline (with > 2 endpoints).  In other words, this
-    method removes "branches" from the original skeleton line, leaving only the
-    main skeleton line.
-
-    *** This method represents each skeleton line as a polygon with
-        one-grid-cell width, rather than an explicit polyline.
+    The "main skeleton" is the simple polyline with the greatest
+    length * sinuosity^-1, whereas the original skeleton is usually a complex
+    polyline (with > 2 endpoints).  In other words, this method removes
+    "branches" from the original skeleton line.
 
     :param predicted_region_table: See documentation for `images_to_regions`.
     :param class_probability_matrix: E-by-M-by-N-by-K numpy array of floats.
         class_probability_matrix[i, j, k, m] is the predicted probability that
         pixel [j, k] in the [i]th image belongs to the [m]th class.
     :param image_times_unix_sec: length-E numpy array of valid times.
-    :param x_grid_spacing_metres: See documentation for
-        `_get_length_of_bounding_box_diagonal`.
-    :param y_grid_spacing_metres: See documentation for
-        `_get_length_of_bounding_box_diagonal`.
-    :param min_length_metres: Minimum length of skeleton line (across bounding
-        box of diagonal).
+    :param x_grid_spacing_metres: Spacing between grid points in adjacent
+        columns.
+    :param y_grid_spacing_metres: Spacing between grid points in adjacent rows.
+    :param min_endpoint_length_metres: Minimum skeleton-line length from
+        endpoint to endpoint.  Shorter lines will be thrown out.
     :return: predicted_region_table: Same as input, except that each region has
         been reduced to its main skeleton line.
     """
 
     _check_prediction_images(class_probability_matrix, probabilistic=True)
-    num_images = class_probability_matrix.shape[0]
     error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
+
+    num_images = class_probability_matrix.shape[0]
     error_checking.assert_is_numpy_array(
         image_times_unix_sec, exact_dimensions=numpy.array([num_images]))
-
-    error_checking.assert_is_greater(min_length_metres, 0.)
 
     num_grid_rows = class_probability_matrix.shape[1]
     num_grid_columns = class_probability_matrix.shape[2]
@@ -467,14 +546,8 @@ def find_main_skeletons(
     rows_to_drop = []
 
     for i in range(num_regions):
-        print 'Finding main skeleton for {0:d}th of {1:d} regions...'.format(
+        print 'Finding main skeleton for region {0:d} of {1:d}...'.format(
             i + 1, num_regions)
-
-        this_image_index = numpy.where(
-            image_times_unix_sec ==
-            predicted_region_table[front_utils.TIME_COLUMN].values[i])[0]
-        this_front_type_integer = front_utils.string_id_to_integer(
-            predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values[i])
 
         this_binary_region_matrix = _one_region_to_binary_image(
             row_indices_in_region=
@@ -489,143 +562,51 @@ def find_main_skeletons(
             this_binary_endpoint_matrix == 1)
         this_num_endpoints = len(these_endpoint_rows)
 
-        if this_num_endpoints == 1:
-            these_main_skeleton_rows = numpy.array([these_endpoint_rows[0]])
-            these_main_skeleton_columns = numpy.array(
-                [these_endpoint_columns[0]])
-
-            this_max_mean_probability = class_probability_matrix[
-                this_image_index, these_main_skeleton_rows[0],
-                these_main_skeleton_columns[0], this_front_type_integer]
-
-        else:
-            this_max_mean_probability = 0.
-            these_main_skeleton_rows = numpy.array([], dtype=int)
-            these_main_skeleton_columns = numpy.array([], dtype=int)
+        this_max_quality = 0.
+        this_main_skeleton_rows = None
+        this_main_skeleton_columns = None
 
         for j in range(this_num_endpoints):
             for k in range(j + 1, this_num_endpoints):
                 this_grid_search_object = a_star_search.GridSearch(
                     binary_region_matrix=this_binary_region_matrix)
 
-                these_skeleton_rows, these_skeleton_columns = (
-                    a_star_search.run_a_star(
-                        grid_search_object=this_grid_search_object,
-                        start_row=these_endpoint_rows[j],
-                        start_column=these_endpoint_columns[j],
-                        end_row=these_endpoint_rows[k],
-                        end_column=these_endpoint_columns[k]))
+                (this_skeleton_rows, this_skeleton_columns
+                ) = a_star_search.run_a_star(
+                    grid_search_object=this_grid_search_object,
+                    start_row=these_endpoint_rows[j],
+                    start_column=these_endpoint_columns[j],
+                    end_row=these_endpoint_rows[k],
+                    end_column=these_endpoint_columns[k])
 
-                if these_skeleton_rows is None:
+                if this_skeleton_rows is None:
                     continue
 
-                this_length_metres = _get_length_of_bounding_box_diagonal(
-                    row_indices_in_region=these_skeleton_rows,
-                    column_indices_in_region=these_skeleton_columns,
+                this_quality = _get_skeleton_line_quality(
+                    row_indices=this_skeleton_rows,
+                    column_indices=this_skeleton_columns,
                     x_grid_spacing_metres=x_grid_spacing_metres,
-                    y_grid_spacing_metres=y_grid_spacing_metres)
-                if this_length_metres < min_length_metres:
+                    y_grid_spacing_metres=y_grid_spacing_metres,
+                    min_endpoint_length_metres=min_endpoint_length_metres)
+
+                if this_quality <= this_max_quality:
                     continue
 
-                this_mean_probability = numpy.mean(
-                    class_probability_matrix[
-                        this_image_index, these_skeleton_rows,
-                        these_skeleton_columns, this_front_type_integer])
-                if this_mean_probability <= this_max_mean_probability:
-                    continue
-
-                this_max_mean_probability = this_mean_probability + 0.
-                these_main_skeleton_rows = these_skeleton_rows + 0
-                these_main_skeleton_columns = these_skeleton_columns + 0
+                this_max_quality = this_quality + 0.
+                this_main_skeleton_rows = this_skeleton_rows + 0
+                this_main_skeleton_columns = this_skeleton_columns + 0
 
         predicted_region_table[ROW_INDICES_COLUMN].values[
-            i] = these_main_skeleton_rows
+            i] = this_main_skeleton_rows
         predicted_region_table[COLUMN_INDICES_COLUMN].values[
-            i] = these_main_skeleton_columns
-        if not len(these_main_skeleton_rows):
+            i] = this_main_skeleton_columns
+        if this_main_skeleton_rows is None:
             rows_to_drop.append(i)
 
-    if not len(rows_to_drop):
+    if len(rows_to_drop) == 0:
         return predicted_region_table
 
-    rows_to_drop = numpy.array(rows_to_drop)
-    return predicted_region_table.drop(
-        predicted_region_table.index[rows_to_drop], axis=0, inplace=False)
-
-
-def discard_regions_with_small_length(
-        predicted_region_table, x_grid_spacing_metres, y_grid_spacing_metres,
-        min_bounding_box_diag_length_metres=DEFAULT_MIN_REGION_LENGTH_METRES):
-    """Throws out frontal regions with small length.
-
-    The "length" of a region is defined as the length of the diagonal through
-    its bounding box.
-
-    :param predicted_region_table: See documentation for `images_to_regions`.
-    :param x_grid_spacing_metres: Spacing between adjacent grid points in the
-        same row (same y-coord, different x-coords).
-    :param y_grid_spacing_metres: Spacing between adjacent grid points in the
-        same column (same x-coord, different y-coords).
-    :param min_bounding_box_diag_length_metres: Minimum length.  Any region with
-        a smaller length will be thrown out.
-    :return: predicted_region_table: Same as input, but maybe with fewer rows.
-    """
-
-    error_checking.assert_is_greater(x_grid_spacing_metres, 0.)
-    error_checking.assert_is_greater(y_grid_spacing_metres, 0.)
-    error_checking.assert_is_greater(min_bounding_box_diag_length_metres, 0.)
-
-    num_regions = len(predicted_region_table.index)
-    rows_to_drop = []
-
-    for i in range(num_regions):
-        this_length_metres = _get_length_of_bounding_box_diagonal(
-            row_indices_in_region=
-            predicted_region_table[ROW_INDICES_COLUMN].values[i],
-            column_indices_in_region=
-            predicted_region_table[COLUMN_INDICES_COLUMN].values[i],
-            x_grid_spacing_metres=x_grid_spacing_metres,
-            y_grid_spacing_metres=y_grid_spacing_metres)
-
-        if this_length_metres < min_bounding_box_diag_length_metres:
-            rows_to_drop.append(i)
-
-    return predicted_region_table.drop(
-        predicted_region_table.index[rows_to_drop], axis=0, inplace=False)
-
-
-def discard_regions_with_small_area(
-        predicted_region_table, x_grid_spacing_metres, y_grid_spacing_metres,
-        min_area_metres2=DEFAULT_MIN_REGION_AREA_METRES2):
-    """Throws out frontal regions with small area.
-
-    :param predicted_region_table: See documentation for `images_to_regions`.
-    :param x_grid_spacing_metres: Spacing between adjacent grid points in the
-        same row (same y-coord, different x-coords).
-    :param y_grid_spacing_metres: Spacing between adjacent grid points in the
-        same column (same x-coord, different y-coords).
-    :param min_area_metres2: Minimum area.  Any region with a smaller area will
-        be thrown out.
-    :return: predicted_region_table: Same as input, but maybe with fewer rows.
-    """
-
-    error_checking.assert_is_greater(min_area_metres2, 0.)
-    error_checking.assert_is_greater(x_grid_spacing_metres, 0.)
-    error_checking.assert_is_greater(y_grid_spacing_metres, 0.)
-
-    grid_cell_area_metres2 = x_grid_spacing_metres * y_grid_spacing_metres
-    min_grid_cells_in_region = int(numpy.round(
-        min_area_metres2 / grid_cell_area_metres2))
-
-    num_regions = len(predicted_region_table.index)
-    rows_to_drop = []
-
-    for i in range(num_regions):
-        this_num_grid_cells = len(
-            predicted_region_table[ROW_INDICES_COLUMN].values[i])
-        if this_num_grid_cells < min_grid_cells_in_region:
-            rows_to_drop.append(i)
-
+    rows_to_drop = numpy.array(rows_to_drop, dtype=int)
     return predicted_region_table.drop(
         predicted_region_table.index[rows_to_drop], axis=0, inplace=False)
 
