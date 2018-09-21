@@ -32,7 +32,7 @@ LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_TIMES_ARG_NAME = 'num_times'
 BINARIZATION_THRESHOLD_ARG_NAME = 'binarization_threshold'
 MIN_AREA_ARG_NAME = 'min_object_area_metres2'
-MIN_LENGTH_ARG_NAME = 'min_object_length_metres'
+MIN_LENGTH_ARG_NAME = 'min_endpoint_length_metres'
 FRONT_LINE_DIR_ARG_NAME = 'input_front_line_dir_name'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
@@ -59,8 +59,8 @@ MIN_AREA_HELP_STRING = (
     'Smaller regions will be thrown out.')
 
 MIN_LENGTH_HELP_STRING = (
-    'Minimum length for skeleton line (predicted frontal polyline).  Shorter '
-    'lines will be thrown out.')
+    'Minimum end-to-end length for skeleton line (predicted frontal polyline).'
+    '  Shorter lines will be thrown out.')
 
 FRONT_LINE_DIR_HELP_STRING = (
     'Name of top-level directory with actual fronts (polylines).  Files therein'
@@ -149,7 +149,7 @@ def _read_actual_polylines(
 
 def _run(input_prediction_dir_name, first_time_string, last_time_string,
          num_times, binarization_threshold, min_object_area_metres2,
-         min_object_length_metres, top_front_line_dir_name, output_file_name):
+         min_endpoint_length_metres, top_front_line_dir_name, output_file_name):
     """Converts gridded CNN predictions to objects.
 
     This is effectively the main method.
@@ -160,7 +160,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
     :param num_times: Same.
     :param binarization_threshold: Same.
     :param min_object_area_metres2: Same.
-    :param min_object_length_metres: Same.
+    :param min_endpoint_length_metres: Same.
     :param top_front_line_dir_name: Same.
     :param output_file_name: Same.
     """
@@ -258,7 +258,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
             image_times_unix_sec=possible_times_unix_sec[[i]],
             x_grid_spacing_metres=grid_spacing_metres,
             y_grid_spacing_metres=grid_spacing_metres,
-            min_length_metres=min_object_length_metres)
+            min_endpoint_length_metres=min_endpoint_length_metres)
 
         if num_times_done != num_times:
             print '\n'
@@ -308,7 +308,7 @@ if __name__ == '__main__':
         binarization_threshold=getattr(
             INPUT_ARG_OBJECT, BINARIZATION_THRESHOLD_ARG_NAME),
         min_object_area_metres2=getattr(INPUT_ARG_OBJECT, MIN_AREA_ARG_NAME),
-        min_object_length_metres=getattr(INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME),
+        min_endpoint_length_metres=getattr(INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME),
         top_front_line_dir_name=getattr(
             INPUT_ARG_OBJECT, FRONT_LINE_DIR_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
