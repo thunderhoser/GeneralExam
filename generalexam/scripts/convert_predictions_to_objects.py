@@ -111,11 +111,14 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _read_actual_polylines(top_input_dir_name, unix_times_sec):
+def _read_actual_polylines(
+        top_input_dir_name, unix_times_sec, narr_mask_matrix):
     """Reads actual fronts (polylines) for each time step.
 
     :param top_input_dir_name: See documentation at top of file.
     :param unix_times_sec: 1-D numpy array of valid times.
+    :param narr_mask_matrix: See doc for
+        `front_utils.remove_polylines_in_masked_area`.
     :return: polyline_table: See doc for `fronts_io.write_polylines_to_file`.
     """
 
@@ -136,7 +139,12 @@ def _read_actual_polylines(top_input_dir_name, unix_times_sec):
         list_of_polyline_tables[-1] = list_of_polyline_tables[-1].align(
             list_of_polyline_tables[0], axis=1)[0]
 
-    return pandas.concat(list_of_polyline_tables, axis=0, ignore_index=True)
+    polyline_table = pandas.concat(
+        list_of_polyline_tables, axis=0, ignore_index=True)
+
+    print 'Removing fronts in masked area...'
+    return front_utils.remove_polylines_in_masked_area(
+        polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix)
 
 
 def _run(input_prediction_dir_name, first_time_string, last_time_string,
@@ -172,10 +180,11 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
 
     numpy.random.shuffle(possible_times_unix_sec)
-    unix_times_sec = []
 
+    unix_times_sec = []
     list_of_predicted_region_tables = []
     num_times_done = 0
+    narr_mask_matrix = None
 
     for i in range(len(possible_times_unix_sec)):
         if num_times_done == num_times:
@@ -198,6 +207,13 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
         class_probability_matrix = this_prediction_dict[
             ml_utils.PROBABILITY_MATRIX_KEY]
+
+        if narr_mask_matrix is None:
+            narr_mask_matrix = numpy.invert(numpy.isnan(
+                class_probability_matrix[0, ..., 0]
+            )).astype(int)
+
+        # TODO(thunderhoser): This should be a separate method.
         class_probability_matrix[..., front_utils.NO_FRONT_INTEGER_ID][
             numpy.isnan(
                 class_probability_matrix[..., front_utils.NO_FRONT_INTEGER_ID]
@@ -266,7 +282,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
     actual_polyline_table = _read_actual_polylines(
         top_input_dir_name=top_front_line_dir_name,
-        unix_times_sec=unix_times_sec)
+        unix_times_sec=unix_times_sec, narr_mask_matrix=narr_mask_matrix)
     print SEPARATOR_STRING
 
     actual_polyline_table = object_eval.project_polylines_latlng_to_narr(

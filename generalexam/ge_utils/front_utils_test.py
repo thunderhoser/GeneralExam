@@ -3,6 +3,8 @@
 import copy
 import unittest
 import numpy
+import pandas
+from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_utils import front_utils
 
 TOLERANCE = 1e-6
@@ -160,6 +162,92 @@ TERNARY_NARR_MATRIX_DILATED = numpy.array(
      [0, 0, 2, 2, 1, 1, 1, 2, 2, 2],
      [0, 0, 0, 1, 1, 1, 2, 2, 2, 2],
      [0, 0, 0, 0, 0, 2, 2, 2, 2, 2]], dtype=int)
+
+# The following constants are used to test remove_polylines_in_masked_area.
+THESE_STRINGS = [
+    front_utils.WARM_FRONT_STRING_ID, front_utils.COLD_FRONT_STRING_ID,
+    front_utils.COLD_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID
+]
+THESE_TIMES_UNIX_SEC = numpy.array([0, 1, 2, 3], dtype=int)
+
+FIRST_LATITUDES_DEG = numpy.array([50., 80.])
+SECOND_LATITUDES_DEG = numpy.array([51.1, 53.5])
+THIRD_LATITUDES_DEG = numpy.array([51.1, 53.5])
+FOURTH_LATITUDES_DEG = numpy.array([77, 82.5])
+
+FIRST_LONGITUDES_DEG = numpy.array([246., 246.])
+SECOND_LONGITUDES_DEG = numpy.array([246., 246.5])
+THIRD_LONGITUDES_DEG = numpy.array([246., 340.])
+FOURTH_LONGITUDES_DEG = numpy.array([246., 246.5])
+
+THIS_DICT = {
+    front_utils.LATITUDES_COLUMN:
+        [FIRST_LATITUDES_DEG, SECOND_LATITUDES_DEG, THIRD_LATITUDES_DEG,
+         FOURTH_LATITUDES_DEG],
+    front_utils.LONGITUDES_COLUMN:
+        [FIRST_LONGITUDES_DEG, SECOND_LONGITUDES_DEG, THIRD_LONGITUDES_DEG,
+         FOURTH_LONGITUDES_DEG],
+    front_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    front_utils.FRONT_TYPE_COLUMN: THESE_STRINGS
+}
+POLYLINE_TABLE_BEFORE_MASK = pandas.DataFrame.from_dict(THIS_DICT)
+
+(THIS_LATITUDE_MATRIX_DEG, THIS_LONGITUDE_MATRIX_DEG
+) = nwp_model_utils.get_latlng_grid_point_matrices(
+    model_name=nwp_model_utils.NARR_MODEL_NAME)
+
+THIS_LATITUDE_FLAG_MATRIX = numpy.logical_and(
+    THIS_LATITUDE_MATRIX_DEG >= 30., THIS_LATITUDE_MATRIX_DEG <= 75.)
+THIS_LONGITUDE_FLAG_MATRIX = numpy.logical_and(
+    THIS_LONGITUDE_MATRIX_DEG >= 220., THIS_LONGITUDE_MATRIX_DEG <= 320.)
+NARR_MASK_MATRIX = numpy.logical_and(
+    THIS_LATITUDE_FLAG_MATRIX, THIS_LONGITUDE_FLAG_MATRIX
+).astype(int)
+
+THIS_DICT = {
+    front_utils.LATITUDES_COLUMN:
+        [FIRST_LATITUDES_DEG, SECOND_LATITUDES_DEG, THIRD_LATITUDES_DEG],
+    front_utils.LONGITUDES_COLUMN:
+        [FIRST_LONGITUDES_DEG, SECOND_LONGITUDES_DEG, THIRD_LONGITUDES_DEG],
+    front_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC[:-1],
+    front_utils.FRONT_TYPE_COLUMN: THESE_STRINGS[:-1]
+}
+POLYLINE_TABLE_AFTER_MASK = pandas.DataFrame.from_dict(THIS_DICT)
+
+
+def _compare_polyline_tables(first_polyline_table, second_polyline_table):
+    """Compares two tables (pandas DataFrames) with fronts as polylines.
+
+    :param first_polyline_table: First table.
+    :param second_polyline_table: Second table.
+    :return: are_tables_equal: Boolean flag.
+    """
+
+    first_columns = list(first_polyline_table)
+    second_columns = list(second_polyline_table)
+    if set(first_columns) != set(second_columns):
+        return False
+
+    first_num_fronts = len(first_polyline_table.index)
+    second_num_fronts = len(second_polyline_table.index)
+    if first_num_fronts != second_num_fronts:
+        return False
+
+    for this_column in first_columns:
+        if this_column in [front_utils.LATITUDES_COLUMN,
+                           front_utils.LONGITUDES_COLUMN]:
+            for i in range(first_num_fronts):
+                if not numpy.allclose(
+                        first_polyline_table[this_column].values[i],
+                        second_polyline_table[this_column].values[i],
+                        atol=TOLERANCE):
+                    return False
+        else:
+            if not numpy.array_equal(first_polyline_table[this_column].values,
+                                     second_polyline_table[this_column].values):
+                return False
+
+    return True
 
 
 class FrontUtilsTests(unittest.TestCase):
@@ -355,6 +443,15 @@ class FrontUtilsTests(unittest.TestCase):
                     this_frontal_region_dict[
                         front_utils.COLUMN_INDICES_BY_REGION_KEY][i],
                     COLD_FRONT_COLUMN_INDICES))
+
+    def test_remove_polylines_in_masked_area(self):
+        """Ensures correct output from remove_polylines_in_masked_area."""
+
+        this_polyline_table = front_utils.remove_polylines_in_masked_area(
+            polyline_table=copy.deepcopy(POLYLINE_TABLE_BEFORE_MASK),
+            narr_mask_matrix=NARR_MASK_MATRIX)
+        self.assertTrue(_compare_polyline_tables(
+            POLYLINE_TABLE_AFTER_MASK, this_polyline_table))
 
 
 if __name__ == '__main__':

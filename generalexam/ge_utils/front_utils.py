@@ -750,3 +750,58 @@ def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
         COLD_FRONT_COLUMN_INDICES_COLUMN: cold_front_column_indices_by_time
     }
     return pandas.DataFrame.from_dict(frontal_grid_dict)
+
+
+def remove_polylines_in_masked_area(polyline_table, narr_mask_matrix):
+    """Removes any polyline that touches only masked grid cells.
+
+    M = number of rows in NARR grid
+    N = number of columns in NARR grid
+
+    :param polyline_table: See documentation for
+        `fronts_io.write_polylines_to_file`.  Each row is one front.
+    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
+        narr_mask_matrix[i, j] = 0, grid cell [i, j] is masked.
+    :return: polyline_table: Same as input, except that some rows may have been
+        removed.
+    """
+
+    error_checking.assert_is_integer_numpy_array(narr_mask_matrix)
+    error_checking.assert_is_geq_numpy_array(narr_mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(narr_mask_matrix, 1)
+
+    num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+    expected_dimensions = numpy.array(
+        [num_grid_rows, num_grid_columns], dtype=int)
+    error_checking.assert_is_numpy_array(
+        narr_mask_matrix, exact_dimensions=expected_dimensions)
+
+    num_fronts = len(polyline_table.index)
+    indices_to_drop = []
+
+    for i in range(num_fronts):
+        skip_this_front = _is_polyline_closed(
+            latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
+            longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i])
+
+        if skip_this_front:
+            indices_to_drop.append(i)
+            continue
+
+        this_binary_matrix = polyline_to_narr_grid(
+            polyline_latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
+            polyline_longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i],
+            dilation_distance_metres=1.)
+
+        if not numpy.any(
+                numpy.logical_and(
+                    this_binary_matrix == 1, narr_mask_matrix == 1)):
+            indices_to_drop.append(i)
+
+    if len(indices_to_drop) == 0:
+        return polyline_table
+
+    indices_to_drop = numpy.array(indices_to_drop, dtype=int)
+    return polyline_table.drop(
+        polyline_table.index[indices_to_drop], axis=0, inplace=False)
