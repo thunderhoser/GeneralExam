@@ -781,6 +781,12 @@ def remove_polylines_in_masked_area(polyline_table, narr_mask_matrix):
     indices_to_drop = []
 
     for i in range(num_fronts):
+        if numpy.mod(i, 25) == 0:
+            print (
+                'Have checked {0:d} of {1:d} polylines; have removed {2:d} of '
+                '{0:d} because they exist only in masked area...'
+            ).format(i, num_fronts, len(indices_to_drop))
+
         skip_this_front = _is_polyline_closed(
             latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
             longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i])
