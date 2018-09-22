@@ -9,12 +9,12 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import nwp_plotting
-from generalexam.evaluation import object_based_evaluation as obe
+from generalexam.evaluation import object_based_evaluation as object_eval
 from generalexam.plotting import front_plotting
 
 BINARIZATION_THRESHOLD = 0.3
 MIN_REGION_AREA_METRES2 = 5e11
-MIN_FRONT_LENGTH_METRES = 5e5
+MIN_ENDPOINT_LENGTH_METRES = 5e5
 
 PREDICTION_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/traditional_cnn_experiment05/'
@@ -128,7 +128,7 @@ def _run():
     class_probability_matrix = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    predicted_label_matrix = obe.determinize_probabilities(
+    predicted_label_matrix = object_eval.determinize_probabilities(
         class_probability_matrix=class_probability_matrix,
         binarization_threshold=BINARIZATION_THRESHOLD)
 
@@ -139,7 +139,7 @@ def _run():
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         VALID_TIME_STRING, TIME_FORMAT)
     valid_times_unix_sec = numpy.array([valid_time_unix_sec], dtype=int)
-    predicted_region_table = obe.images_to_regions(
+    predicted_region_table = object_eval.images_to_regions(
         predicted_label_matrix=predicted_label_matrix,
         image_times_unix_sec=valid_times_unix_sec)
 
@@ -149,12 +149,12 @@ def _run():
         model_name=nwp_model_utils.NARR_MODEL_NAME
     )[0]
 
-    predicted_region_table = obe.discard_regions_with_small_area(
+    predicted_region_table = object_eval.discard_regions_with_small_area(
         predicted_region_table=predicted_region_table,
         x_grid_spacing_metres=grid_spacing_metres,
         y_grid_spacing_metres=grid_spacing_metres,
         min_area_metres2=MIN_REGION_AREA_METRES2)
-    predicted_label_matrix = obe.regions_to_images(
+    predicted_label_matrix = object_eval.regions_to_images(
         predicted_region_table=predicted_region_table,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
@@ -162,10 +162,10 @@ def _run():
         predicted_label_matrix=predicted_label_matrix, annotation_string='(b)',
         output_file_name=LARGE_REGIONS_FILE_NAME)
 
-    predicted_region_table = obe.skeletonize_frontal_regions(
+    predicted_region_table = object_eval.skeletonize_frontal_regions(
         predicted_region_table=predicted_region_table,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
-    predicted_label_matrix = obe.regions_to_images(
+    predicted_label_matrix = object_eval.regions_to_images(
         predicted_region_table=predicted_region_table,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
@@ -173,14 +173,14 @@ def _run():
         predicted_label_matrix=predicted_label_matrix, annotation_string='(c)',
         output_file_name=ALL_SKELETONS_FILE_NAME)
 
-    predicted_region_table = obe.find_main_skeletons(
+    predicted_region_table = object_eval.find_main_skeletons(
         predicted_region_table=predicted_region_table,
         class_probability_matrix=class_probability_matrix,
         image_times_unix_sec=valid_times_unix_sec,
         x_grid_spacing_metres=grid_spacing_metres,
         y_grid_spacing_metres=grid_spacing_metres,
-        min_length_metres=MIN_FRONT_LENGTH_METRES)
-    predicted_label_matrix = obe.regions_to_images(
+        min_endpoint_length_metres=MIN_ENDPOINT_LENGTH_METRES)
+    predicted_label_matrix = object_eval.regions_to_images(
         predicted_region_table=predicted_region_table,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 

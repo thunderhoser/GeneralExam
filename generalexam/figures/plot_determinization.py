@@ -9,7 +9,7 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import front_utils
-from generalexam.evaluation import object_based_evaluation as obe
+from generalexam.evaluation import object_based_evaluation as object_eval
 from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
 

@@ -149,8 +149,8 @@ def _run(experiment_dir_name, output_dir_name):
         for j in range(num_min_areas):
             for k in range(num_min_lengths):
                 this_file_name = (
-                    '{0:s}/evaluation_binarization-threshold={1:.4f}_'
-                    'min-area-metres2={2:012d}_min-length-metres={3:07d}.p'
+                    '{0:s}/obe_validation_binarization-threshold={1:.4f}_'
+                    'min-area-metres2={2:012d}_min-length-metres={3:06d}.p'
                 ).format(
                     experiment_dir_name, UNIQUE_BINARIZATION_THRESHOLDS[i],
                     UNIQUE_MIN_AREAS_METRES2[j], UNIQUE_MIN_LENGTHS_METRES[k]
