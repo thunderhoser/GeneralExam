@@ -127,7 +127,7 @@ def _plot_scores_as_grid(
         axes_object_or_list=axes_object, values_to_colour=score_matrix,
         colour_map=colour_map_object, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
-        extend_max=True)
+        extend_max=True, fraction_of_axis_length=0.8)
 
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
@@ -277,35 +277,35 @@ def _run(experiment_dir_name, output_dir_name):
 
         print '\n'
 
-    # this_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
-    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    # imagemagick_utils.concatenate_images(
-    #     input_file_names=csi_file_names, output_file_name=this_file_name,
-    #     num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
-    #     output_size_pixels=FIGURE_SIZE_PIXELS)
-    #
-    # this_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
-    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    # imagemagick_utils.concatenate_images(
-    #     input_file_names=pod_file_names, output_file_name=this_file_name,
-    #     num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
-    #     output_size_pixels=FIGURE_SIZE_PIXELS)
-    #
-    # this_file_name = '{0:s}/success_ratio.jpg'.format(output_dir_name)
-    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    # imagemagick_utils.concatenate_images(
-    #     input_file_names=success_ratio_file_names,
-    #     output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
-    #     num_panel_columns=NUM_PANEL_COLUMNS,
-    #     output_size_pixels=FIGURE_SIZE_PIXELS)
-    #
-    # this_file_name = '{0:s}/frequency_bias.jpg'.format(output_dir_name)
-    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    # imagemagick_utils.concatenate_images(
-    #     input_file_names=frequency_bias_file_names,
-    #     output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
-    #     num_panel_columns=NUM_PANEL_COLUMNS,
-    #     output_size_pixels=FIGURE_SIZE_PIXELS)
+    this_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
+    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    imagemagick_utils.concatenate_images(
+        input_file_names=csi_file_names, output_file_name=this_file_name,
+        num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
+        output_size_pixels=FIGURE_SIZE_PIXELS)
+
+    this_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
+    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    imagemagick_utils.concatenate_images(
+        input_file_names=pod_file_names, output_file_name=this_file_name,
+        num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
+        output_size_pixels=FIGURE_SIZE_PIXELS)
+
+    this_file_name = '{0:s}/success_ratio.jpg'.format(output_dir_name)
+    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    imagemagick_utils.concatenate_images(
+        input_file_names=success_ratio_file_names,
+        output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
+        num_panel_columns=NUM_PANEL_COLUMNS,
+        output_size_pixels=FIGURE_SIZE_PIXELS)
+
+    this_file_name = '{0:s}/frequency_bias.jpg'.format(output_dir_name)
+    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    imagemagick_utils.concatenate_images(
+        input_file_names=frequency_bias_file_names,
+        output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
+        num_panel_columns=NUM_PANEL_COLUMNS,
+        output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
 if __name__ == '__main__':
