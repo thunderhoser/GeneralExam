@@ -123,6 +123,12 @@ def _plot_scores_as_grid(
     pyplot.yticks(y_tick_values, y_tick_labels)
     pyplot.ylabel(y_axis_label)
 
+    plotting_utils.add_linear_colour_bar(
+        axes_object_or_list=axes_object, values_to_colour=score_matrix,
+        colour_map=colour_map_object, colour_min=min_colour_value,
+        colour_max=max_colour_value, orientation='vertical', extend_min=True,
+        extend_max=True)
+
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
