@@ -15,9 +15,13 @@ from generalexam.evaluation import object_based_evaluation as object_eval
 METRES_TO_KM = 1e-3
 METRES2_TO_MILLION_KM2 = 1e-12
 
-UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.2, 0.2, num=9) + 0.553
+UNIQUE_BINARIZATION_THRESHOLDS = numpy.array([0.553])
 UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
 UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
+
+# UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.2, 0.2, num=9) + 0.553
+# UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
+# UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
 
 ANNOTATION_STRING_BY_THRESHOLD = [
     '(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)', '(i)'
@@ -78,8 +82,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
-        x_tick_values, x_tick_labels, x_axis_label, y_tick_values,
-        y_tick_labels, y_axis_label, annotation_string, output_file_name):
+        x_tick_labels, x_axis_label, y_tick_labels, y_axis_label,
+        annotation_string, output_file_name):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -89,10 +93,8 @@ def _plot_scores_as_grid(
     :param colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :param min_colour_value: Minimum value in colour map.
     :param max_colour_value: Max value in colour map.
-    :param x_tick_values: length-N numpy array of x-coordinates.
     :param x_tick_labels: length-N list of string labels.
     :param x_axis_label: String label for the entire x-axis.
-    :param y_tick_values: length-M numpy array of y-coordinates.
     :param y_tick_labels: length-M list of string labels.
     :param y_axis_label: String label for the entire y-axis.
     :param annotation_string: Text annotation (will be placed in top left of
@@ -110,8 +112,14 @@ def _plot_scores_as_grid(
         score_matrix, cmap=colour_map_object, origin='lower',
         vmin=min_colour_value, vmax=max_colour_value)
 
+    num_columns = score_matrix.shape[1]
+    x_tick_values = numpy.linspace(
+        0, num_columns - 1, num=num_columns, dtype=float)
     pyplot.xticks(x_tick_values, x_tick_labels)
     pyplot.xlabel(x_axis_label)
+
+    num_rows = score_matrix.shape[0]
+    y_tick_values = numpy.linspace(0, num_rows - 1, num=num_rows, dtype=float)
     pyplot.yticks(y_tick_values, y_tick_labels)
     pyplot.ylabel(y_axis_label)
 
@@ -200,10 +208,8 @@ def _run(experiment_dir_name, output_dir_name):
                 csi_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 csi_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_values=UNIQUE_MIN_LENGTHS_METRES,
             x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_values=UNIQUE_MIN_AREAS_METRES2,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
             annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
@@ -220,10 +226,8 @@ def _run(experiment_dir_name, output_dir_name):
                 pod_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 pod_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_values=UNIQUE_MIN_LENGTHS_METRES,
             x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_values=UNIQUE_MIN_AREAS_METRES2,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
             annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
@@ -241,10 +245,8 @@ def _run(experiment_dir_name, output_dir_name):
                 success_ratio_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 success_ratio_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_values=UNIQUE_MIN_LENGTHS_METRES,
             x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_values=UNIQUE_MIN_AREAS_METRES2,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
             annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
@@ -260,10 +262,8 @@ def _run(experiment_dir_name, output_dir_name):
             colour_map_object=DIVERGENT_COLOUR_MAP_OBJECT,
             min_colour_value=min_colour_frequency_bias,
             max_colour_value=max_colour_frequency_bias,
-            x_tick_values=UNIQUE_MIN_LENGTHS_METRES,
             x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_values=UNIQUE_MIN_AREAS_METRES2,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
             annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
@@ -271,35 +271,35 @@ def _run(experiment_dir_name, output_dir_name):
 
         print '\n'
 
-    this_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    imagemagick_utils.concatenate_images(
-        input_file_names=csi_file_names, output_file_name=this_file_name,
-        num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
-        output_size_pixels=FIGURE_SIZE_PIXELS)
-
-    this_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    imagemagick_utils.concatenate_images(
-        input_file_names=pod_file_names, output_file_name=this_file_name,
-        num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
-        output_size_pixels=FIGURE_SIZE_PIXELS)
-
-    this_file_name = '{0:s}/success_ratio.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    imagemagick_utils.concatenate_images(
-        input_file_names=success_ratio_file_names,
-        output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
-        num_panel_columns=NUM_PANEL_COLUMNS,
-        output_size_pixels=FIGURE_SIZE_PIXELS)
-
-    this_file_name = '{0:s}/frequency_bias.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
-    imagemagick_utils.concatenate_images(
-        input_file_names=frequency_bias_file_names,
-        output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
-        num_panel_columns=NUM_PANEL_COLUMNS,
-        output_size_pixels=FIGURE_SIZE_PIXELS)
+    # this_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
+    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    # imagemagick_utils.concatenate_images(
+    #     input_file_names=csi_file_names, output_file_name=this_file_name,
+    #     num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
+    #     output_size_pixels=FIGURE_SIZE_PIXELS)
+    #
+    # this_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
+    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    # imagemagick_utils.concatenate_images(
+    #     input_file_names=pod_file_names, output_file_name=this_file_name,
+    #     num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
+    #     output_size_pixels=FIGURE_SIZE_PIXELS)
+    #
+    # this_file_name = '{0:s}/success_ratio.jpg'.format(output_dir_name)
+    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    # imagemagick_utils.concatenate_images(
+    #     input_file_names=success_ratio_file_names,
+    #     output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
+    #     num_panel_columns=NUM_PANEL_COLUMNS,
+    #     output_size_pixels=FIGURE_SIZE_PIXELS)
+    #
+    # this_file_name = '{0:s}/frequency_bias.jpg'.format(output_dir_name)
+    # print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    # imagemagick_utils.concatenate_images(
+    #     input_file_names=frequency_bias_file_names,
+    #     output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
+    #     num_panel_columns=NUM_PANEL_COLUMNS,
+    #     output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
 if __name__ == '__main__':
