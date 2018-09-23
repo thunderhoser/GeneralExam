@@ -125,6 +125,10 @@ def _plot_scores_as_grid(
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
         extend_max=True, fraction_of_axis_length=0.8)
 
+    print '\n\n'
+    print score_matrix
+    print '\n\n'
+
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
