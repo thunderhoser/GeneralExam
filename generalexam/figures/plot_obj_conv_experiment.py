@@ -4,6 +4,8 @@ import os.path
 import warnings
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
