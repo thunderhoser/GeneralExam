@@ -14,8 +14,8 @@ METRES_TO_KM = 1e-3
 METRES2_TO_MILLION_KM2 = 1e-12
 
 UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.2, 0.2, num=9) + 0.553
-UNIQUE_MIN_AREAS_METRES2 = numpy.linspace(0.1, 1., num=10) * 1e12
-UNIQUE_MIN_LENGTHS_METRES = numpy.linspace(0.1, 1., num=10) * 1e6
+UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
+UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
 
 ANNOTATION_STRING_BY_THRESHOLD = [
     '(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)', '(i)'
