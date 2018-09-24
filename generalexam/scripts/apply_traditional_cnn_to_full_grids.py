@@ -41,8 +41,7 @@ TIME_HELP_STRING = (
 
 RANDOMIZE_TIMES_HELP_STRING = (
     'Boolean flag.  If 1, target times will be sampled randomly from '
-    '`{0:s}`...`{1:s}`.  If 0, the first `{2:s}` times from `{0:s}`...`{1:s}` '
-    'will be sampled.'
+    '`{0:s}`...`{1:s}`.  If 0, all times from `{0:s}`...`{1:s}` will be used.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME, NUM_TIMES_ARG_NAME)
 
 NUM_TIMES_HELP_STRING = (
@@ -89,7 +88,7 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_TIMES_ARG_NAME, type=int, required=True,
+    '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(

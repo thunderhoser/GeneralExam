@@ -6,11 +6,16 @@ Renard, R., and L. Clarke, 1965: "Experiments in numerical objective frontal
     analysis". Monthly Weather Review, 93 (9), 547-556.
 """
 
+import pickle
+import os.path
 import numpy
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
 DEFAULT_FRONT_PERCENTILE = 99.
+TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 
 
 def _get_2d_gradient(field_matrix, x_spacing_metres, y_spacing_metres):
@@ -197,14 +202,14 @@ def get_front_types(locating_var_matrix_m01_s01,
         `get_locating_variable`.
     :param warm_front_percentile: Used to locate warm fronts.  For grid cell
         [i, j] to be considered part of a warm front, its locating value must be
-        < the [q]th percentile of all non-positive values in the grid, where
+        <= the [q]th percentile of all non-positive values in the grid, where
         q = `100 - warm_front_percentile`.
     :param cold_front_percentile: Used to locate cold fronts.  For grid cell
         [i, j] to be considered part of a cold front, its locating value must be
-        > the [q]th percentile of all non-negative values in the grid, where
+        >= the [q]th percentile of all non-negative values in the grid, where
         q = `cold_front_percentile`.
-    :return: ternary_image_matrix: See doc for
-        `front_utils.dilate_ternary_narr_image`.
+    :return: predicted_label_matrix: M-by-N numpy array, where the value at each
+        grid cell is from the list `front_utils.VALID_INTEGER_IDS`.
     """
 
     error_checking.assert_is_numpy_array_without_nan(
@@ -224,14 +229,104 @@ def get_front_types(locating_var_matrix_m01_s01,
         locating_var_matrix_m01_s01[locating_var_matrix_m01_s01 >= 0],
         cold_front_percentile)
 
-    ternary_image_matrix = numpy.full(
+    predicted_label_matrix = numpy.full(
         locating_var_matrix_m01_s01.shape, front_utils.NO_FRONT_INTEGER_ID,
         dtype=int)
-    ternary_image_matrix[
+    predicted_label_matrix[
         locating_var_matrix_m01_s01 <= warm_front_threshold_m01_s01
     ] = front_utils.WARM_FRONT_INTEGER_ID
-    ternary_image_matrix[
+    predicted_label_matrix[
         locating_var_matrix_m01_s01 >= cold_front_threshold_m01_s01
     ] = front_utils.COLD_FRONT_INTEGER_ID
 
-    return ternary_image_matrix
+    return predicted_label_matrix
+
+
+def find_gridded_prediction_file(
+        directory_name, first_valid_time_unix_sec, last_valid_time_unix_sec,
+        raise_error_if_missing=True):
+    """Finds Pickle file with gridded predictions.
+
+    This type of file should be written by `write_gridded_predictions`.
+
+    :param directory_name: Name of directory with prediction file.
+    :param first_valid_time_unix_sec: First target time in file.
+    :param last_valid_time_unix_sec: Last target time in file.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: prediction_file_name: Path to prediction file.  If file is missing
+        and `raise_error_if_missing = False`, this will be the *expected* path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_integer(first_valid_time_unix_sec)
+    error_checking.assert_is_integer(last_valid_time_unix_sec)
+    error_checking.assert_is_geq(
+        last_valid_time_unix_sec, first_valid_time_unix_sec)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    prediction_file_name = '{0:s}/gridded_predictions_{1:s}-{2:s}.p'.format(
+        directory_name,
+        time_conversion.unix_sec_to_string(
+            first_valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
+        time_conversion.unix_sec_to_string(
+            last_valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
+    )
+
+    if not os.path.isfile(prediction_file_name) and raise_error_if_missing:
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            prediction_file_name)
+        raise ValueError(error_string)
+
+    return prediction_file_name
+
+
+def write_gridded_predictions(
+        pickle_file_name, predicted_label_matrix, valid_times_unix_sec):
+    """Writes gridded predictions to Pickle file.
+
+    T = number of time steps
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param pickle_file_name: Path to output file.
+    :param predicted_label_matrix: T-by-M-by-N numpy array, where the value at
+        each grid cell is from the list `front_utils.VALID_INTEGER_IDS`.
+    :param valid_times_unix_sec: length-T numpy array of valid times.
+    """
+
+    error_checking.assert_is_integer_numpy_array(predicted_label_matrix)
+    error_checking.assert_is_numpy_array(
+        predicted_label_matrix, num_dimensions=3)
+    error_checking.assert_is_geq_numpy_array(
+        predicted_label_matrix, numpy.min(front_utils.VALID_INTEGER_IDS))
+    error_checking.assert_is_leq_numpy_array(
+        predicted_label_matrix, numpy.max(front_utils.VALID_INTEGER_IDS))
+
+    num_times = predicted_label_matrix.shape[0]
+    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        valid_times_unix_sec, exact_dimensions=numpy.array([num_times]))
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(predicted_label_matrix, pickle_file_handle)
+    pickle.dump(valid_times_unix_sec, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_gridded_predictions(pickle_file_name):
+    """Reads gridded predictions from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: predicted_label_matrix: See doc for `write_gridded_predictions`.
+    :return: valid_times_unix_sec: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    predicted_label_matrix = pickle.load(pickle_file_handle)
+    valid_times_unix_sec = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return predicted_label_matrix, valid_times_unix_sec

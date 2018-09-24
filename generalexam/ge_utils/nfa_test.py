@@ -133,7 +133,7 @@ NO_FRONT_ID = front_utils.NO_FRONT_INTEGER_ID + 0
 WARM_FRONT_ID = front_utils.WARM_FRONT_INTEGER_ID + 0
 COLD_FRONT_ID = front_utils.COLD_FRONT_INTEGER_ID + 0
 
-TERNARY_IMAGE_MATRIX = numpy.array([
+PREDICTED_LABEL_MATRIX = numpy.array([
     [WARM_FRONT_ID, WARM_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID,
      NO_FRONT_ID],
     [NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID,
@@ -227,13 +227,13 @@ class NfaTests(unittest.TestCase):
     def test_get_front_types(self):
         """Ensures correct output from get_front_types."""
 
-        this_ternary_image_matrix = nfa.get_front_types(
+        this_predicted_label_matrix = nfa.get_front_types(
             locating_var_matrix_m01_s01=LOCATING_VAR_MATRIX_M01_S01,
             warm_front_percentile=WARM_FRONT_PERCENTILE,
             cold_front_percentile=COLD_FRONT_PERCENTILE)
 
         self.assertTrue(numpy.array_equal(
-            this_ternary_image_matrix, TERNARY_IMAGE_MATRIX))
+            this_predicted_label_matrix, PREDICTED_LABEL_MATRIX))
 
 
 if __name__ == '__main__':
