@@ -509,8 +509,8 @@ def skeletonize_frontal_regions(
 
 
 def find_main_skeletons(
-        predicted_region_table, class_probability_matrix, image_times_unix_sec,
-        x_grid_spacing_metres, y_grid_spacing_metres,
+        predicted_region_table, image_times_unix_sec, num_grid_rows,
+        num_grid_columns, x_grid_spacing_metres, y_grid_spacing_metres,
         min_endpoint_length_metres):
     """Converts each (already skeletonized) frontal region to its main skeleton.
 
@@ -520,10 +520,9 @@ def find_main_skeletons(
     "branches" from the original skeleton line.
 
     :param predicted_region_table: See documentation for `images_to_regions`.
-    :param class_probability_matrix: E-by-M-by-N-by-K numpy array of floats.
-        class_probability_matrix[i, j, k, m] is the predicted probability that
-        pixel [j, k] in the [i]th image belongs to the [m]th class.
     :param image_times_unix_sec: length-E numpy array of valid times.
+    :param num_grid_rows: Number of rows in grid.
+    :param num_grid_columns: Number of columns in grid.
     :param x_grid_spacing_metres: Spacing between grid points in adjacent
         columns.
     :param y_grid_spacing_metres: Spacing between grid points in adjacent rows.
@@ -533,15 +532,13 @@ def find_main_skeletons(
         been reduced to its main skeleton line.
     """
 
-    _check_prediction_images(class_probability_matrix, probabilistic=True)
     error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
+    error_checking.assert_is_numpy_array(image_times_unix_sec, num_dimensions=1)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_greater(num_grid_rows, 0)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_greater(num_grid_columns, 0)
 
-    num_images = class_probability_matrix.shape[0]
-    error_checking.assert_is_numpy_array(
-        image_times_unix_sec, exact_dimensions=numpy.array([num_images]))
-
-    num_grid_rows = class_probability_matrix.shape[1]
-    num_grid_columns = class_probability_matrix.shape[2]
     num_regions = len(predicted_region_table.index)
     rows_to_drop = []
 

@@ -253,9 +253,8 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
         list_of_predicted_region_tables[-1] = object_eval.find_main_skeletons(
             predicted_region_table=list_of_predicted_region_tables[-1],
-            class_probability_matrix=this_prediction_dict[
-                ml_utils.PROBABILITY_MATRIX_KEY],
             image_times_unix_sec=possible_times_unix_sec[[i]],
+            num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
             x_grid_spacing_metres=grid_spacing_metres,
             y_grid_spacing_metres=grid_spacing_metres,
             min_endpoint_length_metres=min_endpoint_length_metres)

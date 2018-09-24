@@ -79,9 +79,8 @@ NARR_DIRECTORY_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  For each time step, gridded predictions will be'
-    ' written here by `machine_learning_utils.write_gridded_predictions`, to a '
-    'location determined by `machine_learning_utils.'
-    'find_gridded_prediction_file`.')
+    ' written here by `nfa.write_gridded_predictions`, to a location determined'
+    ' by `nfa.find_gridded_prediction_file`.')
 
 DEFAULT_WARM_FRONT_PERCENTILE = 97.
 DEFAULT_COLD_FRONT_PERCENTILE = 97.

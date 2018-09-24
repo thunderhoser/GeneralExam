@@ -175,8 +175,8 @@ def _run():
 
     predicted_region_table = object_eval.find_main_skeletons(
         predicted_region_table=predicted_region_table,
-        class_probability_matrix=class_probability_matrix,
         image_times_unix_sec=valid_times_unix_sec,
+        num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
         x_grid_spacing_metres=grid_spacing_metres,
         y_grid_spacing_metres=grid_spacing_metres,
         min_endpoint_length_metres=MIN_ENDPOINT_LENGTH_METRES)

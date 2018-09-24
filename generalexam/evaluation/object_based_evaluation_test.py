@@ -530,8 +530,9 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
 
         this_main_skeleton_table = object_based_eval.find_main_skeletons(
             predicted_region_table=copy.deepcopy(PREDICTED_SKELETON_TABLE),
-            class_probability_matrix=PROBABILITY_MATRIX,
             image_times_unix_sec=IMAGE_TIMES_UNIX_SEC,
+            num_grid_rows=PROBABILITY_MATRIX.shape[1],
+            num_grid_columns=PROBABILITY_MATRIX.shape[2],
             x_grid_spacing_metres=1., y_grid_spacing_metres=1.,
             min_endpoint_length_metres=0.001)
 
