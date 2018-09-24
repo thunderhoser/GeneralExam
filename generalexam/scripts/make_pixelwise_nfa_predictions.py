@@ -1,5 +1,6 @@
 """Uses NFA (numerical frontal analysis) to predict front type at each pixel."""
 
+import random
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -12,7 +13,8 @@ from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import utils as general_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-# TODO(thunderhoser): Deal with smoothing.
+random.seed(6695)
+numpy.random.seed(6695)
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 NARR_TIME_INTERVAL_SEC = 10800
