@@ -2,6 +2,7 @@
 
 import keras.layers
 import keras.models
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import keras_metrics
 
@@ -508,6 +509,103 @@ def get_seventh_architecture(num_rows, num_columns, num_channels):
 
     layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
     model_object.add(layer_object)
+
+    layer_object = architecture_utils.get_flattening_layer()
+    model_object.add(layer_object)
+
+    layer_object = architecture_utils.get_fully_connected_layer(
+        num_output_units=128)
+    model_object.add(layer_object)
+    model_object.add(architecture_utils.get_activation_layer(
+        activation_function_string='relu'))
+
+    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
+    model_object.add(layer_object)
+
+    (dense_layer_object, activation_layer_object, loss_function
+    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
+    model_object.add(dense_layer_object)
+    model_object.add(activation_layer_object)
+
+    model_object.compile(
+        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
+        metrics=DEFAULT_METRIC_FUNCTION_LIST)
+
+    model_object.summary()
+    return model_object
+
+
+def get_eighth_architecture(
+        num_rows, num_columns, num_channels, num_conv_layer_sets):
+    """Creates 2-D CNN with the eighth-simplest architecture.
+
+    Differences between this method and `get_first_architecture`:
+
+    - This method does not use dropout for conv layers.
+    - This method uses multiple conv layers.
+
+    :param num_rows: Number of pixel rows per image.
+    :param num_columns: Number of pixel columns per image.
+    :param num_channels: Number of channels (predictor variables) per image.
+    :param num_conv_layer_sets: Number of sets of conv layers.
+    :return: model_object: Instance of `keras.models` with the aforementioned
+        architecture.
+    """
+
+    error_checking.assert_is_integer(num_conv_layer_sets)
+    error_checking.assert_is_greater(num_conv_layer_sets, 1)
+
+    model_object = keras.models.Sequential()
+    layer_object = architecture_utils.get_2d_conv_layer(
+        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
+        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=architecture_utils.NO_PADDING_TYPE,
+        kernel_weight_regularizer=None, is_first_layer=True,
+        num_input_rows=num_rows, num_input_columns=num_columns,
+        num_input_channels=num_channels)
+    model_object.add(layer_object)
+
+    model_object.add(architecture_utils.get_activation_layer(
+        activation_function_string='relu'))
+
+    layer_object = architecture_utils.get_2d_conv_layer(
+        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
+        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=architecture_utils.NO_PADDING_TYPE,
+        kernel_weight_regularizer=None)
+    model_object.add(layer_object)
+
+    model_object.add(architecture_utils.get_activation_layer(
+        activation_function_string='relu'))
+
+    layer_object = architecture_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
+        num_columns_per_stride=2)
+    model_object.add(layer_object)
+
+    this_num_output_filters = 4 * INIT_NUM_FILTERS
+    for i in range(1, num_conv_layer_sets):
+        if i != 1:
+            this_num_output_filters *= 2
+
+        layer_object = architecture_utils.get_2d_conv_layer(
+            num_output_filters=this_num_output_filters, num_kernel_rows=3,
+            num_kernel_columns=3, num_rows_per_stride=1,
+            num_columns_per_stride=1,
+            padding_type=architecture_utils.NO_PADDING_TYPE,
+            kernel_weight_regularizer=None, is_first_layer=False)
+        model_object.add(layer_object)
+
+        model_object.add(architecture_utils.get_activation_layer(
+            activation_function_string='relu'))
+
+        layer_object = architecture_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            pooling_type=architecture_utils.MAX_POOLING_TYPE,
+            num_rows_per_stride=2,
+            num_columns_per_stride=2)
+        model_object.add(layer_object)
 
     layer_object = architecture_utils.get_flattening_layer()
     model_object.add(layer_object)

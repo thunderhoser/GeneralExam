@@ -44,6 +44,7 @@ EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
 ARCHITECTURE_ID_ARG_NAME = 'architecture_id'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
+NUM_LAYER_SETS_ARG_NAME = 'num_conv_layer_sets'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 NUM_HALF_ROWS_HELP_STRING = (
@@ -78,15 +79,18 @@ L2_WEIGHT_HELP_STRING = (
     'L2-regularization weight (will be applied to each conv layer).  If you '
     'want no L2 regularization, leave this alone.')
 
+NUM_LAYER_SETS_HELP_STRING = 'Number of convolution-layer sets.'
+
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (HDF5 format), which will contain the trained model.')
 
 DEFAULT_NUM_HALF_ROWS = 16
 DEFAULT_NUM_HALF_COLUMNS = 16
-DEFAULT_L2_WEIGHT = 0.001
 NUM_EPOCHS_DEFAULT = 100
 NUM_EXAMPLES_PER_BATCH_DEFAULT = 1024
 NUM_EXAMPLES_PER_TIME_DEFAULT = 8
+DEFAULT_L2_WEIGHT = 0.001
+DEFAULT_NUM_CONV_LAYER_SETS = 2
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -122,13 +126,17 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_L2_WEIGHT, help=L2_WEIGHT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_LAYER_SETS_ARG_NAME, type=int, required=False,
+    default=DEFAULT_NUM_CONV_LAYER_SETS, help=NUM_LAYER_SETS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
 def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
-         num_epochs,  num_examples_per_batch, num_examples_per_time,
-         architecture_id, l2_weight, output_file_name):
+         num_epochs, num_examples_per_batch, num_examples_per_time,
+         architecture_id, l2_weight, num_conv_layer_sets, output_file_name):
     """Trains CNN with simple architecture for patch classification.
 
     This is effectively the main method.
@@ -141,6 +149,7 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
     :param num_examples_per_time: Same.
     :param architecture_id: Same.
     :param l2_weight: Same.
+    :param num_conv_layer_sets: Same.
     :param output_file_name: Same.
     """
 
@@ -214,6 +223,10 @@ def _run(num_rows_in_half_grid, num_columns_in_half_grid, pressure_level_mb,
         model_object = cnn_architecture.get_seventh_architecture(
             num_rows=num_rows_in_grid, num_columns=num_columns_in_grid,
             num_channels=num_channels)
+    elif architecture_id == 8:
+        model_object = cnn_architecture.get_eighth_architecture(
+            num_rows=num_rows_in_grid, num_columns=num_columns_in_grid,
+            num_channels=num_channels, num_conv_layer_sets=num_conv_layer_sets)
     else:
         model_object = None
 
@@ -255,4 +268,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, EXAMPLES_PER_TIME_ARG_NAME),
         architecture_id=getattr(INPUT_ARG_OBJECT, ARCHITECTURE_ID_ARG_NAME),
         l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
+        num_conv_layer_sets=getattr(INPUT_ARG_OBJECT, NUM_LAYER_SETS_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
