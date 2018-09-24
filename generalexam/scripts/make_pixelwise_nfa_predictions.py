@@ -10,8 +10,8 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.ge_utils import nfa
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import utils as general_utils
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-# TODO(thunderhoser): Deal with NARR mask.
 # TODO(thunderhoser): Deal with smoothing.
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
@@ -31,6 +31,7 @@ CF_PERCENTILE_ARG_NAME = 'cold_front_percentile'
 NUM_CLOSING_ITERS_ARG_NAME = 'num_closing_iters'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 NARR_DIRECTORY_ARG_NAME = 'input_narr_dir_name'
+NARR_MASK_FILE_ARG_NAME = 'input_narr_mask_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_prediction_dir_name'
 
 TIME_HELP_STRING = (
@@ -77,6 +78,11 @@ NARR_DIRECTORY_HELP_STRING = (
     'Files therein will be found by `processed_narr_io.find_file_for_one_time` '
     'and read by `processed_narr_io.read_fields_from_file`.')
 
+NARR_MASK_FILE_HELP_STRING = (
+    'Pickle file with NARR mask (will be read by `machine_learning_utils.'
+    'read_narr_mask`).  Predictions will not be made for masked grid cells.  If'
+    ' you do not want a mask, make this the empty string ("").')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  For each time step, gridded predictions will be'
     ' written here by `nfa.write_gridded_predictions`, to a location determined'
@@ -87,6 +93,8 @@ DEFAULT_COLD_FRONT_PERCENTILE = 97.
 DEFAULT_NUM_CLOSING_ITERS = 3
 DEFAULT_PRESSURE_LEVEL_MB = 850
 TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
+DEFAULT_NARR_MASK_FILE_NAME = (
+    '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -124,13 +132,18 @@ INPUT_ARG_PARSER.add_argument(
     default=TOP_NARR_DIR_NAME_DEFAULT, help=NARR_DIRECTORY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NARR_MASK_FILE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_NARR_MASK_FILE_NAME, help=NARR_MASK_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(first_time_string, last_time_string, randomize_times, num_times,
          warm_front_percentile, cold_front_percentile, num_closing_iters,
-         pressure_level_mb, top_narr_directory_name, output_dir_name):
+         pressure_level_mb, top_narr_directory_name, narr_mask_file_name,
+         output_dir_name):
     """Uses NFA (numerical frontal analysis) to predict front type at each px.
 
     This is effectively the main method.
@@ -144,6 +157,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     :param num_closing_iters: Same.
     :param pressure_level_mb: Same.
     :param top_narr_directory_name: Same.
+    :param narr_mask_file_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -161,6 +175,15 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             num_times, len(valid_times_unix_sec))
         numpy.random.shuffle(valid_times_unix_sec)
         valid_times_unix_sec = valid_times_unix_sec[:num_times]
+
+    if narr_mask_file_name == '':
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+        narr_mask_matrix = numpy.full(
+            (num_grid_rows, num_grid_columns), 1, dtype=int)
+    else:
+        print 'Reading mask from: "{0:s}"...\n'.format(narr_mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -212,6 +235,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             thermal_field_matrix_kelvins=this_wet_bulb_theta_matrix_kelvins,
             x_spacing_metres=x_spacing_metres,
             y_spacing_metres=y_spacing_metres)
+        this_tfp_matrix_kelvins_m02[narr_mask_matrix == 0] = 0.
 
         this_proj_velocity_matrix_m_s01 = nfa.project_wind_to_thermal_gradient(
             u_matrix_grid_relative_m_s01=this_u_wind_matrix_m_s01,
@@ -246,7 +270,8 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             pickle_file_name=this_prediction_file_name,
             predicted_label_matrix=numpy.expand_dims(
                 this_predicted_label_matrix, axis=0),
-            valid_times_unix_sec=valid_times_unix_sec[[i]])
+            valid_times_unix_sec=valid_times_unix_sec[[i]],
+            narr_mask_matrix=narr_mask_matrix)
 
 
 if __name__ == '__main__':
@@ -264,4 +289,5 @@ if __name__ == '__main__':
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         top_narr_directory_name=getattr(
             INPUT_ARG_OBJECT, NARR_DIRECTORY_ARG_NAME),
+        narr_mask_file_name=getattr(INPUT_ARG_OBJECT, NARR_MASK_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))

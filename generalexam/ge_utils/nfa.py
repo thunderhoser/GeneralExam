@@ -13,9 +13,14 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-DEFAULT_FRONT_PERCENTILE = 99.
+DEFAULT_FRONT_PERCENTILE = 97.
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
+
+PREDICTED_LABELS_KEY = 'predicted_label_matrix'
+VALID_TIMES_KEY = 'valid_times_unix_sec'
+NARR_MASK_KEY = 'narr_mask_matrix'
 
 
 def _get_2d_gradient(field_matrix, x_spacing_metres, y_spacing_metres):
@@ -283,7 +288,8 @@ def find_gridded_prediction_file(
 
 
 def write_gridded_predictions(
-        pickle_file_name, predicted_label_matrix, valid_times_unix_sec):
+        pickle_file_name, predicted_label_matrix, valid_times_unix_sec,
+        narr_mask_matrix):
     """Writes gridded predictions to Pickle file.
 
     T = number of time steps
@@ -294,11 +300,18 @@ def write_gridded_predictions(
     :param predicted_label_matrix: T-by-M-by-N numpy array, where the value at
         each grid cell is from the list `front_utils.VALID_INTEGER_IDS`.
     :param valid_times_unix_sec: length-T numpy array of valid times.
+    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).
+        If narr_mask_matrix[i, j] = 0, TFP was set to 0 for grid cell [i, j].
+        Thus, any predicted front at grid cell [i, j] is only a result of binary
+        closing (expanding frontal regions from nearby grid cells).
     """
+
+    ml_utils.check_narr_mask(narr_mask_matrix)
 
     error_checking.assert_is_integer_numpy_array(predicted_label_matrix)
     error_checking.assert_is_numpy_array(
-        predicted_label_matrix, num_dimensions=3)
+        predicted_label_matrix,
+        exact_dimensions=numpy.array(narr_mask_matrix.shape))
     error_checking.assert_is_geq_numpy_array(
         predicted_label_matrix, numpy.min(front_utils.VALID_INTEGER_IDS))
     error_checking.assert_is_leq_numpy_array(
@@ -313,6 +326,7 @@ def write_gridded_predictions(
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(predicted_label_matrix, pickle_file_handle)
     pickle.dump(valid_times_unix_sec, pickle_file_handle)
+    pickle.dump(narr_mask_matrix, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -320,13 +334,21 @@ def read_gridded_predictions(pickle_file_name):
     """Reads gridded predictions from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: predicted_label_matrix: See doc for `write_gridded_predictions`.
-    :return: valid_times_unix_sec: Same.
+    :return: prediction_dict: Dictionary with the following keys.
+    prediction_dict['predicted_label_matrix']: See doc for
+        `write_gridded_predictions`.
+    prediction_dict['valid_times_unix_sec']: Same.
+    prediction_dict['narr_mask_matrix']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     predicted_label_matrix = pickle.load(pickle_file_handle)
     valid_times_unix_sec = pickle.load(pickle_file_handle)
+    narr_mask_matrix = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return predicted_label_matrix, valid_times_unix_sec
+    return {
+        PREDICTED_LABELS_KEY: predicted_label_matrix,
+        VALID_TIMES_KEY: valid_times_unix_sec,
+        NARR_MASK_KEY: narr_mask_matrix
+    }

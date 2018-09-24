@@ -185,8 +185,12 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         unix_times_sec.append(possible_times_unix_sec[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
-        this_predicted_label_matrix = nfa.read_gridded_predictions(
-            this_prediction_file_name)[0]
+        this_prediction_dict = nfa.read_gridded_predictions(
+            this_prediction_file_name)
+        this_predicted_label_matrix = this_prediction_dict[
+            nfa.PREDICTED_LABELS_KEY]
+        if narr_mask_matrix is None:
+            narr_mask_matrix = this_prediction_dict[nfa.NARR_MASK_KEY] + 0
 
         print 'Converting image to frontal regions...'
         list_of_predicted_region_tables.append(
