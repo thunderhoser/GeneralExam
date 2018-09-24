@@ -350,8 +350,11 @@ def write_gridded_predictions(
 
     error_checking.assert_is_integer_numpy_array(predicted_label_matrix)
     error_checking.assert_is_numpy_array(
-        predicted_label_matrix,
+        predicted_label_matrix, num_dimensions=3)
+    error_checking.assert_is_numpy_array(
+        predicted_label_matrix[0, ...],
         exact_dimensions=numpy.array(narr_mask_matrix.shape))
+
     error_checking.assert_is_geq_numpy_array(
         predicted_label_matrix, numpy.min(front_utils.VALID_INTEGER_IDS))
     error_checking.assert_is_leq_numpy_array(
