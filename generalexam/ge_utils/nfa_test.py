@@ -2,6 +2,7 @@
 
 import unittest
 import numpy
+from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import nfa
 
 TOLERANCE = 1e-6
@@ -95,7 +96,7 @@ TFP_MATRIX_KELVINS_M02 = (
     -1 * THIS_Y_GRAD_GRAD_MATRIX_KELVINS_M02 *
     THIS_Y_GRAD_MATRIX_KELVINS_M01 / THIS_GRAD_MAGNITUDE_MATRIX_KELVINS_M01)
 
-# The following constants are used to test get_wind_along_thermal_gradient.
+# The following constants are used to test project_wind_to_thermal_gradient.
 U_MATRIX_GRID_RELATIVE_M_S01 = numpy.array(
     [[0, 5, 10, 15, 20, 20],
      [0, 5, 10, 15, 20, 20],
@@ -103,20 +104,45 @@ U_MATRIX_GRID_RELATIVE_M_S01 = numpy.array(
      [0, 5, 10, 15, 20, 20]], dtype=float)
 
 V_MATRIX_GRID_RELATIVE_M_S01 = numpy.array(
-    [[-20, -20, -20, -20, -20, -20],
-     [-10, -10, -10, -10, -10, -10],
-     [-5, -5, -5, -5, -5, -5],
-     [-5, -5, -5, -3, -2, 0]], dtype=float)
+    [[20, 20, 20, 20, 20, 20],
+     [10, 10, 10, 10, 10, 10],
+     [5, 5, 5, 5, 5, 5],
+     [5, 5, 5, 3, 2, 0]], dtype=float)
 
 THIS_MATRIX1 = (
     U_MATRIX_GRID_RELATIVE_M_S01 *
     THIS_X_GRAD_MATRIX_KELVINS_M01 / THIS_GRAD_MAGNITUDE_MATRIX_KELVINS_M01)
 
 THIS_MATRIX2 = (
-    -1 * V_MATRIX_GRID_RELATIVE_M_S01 *
+    V_MATRIX_GRID_RELATIVE_M_S01 *
     THIS_Y_GRAD_MATRIX_KELVINS_M01 / THIS_GRAD_MAGNITUDE_MATRIX_KELVINS_M01)
 
 ALONG_GRAD_VELOCITY_MATRIX_M_S01 = THIS_MATRIX1 + THIS_MATRIX2
+
+# The following constants are used to test get_front_types.
+LOCATING_VAR_MATRIX_M01_S01 = numpy.array(
+    [[-8, -8, 1, -3, -7, -6],
+     [-5, 5, -1, 2, 8, 14],
+     [7, 17, 15, 7, 5, 8],
+     [8, 8, 23, 23, 18, 21]], dtype=float)
+
+WARM_FRONT_PERCENTILE = 80.
+COLD_FRONT_PERCENTILE = 90.
+
+NO_FRONT_ID = front_utils.NO_FRONT_INTEGER_ID + 0
+WARM_FRONT_ID = front_utils.WARM_FRONT_INTEGER_ID + 0
+COLD_FRONT_ID = front_utils.COLD_FRONT_INTEGER_ID + 0
+
+TERNARY_IMAGE_MATRIX = numpy.array([
+    [WARM_FRONT_ID, WARM_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID,
+     NO_FRONT_ID],
+    [NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID,
+     NO_FRONT_ID],
+    [NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID, NO_FRONT_ID,
+     NO_FRONT_ID],
+    [NO_FRONT_ID, NO_FRONT_ID, COLD_FRONT_ID, COLD_FRONT_ID, NO_FRONT_ID,
+     NO_FRONT_ID]
+])
 
 
 class NfaTests(unittest.TestCase):
@@ -184,10 +210,10 @@ class NfaTests(unittest.TestCase):
             this_tfp_matrix_kelvins_m02, TFP_MATRIX_KELVINS_M02,
             atol=TOLERANCE))
 
-    def test_get_wind_along_thermal_gradient(self):
-        """Ensures correct output from get_wind_along_thermal_gradient."""
+    def test_project_wind_to_thermal_gradient(self):
+        """Ensures correct output from project_wind_to_thermal_gradient."""
 
-        this_velocity_matrix_m_s01 = nfa.get_wind_along_thermal_gradient(
+        this_velocity_matrix_m_s01 = nfa.project_wind_to_thermal_gradient(
             u_matrix_grid_relative_m_s01=U_MATRIX_GRID_RELATIVE_M_S01,
             v_matrix_grid_relative_m_s01=V_MATRIX_GRID_RELATIVE_M_S01,
             thermal_field_matrix_kelvins=THERMAL_MATRIX_KELVINS,
@@ -197,6 +223,17 @@ class NfaTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_velocity_matrix_m_s01, ALONG_GRAD_VELOCITY_MATRIX_M_S01,
             atol=TOLERANCE))
+
+    def test_get_front_types(self):
+        """Ensures correct output from get_front_types."""
+
+        this_ternary_image_matrix = nfa.get_front_types(
+            locating_var_matrix_m01_s01=LOCATING_VAR_MATRIX_M01_S01,
+            warm_front_percentile=WARM_FRONT_PERCENTILE,
+            cold_front_percentile=COLD_FRONT_PERCENTILE)
+
+        self.assertTrue(numpy.array_equal(
+            this_ternary_image_matrix, TERNARY_IMAGE_MATRIX))
 
 
 if __name__ == '__main__':

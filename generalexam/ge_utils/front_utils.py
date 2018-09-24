@@ -310,26 +310,6 @@ def _is_polyline_closed(latitudes_deg, longitudes_deg):
             absolute_lng_diff_deg < TOLERANCE_DEG)
 
 
-def _close_frontal_image(image_matrix):
-    """Performs binary closing on both warm and cold fronts in image.
-
-    :param image_matrix: See documentation for `_check_frontal_image`.  Should
-        be ternary (3-class), not binary (2-class).
-    :return: image_matrix: Same but after binary closing.
-    """
-
-    binary_warm_front_matrix = binary_closing(
-        image_matrix == WARM_FRONT_INTEGER_ID,
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, iterations=1)
-    binary_cold_front_matrix = binary_closing(
-        image_matrix == COLD_FRONT_INTEGER_ID,
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, iterations=1)
-
-    image_matrix[numpy.where(binary_warm_front_matrix)] = WARM_FRONT_INTEGER_ID
-    image_matrix[numpy.where(binary_cold_front_matrix)] = COLD_FRONT_INTEGER_ID
-    return image_matrix
-
-
 def check_front_type(front_type_string):
     """Ensures that front type is valid.
 
@@ -357,6 +337,38 @@ def string_id_to_integer(front_type_string):
         return WARM_FRONT_INTEGER_ID
 
     return COLD_FRONT_INTEGER_ID
+
+
+def close_frontal_image(ternary_image_matrix, num_iterations=1):
+    """Applies binary closing to both warm and cold fronts in image.
+
+    :param ternary_image_matrix: See doc for `_check_frontal_image`.
+    :param num_iterations: Number of iterations of binary closing.  The more
+        iterations, the more frontal pixels will be created.
+    :return: ternary_image_matrix: Same as input, but after closing.
+    """
+
+    _check_frontal_image(image_matrix=ternary_image_matrix, assert_binary=False)
+    error_checking.assert_is_integer(num_iterations)
+    error_checking.assert_is_greater(num_iterations, 0)
+
+    binary_warm_front_matrix = binary_closing(
+        (ternary_image_matrix == WARM_FRONT_INTEGER_ID).astype(int),
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
+        iterations=num_iterations)
+    binary_cold_front_matrix = binary_closing(
+        (ternary_image_matrix == COLD_FRONT_INTEGER_ID).astype(int),
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
+        iterations=num_iterations)
+
+    ternary_image_matrix[
+        numpy.where(binary_warm_front_matrix)
+    ] = WARM_FRONT_INTEGER_ID
+    ternary_image_matrix[
+        numpy.where(binary_cold_front_matrix)
+    ] = COLD_FRONT_INTEGER_ID
+
+    return ternary_image_matrix
 
 
 def buffer_distance_to_narr_mask(buffer_distance_metres):
@@ -585,7 +597,8 @@ def frontal_image_to_objects(ternary_image_matrix):
     """
 
     _check_frontal_image(image_matrix=ternary_image_matrix, assert_binary=False)
-    ternary_image_matrix = _close_frontal_image(ternary_image_matrix)
+    ternary_image_matrix = close_frontal_image(
+        ternary_image_matrix=ternary_image_matrix, num_iterations=1)
     region_matrix = label_image(ternary_image_matrix, connectivity=2)
 
     num_regions = numpy.max(region_matrix)

@@ -66,7 +66,7 @@ CLOSED_POLYLINE_LONGITUDES_DEG = numpy.array([246., 246.5, 246., 246.])
 OPEN_POLYLINE_LATITUDES_DEG = copy.deepcopy(POLYLINE_Y_COORDS_METRES)
 OPEN_POLYLINE_LONGITUDES_DEG = copy.deepcopy(POLYLINE_X_COORDS_METRES)
 
-# The following constants are used to test _close_frontal_image.
+# The following constants are used to test close_frontal_image.
 TERNARY_IMAGE_MATRIX_UNCLOSED = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
                                              [0, 0, 0, 1, 0, 1, 1, 1],
                                              [0, 0, 0, 0, 0, 0, 1, 1],
@@ -339,11 +339,30 @@ class FrontUtilsTests(unittest.TestCase):
             latitudes_deg=OPEN_POLYLINE_LATITUDES_DEG,
             longitudes_deg=OPEN_POLYLINE_LONGITUDES_DEG))
 
-    def test_close_frontal_image(self):
-        """Ensures correct output from _close_frontal_image."""
+    def test_close_frontal_image_1iter(self):
+        """Ensures correct output from close_frontal_image.
 
-        this_input_matrix = copy.deepcopy(TERNARY_IMAGE_MATRIX_UNCLOSED)
-        this_closed_matrix = front_utils._close_frontal_image(this_input_matrix)
+        In this case there is one iteration of binary closing for both warm and
+        cold fronts.
+        """
+
+        this_closed_matrix = front_utils.close_frontal_image(
+            ternary_image_matrix=copy.deepcopy(TERNARY_IMAGE_MATRIX_UNCLOSED),
+            num_iterations=1)
+
+        self.assertTrue(numpy.array_equal(
+            this_closed_matrix, TERNARY_IMAGE_MATRIX_CLOSED))
+
+    def test_close_frontal_image_2iters(self):
+        """Ensures correct output from close_frontal_image.
+
+        In this case there are 2 iterations of binary closing for both warm and
+        cold fronts.
+        """
+
+        this_closed_matrix = front_utils.close_frontal_image(
+            ternary_image_matrix=copy.deepcopy(TERNARY_IMAGE_MATRIX_UNCLOSED),
+            num_iterations=1)
 
         self.assertTrue(numpy.array_equal(
             this_closed_matrix, TERNARY_IMAGE_MATRIX_CLOSED))
