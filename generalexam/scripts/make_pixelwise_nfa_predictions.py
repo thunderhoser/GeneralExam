@@ -26,6 +26,7 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 RANDOMIZE_TIMES_ARG_NAME = 'randomize_times'
 NUM_TIMES_ARG_NAME = 'num_times'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_pixels'
 WF_PERCENTILE_ARG_NAME = 'warm_front_percentile'
 CF_PERCENTILE_ARG_NAME = 'cold_front_percentile'
 NUM_CLOSING_ITERS_ARG_NAME = 'num_closing_iters'
@@ -48,6 +49,11 @@ NUM_TIMES_HELP_STRING = (
     '[used iff {0:s} = 1] Number of target times (to be sampled from '
     '`{1:s}`...`{2:s}`).'
 ).format(RANDOMIZE_TIMES_ARG_NAME, FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
+
+SMOOTHING_RADIUS_HELP_STRING = (
+    'Smoothing radius (standard deviation of Gaussian kernel).  Will be applied'
+    ' to all predictors (listed below).\n{0:s}'
+).format(str(NARR_PREDICTOR_NAMES))
 
 WF_PERCENTILE_HELP_STRING = (
     'Used to locate warm fronts.  For grid cell [i, j] to be considered part of'
@@ -88,6 +94,7 @@ OUTPUT_DIR_HELP_STRING = (
     ' written here by `nfa.write_gridded_predictions`, to a location determined'
     ' by `nfa.find_gridded_prediction_file`.')
 
+DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
 DEFAULT_WARM_FRONT_PERCENTILE = 97.
 DEFAULT_COLD_FRONT_PERCENTILE = 97.
 DEFAULT_NUM_CLOSING_ITERS = 3
@@ -110,6 +117,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_TIMES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
+    default=DEFAULT_SMOOTHING_RADIUS_PIXELS, help=SMOOTHING_RADIUS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + WF_PERCENTILE_ARG_NAME, type=float, required=False,
@@ -141,9 +152,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(first_time_string, last_time_string, randomize_times, num_times,
-         warm_front_percentile, cold_front_percentile, num_closing_iters,
-         pressure_level_mb, top_narr_directory_name, narr_mask_file_name,
-         output_dir_name):
+         smoothing_radius_pixels, warm_front_percentile, cold_front_percentile,
+         num_closing_iters, pressure_level_mb, top_narr_directory_name,
+         narr_mask_file_name, output_dir_name):
     """Uses NFA (numerical frontal analysis) to predict front type at each px.
 
     This is effectively the main method.
@@ -152,6 +163,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     :param last_time_string: Same.
     :param randomize_times: Same.
     :param num_times: Same.
+    :param smoothing_radius_pixels: Same.
     :param warm_front_percentile: Same.
     :param cold_front_percentile: Same.
     :param num_closing_iters: Same.
@@ -160,6 +172,8 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     :param narr_mask_file_name: Same.
     :param output_dir_name: Same.
     """
+
+    cutoff_radius_pixels = 4 * smoothing_radius_pixels
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -206,6 +220,10 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         )
         this_wet_bulb_theta_matrix_kelvins = general_utils.fill_nans(
             this_wet_bulb_theta_matrix_kelvins)
+        this_wet_bulb_theta_matrix_kelvins = nfa.gaussian_smooth_2d_field(
+            field_matrix=this_wet_bulb_theta_matrix_kelvins,
+            standard_deviation_pixels=smoothing_radius_pixels,
+            cutoff_radius_pixels=cutoff_radius_pixels)
 
         this_u_wind_file_name = processed_narr_io.find_file_for_one_time(
             top_directory_name=top_narr_directory_name,
@@ -218,6 +236,10 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             this_u_wind_file_name)[0][0, ...]
         this_u_wind_matrix_m_s01 = general_utils.fill_nans(
             this_u_wind_matrix_m_s01)
+        this_u_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
+            field_matrix=this_u_wind_matrix_m_s01,
+            standard_deviation_pixels=smoothing_radius_pixels,
+            cutoff_radius_pixels=cutoff_radius_pixels)
 
         this_v_wind_file_name = processed_narr_io.find_file_for_one_time(
             top_directory_name=top_narr_directory_name,
@@ -230,6 +252,10 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             this_v_wind_file_name)[0][0, ...]
         this_v_wind_matrix_m_s01 = general_utils.fill_nans(
             this_v_wind_matrix_m_s01)
+        this_v_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
+            field_matrix=this_v_wind_matrix_m_s01,
+            standard_deviation_pixels=smoothing_radius_pixels,
+            cutoff_radius_pixels=cutoff_radius_pixels)
 
         this_tfp_matrix_kelvins_m02 = nfa.get_thermal_front_param(
             thermal_field_matrix_kelvins=this_wet_bulb_theta_matrix_kelvins,
@@ -271,7 +297,13 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             predicted_label_matrix=numpy.expand_dims(
                 this_predicted_label_matrix, axis=0),
             valid_times_unix_sec=valid_times_unix_sec[[i]],
-            narr_mask_matrix=narr_mask_matrix)
+            narr_mask_matrix=narr_mask_matrix,
+            pressure_level_mb=pressure_level_mb,
+            smoothing_radius_pixels=smoothing_radius_pixels,
+            cutoff_radius_pixels=cutoff_radius_pixels,
+            warm_front_percentile=warm_front_percentile,
+            cold_front_percentile=cold_front_percentile,
+            num_closing_iters=num_closing_iters)
 
 
 if __name__ == '__main__':
@@ -283,6 +315,8 @@ if __name__ == '__main__':
         randomize_times=bool(getattr(
             INPUT_ARG_OBJECT, RANDOMIZE_TIMES_ARG_NAME)),
         num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
+        smoothing_radius_pixels=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
         warm_front_percentile=getattr(INPUT_ARG_OBJECT, WF_PERCENTILE_ARG_NAME),
         cold_front_percentile=getattr(INPUT_ARG_OBJECT, CF_PERCENTILE_ARG_NAME),
         num_closing_iters=getattr(INPUT_ARG_OBJECT, NUM_CLOSING_ITERS_ARG_NAME),

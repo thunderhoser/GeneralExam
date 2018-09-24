@@ -9,6 +9,7 @@ Renard, R., and L. Clarke, 1965: "Experiments in numerical objective frontal
 import pickle
 import os.path
 import numpy
+from scipy.ndimage.filters import gaussian_filter
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -21,6 +22,12 @@ TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 PREDICTED_LABELS_KEY = 'predicted_label_matrix'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 NARR_MASK_KEY = 'narr_mask_matrix'
+PRESSURE_LEVEL_KEY = 'pressure_level_mb'
+SMOOTHING_RADIUS_KEY = 'smoothing_radius_pixels'
+CUTOFF_RADIUS_KEY = 'cutoff_radius_pixels'
+WF_PERCENTILE_KEY = 'warm_front_percentile'
+CF_PERCENTILE_KEY = 'cold_front_percentile'
+NUM_CLOSING_ITERS_KEY = 'num_closing_iters'
 
 
 def _get_2d_gradient(field_matrix, x_spacing_metres, y_spacing_metres):
@@ -44,6 +51,31 @@ def _get_2d_gradient(field_matrix, x_spacing_metres, y_spacing_metres):
     x_gradient_matrix_m01 = x_gradient_matrix_m01 / x_spacing_metres
     y_gradient_matrix_m01 = y_gradient_matrix_m01 / y_spacing_metres
     return x_gradient_matrix_m01, y_gradient_matrix_m01
+
+
+def gaussian_smooth_2d_field(
+        field_matrix, standard_deviation_pixels, cutoff_radius_pixels):
+    """Applies Gaussian smoother to 2-D field.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param field_matrix: M-by-N numpy array with values in field.
+    :param standard_deviation_pixels: Standard deviation of Gaussian kernel
+        (pixels).
+    :param cutoff_radius_pixels: Cutoff radius of Gaussian kernel (pixels).
+    :return: field_matrix: Smoothed version of input.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(field_matrix)
+    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
+    error_checking.assert_is_greater(standard_deviation_pixels, 0.)
+    error_checking.assert_is_greater(
+        cutoff_radius_pixels, standard_deviation_pixels)
+
+    return gaussian_filter(
+        input=field_matrix, sigma=standard_deviation_pixels, order=0,
+        mode='reflect', truncate=cutoff_radius_pixels)
 
 
 def get_thermal_front_param(
@@ -289,7 +321,9 @@ def find_gridded_prediction_file(
 
 def write_gridded_predictions(
         pickle_file_name, predicted_label_matrix, valid_times_unix_sec,
-        narr_mask_matrix):
+        narr_mask_matrix, pressure_level_mb, smoothing_radius_pixels,
+        cutoff_radius_pixels, warm_front_percentile, cold_front_percentile,
+        num_closing_iters):
     """Writes gridded predictions to Pickle file.
 
     T = number of time steps
@@ -300,10 +334,16 @@ def write_gridded_predictions(
     :param predicted_label_matrix: T-by-M-by-N numpy array, where the value at
         each grid cell is from the list `front_utils.VALID_INTEGER_IDS`.
     :param valid_times_unix_sec: length-T numpy array of valid times.
+    :param pressure_level_mb: Pressure level (millibars).
     :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).
         If narr_mask_matrix[i, j] = 0, TFP was set to 0 for grid cell [i, j].
         Thus, any predicted front at grid cell [i, j] is only a result of binary
         closing (expanding frontal regions from nearby grid cells).
+    :param smoothing_radius_pixels: See doc for `gaussian_smooth_2d_field`.
+    :param cutoff_radius_pixels: Same.
+    :param warm_front_percentile: See doc for `get_front_types`.
+    :param cold_front_percentile: Same.
+    :param num_closing_iters: See doc for `front_utils.close_frontal_image`.
     """
 
     ml_utils.check_narr_mask(narr_mask_matrix)
@@ -322,11 +362,21 @@ def write_gridded_predictions(
     error_checking.assert_is_numpy_array(
         valid_times_unix_sec, exact_dimensions=numpy.array([num_times]))
 
+    metadata_dict = {
+        VALID_TIMES_KEY: valid_times_unix_sec,
+        NARR_MASK_KEY: narr_mask_matrix,
+        PRESSURE_LEVEL_KEY: pressure_level_mb,
+        SMOOTHING_RADIUS_KEY: smoothing_radius_pixels,
+        CUTOFF_RADIUS_KEY: cutoff_radius_pixels,
+        WF_PERCENTILE_KEY: warm_front_percentile,
+        CF_PERCENTILE_KEY: cold_front_percentile,
+        NUM_CLOSING_ITERS_KEY: num_closing_iters
+    }
+
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(predicted_label_matrix, pickle_file_handle)
-    pickle.dump(valid_times_unix_sec, pickle_file_handle)
-    pickle.dump(narr_mask_matrix, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -334,21 +384,22 @@ def read_gridded_predictions(pickle_file_name):
     """Reads gridded predictions from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: prediction_dict: Dictionary with the following keys.
-    prediction_dict['predicted_label_matrix']: See doc for
+    :return: predicted_label_matrix: See doc for `write_gridded_predictions`.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['valid_times_unix_sec']: See doc for
         `write_gridded_predictions`.
-    prediction_dict['valid_times_unix_sec']: Same.
-    prediction_dict['narr_mask_matrix']: Same.
+    metadata_dict['narr_mask_matrix']: Same.
+    metadata_dict['pressure_level_mb']: Same.
+    metadata_dict['smoothing_radius_pixels']: Same.
+    metadata_dict['cutoff_radius_pixels']: Same.
+    metadata_dict['warm_front_percentile']: Same.
+    metadata_dict['cold_front_percentile']: Same.
+    metadata_dict['num_closing_iters']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     predicted_label_matrix = pickle.load(pickle_file_handle)
-    valid_times_unix_sec = pickle.load(pickle_file_handle)
-    narr_mask_matrix = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return {
-        PREDICTED_LABELS_KEY: predicted_label_matrix,
-        VALID_TIMES_KEY: valid_times_unix_sec,
-        NARR_MASK_KEY: narr_mask_matrix
-    }
+    return predicted_label_matrix, metadata_dict
