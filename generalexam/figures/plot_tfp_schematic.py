@@ -5,6 +5,7 @@ import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 
 NUM_GRID_ROWS = 100
@@ -15,8 +16,8 @@ MIN_TEMPERATURE_KELVINS = 260.
 FRONT_GRADIENT_KELVINS_PER_ROW = 1.
 NON_FRONT_GRADIENT_KELVINS_PER_ROW = 0.1
 
-X_OFFSET_LEFT = 10
-X_OFFSET_MIDDLE = 50
+X_OFFSET_LEFT = 15
+X_OFFSET_MIDDLE = 45
 X_OFFSET_RIGHT = 80
 Y_OFFSET_BOTTOM = 20
 Y_OFFSET_TOP = 80
@@ -148,6 +149,17 @@ def _plot_temperature_grid(temperature_matrix_kelvins):
         vmin=numpy.min(temperature_matrix_kelvins),
         vmax=numpy.max(temperature_matrix_kelvins), shading='flat',
         edgecolors='None', axes=axes_object)
+
+    colour_bar_object = plotting_utils.add_linear_colour_bar(
+        axes_object_or_list=axes_object,
+        values_to_colour=temperature_matrix_kelvins,
+        colour_map=_create_colour_scheme(temperature_matrix_kelvins),
+        colour_min=numpy.min(temperature_matrix_kelvins),
+        colour_max=numpy.max(temperature_matrix_kelvins),
+        orientation='vertical', extend_min=False, extend_max=False)
+
+    colour_bar_object.set_ticks([])
+    colour_bar_object.set_label('Temperature')
 
     pyplot.xticks([], [])
     pyplot.yticks([], [])

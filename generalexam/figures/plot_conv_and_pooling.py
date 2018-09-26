@@ -25,7 +25,8 @@ LINE_WIDTH = 4
 LINE_COLOUR = numpy.full(3, 0.)
 OVERLAY_FONT_SIZE = 50
 MAIN_COLOUR = numpy.array([55, 126, 184], dtype=float) / 255
-ANNOTATION_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+ANNOTATION_COLOUR = numpy.array([77, 175, 74], dtype=float) / 255
+SPECIAL_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -76,9 +77,14 @@ def _plot_feature_map_before_conv():
 
     for i in range(feature_matrix.shape[1]):
         for j in range(feature_matrix.shape[0]):
+            if i == j == 1:
+                this_colour = SPECIAL_COLOUR + 0.
+            else:
+                this_colour = MAIN_COLOUR + 0.
+
             axes_object.text(
                 i, j, '{0:d}'.format(feature_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=this_colour,
                 horizontalalignment='center', verticalalignment='center')
 
     polygon_x_coords = numpy.array([0, 3, 3, 0, 0], dtype=float) - 0.5
@@ -190,9 +196,14 @@ def _plot_feature_map_after_conv(feature_matrix):
 
     for i in range(feature_matrix.shape[1]):
         for j in range(feature_matrix.shape[0]):
+            if i == j == 1:
+                this_colour = SPECIAL_COLOUR + 0.
+            else:
+                this_colour = MAIN_COLOUR + 0.
+
             axes_object.text(
                 i, j, '{0:.1f}'.format(feature_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=this_colour,
                 horizontalalignment='center', verticalalignment='center')
 
     polygon_x_coords = numpy.array([0, 2, 2, 0, 0], dtype=float) - 0.5
@@ -257,9 +268,14 @@ def _plot_feature_map_after_pooling(feature_matrix):
 
     for i in range(feature_matrix.shape[1]):
         for j in range(feature_matrix.shape[0]):
+            if i == j == 0:
+                this_colour = SPECIAL_COLOUR + 0.
+            else:
+                this_colour = MAIN_COLOUR + 0.
+
             axes_object.text(
                 i, j, '{0:.1f}'.format(feature_matrix[j, i]),
-                fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
+                fontsize=OVERLAY_FONT_SIZE, color=this_colour,
                 horizontalalignment='center', verticalalignment='center')
 
     plotting_utils.annotate_axes(

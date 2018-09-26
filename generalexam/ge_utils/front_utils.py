@@ -765,7 +765,8 @@ def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
     return pandas.DataFrame.from_dict(frontal_grid_dict)
 
 
-def remove_polylines_in_masked_area(polyline_table, narr_mask_matrix):
+def remove_polylines_in_masked_area(
+        polyline_table, narr_mask_matrix, verbose=True):
     """Removes any polyline that touches only masked grid cells.
 
     M = number of rows in NARR grid
@@ -775,6 +776,7 @@ def remove_polylines_in_masked_area(polyline_table, narr_mask_matrix):
         `fronts_io.write_polylines_to_file`.  Each row is one front.
     :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
         narr_mask_matrix[i, j] = 0, grid cell [i, j] is masked.
+    :param verbose: Boolean flag.  If True, will print progress messages.
     :return: polyline_table: Same as input, except that some rows may have been
         removed.
     """
@@ -782,6 +784,7 @@ def remove_polylines_in_masked_area(polyline_table, narr_mask_matrix):
     error_checking.assert_is_integer_numpy_array(narr_mask_matrix)
     error_checking.assert_is_geq_numpy_array(narr_mask_matrix, 0)
     error_checking.assert_is_leq_numpy_array(narr_mask_matrix, 1)
+    error_checking.assert_is_boolean(verbose)
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -794,7 +797,7 @@ def remove_polylines_in_masked_area(polyline_table, narr_mask_matrix):
     indices_to_drop = []
 
     for i in range(num_fronts):
-        if numpy.mod(i, 25) == 0:
+        if numpy.mod(i, 25) == 0 and verbose:
             print (
                 'Have checked {0:d} of {1:d} polylines; have removed {2:d} of '
                 '{0:d} because they exist only in masked area...'
