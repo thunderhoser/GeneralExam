@@ -1,5 +1,6 @@
 """Converts gridded NFA (numerical frontal analysis) predictions to objects."""
 
+import random
 import os.path
 import argparse
 import numpy
@@ -9,8 +10,10 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import nfa
-from generalexam.ge_utils import front_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
+
+random.seed(6695)
+numpy.random.seed(6695)
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -61,7 +64,8 @@ OUTPUT_FILE_HELP_STRING = (
 
 DEFAULT_MIN_AREA_METRES2 = 1e10  # 10 000 km^2
 DEFAULT_MIN_LENGTH_METRES = 5e5  # 500 km
-TOP_FRONT_LINE_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts/polylines'
+TOP_FRONT_LINE_DIR_NAME_DEFAULT = (
+    '/condo/swatwork/ralager/fronts/polylines/masked')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -95,14 +99,11 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _read_actual_polylines(
-        top_input_dir_name, unix_times_sec, narr_mask_matrix):
+def _read_actual_polylines(top_input_dir_name, unix_times_sec):
     """Reads actual fronts (polylines) for each time step.
 
     :param top_input_dir_name: See documentation at top of file.
     :param unix_times_sec: 1-D numpy array of valid times.
-    :param narr_mask_matrix: See doc for
-        `front_utils.remove_polylines_in_masked_area`.
     :return: polyline_table: See doc for `fronts_io.write_polylines_to_file`.
     """
 
@@ -123,12 +124,12 @@ def _read_actual_polylines(
         list_of_polyline_tables[-1] = list_of_polyline_tables[-1].align(
             list_of_polyline_tables[0], axis=1)[0]
 
-    polyline_table = pandas.concat(
-        list_of_polyline_tables, axis=0, ignore_index=True)
+    # print 'Removing fronts in masked area...'
+    # return front_utils.remove_polylines_in_masked_area(
+    #     polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix)
 
-    print 'Removing fronts in masked area...'
-    return front_utils.remove_polylines_in_masked_area(
-        polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix)
+    return pandas.concat(
+        list_of_polyline_tables, axis=0, ignore_index=True)
 
 
 def _run(input_prediction_dir_name, first_time_string, last_time_string,
@@ -167,7 +168,6 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
     unix_times_sec = []
     list_of_predicted_region_tables = []
     num_times_done = 0
-    narr_mask_matrix = None
 
     for i in range(len(possible_times_unix_sec)):
         if num_times_done == num_times:
@@ -185,10 +185,8 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         unix_times_sec.append(possible_times_unix_sec[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
-        (this_predicted_label_matrix, this_metadata_dict
-        ) = nfa.read_gridded_predictions(this_prediction_file_name)
-        if narr_mask_matrix is None:
-            narr_mask_matrix = this_metadata_dict[nfa.NARR_MASK_KEY] + 0
+        this_predicted_label_matrix = nfa.read_gridded_predictions(
+            this_prediction_file_name)[0]
 
         print 'Converting image to frontal regions...'
         list_of_predicted_region_tables.append(
@@ -244,7 +242,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
     actual_polyline_table = _read_actual_polylines(
         top_input_dir_name=top_front_line_dir_name,
-        unix_times_sec=unix_times_sec, narr_mask_matrix=narr_mask_matrix)
+        unix_times_sec=unix_times_sec)
     print SEPARATOR_STRING
 
     actual_polyline_table = object_eval.project_polylines_latlng_to_narr(
