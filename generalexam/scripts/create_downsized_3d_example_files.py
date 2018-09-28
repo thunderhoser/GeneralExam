@@ -103,7 +103,8 @@ DEFAULT_DILATION_DISTANCE_METRES = 50000.
 DEFAULT_CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
 DEFAULT_NUM_HALF_ROWS = 32
 DEFAULT_NUM_HALF_COLUMNS = 32
-DEFAULT_TOP_FRONT_DIR_NAME = '/condo/swatwork/ralager/fronts/narr_grids/no_dilation'
+DEFAULT_TOP_FRONT_DIR_NAME = (
+    '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
 DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
@@ -205,7 +206,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
 
     num_target_times = len(target_times_unix_sec)
     this_example_dict = None
-    this_first_time_unix_sec = None
+    this_first_time_unix_sec = target_times_unix_sec[i][0]
 
     for i in range(num_target_times):
         if numpy.mod(i, num_times_per_output_file) == 0 and i != 0:
