@@ -27,8 +27,11 @@ steps, C predictor variables).
 import copy
 import numpy
 import keras
+import netCDF4
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
@@ -37,9 +40,75 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
 
+LARGE_INTEGER = 25000
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
     nwp_model_utils.NARR_MODEL_NAME)[1]
+
+PREDICTOR_MATRIX_KEY = 'predictor_matrix'
+TARGET_MATRIX_KEY = 'target_matrix'
+TARGET_TIMES_KEY = 'target_times_unix_sec'
+ROW_INDICES_KEY = 'row_indices'
+COLUMN_INDICES_KEY = 'column_indices'
+PREDICTOR_NAMES_KEY = 'narr_predictor_names'
+NARR_MASK_KEY = 'narr_mask_matrix'
+
+PRESSURE_LEVEL_KEY = 'pressure_level_mb'
+DILATION_DISTANCE_KEY = 'dilation_distance_metres'
+NARR_ROW_DIMENSION_KEY = 'narr_row'
+NARR_COLUMN_DIMENSION_KEY = 'narr_column'
+EXAMPLE_DIMENSION_KEY = 'example'
+EXAMPLE_ROW_DIMENSION_KEY = 'example_row'
+EXAMPLE_COLUMN_DIMENSION_KEY = 'example_column'
+PREDICTOR_DIMENSION_KEY = 'predictor_variable'
+CHARACTER_DIMENSION_KEY = 'predictor_variable_char'
+CLASS_DIMENSION_KEY = 'class'
+
+
+def _decrease_example_size(predictor_matrix, num_half_rows, num_half_columns):
+    """Decreases the grid size for each example.
+
+    M = original number of grid rows per example
+    N = original number of grid columns per example
+    m = new number of rows per example
+    n = new number of columns per example
+
+    :param predictor_matrix: E-by-M-by-N-by-C numpy array of predictor images.
+    :param num_half_rows: Determines number of rows returned for each example.
+        Examples will be cropped so that the center of the original image is the
+        center of the new image.  If `num_half_rows`, examples will not be
+        cropped.
+    :param num_half_columns: Same but for columns.
+    :return: predictor_matrix: E-by-m-by-n-by-C numpy array of predictor images.
+    """
+
+    if num_half_rows is not None:
+        error_checking.assert_is_integer(num_half_rows)
+        error_checking.assert_is_greater(num_half_rows, 0)
+
+        center_row_index = int(
+            numpy.floor(float(predictor_matrix.shape[1]) / 2)
+        )
+        first_row_index = center_row_index - num_half_rows
+        last_row_index = center_row_index + num_half_rows
+        predictor_matrix = predictor_matrix[
+            :, first_row_index:(last_row_index + 1), ...
+        ]
+
+    if num_half_columns is not None:
+        error_checking.assert_is_integer(num_half_columns)
+        error_checking.assert_is_greater(num_half_columns, 0)
+
+        center_column_index = int(
+            numpy.floor(float(predictor_matrix.shape[2]) / 2)
+        )
+        first_column_index = center_column_index - num_half_columns
+        last_column_index = center_column_index + num_half_columns
+        predictor_matrix = predictor_matrix[
+            :, :, first_column_index:(last_column_index + 1), ...
+        ]
+
+    return predictor_matrix
 
 
 def find_input_files_for_3d_examples(
@@ -877,3 +946,303 @@ def full_size_4d_example_generator(
         num_examples_in_memory = target_matrix.shape[0]
 
         yield (predictor_matrix_to_return, target_matrix_to_return)
+
+
+def prep_downsized_3d_examples_to_write(
+        target_time_unix_sec, top_narr_directory_name,
+        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        dilation_distance_metres, class_fractions, num_rows_in_half_grid,
+        num_columns_in_half_grid, narr_mask_matrix=None):
+    """Prepares downsized 3-D examples for writing to a file.
+
+    :param target_time_unix_sec: Target time.
+    :param top_narr_directory_name: See doc for
+        `find_input_files_for_3d_examples`.
+    :param top_frontal_grid_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param pressure_level_mb: Same.
+    :param dilation_distance_metres: See doc for
+        `downsized_3d_example_generator`.
+    :param class_fractions: length-3 numpy array of sampling fractions for
+        target variable.  These are the fractions of (NF, WF, CF) examples,
+        respectively, to be created.
+    :param num_rows_in_half_grid: See doc for
+        `downsized_3d_example_generator`.
+    :param num_columns_in_half_grid: Same.
+    :param narr_mask_matrix: Same.
+    :return: example_dict: Dictionary with the following keys.
+    example_dict['predictor_matrix']: E-by-M-by-N-by-C numpy array of predictor
+        images.
+    example_dict['target_matrix']: E-by-K numpy array of Boolean labels (all 0
+        or 1, but technically the type is "float64").
+    example_dict['target_times_unix_sec']: length-E numpy array of target times
+        (these will all be the same).
+    example_dict['row_indices']: length-E numpy array with NARR row at the
+        center of each example.
+    example_dict['column_indices']: length-E numpy array with NARR column at the
+        center of each example.
+    """
+
+    error_checking.assert_is_numpy_array(
+        class_fractions, exact_dimensions=numpy.array([3]))
+    if narr_mask_matrix is not None:
+        ml_utils.check_narr_mask(narr_mask_matrix)
+
+    (narr_file_name_matrix, frontal_grid_file_names
+    ) = find_input_files_for_3d_examples(
+        first_target_time_unix_sec=target_time_unix_sec,
+        last_target_time_unix_sec=target_time_unix_sec,
+        top_narr_directory_name=top_narr_directory_name,
+        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+        narr_predictor_names=narr_predictor_names,
+        pressure_level_mb=pressure_level_mb)
+
+    narr_file_names = narr_file_name_matrix[0, ...]
+    frontal_grid_file_name = frontal_grid_file_names[0]
+
+    tuple_of_predictor_matrices = ()
+    num_predictors = len(narr_predictor_names)
+
+    for j in range(num_predictors):
+        print 'Reading data from: "{0:s}"...'.format(narr_file_names[j])
+
+        this_field_matrix = processed_narr_io.read_fields_from_file(
+            narr_file_names[j])[0]
+        this_field_matrix = ml_utils.fill_nans_in_predictor_images(
+            this_field_matrix)
+        tuple_of_predictor_matrices += (this_field_matrix,)
+
+    predictor_matrix = ml_utils.stack_predictor_variables(
+        tuple_of_predictor_matrices)
+    predictor_matrix = ml_utils.normalize_predictor_matrix(
+        predictor_matrix=predictor_matrix, normalize_by_example=True)
+
+    print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
+    frontal_grid_table = fronts_io.read_narr_grids_from_file(
+        frontal_grid_file_name)
+
+    target_matrix = ml_utils.front_table_to_images(
+        frontal_grid_table=frontal_grid_table,
+        num_rows_per_image=predictor_matrix.shape[1],
+        num_columns_per_image=predictor_matrix.shape[2])
+
+    target_matrix = ml_utils.dilate_ternary_target_images(
+        target_matrix=target_matrix,
+        dilation_distance_metres=dilation_distance_metres, verbose=False)
+
+    sampled_target_point_dict = ml_utils.sample_target_points(
+        target_matrix=target_matrix, class_fractions=class_fractions,
+        num_points_to_sample=LARGE_INTEGER, mask_matrix=narr_mask_matrix)
+
+    (predictor_matrix, target_values, _, row_indices, column_indices
+    ) = ml_utils.downsize_grids_around_selected_points(
+        predictor_matrix=predictor_matrix, target_matrix=target_matrix,
+        num_rows_in_half_window=num_rows_in_half_grid,
+        num_columns_in_half_window=num_columns_in_half_grid,
+        target_point_dict=sampled_target_point_dict, verbose=False)
+
+    target_matrix = keras.utils.to_categorical(target_values, 3)
+    actual_class_fractions = numpy.sum(target_matrix, axis=0)
+    print 'Fraction of examples in each class: {0:s}'.format(
+        str(actual_class_fractions))
+
+    return {
+        PREDICTOR_MATRIX_KEY: predictor_matrix,
+        TARGET_MATRIX_KEY: target_matrix,
+        TARGET_TIMES_KEY:
+            numpy.full(target_matrix.shape[0], target_time_unix_sec, dtype=int),
+        ROW_INDICES_KEY: row_indices,
+        COLUMN_INDICES_KEY: column_indices
+    }
+
+
+def write_downsized_3d_examples(
+        netcdf_file_name, example_dict, narr_predictor_names, pressure_level_mb,
+        dilation_distance_metres, narr_mask_matrix=None):
+    """Writes downsized 3-D examples to NetCDF file.
+
+    :param netcdf_file_name: Path to output file.
+    :param example_dict: Dictionary created by
+        `prep_downsized_3d_examples_to_write`.
+    :param narr_predictor_names: See doc for
+        `prep_downsized_3d_examples_to_write`.
+    :param pressure_level_mb: Same.
+    :param dilation_distance_metres: Same.
+    :param narr_mask_matrix: Same.
+    """
+
+    error_checking.assert_is_string_list(narr_predictor_names)
+    num_predictors = example_dict[PREDICTOR_MATRIX_KEY].shape[3]
+    error_checking.assert_is_numpy_array(
+        numpy.array(narr_predictor_names),
+        exact_dimensions=numpy.array([num_predictors]))
+
+    error_checking.assert_is_integer(pressure_level_mb)
+    error_checking.assert_is_greater(pressure_level_mb, 0)
+    error_checking.assert_is_geq(dilation_distance_metres, 0.)
+
+    num_narr_rows, num_narr_columns = nwp_model_utils.get_grid_dimensions(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+    if narr_mask_matrix is None:
+        narr_mask_matrix = numpy.full(
+            (num_narr_rows, num_narr_columns), 1, dtype=int)
+
+    ml_utils.check_narr_mask(narr_mask_matrix)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    netcdf_dataset = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    netcdf_dataset.setncattr(PRESSURE_LEVEL_KEY, int(pressure_level_mb))
+    netcdf_dataset.setncattr(DILATION_DISTANCE_KEY, dilation_distance_metres)
+
+    num_classes = example_dict[TARGET_MATRIX_KEY].shape[1]
+    num_examples = example_dict[PREDICTOR_MATRIX_KEY].shape[0]
+    num_rows_per_example = example_dict[PREDICTOR_MATRIX_KEY].shape[1]
+    num_columns_per_example = example_dict[PREDICTOR_MATRIX_KEY].shape[2]
+
+    num_predictor_chars = 1
+    for m in range(num_predictors):
+        num_predictor_chars = max(
+            [num_predictor_chars, len(narr_predictor_names[m])]
+        )
+
+    netcdf_dataset.createDimension(NARR_ROW_DIMENSION_KEY, num_narr_rows)
+    netcdf_dataset.createDimension(NARR_COLUMN_DIMENSION_KEY, num_narr_columns)
+    netcdf_dataset.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
+    netcdf_dataset.createDimension(
+        EXAMPLE_ROW_DIMENSION_KEY, num_rows_per_example)
+    netcdf_dataset.createDimension(
+        EXAMPLE_COLUMN_DIMENSION_KEY, num_columns_per_example)
+    netcdf_dataset.createDimension(PREDICTOR_DIMENSION_KEY, num_predictors)
+    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_predictor_chars)
+    netcdf_dataset.createDimension(CLASS_DIMENSION_KEY, num_classes)
+
+    string_type = 'S{0:d}'.format(num_predictor_chars)
+    predictor_names_as_char_array = netCDF4.stringtochar(numpy.array(
+        narr_predictor_names, dtype=string_type))
+
+    netcdf_dataset.createVariable(
+        PREDICTOR_NAMES_KEY, datatype='S1',
+        dimensions=(PREDICTOR_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
+    netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:] = numpy.array(
+        predictor_names_as_char_array)
+
+    netcdf_dataset.createVariable(
+        NARR_MASK_KEY, datatype=numpy.int32,
+        dimensions=(NARR_ROW_DIMENSION_KEY, NARR_COLUMN_DIMENSION_KEY))
+    netcdf_dataset.variables[NARR_MASK_KEY][:] = narr_mask_matrix
+
+    netcdf_dataset.createVariable(
+        PREDICTOR_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(EXAMPLE_DIMENSION_KEY, EXAMPLE_ROW_DIMENSION_KEY,
+                    EXAMPLE_COLUMN_DIMENSION_KEY, PREDICTOR_DIMENSION_KEY)
+    )
+    netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:] = example_dict[
+        PREDICTOR_MATRIX_KEY]
+
+    netcdf_dataset.createVariable(
+        TARGET_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(EXAMPLE_DIMENSION_KEY, CLASS_DIMENSION_KEY))
+    netcdf_dataset.variables[TARGET_MATRIX_KEY][:] = example_dict[
+        TARGET_MATRIX_KEY]
+
+    netcdf_dataset.createVariable(
+        TARGET_TIMES_KEY, datatype=numpy.int32,
+        dimensions=EXAMPLE_DIMENSION_KEY)
+    netcdf_dataset.variables[TARGET_TIMES_KEY][:] = example_dict[
+        TARGET_TIMES_KEY]
+
+    netcdf_dataset.createVariable(
+        ROW_INDICES_KEY, datatype=numpy.int32, dimensions=EXAMPLE_DIMENSION_KEY)
+    netcdf_dataset.variables[ROW_INDICES_KEY][:] = example_dict[ROW_INDICES_KEY]
+
+    netcdf_dataset.createVariable(
+        COLUMN_INDICES_KEY, datatype=numpy.int32,
+        dimensions=EXAMPLE_DIMENSION_KEY)
+    netcdf_dataset.variables[COLUMN_INDICES_KEY][:] = example_dict[
+        COLUMN_INDICES_KEY]
+
+    netcdf_dataset.close()
+
+
+def read_downsized_3d_examples(
+        netcdf_file_name, narr_predictor_names=None,
+        num_half_rows_per_example=None, num_half_columns_per_example=None):
+    """Reads downsized 3-D examples from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :param narr_predictor_names: 1-D list with names of predictor variables to
+        return (each name must be accepted by `check_field_name`).  If
+        `narr_predictor_names is None`, all predictors in the file will be
+        returned.
+    :param num_half_rows_per_example: Determines number of rows returned for
+        each example.  Examples will be cropped so that the center of the
+        original image is the center of the new image.  If
+        `num_half_rows_per_example`, examples will not be cropped.
+    :param num_half_columns_per_example: Same but for columns.
+    :return: example_dict: Dictionary with the following keys.
+    example_dict['predictor_matrix']: See doc for
+        `prep_downsized_3d_examples_to_write`.
+    example_dict['target_matrix']: Same.
+    example_dict['target_times_unix_sec']: Same.
+    example_dict['row_indices']: Same.
+    example_dict['column_indices']: Same.
+    example_dict['narr_predictor_names']: See doc for
+        `write_downsized_3d_examples`.
+    example_dict['pressure_level_mb']: Same.
+    example_dict['dilation_distance_metres']: Same.
+    example_dict['narr_mask_matrix']: Same.
+    """
+
+    # TODO(thunderhoser): Do something about missing WPC time steps.
+
+    if narr_predictor_names is not None:
+        error_checking.assert_is_numpy_array(
+            numpy.array(narr_predictor_names), num_dimensions=1)
+        for this_name in narr_predictor_names:
+            processed_narr_io.check_field_name(this_name)
+
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
+
+    all_narr_predictor_names = netCDF4.chartostring(
+        netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
+    all_narr_predictor_names = [str(s) for s in all_narr_predictor_names]
+    predictor_matrix = numpy.array(
+        netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:])
+
+    if narr_predictor_names is None:
+        narr_predictor_names = all_narr_predictor_names + []
+    else:
+        these_indices = numpy.array(
+            [all_narr_predictor_names.index(p) for p in narr_predictor_names],
+            dtype=int)
+        predictor_matrix = predictor_matrix[..., these_indices]
+
+    predictor_matrix = _decrease_example_size(
+        predictor_matrix=predictor_matrix,
+        num_half_rows=num_half_rows_per_example,
+        num_half_columns=num_half_columns_per_example)
+
+    example_dict = {
+        PREDICTOR_MATRIX_KEY: predictor_matrix,
+        TARGET_MATRIX_KEY:
+            numpy.array(netcdf_dataset.variables[TARGET_MATRIX_KEY][:]),
+        TARGET_TIMES_KEY:
+            numpy.array(
+                netcdf_dataset.variables[TARGET_TIMES_KEY][:], dtype=int),
+        ROW_INDICES_KEY:
+            numpy.array(
+                netcdf_dataset.variables[ROW_INDICES_KEY][:], dtype=int),
+        COLUMN_INDICES_KEY:
+            numpy.array(
+                netcdf_dataset.variables[COLUMN_INDICES_KEY][:], dtype=int),
+        PREDICTOR_NAMES_KEY: narr_predictor_names,
+        PRESSURE_LEVEL_KEY: int(getattr(netcdf_dataset, PRESSURE_LEVEL_KEY)),
+        DILATION_DISTANCE_KEY: getattr(netcdf_dataset, DILATION_DISTANCE_KEY),
+        NARR_MASK_KEY:
+            numpy.array(netcdf_dataset.variables[NARR_MASK_KEY][:], dtype=int)
+    }
+
+    netcdf_dataset.close()
+    return example_dict
