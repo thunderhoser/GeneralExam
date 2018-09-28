@@ -7,6 +7,7 @@ from generalexam.machine_learning import training_validation_io as trainval_io
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test _decrease_example_size.
 THIS_MATRIX_EXAMPLE1_PREDICTOR1 = numpy.array(
     [[1, 2, 3, 4, 5, 6, 7],
      [8, 9, 10, 11, 12, 13, 14],
@@ -36,6 +37,12 @@ THIS_MATRIX_EXAMPLE1 = numpy.stack(
 SMALL_PREDICTOR_MATRIX = numpy.stack(
     (THIS_MATRIX_EXAMPLE1, THIS_MATRIX_EXAMPLE1 + 100), axis=0)
 
+# The following constants are used to test find_downsized_3d_example_file.
+DIRECTORY_NAME = 'poop'
+FIRST_TARGET_TIME_UNIX_SEC = -84157200  # 2300 UTC 2 May 1967
+LAST_TARGET_TIME_UNIX_SEC = -84146400  # 0200 UTC 3 May 1967
+DOWNSIZED_3D_FILE_NAME = 'poop/downsized_3d_examples_1967050223-1967050302.nc'
+
 
 class TrainingValidationIoTests(unittest.TestCase):
     """Each method is a unit test for training_validation_io.py."""
@@ -50,6 +57,17 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_predictor_matrix, SMALL_PREDICTOR_MATRIX, atol=TOLERANCE))
+
+    def test_find_downsized_3d_example_file(self):
+        """Ensures correct output from find_downsized_3d_example_file."""
+
+        this_file_name = trainval_io.find_downsized_3d_example_file(
+            directory_name=DIRECTORY_NAME,
+            first_target_time_unix_sec=FIRST_TARGET_TIME_UNIX_SEC,
+            last_target_time_unix_sec=LAST_TARGET_TIME_UNIX_SEC,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == DOWNSIZED_3D_FILE_NAME)
 
 
 if __name__ == '__main__':

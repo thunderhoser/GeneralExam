@@ -25,11 +25,13 @@ steps, C predictor variables).
 """
 
 import copy
+import os.path
 import numpy
 import keras
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -37,8 +39,7 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-TIME_FORMAT_MONTH = '%Y%m'
-TIME_FORMAT_IN_FILE_NAME = '%Y-%m-%d-%H'
+TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 
 LARGE_INTEGER = 25000
 HOURS_TO_SECONDS = 3600
@@ -1056,6 +1057,47 @@ def prep_downsized_3d_examples_to_write(
     }
 
 
+def find_downsized_3d_example_file(
+        directory_name, first_target_time_unix_sec, last_target_time_unix_sec,
+        raise_error_if_missing=True):
+    """Finds file with downsized 3-D examples.
+
+    :param directory_name: Name of directory.
+    :param first_target_time_unix_sec: First target time in file.
+    :param last_target_time_unix_sec: Last target time in file.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: downsized_3d_file_name: Path to file with downsized 3-D examples.
+        If file is missing and `raise_error_if_missing = False`, this is the
+        *expected* path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_integer(first_target_time_unix_sec)
+    error_checking.assert_is_integer(last_target_time_unix_sec)
+    error_checking.assert_is_geq(
+        last_target_time_unix_sec, first_target_time_unix_sec)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    downsized_3d_file_name = (
+        '{0:s}/downsized_3d_examples_{1:s}-{2:s}.nc'
+    ).format(
+        directory_name,
+        time_conversion.unix_sec_to_string(
+            first_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
+        time_conversion.unix_sec_to_string(
+            last_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
+    )
+
+    if raise_error_if_missing and not os.path.isfile(downsized_3d_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            downsized_3d_file_name)
+        raise ValueError(error_string)
+
+    return downsized_3d_file_name
+
+
 def write_downsized_3d_examples(
         netcdf_file_name, example_dict, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, narr_mask_matrix=None):
@@ -1194,8 +1236,6 @@ def read_downsized_3d_examples(
     example_dict['dilation_distance_metres']: Same.
     example_dict['narr_mask_matrix']: Same.
     """
-
-    # TODO(thunderhoser): Do something about missing WPC time steps.
 
     if narr_predictor_names is not None:
         error_checking.assert_is_numpy_array(
