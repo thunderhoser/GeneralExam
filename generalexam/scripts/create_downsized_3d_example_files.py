@@ -206,7 +206,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
 
     num_target_times = len(target_times_unix_sec)
     this_example_dict = None
-    this_first_time_unix_sec = target_times_unix_sec[i][0]
+    this_first_time_unix_sec = target_times_unix_sec[0]
 
     for i in range(num_target_times):
         if numpy.mod(i, num_times_per_output_file) == 0 and i != 0:
