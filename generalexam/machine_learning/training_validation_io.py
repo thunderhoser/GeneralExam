@@ -41,7 +41,6 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 
-LARGE_INTEGER = 25000
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
     nwp_model_utils.NARR_MODEL_NAME)[1]
@@ -151,6 +150,16 @@ def find_input_files_for_3d_examples(
         (num_target_times, num_predictors), '', dtype=numpy.object)
 
     for i in range(num_target_times):
+        frontal_grid_file_names[i] = fronts_io.find_file_for_one_time(
+            top_directory_name=top_frontal_grid_dir_name,
+            file_type=fronts_io.GRIDDED_FILE_TYPE,
+            valid_time_unix_sec=target_times_unix_sec[i],
+            raise_error_if_missing=False)
+
+        if not os.path.isfile(frontal_grid_file_names[i]):
+            frontal_grid_file_names[i] = ''
+            continue
+
         for j in range(num_predictors):
             narr_file_name_matrix[i, j] = (
                 processed_narr_io.find_file_for_one_time(
@@ -160,13 +169,12 @@ def find_input_files_for_3d_examples(
                     valid_time_unix_sec=target_times_unix_sec[i],
                     raise_error_if_missing=True))
 
-        frontal_grid_file_names[i] = fronts_io.find_file_for_one_time(
-            top_directory_name=top_frontal_grid_dir_name,
-            file_type=fronts_io.GRIDDED_FILE_TYPE,
-            valid_time_unix_sec=target_times_unix_sec[i],
-            raise_error_if_missing=True)
+    keep_time_flags = numpy.array(
+        [f != '' for f in frontal_grid_file_names], dtype=bool)
+    keep_time_indices = numpy.where(keep_time_flags)[0]
 
-    return narr_file_name_matrix, frontal_grid_file_names
+    return (narr_file_name_matrix[keep_time_indices, ...],
+            frontal_grid_file_names[keep_time_indices])
 
 
 def find_input_files_for_4d_examples(
@@ -226,7 +234,11 @@ def find_input_files_for_4d_examples(
             top_directory_name=top_frontal_grid_dir_name,
             file_type=fronts_io.GRIDDED_FILE_TYPE,
             valid_time_unix_sec=target_times_unix_sec[i],
-            raise_error_if_missing=True)
+            raise_error_if_missing=False)
+
+        if not os.path.isfile(frontal_grid_file_names[i]):
+            frontal_grid_file_names[i] = ''
+            continue
 
         this_last_time_unix_sec = target_times_unix_sec[i] - (
             num_lead_time_steps * NARR_TIME_INTERVAL_SECONDS)
@@ -243,7 +255,12 @@ def find_input_files_for_4d_examples(
                         valid_time_unix_sec=these_narr_times_unix_sec[j],
                         raise_error_if_missing=True))
 
-    return narr_file_name_matrix, frontal_grid_file_names
+    keep_time_flags = numpy.array(
+        [f != '' for f in frontal_grid_file_names], dtype=bool)
+    keep_time_indices = numpy.where(keep_time_flags)[0]
+
+    return (narr_file_name_matrix[keep_time_indices, ...],
+            frontal_grid_file_names[keep_time_indices])
 
 
 def downsized_3d_example_generator(
@@ -950,13 +967,14 @@ def full_size_4d_example_generator(
 
 
 def prep_downsized_3d_examples_to_write(
-        target_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_metres, class_fractions, num_rows_in_half_grid,
-        num_columns_in_half_grid, narr_mask_matrix=None):
+        target_time_unix_sec, max_num_examples, top_narr_directory_name,
+        top_frontal_grid_dir_name, narr_predictor_names,
+        pressure_level_mb, dilation_distance_metres, class_fractions,
+        num_rows_in_half_grid, num_columns_in_half_grid, narr_mask_matrix=None):
     """Prepares downsized 3-D examples for writing to a file.
 
     :param target_time_unix_sec: Target time.
+    :param max_num_examples: Maximum number of examples.
     :param top_narr_directory_name: See doc for
         `find_input_files_for_3d_examples`.
     :param top_frontal_grid_dir_name: Same.
@@ -1033,7 +1051,7 @@ def prep_downsized_3d_examples_to_write(
 
     sampled_target_point_dict = ml_utils.sample_target_points(
         target_matrix=target_matrix, class_fractions=class_fractions,
-        num_points_to_sample=LARGE_INTEGER, mask_matrix=narr_mask_matrix)
+        num_points_to_sample=max_num_examples, mask_matrix=narr_mask_matrix)
 
     (predictor_matrix, target_values, _, row_indices, column_indices
     ) = ml_utils.downsize_grids_around_selected_points(
@@ -1209,20 +1227,23 @@ def write_downsized_3d_examples(
 
 
 def read_downsized_3d_examples(
-        netcdf_file_name, narr_predictor_names=None,
-        num_half_rows_per_example=None, num_half_columns_per_example=None):
+        netcdf_file_name, predictor_names_to_keep=None,
+        num_half_rows_to_keep=None, num_half_columns_to_keep=None,
+        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None):
     """Reads downsized 3-D examples from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :param narr_predictor_names: 1-D list with names of predictor variables to
-        return (each name must be accepted by `check_field_name`).  If
-        `narr_predictor_names is None`, all predictors in the file will be
+    :param predictor_names_to_keep: 1-D list with names of predictor variables to
+        keep (each name must be accepted by `check_field_name`).  If
+        `predictor_names_to_keep is None`, all predictors in the file will be
         returned.
-    :param num_half_rows_per_example: Determines number of rows returned for
-        each example.  Examples will be cropped so that the center of the
-        original image is the center of the new image.  If
-        `num_half_rows_per_example`, examples will not be cropped.
-    :param num_half_columns_per_example: Same but for columns.
+    :param num_half_rows_to_keep: Determines number of rows to keep for each
+        example.  Examples will be cropped so that the center of the original
+        image is the center of the new image.  If
+        `num_half_rows_to_keep is None`, examples will not be cropped.
+    :param num_half_columns_to_keep: Same but for columns.
+    :param first_time_to_keep_unix_sec: Will throw out earlier target times.
+    :param last_time_to_keep_unix_sec: Will throw out later target times.
     :return: example_dict: Dictionary with the following keys.
     example_dict['predictor_matrix']: See doc for
         `prep_downsized_3d_examples_to_write`.
@@ -1230,54 +1251,73 @@ def read_downsized_3d_examples(
     example_dict['target_times_unix_sec']: Same.
     example_dict['row_indices']: Same.
     example_dict['column_indices']: Same.
-    example_dict['narr_predictor_names']: See doc for
+    example_dict['predictor_names_to_keep']: See doc for
         `write_downsized_3d_examples`.
     example_dict['pressure_level_mb']: Same.
     example_dict['dilation_distance_metres']: Same.
     example_dict['narr_mask_matrix']: Same.
     """
 
-    if narr_predictor_names is not None:
+    if predictor_names_to_keep is not None:
         error_checking.assert_is_numpy_array(
-            numpy.array(narr_predictor_names), num_dimensions=1)
-        for this_name in narr_predictor_names:
+            numpy.array(predictor_names_to_keep), num_dimensions=1)
+        for this_name in predictor_names_to_keep:
             processed_narr_io.check_field_name(this_name)
+    if first_time_to_keep_unix_sec is None:
+        first_time_to_keep_unix_sec = 0
+    if last_time_to_keep_unix_sec is None:
+        last_time_to_keep_unix_sec = int(1e11)
+
+    error_checking.assert_is_integer(first_time_to_keep_unix_sec)
+    error_checking.assert_is_integer(last_time_to_keep_unix_sec)
+    error_checking.assert_is_geq(
+        last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
 
     netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
 
-    all_narr_predictor_names = netCDF4.chartostring(
+    narr_predictor_names = netCDF4.chartostring(
         netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
-    all_narr_predictor_names = [str(s) for s in all_narr_predictor_names]
+    narr_predictor_names = [str(s) for s in narr_predictor_names]
     predictor_matrix = numpy.array(
         netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:])
 
-    if narr_predictor_names is None:
-        narr_predictor_names = all_narr_predictor_names + []
+    if predictor_names_to_keep is None:
+        predictor_names_to_keep = narr_predictor_names + []
     else:
         these_indices = numpy.array(
-            [all_narr_predictor_names.index(p) for p in narr_predictor_names],
+            [narr_predictor_names.index(p) for p in predictor_names_to_keep],
             dtype=int)
         predictor_matrix = predictor_matrix[..., these_indices]
 
     predictor_matrix = _decrease_example_size(
-        predictor_matrix=predictor_matrix,
-        num_half_rows=num_half_rows_per_example,
-        num_half_columns=num_half_columns_per_example)
+        predictor_matrix=predictor_matrix, num_half_rows=num_half_rows_to_keep,
+        num_half_columns=num_half_columns_to_keep)
+
+    target_times_unix_sec = numpy.array(
+        netcdf_dataset.variables[TARGET_TIMES_KEY][:], dtype=int)
+    indices_to_keep = numpy.where(numpy.logical_and(
+        target_times_unix_sec >= first_time_to_keep_unix_sec,
+        target_times_unix_sec <= last_time_to_keep_unix_sec
+    ))[0]
+
+    target_times_unix_sec = target_times_unix_sec[indices_to_keep]
+    predictor_matrix = predictor_matrix[indices_to_keep, ...].astype('float32')
+    target_matrix = numpy.array(
+        netcdf_dataset.variables[TARGET_MATRIX_KEY][indices_to_keep, ...]
+    ).astype('float64')
+    row_indices = numpy.array(
+        netcdf_dataset.variables[ROW_INDICES_KEY][indices_to_keep], dtype=int)
+    column_indices = numpy.array(
+        netcdf_dataset.variables[COLUMN_INDICES_KEY][indices_to_keep],
+        dtype=int)
 
     example_dict = {
         PREDICTOR_MATRIX_KEY: predictor_matrix,
-        TARGET_MATRIX_KEY:
-            numpy.array(netcdf_dataset.variables[TARGET_MATRIX_KEY][:]),
-        TARGET_TIMES_KEY:
-            numpy.array(
-                netcdf_dataset.variables[TARGET_TIMES_KEY][:], dtype=int),
-        ROW_INDICES_KEY:
-            numpy.array(
-                netcdf_dataset.variables[ROW_INDICES_KEY][:], dtype=int),
-        COLUMN_INDICES_KEY:
-            numpy.array(
-                netcdf_dataset.variables[COLUMN_INDICES_KEY][:], dtype=int),
-        PREDICTOR_NAMES_KEY: narr_predictor_names,
+        TARGET_MATRIX_KEY: target_matrix,
+        TARGET_TIMES_KEY: target_times_unix_sec,
+        ROW_INDICES_KEY: row_indices,
+        COLUMN_INDICES_KEY: column_indices,
+        PREDICTOR_NAMES_KEY: predictor_names_to_keep,
         PRESSURE_LEVEL_KEY: int(getattr(netcdf_dataset, PRESSURE_LEVEL_KEY)),
         DILATION_DISTANCE_KEY: getattr(netcdf_dataset, DILATION_DISTANCE_KEY),
         NARR_MASK_KEY:

@@ -23,6 +23,7 @@ MAIN_KEYS = [
 
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
+MAX_EXAMPLES_PER_TIME_ARG_NAME = 'max_num_examples_per_time'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 PREDICTOR_NAMES_ARG_NAME = 'narr_predictor_names'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
@@ -33,16 +34,16 @@ FRONT_DIR_ARG_NAME = 'top_frontal_grid_dir_name'
 NARR_DIRECTORY_ARG_NAME = 'top_narr_directory_name'
 NARR_MASK_FILE_ARG_NAME = 'narr_mask_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-NUM_TIMES_PER_FILE_ARG_NAME = 'num_times_per_output_file'
+NUM_TIMES_PER_OUT_FILE_ARG_NAME = 'num_times_per_output_file'
 
-# TODO(thunderhoser): May want num examples per time as an arg name.
 # TODO(thunderhoser): Need ability to subset input files by time.
-# TODO(thunderhoser): Need to deal with missing WPC time steps.
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Downsized 3-D training examples will be '
     'printed for all times from `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
+
+MAX_EXAMPLES_PER_TIME_HELP_STRING = 'Max number of examples per time step.'
 
 PRESSURE_LEVEL_HELP_STRING = (
     'All NARR predictors will be taken from this pressure level (millibars).')
@@ -90,8 +91,9 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Downsized 3-D examples will be '
     'written here by ``, to locations determined by ``.')
 
-NUM_TIMES_PER_FILE_HELP_STRING = 'Number of time steps in each output file.'
+NUM_TIMES_PER_OUT_FILE_HELP_STRING = 'Number of time steps in each output file.'
 
+DEFAULT_MAX_EXAMPLES_PER_TIME = 5000
 DEFAULT_PRESSURE_LEVEL_MB = 1000
 DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
@@ -110,7 +112,7 @@ DEFAULT_TOP_FRONT_DIR_NAME = (
 DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
-DEFAULT_NUM_TIMES_PER_FILE = 8
+DEFAULT_NUM_TIMES_PER_OUT_FILE = 8
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -118,6 +120,11 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_EXAMPLES_PER_TIME_ARG_NAME, type=int, required=False,
+    default=MAX_EXAMPLES_PER_TIME_HELP_STRING,
+    help=DEFAULT_MAX_EXAMPLES_PER_TIME)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
@@ -161,21 +168,23 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_TIMES_PER_FILE_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_TIMES_PER_FILE, help=NUM_TIMES_PER_FILE_HELP_STRING)
+    '--' + NUM_TIMES_PER_OUT_FILE_ARG_NAME, type=int, required=False,
+    default=DEFAULT_NUM_TIMES_PER_OUT_FILE,
+    help=NUM_TIMES_PER_OUT_FILE_HELP_STRING)
 
 
-def _run(first_time_string, last_time_string, pressure_level_mb,
-         narr_predictor_names, dilation_distance_metres, class_fractions,
-         num_half_rows, num_half_columns, top_frontal_grid_dir_name,
-         top_narr_directory_name, narr_mask_file_name, output_dir_name,
-         num_times_per_output_file):
+def _run(first_time_string, last_time_string, max_num_examples_per_time,
+         pressure_level_mb, narr_predictor_names, dilation_distance_metres,
+         class_fractions, num_half_rows, num_half_columns,
+         top_frontal_grid_dir_name, top_narr_directory_name,
+         narr_mask_file_name, output_dir_name, num_times_per_output_file):
     """Writes downsized 3-D training examples to files.
 
     This is effectively the main method.
 
     :param first_time_string: See documentation at top of file.
     :param last_time_string: Same.
+    :param max_num_examples_per_time: Same.
     :param pressure_level_mb: Same.
     :param narr_predictor_names: Same.
     :param dilation_distance_metres: Same.
@@ -236,6 +245,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
 
         this_new_example_dict = trainval_io.prep_downsized_3d_examples_to_write(
             target_time_unix_sec=target_times_unix_sec[i],
+            max_num_examples=max_num_examples_per_time,
             top_narr_directory_name=top_narr_directory_name,
             top_frontal_grid_dir_name=top_frontal_grid_dir_name,
             narr_predictor_names=narr_predictor_names,
@@ -281,6 +291,8 @@ if __name__ == '__main__':
     _run(
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
+        max_num_examples_per_time=getattr(
+            INPUT_ARG_OBJECT, MAX_EXAMPLES_PER_TIME_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         narr_predictor_names=getattr(
             INPUT_ARG_OBJECT, PREDICTOR_NAMES_ARG_NAME),
@@ -296,5 +308,5 @@ if __name__ == '__main__':
         narr_mask_file_name=getattr(INPUT_ARG_OBJECT, NARR_MASK_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
         num_times_per_output_file=getattr(
-            INPUT_ARG_OBJECT, NUM_TIMES_PER_FILE_ARG_NAME)
+            INPUT_ARG_OBJECT, NUM_TIMES_PER_OUT_FILE_ARG_NAME)
     )
