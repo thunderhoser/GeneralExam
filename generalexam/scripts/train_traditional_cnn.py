@@ -23,13 +23,13 @@ INPUT_ARG_PARSER = ml_helper.add_input_arguments(
 def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
          num_training_batches_per_epoch, num_validation_batches_per_epoch,
          num_rows_in_half_grid, num_columns_in_half_grid,
-         dilation_distance_for_target_metres, weight_loss_function,
-         class_fractions, num_classes, num_lead_time_steps,
-         predictor_time_step_offsets, pressure_level_mb, narr_predictor_names,
-         training_start_time_string, training_end_time_string,
-         validation_start_time_string, validation_end_time_string,
-         top_narr_dir_name, top_frontal_grid_dir_name, narr_mask_file_name,
-         num_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
+         dilation_distance_metres, weight_loss_function, class_fractions,
+         num_classes, num_lead_time_steps, predictor_time_step_offsets,
+         pressure_level_mb, narr_predictor_names, training_start_time_string,
+         training_end_time_string, validation_start_time_string,
+         validation_end_time_string, top_narr_dir_name,
+         top_frontal_grid_dir_name, narr_mask_file_name, num_conv_layer_sets,
+         num_conv_layers_per_set, pooling_type_string,
          conv_activation_function_string, alpha_for_elu, alpha_for_relu,
          use_batch_normalization, init_num_filters, conv_layer_dropout_fraction,
          dense_layer_dropout_fraction, l2_weight, output_file_name):
@@ -44,7 +44,7 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
     :param num_validation_batches_per_epoch: Same.
     :param num_rows_in_half_grid: Same.
     :param num_columns_in_half_grid: Same.
-    :param dilation_distance_for_target_metres: Same.
+    :param dilation_distance_metres: Same.
     :param weight_loss_function: Same.
     :param class_fractions: Same.
     :param num_classes: Same.
@@ -122,7 +122,7 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
+        dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
         weight_loss_function=weight_loss_function,
         narr_predictor_names=narr_predictor_names,
@@ -165,7 +165,7 @@ def _run(num_epochs, num_examples_per_batch, num_examples_per_time,
         top_frontal_grid_dir_name=top_frontal_grid_dir_name,
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb,
-        dilation_distance_for_target_metres=dilation_distance_for_target_metres,
+        dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid,
@@ -194,7 +194,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ml_helper.NUM_HALF_ROWS_ARG_NAME),
         num_columns_in_half_grid=getattr(
             INPUT_ARG_OBJECT, ml_helper.NUM_HALF_COLUMNS_ARG_NAME),
-        dilation_distance_for_target_metres=getattr(
+        dilation_distance_metres=getattr(
             INPUT_ARG_OBJECT, ml_helper.DILATION_DISTANCE_ARG_NAME),
         weight_loss_function=bool(getattr(
             INPUT_ARG_OBJECT, ml_helper.WEIGHT_LOSS_ARG_NAME)),

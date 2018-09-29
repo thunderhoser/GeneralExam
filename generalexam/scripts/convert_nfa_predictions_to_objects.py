@@ -24,7 +24,6 @@ NARR_TIME_INTERVAL_SECONDS = 10800
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
-RANDOMIZE_TIMES_ARG_NAME = 'randomize_times'
 NUM_TIMES_ARG_NAME = 'num_times'
 MIN_AREA_ARG_NAME = 'min_object_area_metres2'
 MIN_LENGTH_ARG_NAME = 'min_endpoint_length_metres'

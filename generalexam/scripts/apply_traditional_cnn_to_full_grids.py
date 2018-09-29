@@ -12,8 +12,6 @@ from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
-# TODO(thunderhoser): Allow mask to be used.
-
 NARR_TIME_INTERVAL_SEC = 10800
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 
@@ -190,7 +188,7 @@ def _run(model_file_name, first_time_string, last_time_string, randomize_times,
                     traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
                 pressure_level_mb=model_metadata_dict[
                     traditional_cnn.PRESSURE_LEVEL_KEY],
-                dilation_distance_for_target_metres=model_metadata_dict[
+                dilation_distance_metres=model_metadata_dict[
                     traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY],
                 num_rows_in_half_grid=model_metadata_dict[
                     traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
@@ -215,7 +213,7 @@ def _run(model_file_name, first_time_string, last_time_string, randomize_times,
                     traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
                 pressure_level_mb=model_metadata_dict[
                     traditional_cnn.PRESSURE_LEVEL_KEY],
-                dilation_distance_for_target_metres=model_metadata_dict[
+                dilation_distance_metres=model_metadata_dict[
                     traditional_cnn.DILATION_DISTANCE_FOR_TARGET_KEY],
                 num_rows_in_half_grid=model_metadata_dict[
                     traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],

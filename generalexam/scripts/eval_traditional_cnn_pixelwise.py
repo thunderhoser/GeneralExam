@@ -396,7 +396,7 @@ def _run(model_file_name, first_eval_time_string, last_eval_time_string,
             traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
         pressure_level_mb=model_metadata_dict[
             traditional_cnn.PRESSURE_LEVEL_KEY],
-        dilation_distance_for_target_metres=dilation_distance_metres,
+        dilation_distance_metres=dilation_distance_metres,
         num_rows_in_half_grid=model_metadata_dict[
             traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
         num_columns_in_half_grid=model_metadata_dict[

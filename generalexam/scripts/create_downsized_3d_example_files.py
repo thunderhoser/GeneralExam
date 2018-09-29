@@ -36,8 +36,6 @@ NARR_MASK_FILE_ARG_NAME = 'narr_mask_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 NUM_TIMES_PER_OUT_FILE_ARG_NAME = 'num_times_per_output_file'
 
-# TODO(thunderhoser): Need ability to subset input files by time.
-
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Downsized 3-D training examples will be '
     'printed for all times from `{0:s}`...`{1:s}`.'

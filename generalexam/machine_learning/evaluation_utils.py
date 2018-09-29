@@ -292,11 +292,10 @@ def downsized_examples_to_eval_pairs(
         model_object, first_target_time_unix_sec, last_target_time_unix_sec,
         num_target_times_to_sample, num_examples_per_time,
         top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres, num_rows_in_half_grid,
-        num_columns_in_half_grid, num_classes, predictor_time_step_offsets=None,
-        num_lead_time_steps=None, isotonic_model_object_by_class=None,
-        narr_mask_matrix=None):
+        narr_predictor_names, pressure_level_mb, dilation_distance_metres,
+        num_rows_in_half_grid, num_columns_in_half_grid, num_classes,
+        predictor_time_step_offsets=None, num_lead_time_steps=None,
+        isotonic_model_object_by_class=None, narr_mask_matrix=None):
     """Creates evaluation pairs from downsized 3-D or 4-D examples.
 
     M = number of pixel rows in full NARR grid
@@ -326,8 +325,8 @@ def downsized_examples_to_eval_pairs(
         grids (one file per time step).
     :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
     :param pressure_level_mb: Pressure level (millibars).
-    :param dilation_distance_for_target_metres: Dilation distance for both warm
-        and cold fronts.
+    :param dilation_distance_metres: Dilation distance for both warm and cold
+        fronts.
     :param num_rows_in_half_grid: See general discussion above.
     :param num_columns_in_half_grid: See general discussion above.
     :param num_classes: Number of classes.
@@ -401,8 +400,7 @@ def downsized_examples_to_eval_pairs(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres,
+                dilation_distance_metres=dilation_distance_metres,
                 num_classes=num_classes)
 
         else:
@@ -419,8 +417,7 @@ def downsized_examples_to_eval_pairs(
                 top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
-                dilation_distance_for_target_metres=
-                dilation_distance_for_target_metres,
+                dilation_distance_metres=dilation_distance_metres,
                 num_classes=num_classes)
 
         class_probability_matrix[i, ...] = model_object.predict(
@@ -447,9 +444,8 @@ def full_size_examples_to_eval_pairs(
         model_object, first_target_time_unix_sec, last_target_time_unix_sec,
         num_target_times_to_sample, num_points_per_time,
         top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb,
-        dilation_distance_for_target_metres, num_classes,
-        predictor_time_step_offsets=None, num_lead_time_steps=None,
+        narr_predictor_names, pressure_level_mb, dilation_distance_metres,
+        num_classes, predictor_time_step_offsets=None, num_lead_time_steps=None,
         isotonic_model_object_by_class=None):
     """Creates evaluation pairs from full-size 3-D or 4-D examples.
 
@@ -466,7 +462,7 @@ def full_size_examples_to_eval_pairs(
     :param top_frontal_grid_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
-    :param dilation_distance_for_target_metres: Same.
+    :param dilation_distance_metres: Same.
     :param num_classes: Same.
     :param predictor_time_step_offsets: Same.
     :param num_lead_time_steps: Same.
@@ -517,8 +513,7 @@ def full_size_examples_to_eval_pairs(
                     top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                     narr_predictor_names=narr_predictor_names,
                     pressure_level_mb=pressure_level_mb,
-                    dilation_distance_for_target_metres=
-                    dilation_distance_for_target_metres,
+                    dilation_distance_metres=dilation_distance_metres,
                     num_classes=num_classes,
                     isotonic_model_object_by_class=
                     isotonic_model_object_by_class))
@@ -527,14 +522,13 @@ def full_size_examples_to_eval_pairs(
                 fcn.apply_model_to_4d_example(
                     model_object=model_object,
                     target_time_unix_sec=target_times_unix_sec[i],
-                    predictor_time_step_offsets=predictor_time_step_offsets,
+                    num_predictor_time_steps=predictor_time_step_offsets,
                     num_lead_time_steps=num_lead_time_steps,
                     top_narr_directory_name=top_narr_directory_name,
                     top_frontal_grid_dir_name=top_frontal_grid_dir_name,
                     narr_predictor_names=narr_predictor_names,
                     pressure_level_mb=pressure_level_mb,
-                    dilation_distance_for_target_metres=
-                    dilation_distance_for_target_metres,
+                    dilation_distance_metres=dilation_distance_metres,
                     num_classes=num_classes,
                     isotonic_model_object_by_class=
                     isotonic_model_object_by_class))
