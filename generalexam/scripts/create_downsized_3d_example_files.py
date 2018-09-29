@@ -10,6 +10,8 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import training_validation_io as trainval_io
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 NARR_TIME_STEP_SECONDS = 10800
 
@@ -201,6 +203,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
     else:
         print 'Reading NARR mask from: "{0:s}"...'.format(narr_mask_file_name)
         narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
+        print SEPARATOR_STRING
 
     error_checking.assert_is_greater(num_times_per_output_file, 0)
 
@@ -226,6 +229,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
                 narr_mask_matrix=narr_mask_matrix)
+            print SEPARATOR_STRING
 
             this_example_dict = None
             this_first_time_unix_sec = target_times_unix_sec[i]
@@ -241,8 +245,7 @@ def _run(first_time_string, last_time_string, pressure_level_mb,
             num_rows_in_half_grid=num_half_rows,
             num_columns_in_half_grid=num_half_columns,
             narr_mask_matrix=narr_mask_matrix)
-
-        # TODO(thunderhoser): print statements.
+        print '\n'
 
         if this_example_dict is None:
             this_example_dict = copy.deepcopy(this_new_example_dict)
