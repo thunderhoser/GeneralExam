@@ -121,8 +121,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_EXAMPLES_PER_TIME_ARG_NAME, type=int, required=False,
-    default=MAX_EXAMPLES_PER_TIME_HELP_STRING,
-    help=DEFAULT_MAX_EXAMPLES_PER_TIME)
+    default=DEFAULT_MAX_EXAMPLES_PER_TIME,
+    help=MAX_EXAMPLES_PER_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
