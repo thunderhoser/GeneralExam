@@ -43,7 +43,7 @@ NUM_EXAMPLES_PER_OUT_FILE_HELP_STRING = (
     'Number of examples in each randomly shuffled output file.')
 
 DEFAULT_NUM_EXAMPLES_PER_CHUNK = 8
-DEFAULT_NUM_EXAMPLES_PER_OUT_FILE = 10000
+DEFAULT_NUM_EXAMPLES_PER_OUT_FILE = 1024
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
