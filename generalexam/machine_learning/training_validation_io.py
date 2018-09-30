@@ -1315,6 +1315,7 @@ def find_downsized_3d_example_files(
             raise ValueError(error_string)
 
     else:
+        downsized_3d_file_names.sort()
 
         # TODO(thunderhoser): Does this work?  File cannot end before period of
         # interest, cannot start after POI.
