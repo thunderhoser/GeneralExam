@@ -1323,7 +1323,7 @@ def write_downsized_3d_examples(
 
     netcdf_dataset.createDimension(NARR_ROW_DIMENSION_KEY, num_narr_rows)
     netcdf_dataset.createDimension(NARR_COLUMN_DIMENSION_KEY, num_narr_columns)
-    netcdf_dataset.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
+    netcdf_dataset.createDimension(EXAMPLE_DIMENSION_KEY, None)
     netcdf_dataset.createDimension(
         EXAMPLE_ROW_DIMENSION_KEY, num_rows_per_example)
     netcdf_dataset.createDimension(
