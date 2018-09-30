@@ -1025,6 +1025,9 @@ def prep_downsized_3d_examples_to_write(
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb)
 
+    if len(frontal_grid_file_names) == 0:
+        return None
+
     narr_file_names = narr_file_name_matrix[0, ...]
     frontal_grid_file_name = frontal_grid_file_names[0]
 

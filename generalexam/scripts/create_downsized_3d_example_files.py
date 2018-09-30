@@ -220,24 +220,27 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
 
     for i in range(num_target_times):
         if numpy.mod(i, num_times_per_output_file) == 0 and i != 0:
-            this_last_time_unix_sec = target_times_unix_sec[i - 1]
-            this_output_file_name = trainval_io.find_downsized_3d_example_file(
-                directory_name=output_dir_name,
-                first_target_time_unix_sec=this_first_time_unix_sec,
-                last_target_time_unix_sec=this_last_time_unix_sec,
-                raise_error_if_missing=False)
+            if this_example_dict is not None:
+                this_last_time_unix_sec = target_times_unix_sec[i - 1]
+                this_output_file_name = (
+                    trainval_io.find_downsized_3d_example_file(
+                        directory_name=output_dir_name,
+                        first_target_time_unix_sec=this_first_time_unix_sec,
+                        last_target_time_unix_sec=this_last_time_unix_sec,
+                        raise_error_if_missing=False)
+                )
 
-            print 'Writing data to file: "{0:s}"...'.format(
-                this_output_file_name)
-            trainval_io.write_downsized_3d_examples(
-                netcdf_file_name=this_output_file_name,
-                example_dict=this_example_dict,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                narr_mask_matrix=narr_mask_matrix)
+                print 'Writing data to file: "{0:s}"...'.format(
+                    this_output_file_name)
+                trainval_io.write_downsized_3d_examples(
+                    netcdf_file_name=this_output_file_name,
+                    example_dict=this_example_dict,
+                    narr_predictor_names=narr_predictor_names,
+                    pressure_level_mb=pressure_level_mb,
+                    dilation_distance_metres=dilation_distance_metres,
+                    narr_mask_matrix=narr_mask_matrix)
+
             print SEPARATOR_STRING
-
             this_example_dict = None
             this_first_time_unix_sec = target_times_unix_sec[i]
 
@@ -253,7 +256,10 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
             num_rows_in_half_grid=num_half_rows,
             num_columns_in_half_grid=num_half_columns,
             narr_mask_matrix=narr_mask_matrix)
+
         print '\n'
+        if this_new_example_dict is None:
+            continue
 
         if this_example_dict is None:
             this_example_dict = copy.deepcopy(this_new_example_dict)
