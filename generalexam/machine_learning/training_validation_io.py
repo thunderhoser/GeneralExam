@@ -1292,6 +1292,9 @@ def write_downsized_3d_examples(
         assert numpy.array_equal(orig_narr_mask_matrix, narr_mask_matrix)
 
         for this_key in MAIN_KEYS:
+            print numpy.array(netcdf_dataset.variables[this_key][:]).shape
+            print example_dict[this_key].shape
+
             netcdf_dataset.variables[this_key][:] = numpy.concatenate(
                 (numpy.array(netcdf_dataset.variables[this_key][:]),
                  example_dict[this_key]),
