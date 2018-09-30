@@ -47,6 +47,8 @@ from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
+TOLERANCE = 1e-6
+
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 TIME_FORMAT_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9][0-2][0-9]'
 BATCH_NUMBER_REGEX = '[0-9][0-9][0-9][0-9]'
@@ -73,6 +75,11 @@ EXAMPLE_COLUMN_DIMENSION_KEY = 'example_column'
 PREDICTOR_DIMENSION_KEY = 'predictor_variable'
 CHARACTER_DIMENSION_KEY = 'predictor_variable_char'
 CLASS_DIMENSION_KEY = 'class'
+
+MAIN_KEYS = [
+    PREDICTOR_MATRIX_KEY, TARGET_MATRIX_KEY, TARGET_TIMES_KEY, ROW_INDICES_KEY,
+    COLUMN_INDICES_KEY
+]
 
 
 def _file_name_to_target_times(downsized_3d_file_name):
@@ -1227,7 +1234,7 @@ def find_downsized_3d_example_files(
 
 def write_downsized_3d_examples(
         netcdf_file_name, example_dict, narr_predictor_names, pressure_level_mb,
-        dilation_distance_metres, narr_mask_matrix=None):
+        dilation_distance_metres, narr_mask_matrix=None, append_to_file=False):
     """Writes downsized 3-D examples to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
@@ -1238,6 +1245,9 @@ def write_downsized_3d_examples(
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
     :param narr_mask_matrix: Same.
+    :param append_to_file: Boolean flag.  If True, this method will append to an
+        existing file.  If False, will create a new file, overwriting the
+        existing file if necessary.
     """
 
     error_checking.assert_is_string_list(narr_predictor_names)
@@ -1257,6 +1267,38 @@ def write_downsized_3d_examples(
             (num_narr_rows, num_narr_columns), 1, dtype=int)
 
     ml_utils.check_narr_mask(narr_mask_matrix)
+    error_checking.assert_is_boolean(append_to_file)
+
+    if append_to_file:
+        netcdf_dataset = netCDF4.Dataset(
+            netcdf_file_name, 'a', format='NETCDF3_64BIT_OFFSET')
+
+        orig_predictor_names = netCDF4.chartostring(
+            netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
+        orig_predictor_names = [str(s) for s in orig_predictor_names]
+        assert orig_predictor_names == narr_predictor_names
+
+        orig_pressure_level_mb = int(
+            getattr(netcdf_dataset, PRESSURE_LEVEL_KEY))
+        assert orig_pressure_level_mb == pressure_level_mb
+
+        orig_dilation_distance_metres = getattr(
+            netcdf_dataset, DILATION_DISTANCE_KEY)
+        assert numpy.isclose(orig_dilation_distance_metres,
+                             dilation_distance_metres, atol=TOLERANCE)
+
+        orig_narr_mask_matrix = numpy.array(
+            netcdf_dataset.variables[NARR_MASK_KEY][:], dtype=int)
+        assert numpy.array_equal(orig_narr_mask_matrix, narr_mask_matrix)
+
+        for this_key in MAIN_KEYS:
+            netcdf_dataset.variables[this_key][:] = numpy.concatenate(
+                (numpy.array(netcdf_dataset.variables[this_key][:]),
+                 example_dict[this_key]),
+                axis=0)
+
+        netcdf_dataset.close()
+        return
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = netCDF4.Dataset(
