@@ -1475,11 +1475,9 @@ def read_downsized_3d_examples(
             numpy.array(netcdf_dataset.variables[NARR_MASK_KEY][:], dtype=int)
     }
 
-    netcdf_dataset.close()
     if metadata_only:
+        netcdf_dataset.close()
         return example_dict
-
-    print netcdf_dataset.variables
 
     example_dict.update({
         PREDICTOR_MATRIX_KEY:
@@ -1491,4 +1489,5 @@ def read_downsized_3d_examples(
             ).astype('float64')
     })
 
+    netcdf_dataset.close()
     return example_dict
