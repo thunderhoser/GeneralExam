@@ -1291,9 +1291,6 @@ def write_downsized_3d_examples(
             netcdf_dataset.variables[NARR_MASK_KEY][:], dtype=int)
         assert numpy.array_equal(orig_narr_mask_matrix, narr_mask_matrix)
 
-        print len(
-            numpy.array(netcdf_dataset.variables[TARGET_TIMES_KEY][:])
-        )
         num_examples_orig = len(
             numpy.array(netcdf_dataset.variables[TARGET_TIMES_KEY][:])
         )
@@ -1304,10 +1301,6 @@ def write_downsized_3d_examples(
                 num_examples_orig:(num_examples_orig + num_examples_to_add),
                 ...
             ] = example_dict[this_key]
-
-        print len(
-            numpy.array(netcdf_dataset.variables[TARGET_TIMES_KEY][:])
-        )
 
         netcdf_dataset.close()
         return
