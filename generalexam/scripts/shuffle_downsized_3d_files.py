@@ -16,6 +16,7 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_EXAMPLES_PER_CHUNK_ARG_NAME = 'num_examples_per_chunk'
 OUTPUT_DIR_ARG_NAME = 'top_output_dir_name'
+FIRST_BATCH_NUM_ARG_NAME = 'first_batch_number'
 NUM_EXAMPLES_PER_OUT_FILE_ARG_NAME = 'num_examples_per_out_file'
 
 INPUT_DIR_HELP_STRING = (
@@ -38,6 +39,10 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Files will be written by '
     '`training_validation_io.write_downsized_3d_examples` to locations therein,'
     ' determined by `training_validation_io.find_downsized_3d_example_file`.')
+
+FIRST_BATCH_NUM_HELP_STRING = (
+    'Batch number for first output file.  This is used only to create the file '
+    'name.')
 
 NUM_EXAMPLES_PER_OUT_FILE_HELP_STRING = (
     'Number of examples in each randomly shuffled output file.')
@@ -64,6 +69,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_BATCH_NUM_ARG_NAME, type=int, required=True,
+    help=FIRST_BATCH_NUM_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_PER_OUT_FILE_ARG_NAME, type=int, required=False,
@@ -103,12 +112,14 @@ def _find_input_files(input_dir_name, first_time_unix_sec, last_time_unix_sec):
 
 
 def _set_output_locations(
-        num_examples_total, top_output_dir_name, num_examples_per_out_file):
+        top_output_dir_name, num_examples_total, num_examples_per_out_file,
+        first_batch_number):
     """Determines locations of output files.
 
-    :param num_examples_total: Number of examples among all input files.
     :param top_output_dir_name: See documentation at top of file.
-    :param num_examples_per_out_file: Same.
+    :param num_examples_total: Number of examples among all input files.
+    :param num_examples_per_out_file: See documentation at top of file.
+    :param first_batch_number: Same.
     :return: output_file_names: 1-D list of paths to output files.
     """
 
@@ -124,7 +135,7 @@ def _set_output_locations(
     output_file_names = [
         trainval_io.find_downsized_3d_example_file(
             top_directory_name=top_output_dir_name, shuffled=True,
-            batch_number=i, raise_error_if_missing=False
+            batch_number=first_batch_number + i, raise_error_if_missing=False
         ) for i in range(num_output_files)
     ]
 
@@ -197,7 +208,7 @@ def _shuffle_one_input_file(
 
 
 def _run(input_dir_name, first_time_string, last_time_string,
-         num_examples_per_chunk, top_output_dir_name,
+         num_examples_per_chunk, top_output_dir_name, first_batch_number,
          num_examples_per_out_file):
     """Randomly shuffles downsized 3-D examples among files.
 
@@ -208,6 +219,7 @@ def _run(input_dir_name, first_time_string, last_time_string,
     :param last_time_string: Same.
     :param num_examples_per_chunk: Same.
     :param top_output_dir_name: Same.
+    :param first_batch_number: Same.
     :param num_examples_per_out_file: Same.
     """
 
@@ -228,9 +240,10 @@ def _run(input_dir_name, first_time_string, last_time_string,
     print SEPARATOR_STRING
 
     output_file_names = _set_output_locations(
-        num_examples_total=num_examples_total,
         top_output_dir_name=top_output_dir_name,
-        num_examples_per_out_file=num_examples_per_out_file)
+        num_examples_total=num_examples_total,
+        num_examples_per_out_file=num_examples_per_out_file,
+        first_batch_number=first_batch_number)
     print SEPARATOR_STRING
 
     for i in range(num_input_files):
@@ -253,6 +266,7 @@ if __name__ == '__main__':
         num_examples_per_chunk=getattr(
             INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_CHUNK_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
+        first_batch_number=getattr(INPUT_ARG_OBJECT, FIRST_BATCH_NUM_ARG_NAME),
         num_examples_per_out_file=getattr(
             INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_OUT_FILE_ARG_NAME)
     )
