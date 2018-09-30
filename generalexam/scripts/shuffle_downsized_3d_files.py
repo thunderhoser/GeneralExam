@@ -184,6 +184,7 @@ def _shuffle_one_input_file(
         print 'Writing shuffled examples to: "{0:s}"...'.format(
             this_output_file_name)
 
+        print os.path.isfile(this_output_file_name)
         trainval_io.write_downsized_3d_examples(
             netcdf_file_name=this_output_file_name,
             example_dict=this_example_dict,
