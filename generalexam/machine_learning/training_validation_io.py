@@ -49,11 +49,11 @@ from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TOLERANCE = 1e-6
+LARGE_INTEGER = int(1e10)
 
 TIME_FORMAT = '%Y%m%d%H'
 TIME_FORMAT_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9][0-2][0-9]'
 BATCH_NUMBER_REGEX = '[0-9][0-9][0-9][0-9][0-9]'
-
 NUM_BATCHES_PER_DIRECTORY = 1000
 
 HOURS_TO_SECONDS = 3600
@@ -503,6 +503,104 @@ def downsized_3d_example_generator(
         num_times_in_memory = 0
 
         yield (downsized_predictor_matrix, target_matrix)
+
+
+def quick_downsized_3d_example_gen(
+        num_examples_per_batch, first_target_time_unix_sec,
+        last_target_time_unix_sec, top_input_dir_name, narr_predictor_names,
+        num_classes, num_rows_in_half_grid, num_columns_in_half_grid):
+    """Generates downsized 3-D examples from processed files.
+
+    These "processed files" are created by `write_downsized_3d_examples`.
+
+    :param num_examples_per_batch: See doc for `downsized_3d_example_generator`.
+    :param first_target_time_unix_sec: Same.
+    :param last_target_time_unix_sec: Same.
+    :param top_input_dir_name: Name of top-level directory for files with
+        downsized 3-D examples.  Files therein will be found by
+        `find_downsized_3d_example_file` (with `shuffled == True`) and read by
+        `read_downsized_3d_examples`.
+    :param narr_predictor_names: See doc for `downsized_3d_example_generator`.
+    :param num_classes: Number of target classes (2 or 3).
+    :param num_rows_in_half_grid: See doc for `downsized_3d_example_generator`.
+    :param num_columns_in_half_grid: Same.
+    :return: predictor_matrix: See doc for `downsized_3d_example_generator`.
+    :return: target_matrix: Same.
+    """
+
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
+
+    example_file_names = find_downsized_3d_example_files(
+        top_directory_name=top_input_dir_name, shuffled=True,
+        first_batch_number=0, last_batch_number=LARGE_INTEGER)
+
+    num_files = len(example_file_names)
+    file_index = 0
+    batch_indices = numpy.linspace(
+        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
+
+    num_examples_in_memory = 0
+    full_predictor_matrix = None
+    full_target_matrix = None
+
+    while True:
+        while num_examples_in_memory < num_examples_per_batch:
+            print 'Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index])
+            this_example_dict = read_downsized_3d_examples(
+                netcdf_file_name=example_file_names[file_index],
+                predictor_names_to_keep=narr_predictor_names,
+                num_half_rows_to_keep=num_rows_in_half_grid,
+                num_half_columns_to_keep=num_columns_in_half_grid,
+                first_time_to_keep_unix_sec=first_target_time_unix_sec,
+                last_time_to_keep_unix_sec=last_target_time_unix_sec)
+
+            file_index += 1
+            if file_index >= num_files:
+                file_index = 0
+
+            this_num_examples = len(this_example_dict[TARGET_TIMES_KEY])
+            if this_num_examples == 0:
+                continue
+
+            if full_target_matrix is None or full_target_matrix.size == 0:
+                full_predictor_matrix = this_example_dict[
+                    PREDICTOR_MATRIX_KEY] + 0.
+                full_target_matrix = this_example_dict[TARGET_MATRIX_KEY] + 0
+            else:
+                full_predictor_matrix = numpy.concatenate(
+                    (full_predictor_matrix,
+                     this_example_dict[PREDICTOR_MATRIX_KEY]),
+                    axis=0)
+                full_target_matrix = numpy.concatenate(
+                    (full_target_matrix, this_example_dict[TARGET_MATRIX_KEY]),
+                    axis=0)
+
+            num_examples_in_memory = full_target_matrix.shape[0]
+
+        numpy.random.shuffle(batch_indices)
+        predictor_matrix = full_predictor_matrix[batch_indices, ...].astype(
+            'float32')
+        target_matrix = full_target_matrix[batch_indices, ...].astype('float64')
+
+        if num_classes == 2:
+            target_values = numpy.argmax(target_matrix, axis=1)
+            target_matrix = keras.utils.to_categorical(
+                target_values, num_classes)
+
+        actual_class_fractions = numpy.sum(target_matrix, axis=0)
+        print 'Number of examples in each class: {0:s}'.format(
+            str(actual_class_fractions))
+
+        num_examples_in_memory = 0
+        full_predictor_matrix = None
+        full_target_matrix = None
+
+        yield (predictor_matrix, target_matrix)
 
 
 def downsized_4d_example_generator(

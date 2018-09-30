@@ -359,6 +359,93 @@ def train_with_3d_examples(
             validation_steps=num_validation_batches_per_epoch)
 
 
+def quick_train_3d(
+        model_object, output_file_name, num_examples_per_batch, num_epochs,
+        num_training_batches_per_epoch, training_start_time_unix_sec,
+        training_end_time_unix_sec, top_input_dir_name, narr_predictor_names,
+        num_classes, num_rows_in_half_grid, num_columns_in_half_grid,
+        num_validation_batches_per_epoch=None,
+        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
+    """Trains CNN with 3-D examples stored in processed files.
+
+    These "processed files" are created by
+    `training_validation_io.write_downsized_3d_examples`.
+
+    :param model_object: See doc for `train_with_3d_examples`.
+    :param output_file_name: Same.
+    :param num_examples_per_batch: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param training_start_time_unix_sec: See doc for
+        `training_validation_io.quick_downsized_3d_example_gen`.
+    :param training_end_time_unix_sec: Same.
+    :param top_input_dir_name: Same.
+    :param narr_predictor_names: Same.
+    :param num_classes: Same.
+    :param num_rows_in_half_grid: Same.
+    :param num_columns_in_half_grid: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param validation_start_time_unix_sec: See doc for
+        `training_validation_io.quick_downsized_3d_example_gen`.
+    :param validation_end_time_unix_sec: Same.
+    """
+
+    error_checking.assert_is_integer(num_epochs)
+    error_checking.assert_is_geq(num_epochs, 1)
+    error_checking.assert_is_integer(num_training_batches_per_epoch)
+    error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
+    if num_validation_batches_per_epoch is None:
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='loss', verbose=1, save_best_only=False,
+            save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=trainval_io.quick_downsized_3d_example_gen(
+                num_examples_per_batch=num_examples_per_batch,
+                first_target_time_unix_sec=training_start_time_unix_sec,
+                last_target_time_unix_sec=training_end_time_unix_sec,
+                top_input_dir_name=top_input_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                num_classes=num_classes,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=None, callbacks=[checkpoint_object])
+
+    else:
+        error_checking.assert_is_integer(num_validation_batches_per_epoch)
+        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
+
+        checkpoint_object = ModelCheckpoint(
+            output_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=trainval_io.quick_downsized_3d_example_gen(
+                num_examples_per_batch=num_examples_per_batch,
+                first_target_time_unix_sec=training_start_time_unix_sec,
+                last_target_time_unix_sec=training_end_time_unix_sec,
+                top_input_dir_name=top_input_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                num_classes=num_classes,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=None, callbacks=[checkpoint_object],
+            validation_data=trainval_io.quick_downsized_3d_example_gen(
+                num_examples_per_batch=num_examples_per_batch,
+                first_target_time_unix_sec=validation_start_time_unix_sec,
+                last_target_time_unix_sec=validation_end_time_unix_sec,
+                top_input_dir_name=top_input_dir_name,
+                narr_predictor_names=narr_predictor_names,
+                num_classes=num_classes,
+                num_rows_in_half_grid=num_rows_in_half_grid,
+                num_columns_in_half_grid=num_columns_in_half_grid),
+            validation_steps=num_validation_batches_per_epoch)
+
+
 def train_with_4d_examples(
         model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, num_examples_per_target_time,

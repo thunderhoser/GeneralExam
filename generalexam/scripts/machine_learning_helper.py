@@ -5,6 +5,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
 from generalexam.ge_io import processed_narr_io
 
+USE_QUICK_GENERATOR_ARG_NAME = 'use_quick_generator'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
@@ -196,20 +197,26 @@ TOP_FRONTAL_GRID_DIR_NAME_DEFAULT = (
     '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
 
 
-def add_input_arguments(argument_parser_object, use_downsized_examples):
-    """Adds input args for machine-learning scripts to ArgumentParser object.
+def add_input_arguments(argument_parser_object, use_downsized_examples,
+                        use_quick_generator=False):
+    """Adds input args for machine learning to the ArgumentParser object.
 
-    :param argument_parser_object: `argparse.ArgumentParser` object, which may
-        or may not already contain input args.
-    :param use_downsized_examples: Boolean flag.  If True, machine-learning
-        model will be trained with downsized examples (each covering only a
-        portion of the NARR grid).  If False, model will be trained with
-        examples over the full NARR grid.
-    :return: argument_parser_object: Same as input object, but with new input
-        args added.
+    :param argument_parser_object: Instance of `argparse.ArgumentParser`, which
+        may alrwady contain input args.
+    :param use_downsized_examples: Boolean flag.  If True, the model will be
+        trained with downsized examples.  If False, with full-size examples.
+    :param use_quick_generator: [used iff `use_downsized_examples == True`]
+        Boolean flag.  If True, the model will be trained with
+        `training_validation_io.quick_downsized_3d_example_gen`.  If False, will
+        be trained with `training_validation_io.downsized_3d_example_generator`.
+    :return: argument_parser_object: Same as input object, but containing more
+        input args.
     """
 
     error_checking.assert_is_boolean(use_downsized_examples)
+    if not use_downsized_examples:
+        use_quick_generator = False
+    error_checking.assert_is_boolean(use_quick_generator)
 
     argument_parser_object.add_argument(
         '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
@@ -231,30 +238,8 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
         help=NUM_VALIDN_BATCHES_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=False,
-        default=DEFAULT_DILATION_DISTANCE_METRES,
-        help=DILATION_DISTANCE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
-        default=1, help=WEIGHT_LOSS_HELP_STRING)
-
-    argument_parser_object.add_argument(
         '--' + NUM_CLASSES_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_CLASSES, help=NUM_CLASSES_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_LEAD_TIME_STEPS_ARG_NAME, type=int, required=False,
-        default=-1, help=NUM_LEAD_TIME_STEPS_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + PREDICTOR_TIMES_ARG_NAME, type=int, nargs='+',
-        required=False, default=[-1],
-        help=PREDICTOR_TIMES_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
-        default=DEFAULT_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NARR_PREDICTORS_ARG_NAME, type=str, nargs='+',
@@ -276,15 +261,6 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
     argument_parser_object.add_argument(
         '--' + VALIDN_END_TIME_ARG_NAME, type=str, required=True,
         help=VALIDATION_TIME_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NARR_DIRECTORY_ARG_NAME, type=str, required=False,
-        default=TOP_NARR_DIR_NAME_DEFAULT, help=NARR_DIRECTORY_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
-        default=TOP_FRONTAL_GRID_DIR_NAME_DEFAULT,
-        help=FRONTAL_GRID_DIR_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NUM_CONV_LAYER_SETS_ARG_NAME, type=int, required=False,
@@ -340,11 +316,6 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
 
     if use_downsized_examples:
         argument_parser_object.add_argument(
-            '--' + NUM_EXAMPLES_PER_TIME_ARG_NAME, type=int, required=False,
-            default=DEFAULT_NUM_EXAMPLES_PER_TIME,
-            help=NUM_EXAMPLES_PER_TIME_HELP_STRING)
-
-        argument_parser_object.add_argument(
             '--' + NUM_HALF_ROWS_ARG_NAME, type=int, required=False,
             default=DEFAULT_NUM_HALF_ROWS, help=NUM_HALF_ROWS_HELP_STRING)
 
@@ -352,10 +323,16 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
             '--' + NUM_HALF_COLUMNS_ARG_NAME, type=int, required=False,
             default=DEFAULT_NUM_HALF_COLUMNS, help=NUM_HALF_COLUMNS_HELP_STRING)
 
-        argument_parser_object.add_argument(
-            '--' + NARR_MASK_FILE_ARG_NAME, type=str, required=False,
-            default=DEFAULT_NARR_MASK_FILE_NAME,
-            help=NARR_MASK_FILE_HELP_STRING)
+        if not use_quick_generator:
+            argument_parser_object.add_argument(
+                '--' + NUM_EXAMPLES_PER_TIME_ARG_NAME, type=int, required=False,
+                default=DEFAULT_NUM_EXAMPLES_PER_TIME,
+                help=NUM_EXAMPLES_PER_TIME_HELP_STRING)
+
+            argument_parser_object.add_argument(
+                '--' + NARR_MASK_FILE_ARG_NAME, type=str, required=False,
+                default=DEFAULT_NARR_MASK_FILE_NAME,
+                help=NARR_MASK_FILE_HELP_STRING)
 
         class_fractions_help_string = (
             'List of sampling fractions (one for each class).  Determines the '
@@ -367,9 +344,41 @@ def add_input_arguments(argument_parser_object, use_downsized_examples):
             'used to create weights for the loss function.'
         ).format(WEIGHT_LOSS_ARG_NAME)
 
-    argument_parser_object.add_argument(
-        '--' + CLASS_FRACTIONS_ARG_NAME, type=float, nargs='+',
-        required=False, default=DEFAULT_CLASS_FRACTIONS,
-        help=class_fractions_help_string)
+    if not use_quick_generator:
+        argument_parser_object.add_argument(
+            '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=False,
+            default=DEFAULT_DILATION_DISTANCE_METRES,
+            help=DILATION_DISTANCE_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
+            default=1, help=WEIGHT_LOSS_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + NUM_LEAD_TIME_STEPS_ARG_NAME, type=int, required=False,
+            default=-1, help=NUM_LEAD_TIME_STEPS_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + PREDICTOR_TIMES_ARG_NAME, type=int, nargs='+',
+            required=False, default=[-1],
+            help=PREDICTOR_TIMES_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
+            default=DEFAULT_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + NARR_DIRECTORY_ARG_NAME, type=str, required=False,
+            default=TOP_NARR_DIR_NAME_DEFAULT, help=NARR_DIRECTORY_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
+            default=TOP_FRONTAL_GRID_DIR_NAME_DEFAULT,
+            help=FRONTAL_GRID_DIR_HELP_STRING)
+
+        argument_parser_object.add_argument(
+            '--' + CLASS_FRACTIONS_ARG_NAME, type=float, nargs='+',
+            required=False, default=DEFAULT_CLASS_FRACTIONS,
+            help=class_fractions_help_string)
 
     return argument_parser_object
