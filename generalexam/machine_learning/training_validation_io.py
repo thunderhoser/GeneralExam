@@ -53,7 +53,7 @@ LARGE_INTEGER = int(1e10)
 
 TIME_FORMAT = '%Y%m%d%H'
 TIME_FORMAT_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9][0-2][0-9]'
-BATCH_NUMBER_REGEX = '[0-9][0-9][0-9][0-9][0-9]'
+BATCH_NUMBER_REGEX = '[0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
 NUM_BATCHES_PER_DIRECTORY = 1000
 
 HOURS_TO_SECONDS = 3600
@@ -1226,7 +1226,7 @@ def find_downsized_3d_example_file(
         last_batch_number = first_batch_number + NUM_BATCHES_PER_DIRECTORY - 1
 
         downsized_3d_file_name = (
-            '{0:s}/batches{1:05d}-{2:05d}/downsized_3d_examples_batch{3:05d}.nc'
+            '{0:s}/batches{1:07d}-{2:07d}/downsized_3d_examples_batch{3:07d}.nc'
         ).format(top_directory_name, first_batch_number, last_batch_number,
                  batch_number)
     else:

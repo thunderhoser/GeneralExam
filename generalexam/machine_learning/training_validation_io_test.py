@@ -46,7 +46,7 @@ NON_SHUFFLED_FILE_NAME = 'poop/downsized_3d_examples_1967050223-1967050302.nc'
 
 BATCH_NUMBER = 1234
 SHUFFLED_FILE_NAME = (
-    'poop/batches01000-01999/downsized_3d_examples_batch01234.nc')
+    'poop/batches0001000-0001999/downsized_3d_examples_batch0001234.nc')
 
 
 class TrainingValidationIoTests(unittest.TestCase):
