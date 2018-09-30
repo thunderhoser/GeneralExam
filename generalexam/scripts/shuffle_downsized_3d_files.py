@@ -238,11 +238,13 @@ def _run(input_dir_name, first_time_string, last_time_string,
 
     if num_output_files <= 0:
         num_output_files = None
+        error_checking.assert_is_geq(num_examples_per_out_file, 100)
+    else:
+        num_examples_per_out_file = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=top_output_dir_name)
     error_checking.assert_is_geq(num_examples_per_chunk, 1)
-    error_checking.assert_is_geq(num_examples_per_out_file, 100)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -256,8 +258,9 @@ def _run(input_dir_name, first_time_string, last_time_string,
     num_input_files = len(input_file_names)
 
     output_file_names = _set_output_locations(
-        num_examples_total=num_examples_total,
         top_output_dir_name=top_output_dir_name,
+        num_output_files=num_output_files,
+        num_examples_total=num_examples_total,
         num_examples_per_out_file=num_examples_per_out_file)
 
     for i in range(num_input_files):
