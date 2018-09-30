@@ -189,7 +189,7 @@ def find_input_files_for_3d_examples(
     keep_time_indices = numpy.where(keep_time_flags)[0]
 
     return (narr_file_name_matrix[keep_time_indices, ...],
-            frontal_grid_file_names[keep_time_indices])
+            [frontal_grid_file_names[i] for i in keep_time_indices])
 
 
 def find_input_files_for_4d_examples(
@@ -277,7 +277,7 @@ def find_input_files_for_4d_examples(
     keep_time_indices = numpy.where(keep_time_flags)[0]
 
     return (narr_file_name_matrix[keep_time_indices, ...],
-            frontal_grid_file_names[keep_time_indices])
+            [frontal_grid_file_names[i] for i in keep_time_indices])
 
 
 def downsized_3d_example_generator(
