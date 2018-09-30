@@ -1064,6 +1064,7 @@ def prep_downsized_3d_examples_to_write(
     sampled_target_point_dict = ml_utils.sample_target_points(
         target_matrix=target_matrix, class_fractions=class_fractions,
         num_points_to_sample=max_num_examples, mask_matrix=narr_mask_matrix)
+    print sampled_target_point_dict
 
     (predictor_matrix, target_values, _, row_indices, column_indices
     ) = ml_utils.downsize_grids_around_selected_points(
