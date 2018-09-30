@@ -1291,14 +1291,23 @@ def write_downsized_3d_examples(
             netcdf_dataset.variables[NARR_MASK_KEY][:], dtype=int)
         assert numpy.array_equal(orig_narr_mask_matrix, narr_mask_matrix)
 
-        for this_key in MAIN_KEYS:
-            print numpy.array(netcdf_dataset.variables[this_key][:]).shape
-            print example_dict[this_key].shape
+        print len(
+            numpy.array(netcdf_dataset.variables[TARGET_TIMES_KEY][:])
+        )
+        num_examples_orig = len(
+            numpy.array(netcdf_dataset.variables[TARGET_TIMES_KEY][:])
+        )
+        num_examples_to_add = len(example_dict[TARGET_TIMES_KEY])
 
-            netcdf_dataset.variables[this_key][:] = numpy.concatenate(
-                (numpy.array(netcdf_dataset.variables[this_key][:]),
-                 example_dict[this_key]),
-                axis=0)
+        for this_key in MAIN_KEYS:
+            netcdf_dataset.variables[this_key][
+                num_examples_orig:(num_examples_orig + num_examples_to_add),
+                ...
+            ] = example_dict[this_key]
+
+        print len(
+            numpy.array(netcdf_dataset.variables[TARGET_TIMES_KEY][:])
+        )
 
         netcdf_dataset.close()
         return
@@ -1311,7 +1320,6 @@ def write_downsized_3d_examples(
     netcdf_dataset.setncattr(DILATION_DISTANCE_KEY, dilation_distance_metres)
 
     num_classes = example_dict[TARGET_MATRIX_KEY].shape[1]
-    num_examples = example_dict[PREDICTOR_MATRIX_KEY].shape[0]
     num_rows_per_example = example_dict[PREDICTOR_MATRIX_KEY].shape[1]
     num_columns_per_example = example_dict[PREDICTOR_MATRIX_KEY].shape[2]
 
