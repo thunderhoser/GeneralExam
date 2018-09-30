@@ -1336,21 +1336,25 @@ def write_downsized_3d_examples(
 
 
 def read_downsized_3d_examples(
-        netcdf_file_name, predictor_names_to_keep=None,
+        netcdf_file_name, metadata_only=False, predictor_names_to_keep=None,
         num_half_rows_to_keep=None, num_half_columns_to_keep=None,
         first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None):
     """Reads downsized 3-D examples from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :param predictor_names_to_keep: 1-D list with names of predictor variables to
-        keep (each name must be accepted by `check_field_name`).  If
+    :param metadata_only: Boolean flag.  If True, will return only metadata
+        (everything except predictor and target matrices).
+    :param predictor_names_to_keep: 1-D list with names of predictor variables
+        to keep (each name must be accepted by `check_field_name`).  If
         `predictor_names_to_keep is None`, all predictors in the file will be
         returned.
-    :param num_half_rows_to_keep: Determines number of rows to keep for each
-        example.  Examples will be cropped so that the center of the original
-        image is the center of the new image.  If
-        `num_half_rows_to_keep is None`, examples will not be cropped.
-    :param num_half_columns_to_keep: Same but for columns.
+    :param num_half_rows_to_keep: [used iff `metadata_only == False`]
+        Determines number of rows to keep for each example.  Examples will be
+        cropped so that the center of the original image is the center of the
+        new image.  If `num_half_rows_to_keep is None`, examples will not be
+        cropped.
+    :param num_half_columns_to_keep: [used iff `metadata_only == False`]
+        Same but for columns.
     :param first_time_to_keep_unix_sec: Will throw out earlier target times.
     :param last_time_to_keep_unix_sec: Will throw out later target times.
     :return: example_dict: Dictionary with the following keys.
@@ -1372,35 +1376,37 @@ def read_downsized_3d_examples(
             numpy.array(predictor_names_to_keep), num_dimensions=1)
         for this_name in predictor_names_to_keep:
             processed_narr_io.check_field_name(this_name)
+
     if first_time_to_keep_unix_sec is None:
         first_time_to_keep_unix_sec = 0
     if last_time_to_keep_unix_sec is None:
         last_time_to_keep_unix_sec = int(1e11)
 
+    error_checking.assert_is_boolean(metadata_only)
     error_checking.assert_is_integer(first_time_to_keep_unix_sec)
     error_checking.assert_is_integer(last_time_to_keep_unix_sec)
     error_checking.assert_is_geq(
         last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
 
     netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
-
     narr_predictor_names = netCDF4.chartostring(
         netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
     narr_predictor_names = [str(s) for s in narr_predictor_names]
-    predictor_matrix = numpy.array(
-        netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:])
+
+    if not metadata_only:
+        predictor_matrix = _decrease_example_size(
+            predictor_matrix=numpy.array(
+                netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:]),
+            num_half_rows=num_half_rows_to_keep,
+            num_half_columns=num_half_columns_to_keep)
 
     if predictor_names_to_keep is None:
         predictor_names_to_keep = narr_predictor_names + []
-    else:
+    elif not metadata_only:
         these_indices = numpy.array(
             [narr_predictor_names.index(p) for p in predictor_names_to_keep],
             dtype=int)
         predictor_matrix = predictor_matrix[..., these_indices]
-
-    predictor_matrix = _decrease_example_size(
-        predictor_matrix=predictor_matrix, num_half_rows=num_half_rows_to_keep,
-        num_half_columns=num_half_columns_to_keep)
 
     target_times_unix_sec = numpy.array(
         netcdf_dataset.variables[TARGET_TIMES_KEY][:], dtype=int)
@@ -1410,10 +1416,6 @@ def read_downsized_3d_examples(
     ))[0]
 
     target_times_unix_sec = target_times_unix_sec[indices_to_keep]
-    predictor_matrix = predictor_matrix[indices_to_keep, ...].astype('float32')
-    target_matrix = numpy.array(
-        netcdf_dataset.variables[TARGET_MATRIX_KEY][indices_to_keep, ...]
-    ).astype('float64')
     row_indices = numpy.array(
         netcdf_dataset.variables[ROW_INDICES_KEY][indices_to_keep], dtype=int)
     column_indices = numpy.array(
@@ -1421,8 +1423,6 @@ def read_downsized_3d_examples(
         dtype=int)
 
     example_dict = {
-        PREDICTOR_MATRIX_KEY: predictor_matrix,
-        TARGET_MATRIX_KEY: target_matrix,
         TARGET_TIMES_KEY: target_times_unix_sec,
         ROW_INDICES_KEY: row_indices,
         COLUMN_INDICES_KEY: column_indices,
@@ -1434,4 +1434,17 @@ def read_downsized_3d_examples(
     }
 
     netcdf_dataset.close()
+    if metadata_only:
+        return example_dict
+
+    example_dict.update({
+        PREDICTOR_MATRIX_KEY:
+            predictor_matrix[indices_to_keep, ...].astype('float32'),
+        TARGET_MATRIX_KEY:
+            numpy.array(
+                netcdf_dataset.variables[TARGET_MATRIX_KEY][
+                    indices_to_keep, ...]
+            ).astype('float64')
+    })
+
     return example_dict
