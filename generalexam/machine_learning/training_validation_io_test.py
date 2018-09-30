@@ -37,11 +37,15 @@ THIS_MATRIX_EXAMPLE1 = numpy.stack(
 SMALL_PREDICTOR_MATRIX = numpy.stack(
     (THIS_MATRIX_EXAMPLE1, THIS_MATRIX_EXAMPLE1 + 100), axis=0)
 
-# The following constants are used to test find_downsized_3d_example_file.
+# The following constants are used to test find_downsized_3d_example_file,
+# _file_name_to_target_times, and _file_name_to_batch_number.
 DIRECTORY_NAME = 'poop'
 FIRST_TARGET_TIME_UNIX_SEC = -84157200  # 2300 UTC 2 May 1967
 LAST_TARGET_TIME_UNIX_SEC = -84146400  # 0200 UTC 3 May 1967
-DOWNSIZED_3D_FILE_NAME = 'poop/downsized_3d_examples_1967050223-1967050302.nc'
+NON_SHUFFLED_FILE_NAME = 'poop/downsized_3d_examples_1967050223-1967050302.nc'
+
+BATCH_NUMBER = 22
+SHUFFLED_FILE_NAME = 'poop/downsized_3d_examples_batch0022.nc'
 
 
 class TrainingValidationIoTests(unittest.TestCase):
@@ -58,16 +62,73 @@ class TrainingValidationIoTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_predictor_matrix, SMALL_PREDICTOR_MATRIX, atol=TOLERANCE))
 
-    def test_find_downsized_3d_example_file(self):
-        """Ensures correct output from find_downsized_3d_example_file."""
+    def test_find_downsized_3d_example_file_non_shuffled(self):
+        """Ensures correct output from find_downsized_3d_example_file.
+
+        In this case the file has *not* been shuffled by
+        shuffle_downsized_3d_files.py.
+        """
 
         this_file_name = trainval_io.find_downsized_3d_example_file(
-            directory_name=DIRECTORY_NAME,
+            directory_name=DIRECTORY_NAME, shuffled=False,
             first_target_time_unix_sec=FIRST_TARGET_TIME_UNIX_SEC,
             last_target_time_unix_sec=LAST_TARGET_TIME_UNIX_SEC,
             raise_error_if_missing=False)
 
-        self.assertTrue(this_file_name == DOWNSIZED_3D_FILE_NAME)
+        self.assertTrue(this_file_name == NON_SHUFFLED_FILE_NAME)
+
+    def test_find_downsized_3d_example_file_shuffled(self):
+        """Ensures correct output from find_downsized_3d_example_file.
+
+        In this case the file has been shuffled by
+        shuffle_downsized_3d_files.py.
+        """
+
+        this_file_name = trainval_io.find_downsized_3d_example_file(
+            directory_name=DIRECTORY_NAME, shuffled=True,
+            batch_number=BATCH_NUMBER, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == SHUFFLED_FILE_NAME)
+
+    def test_file_name_to_target_times_non_shuffled(self):
+        """Ensures correct output from _file_name_to_target_times.
+
+        In this case the file name is correctly formatted.
+        """
+
+        (this_first_time_unix_sec, this_last_time_unix_sec
+        ) = trainval_io._file_name_to_target_times(NON_SHUFFLED_FILE_NAME)
+
+        self.assertTrue(this_first_time_unix_sec == FIRST_TARGET_TIME_UNIX_SEC)
+        self.assertTrue(this_last_time_unix_sec == LAST_TARGET_TIME_UNIX_SEC)
+
+    def test_file_name_to_target_times_shuffled(self):
+        """Ensures correct output from _file_name_to_target_times.
+
+        In this case the file name is *not* correctly formatted.
+        """
+
+        with self.assertRaises(ValueError):
+            trainval_io._file_name_to_target_times(SHUFFLED_FILE_NAME)
+
+    def test_file_name_to_batch_number_non_shuffled(self):
+        """Ensures correct output from _file_name_to_batch_number.
+
+        In this case the file name is *not* correctly formatted.
+        """
+
+        with self.assertRaises(ValueError):
+            trainval_io._file_name_to_batch_number(NON_SHUFFLED_FILE_NAME)
+
+    def test_file_name_to_batch_number_shuffled(self):
+        """Ensures correct output from _file_name_to_batch_number.
+
+        In this case the file name is correctly formatted.
+        """
+
+        this_batch_number = trainval_io._file_name_to_batch_number(
+            SHUFFLED_FILE_NAME)
+        self.assertTrue(this_batch_number == BATCH_NUMBER)
 
 
 if __name__ == '__main__':

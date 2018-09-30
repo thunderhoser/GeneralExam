@@ -32,6 +32,7 @@ there are M*N target variables (the label at each pixel).
 """
 
 import copy
+import glob
 import os.path
 import numpy
 import keras
@@ -47,6 +48,8 @@ from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
+TIME_FORMAT_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9][0-2][0-9]'
+BATCH_NUMBER_REGEX = '[0-9][0-9][0-9][0-9]'
 
 HOURS_TO_SECONDS = 3600
 NARR_TIME_INTERVAL_SECONDS = HOURS_TO_SECONDS * nwp_model_utils.get_time_steps(
@@ -70,6 +73,41 @@ EXAMPLE_COLUMN_DIMENSION_KEY = 'example_column'
 PREDICTOR_DIMENSION_KEY = 'predictor_variable'
 CHARACTER_DIMENSION_KEY = 'predictor_variable_char'
 CLASS_DIMENSION_KEY = 'class'
+
+
+def _file_name_to_target_times(downsized_3d_file_name):
+    """Parses file name for target times.
+
+    :param downsized_3d_file_name: See doc for `find_downsized_3d_example_file`.
+    :return: first_target_time_unix_sec: First target time in file.
+    :return: last_target_time_unix_sec: Last target time in file.
+    :raises: ValueError: if target times cannot be parsed from file name.
+    """
+
+    pathless_file_name = os.path.split(downsized_3d_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+    target_time_strings = extensionless_file_name.split(
+        'downsized_3d_examples_')[-1].split('-')
+
+    first_target_time_unix_sec = time_conversion.string_to_unix_sec(
+        target_time_strings[0], TIME_FORMAT_IN_FILE_NAMES)
+    last_target_time_unix_sec = time_conversion.string_to_unix_sec(
+        target_time_strings[-1], TIME_FORMAT_IN_FILE_NAMES)
+
+    return first_target_time_unix_sec, last_target_time_unix_sec
+
+
+def _file_name_to_batch_number(downsized_3d_file_name):
+    """Parses file name for batch number.
+
+    :param downsized_3d_file_name: See doc for `find_downsized_3d_example_file`.
+    :return: batch_number: Integer.
+    :raises: ValueError: if batch number cannot be parsed from file name.
+    """
+
+    pathless_file_name = os.path.split(downsized_3d_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+    return int(extensionless_file_name.split('downsized_3d_examples_batch')[-1])
 
 
 def _decrease_example_size(predictor_matrix, num_half_rows, num_half_columns):
@@ -1040,13 +1078,19 @@ def prep_downsized_3d_examples_to_write(
 
 
 def find_downsized_3d_example_file(
-        directory_name, first_target_time_unix_sec, last_target_time_unix_sec,
+        directory_name, shuffled=False, first_target_time_unix_sec=None,
+        last_target_time_unix_sec=None, batch_number=None,
         raise_error_if_missing=True):
     """Finds file with downsized 3-D examples.
 
     :param directory_name: Name of directory.
-    :param first_target_time_unix_sec: First target time in file.
-    :param last_target_time_unix_sec: Last target time in file.
+    :param shuffled: Boolean flag.  If examples in the file were shuffled by
+        shuffle_downsized_3d_files.py, this should be True.
+    :param first_target_time_unix_sec: [used iff `shuffled == False`]
+        First target time in file.
+    :param last_target_time_unix_sec: [used iff `shuffled == False`]
+        Last target time in file.
+    :param batch_number: [used iff `shuffled == True`] Batch number (integer).
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :return: downsized_3d_file_name: Path to file with downsized 3-D examples.
@@ -1056,21 +1100,31 @@ def find_downsized_3d_example_file(
     """
 
     error_checking.assert_is_string(directory_name)
-    error_checking.assert_is_integer(first_target_time_unix_sec)
-    error_checking.assert_is_integer(last_target_time_unix_sec)
-    error_checking.assert_is_geq(
-        last_target_time_unix_sec, first_target_time_unix_sec)
+    error_checking.assert_is_boolean(shuffled)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    downsized_3d_file_name = (
-        '{0:s}/downsized_3d_examples_{1:s}-{2:s}.nc'
-    ).format(
-        directory_name,
-        time_conversion.unix_sec_to_string(
-            first_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
-        time_conversion.unix_sec_to_string(
-            last_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
-    )
+    if shuffled:
+        error_checking.assert_is_integer(batch_number)
+        error_checking.assert_is_geq(batch_number, 0)
+
+        downsized_3d_file_name = (
+            '{0:s}/downsized_3d_examples_batch{1:04d}.nc'
+        ).format(directory_name, batch_number)
+    else:
+        error_checking.assert_is_integer(first_target_time_unix_sec)
+        error_checking.assert_is_integer(last_target_time_unix_sec)
+        error_checking.assert_is_geq(
+            last_target_time_unix_sec, first_target_time_unix_sec)
+
+        downsized_3d_file_name = (
+            '{0:s}/downsized_3d_examples_{1:s}-{2:s}.nc'
+        ).format(
+            directory_name,
+            time_conversion.unix_sec_to_string(
+                first_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
+            time_conversion.unix_sec_to_string(
+                last_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
+        )
 
     if raise_error_if_missing and not os.path.isfile(downsized_3d_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
@@ -1078,6 +1132,97 @@ def find_downsized_3d_example_file(
         raise ValueError(error_string)
 
     return downsized_3d_file_name
+
+
+def find_downsized_3d_example_files(
+        directory_name, shuffled=False, first_target_time_unix_sec=None,
+        last_target_time_unix_sec=None, first_batch_number=None,
+        last_batch_number=None):
+    """Finds many files with downsized 3-D examples.
+
+    :param directory_name: See doc for `find_downsized_3d_example_file`.
+    :param shuffled: Same.
+    :param first_target_time_unix_sec: [used iff `shuffled == False`]
+        First target time.
+    :param last_target_time_unix_sec: [used iff `shuffled == False`]
+        Last target time.
+    :param first_batch_number: [used iff `shuffled == True`] First batch number.
+    :param last_batch_number: [used iff `shuffled == True`] Last batch number.
+    :return: downsized_3d_file_names: 1-D list of file paths.
+    :raises: ValueError: if no files are found.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_boolean(shuffled)
+
+    if shuffled:
+        error_checking.assert_is_integer(first_batch_number)
+        error_checking.assert_is_integer(last_batch_number)
+        error_checking.assert_is_geq(first_batch_number, 0)
+        error_checking.assert_is_geq(last_batch_number, first_batch_number)
+
+        downsized_3d_file_pattern = (
+            '{0:s}/downsized_3d_examples_batch{1:04d}.nc'
+        ).format(directory_name, BATCH_NUMBER_REGEX)
+    else:
+        error_checking.assert_is_integer(first_target_time_unix_sec)
+        error_checking.assert_is_integer(last_target_time_unix_sec)
+        error_checking.assert_is_geq(
+            last_target_time_unix_sec, first_target_time_unix_sec)
+
+        downsized_3d_file_pattern = (
+            '{0:s}/downsized_3d_examples_{1:s}-{1:s}.nc'
+        ).format(directory_name, TIME_FORMAT_REGEX, TIME_FORMAT_REGEX)
+
+    downsized_3d_file_names = glob.glob(downsized_3d_file_pattern)
+    if len(downsized_3d_file_names) == 0:
+        error_string = 'Cannot find any files with the pattern: "{0:s}"'.format(
+            downsized_3d_file_pattern)
+        raise ValueError(error_string)
+
+    if shuffled:
+        batch_numbers = numpy.array(
+            [_file_name_to_batch_number(f) for f in downsized_3d_file_names],
+            dtype=int)
+        good_indices = numpy.where(numpy.logical_and(
+            batch_numbers >= first_batch_number,
+            batch_numbers <= last_batch_number
+        ))[0]
+
+        if len(good_indices) == 0:
+            error_string = (
+                'Cannot find any files with batch number in [{0:d}, {1:d}].'
+            ).format(first_batch_number, last_batch_number)
+            raise ValueError(error_string)
+
+    else:
+
+        # TODO(thunderhoser): Does this work?  File cannot end before period of
+        # interest, cannot start after POI.
+        file_start_times_unix_sec = numpy.array(
+            [_file_name_to_target_times(f)[0] for f in downsized_3d_file_names],
+            dtype=int)
+        file_end_times_unix_sec = numpy.array(
+            [_file_name_to_target_times(f)[1] for f in downsized_3d_file_names],
+            dtype=int)
+
+        good_indices = numpy.where(numpy.invert(numpy.logical_or(
+            file_start_times_unix_sec > last_target_time_unix_sec,
+            file_end_times_unix_sec < first_target_time_unix_sec
+        )))[0]
+
+        if len(good_indices) == 0:
+            error_string = (
+                'Cannot find any files with target time from {0:s} to {1:s}.'
+            ).format(
+                time_conversion.unix_sec_to_string(
+                    first_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
+                time_conversion.unix_sec_to_string(
+                    last_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
+            )
+            raise ValueError(error_string)
+
+    return [downsized_3d_file_names[i] for i in good_indices]
 
 
 def write_downsized_3d_examples(
