@@ -1,5 +1,6 @@
 """Plots results of baseline experiment."""
 
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -227,6 +228,19 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             )
 
     print SEPARATOR_STRING
+
+    score_dict = {
+        'csi_matrix': csi_matrix,
+        'pod_matrix': pod_matrix,
+        'success_ratio_matrix': success_ratio_matrix,
+        'frequency_bias_matrix': frequency_bias_matrix
+    }
+    all_scores_file_name = '{0:s}/all_scores.p'.format(output_dir_name)
+
+    print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
+    pickle_file_handle = open(all_scores_file_name, 'wb')
+    pickle.dump(score_dict, pickle_file_handle)
+    pickle_file_handle.close()
 
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1), MAX_COLOUR_PERCENTILE)
