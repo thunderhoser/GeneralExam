@@ -31,14 +31,14 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-# UNIQUE_SMOOTHING_RADII_PX = numpy.array([1, 2])
-# UNIQUE_FRONT_PERCENTILES = numpy.array([96, 97, 98, 99])
-# UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1, 2, 3])
-# UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900, 950, 1000])
-UNIQUE_SMOOTHING_RADII_PX = numpy.array([1])
-UNIQUE_FRONT_PERCENTILES = numpy.array([96])
-UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1])
-UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900])
+UNIQUE_SMOOTHING_RADII_PX = numpy.array([1, 2])
+UNIQUE_FRONT_PERCENTILES = numpy.array([96, 97, 98, 99])
+UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1, 2, 3])
+UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900, 950, 1000])
+# UNIQUE_SMOOTHING_RADII_PX = numpy.array([1])
+# UNIQUE_FRONT_PERCENTILES = numpy.array([96])
+# UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1])
+# UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900])
 UNIQUE_MIN_LENGTHS_METRES = numpy.array(
     [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) * 1e6
 UNIQUE_MIN_AREAS_METRES2 = numpy.array([20, 40, 60, 80, 100]) * 1e9
@@ -143,7 +143,7 @@ def _plot_scores_as_grid(
             axes_object_or_list=axes_object, values_to_colour=score_matrix,
             colour_map=colour_map_object, colour_min=min_colour_value,
             colour_max=max_colour_value, orientation='vertical',
-            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
+            extend_min=True, extend_max=True)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
