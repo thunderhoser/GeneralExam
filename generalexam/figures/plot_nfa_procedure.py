@@ -2,6 +2,8 @@
 
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
