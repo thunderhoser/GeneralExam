@@ -19,7 +19,8 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
 
 ZERO_CELSIUS_IN_KELVINS = 273.15
-MEGAMETRES2_TO_METRES2 = 1e12
+TFP_MULTIPLIER = 1e10
+LOCATING_VAR_MULTIPLIER = 1e9
 
 MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
@@ -100,9 +101,9 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
 DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
-DEFAULT_FRONT_PERCENTILE = 97.
-DEFAULT_NUM_CLOSING_ITERS = 3
-DEFAULT_PRESSURE_LEVEL_MB = 850
+DEFAULT_FRONT_PERCENTILE = 99.
+DEFAULT_NUM_CLOSING_ITERS = 1
+DEFAULT_PRESSURE_LEVEL_MB = 900
 TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
@@ -283,17 +284,17 @@ def _plot_tfp(tfp_matrix_kelvins_m02, annotation_string, output_file_name):
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
     ) = _init_basemap(DEFAULT_BORDER_COLOUR)
 
-    tfp_matrix_kelvins_megametres02 = tfp_matrix_kelvins_m02[
+    matrix_to_plot = tfp_matrix_kelvins_m02[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
         narr_column_limits[0]:(narr_column_limits[1] + 1)
-    ] * MEGAMETRES2_TO_METRES2
+    ] * TFP_MULTIPLIER
 
     max_colour_value = numpy.nanpercentile(
-        numpy.absolute(tfp_matrix_kelvins_megametres02), MAX_COLOUR_PERCENTILE)
+        numpy.absolute(matrix_to_plot), MAX_COLOUR_PERCENTILE)
     min_colour_value = -1 * max_colour_value
 
     nwp_plotting.plot_subgrid(
-        field_matrix=tfp_matrix_kelvins_megametres02,
+        field_matrix=matrix_to_plot,
         model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
         basemap_object=basemap_object, colour_map=TFP_COLOUR_MAP_OBJECT,
         min_value_in_colour_map=min_colour_value,
@@ -303,7 +304,7 @@ def _plot_tfp(tfp_matrix_kelvins_m02, annotation_string, output_file_name):
 
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object,
-        values_to_colour=tfp_matrix_kelvins_megametres02,
+        values_to_colour=matrix_to_plot,
         colour_map=TFP_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='horizontal', extend_min=True,
         extend_max=True)
@@ -339,7 +340,7 @@ def _plot_locating_variable(
     matrix_to_plot = locating_var_matrix_m01_s01[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
         narr_column_limits[0]:(narr_column_limits[1] + 1)
-    ]
+    ] * LOCATING_VAR_MULTIPLIER
 
     max_colour_value = numpy.nanpercentile(
         numpy.absolute(matrix_to_plot), MAX_COLOUR_PERCENTILE)
