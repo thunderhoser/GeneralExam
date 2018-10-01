@@ -336,16 +336,17 @@ def _plot_locating_variable(
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
     ) = _init_basemap(DEFAULT_BORDER_COLOUR)
 
-    print narr_row_limits
-    print narr_column_limits
-    print locating_var_matrix_m01_s01.shape
+    matrix_to_plot = locating_var_matrix_m01_s01[
+        narr_row_limits[0]:(narr_row_limits[1] + 1),
+        narr_column_limits[0]:(narr_column_limits[1] + 1)
+    ]
 
     max_colour_value = numpy.nanpercentile(
-        numpy.absolute(locating_var_matrix_m01_s01), MAX_COLOUR_PERCENTILE)
+        numpy.absolute(matrix_to_plot), MAX_COLOUR_PERCENTILE)
     min_colour_value = -1 * max_colour_value
 
     nwp_plotting.plot_subgrid(
-        field_matrix=locating_var_matrix_m01_s01,
+        field_matrix=matrix_to_plot,
         model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
         basemap_object=basemap_object,
         colour_map=LOCATING_VAR_COLOUR_MAP_OBJECT,
@@ -356,7 +357,7 @@ def _plot_locating_variable(
 
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object,
-        values_to_colour=locating_var_matrix_m01_s01,
+        values_to_colour=matrix_to_plot,
         colour_map=LOCATING_VAR_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='horizontal', extend_min=True,
         extend_max=True)
@@ -390,8 +391,13 @@ def _plot_front_types(
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
     ) = _init_basemap(DEFAULT_BORDER_COLOUR)
 
+    matrix_to_plot = predicted_label_matrix[
+        narr_row_limits[0]:(narr_row_limits[1] + 1),
+        narr_column_limits[0]:(narr_column_limits[1] + 1)
+    ]
+
     front_plotting.plot_narr_grid(
-        frontal_grid_matrix=predicted_label_matrix, axes_object=axes_object,
+        frontal_grid_matrix=matrix_to_plot, axes_object=axes_object,
         basemap_object=basemap_object,
         first_row_in_narr_grid=narr_row_limits[0],
         first_column_in_narr_grid=narr_column_limits[0])
