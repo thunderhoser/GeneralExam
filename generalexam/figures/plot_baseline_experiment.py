@@ -29,10 +29,14 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-UNIQUE_SMOOTHING_RADII_PX = numpy.array([1, 2])
-UNIQUE_FRONT_PERCENTILES = numpy.array([96, 97, 98, 99])
-UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1, 2, 3])
-UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900, 950, 1000])
+# UNIQUE_SMOOTHING_RADII_PX = numpy.array([1, 2])
+# UNIQUE_FRONT_PERCENTILES = numpy.array([96, 97, 98, 99])
+# UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1, 2, 3])
+# UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900, 950, 1000])
+UNIQUE_SMOOTHING_RADII_PX = numpy.array([1])
+UNIQUE_FRONT_PERCENTILES = numpy.array([96])
+UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1])
+UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900])
 UNIQUE_MIN_AREAS_METRES2 = numpy.array([20, 40, 60, 80, 100]) * 1e9
 UNIQUE_MIN_LENGTHS_METRES = numpy.array(
     [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) * 1e6
