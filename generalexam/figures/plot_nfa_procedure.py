@@ -338,6 +338,7 @@ def _plot_locating_variable(
 
     print narr_row_limits
     print narr_column_limits
+    print locating_var_matrix_m01_s01.shape
 
     max_colour_value = numpy.nanpercentile(
         numpy.absolute(locating_var_matrix_m01_s01), MAX_COLOUR_PERCENTILE)
