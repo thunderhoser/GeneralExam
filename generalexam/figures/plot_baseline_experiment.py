@@ -10,6 +10,8 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 600
@@ -20,7 +22,7 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 30
+FONT_SIZE = 22.5
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -37,31 +39,31 @@ UNIQUE_SMOOTHING_RADII_PX = numpy.array([1])
 UNIQUE_FRONT_PERCENTILES = numpy.array([96])
 UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1])
 UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900])
-UNIQUE_MIN_AREAS_METRES2 = numpy.array([20, 40, 60, 80, 100]) * 1e9
 UNIQUE_MIN_LENGTHS_METRES = numpy.array(
     [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) * 1e6
+UNIQUE_MIN_AREAS_METRES2 = numpy.array([20, 40, 60, 80, 100]) * 1e9
 
 UNIQUE_SMOOTHING_RADII_PX = UNIQUE_SMOOTHING_RADII_PX.astype(int)
 UNIQUE_FRONT_PERCENTILES = UNIQUE_FRONT_PERCENTILES.astype(int)
 UNIQUE_CLOSING_ITER_COUNTS = UNIQUE_CLOSING_ITER_COUNTS.astype(int)
 UNIQUE_PRESSURE_LEVELS_MB = UNIQUE_PRESSURE_LEVELS_MB.astype(int)
-UNIQUE_MIN_AREAS_METRES2 = UNIQUE_MIN_AREAS_METRES2.astype(int)
 UNIQUE_MIN_LENGTHS_METRES = UNIQUE_MIN_LENGTHS_METRES.astype(int)
+UNIQUE_MIN_AREAS_METRES2 = UNIQUE_MIN_AREAS_METRES2.astype(int)
 
 METRES_TO_KM = 1e-3
 METRES2_TO_THOUSAND_KM2 = 1e-9
 
-UNIQUE_MIN_AREA_STRINGS = [
-    '{0:d}'.format(int(numpy.round(a * METRES2_TO_THOUSAND_KM2)))
-    for a in UNIQUE_MIN_AREAS_METRES2
-]
 UNIQUE_MIN_LENGTH_STRINGS = [
     '{0:d}'.format(int(numpy.round(l * METRES_TO_KM)))
     for l in UNIQUE_MIN_LENGTHS_METRES
 ]
+UNIQUE_MIN_AREA_STRINGS = [
+    '{0:d}'.format(int(numpy.round(a * METRES2_TO_THOUSAND_KM2)))
+    for a in UNIQUE_MIN_AREAS_METRES2
+]
 
-MIN_AREA_AXIS_LABEL = r'Minimum region area ($\times$ 1000 km$^2$)'
 MIN_LENGTH_AXIS_LABEL = 'Minimum end-to-end length (km)'
+MIN_AREA_AXIS_LABEL = r'Minimum region area ($\times$ 1000 km$^2$)'
 
 EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_metres'
@@ -95,7 +97,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
         x_tick_labels, x_axis_label, y_tick_labels, y_axis_label,
-        title_string, output_file_name):
+        title_string, output_file_name, plot_colour_bar):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -112,9 +114,8 @@ def _plot_scores_as_grid(
     :param title_string: Figure title.
     :param output_file_name: Path to output file (the figure will be saved
         here).
+    :param plot_colour_bar: Boolean flag.
     """
-
-    # TODO(thunderhoser): Make colour bar an option.
 
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
@@ -135,13 +136,14 @@ def _plot_scores_as_grid(
     pyplot.yticks(y_tick_values, y_tick_labels)
     pyplot.ylabel(y_axis_label)
 
-    plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object, values_to_colour=score_matrix,
-        colour_map=colour_map_object, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='vertical', extend_min=True,
-        extend_max=True, fraction_of_axis_length=0.8)
-
     pyplot.title(title_string)
+
+    if plot_colour_bar:
+        plotting_utils.add_linear_colour_bar(
+            axes_object_or_list=axes_object, values_to_colour=score_matrix,
+            colour_map=colour_map_object, colour_min=min_colour_value,
+            colour_max=max_colour_value, orientation='vertical',
+            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -166,12 +168,12 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
     num_percentiles = len(UNIQUE_FRONT_PERCENTILES)
     num_closing_iter_counts = len(UNIQUE_CLOSING_ITER_COUNTS)
     num_pressure_levels = len(UNIQUE_PRESSURE_LEVELS_MB)
-    num_min_areas = len(UNIQUE_MIN_AREAS_METRES2)
     num_min_lengths = len(UNIQUE_MIN_LENGTHS_METRES)
+    num_min_areas = len(UNIQUE_MIN_AREAS_METRES2)
 
     csi_matrix = numpy.full(
         (num_smoothing_radii, num_percentiles, num_closing_iter_counts,
-         num_pressure_levels, num_min_areas, num_min_lengths),
+         num_pressure_levels, num_min_lengths, num_min_areas),
         numpy.nan)
     pod_matrix = csi_matrix + 0.
     success_ratio_matrix = csi_matrix + 0.
@@ -181,17 +183,17 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
         for j in range(num_percentiles):
             for k in range(num_closing_iter_counts):
                 for m in range(num_pressure_levels):
-                    for n in range(num_min_areas):
-                        for p in range(num_min_lengths):
+                    for n in range(num_min_lengths):
+                        for p in range(num_min_areas):
                             this_file_name = (
                                 '{0:s}/smoothing-radius-px={1:d}_'
                                 'front-percentile={2:02d}_'
                                 'num-closing-iters={3:d}_'
                                 'pressure-level-mb={4:04d}/objects_'
-                                'min-area-metres2={5:012d}_'
-                                'min-length-metres={6:07d}/testing_'
-                                'min-area-metres2={5:012d}_'
-                                'min-length-metres={6:07d}_'
+                                'min-length-metres={5:07d}_'
+                                'min-area-metres2={6:012d}/testing_'
+                                'min-length-metres={5:07d}_'
+                                'min-area-metres2={6:012d}_'
                                 'matching-distance-metres={7:06d}.p'
                             ).format(
                                 input_experiment_dir_name,
@@ -199,8 +201,8 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                                 UNIQUE_FRONT_PERCENTILES[j],
                                 UNIQUE_CLOSING_ITER_COUNTS[k],
                                 UNIQUE_PRESSURE_LEVELS_MB[m],
-                                UNIQUE_MIN_AREAS_METRES2[n],
-                                UNIQUE_MIN_LENGTHS_METRES[p],
+                                UNIQUE_MIN_LENGTHS_METRES[n],
+                                UNIQUE_MIN_AREAS_METRES2[p],
                                 matching_distance_metres
                             )
 
@@ -223,6 +225,8 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                                 this_evaluation_dict[
                                     object_eval.BINARY_FREQUENCY_BIAS_KEY]
                             )
+
+    print SEPARATOR_STRING
 
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1), MAX_COLOUR_PERCENTILE)
@@ -256,6 +260,11 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                     ).format(UNIQUE_FRONT_PERCENTILES[j],
                              UNIQUE_CLOSING_ITER_COUNTS[k])
 
+                    this_plot_cbar_flag = (
+                        j == num_percentiles - 1 and
+                        k == num_closing_iter_counts - 1
+                    )
+
                     this_file_name = '{0:s}/csi_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
                     these_csi_file_names.append(this_file_name)
@@ -266,12 +275,13 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             csi_matrix, MIN_COLOUR_PERCENTILE),
                         max_colour_value=numpy.nanpercentile(
                             csi_matrix, MAX_COLOUR_PERCENTILE),
-                        x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-                        x_axis_label=MIN_LENGTH_AXIS_LABEL,
-                        y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-                        y_axis_label=MIN_AREA_AXIS_LABEL,
+                        y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+                        y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+                        x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
-                        output_file_name=these_csi_file_names[-1])
+                        output_file_name=these_csi_file_names[-1],
+                        plot_colour_bar=this_plot_cbar_flag)
 
                     this_file_name = '{0:s}/pod_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -283,12 +293,13 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             pod_matrix, MIN_COLOUR_PERCENTILE),
                         max_colour_value=numpy.nanpercentile(
                             pod_matrix, MAX_COLOUR_PERCENTILE),
-                        x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-                        x_axis_label=MIN_LENGTH_AXIS_LABEL,
-                        y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-                        y_axis_label=MIN_AREA_AXIS_LABEL,
+                        y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+                        y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+                        x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
-                        output_file_name=these_pod_file_names[-1])
+                        output_file_name=these_pod_file_names[-1],
+                        plot_colour_bar=this_plot_cbar_flag)
 
                     this_file_name = '{0:s}/success_ratio_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -300,12 +311,13 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             success_ratio_matrix, MIN_COLOUR_PERCENTILE),
                         max_colour_value=numpy.nanpercentile(
                             success_ratio_matrix, MAX_COLOUR_PERCENTILE),
-                        x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-                        x_axis_label=MIN_LENGTH_AXIS_LABEL,
-                        y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-                        y_axis_label=MIN_AREA_AXIS_LABEL,
+                        y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+                        y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+                        x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
-                        output_file_name=these_sr_file_names[-1])
+                        output_file_name=these_sr_file_names[-1],
+                        plot_colour_bar=this_plot_cbar_flag)
 
                     this_file_name = '{0:s}/frequency_bias_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -315,12 +327,15 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         colour_map_object=DIVERGENT_COLOUR_MAP_OBJECT,
                         min_colour_value=min_colour_frequency_bias,
                         max_colour_value=max_colour_frequency_bias,
-                        x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-                        x_axis_label=MIN_LENGTH_AXIS_LABEL,
-                        y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-                        y_axis_label=MIN_AREA_AXIS_LABEL,
+                        y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+                        y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+                        x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
-                        output_file_name=these_fb_file_names[-1])
+                        output_file_name=these_fb_file_names[-1],
+                        plot_colour_bar=this_plot_cbar_flag)
+
+                    print '\n'
 
             this_file_name_suffix = (
                 'matching-distance-metres={0:06d}_smoothing-radius-px={1:d}_'
@@ -359,12 +374,14 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             this_file_name = '{0:s}/frequency_bias_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
-            print 'Concatenating panels to: "{0:s}"...\n'.format(this_file_name)
+            print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
             imagemagick_utils.concatenate_images(
                 input_file_names=these_fb_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
                 num_panel_columns=num_closing_iter_counts,
                 output_size_pixels=FIGURE_SIZE_PIXELS)
+
+            print SEPARATOR_STRING
 
 
 if __name__ == '__main__':
