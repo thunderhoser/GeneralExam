@@ -190,10 +190,10 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                                 'front-percentile={2:02d}_'
                                 'num-closing-iters={3:d}_'
                                 'pressure-level-mb={4:04d}/objects_'
-                                'min-length-metres={5:07d}_'
-                                'min-area-metres2={6:012d}/testing_'
-                                'min-length-metres={5:07d}_'
                                 'min-area-metres2={6:012d}_'
+                                'min-length-metres={5:07d}/testing_'
+                                'min-area-metres2={6:012d}_'
+                                'min-length-metres={5:07d}_'
                                 'matching-distance-metres={7:06d}.p'
                             ).format(
                                 input_experiment_dir_name,
