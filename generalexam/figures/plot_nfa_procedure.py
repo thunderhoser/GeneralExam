@@ -223,7 +223,7 @@ def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
     ]
 
     nwp_plotting.plot_subgrid(
-        field_matrix=wet_bulb_theta_matrix_to_plot - ZERO_CELSIUS_IN_KELVINS,
+        field_matrix=wet_bulb_theta_matrix_to_plot,
         model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
         basemap_object=basemap_object, colour_map=THERMAL_COLOUR_MAP_OBJECT,
         min_value_in_colour_map=numpy.nanpercentile(
@@ -336,6 +336,9 @@ def _plot_locating_variable(
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
     ) = _init_basemap(DEFAULT_BORDER_COLOUR)
 
+    print narr_row_limits
+    print narr_column_limits
+
     max_colour_value = numpy.nanpercentile(
         numpy.absolute(locating_var_matrix_m01_s01), MAX_COLOUR_PERCENTILE)
     min_colour_value = -1 * max_colour_value
@@ -343,7 +346,8 @@ def _plot_locating_variable(
     nwp_plotting.plot_subgrid(
         field_matrix=locating_var_matrix_m01_s01,
         model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map=LOCATING_VAR_COLOUR_MAP_OBJECT,
+        basemap_object=basemap_object,
+        colour_map=LOCATING_VAR_COLOUR_MAP_OBJECT,
         min_value_in_colour_map=min_colour_value,
         max_value_in_colour_map=max_colour_value,
         first_row_in_full_grid=narr_row_limits[0],
