@@ -1282,7 +1282,8 @@ def find_downsized_3d_example_files(
         error_checking.assert_is_geq(last_batch_number, first_batch_number)
 
         downsized_3d_file_pattern = (
-            '{0:s}/batches{1:s}-{1:s}/downsized_3d_examples_batch{1:s}.nc'
+            '{0:s}/batches[0-9][0-6][0-9][0-9][0-9][0-9][0-9]-{1:s}/'
+            'downsized_3d_examples_batch{1:s}.nc'
         ).format(top_directory_name, BATCH_NUMBER_REGEX)
     else:
         error_checking.assert_is_integer(first_target_time_unix_sec)
@@ -1597,8 +1598,9 @@ def read_downsized_3d_examples(
         netcdf_dataset.close()
         return example_dict
 
-    print netcdf_dataset.variables[TARGET_MATRIX_KEY].shape
-    print indices_to_keep.shape
+    print 'Shape of target matrix: {0:s}'.format(
+        str(netcdf_dataset.variables[TARGET_MATRIX_KEY].shape))
+    print 'Shape of indices to keep: {0:s}'.format(str(indices_to_keep.shape))
 
     example_dict.update({
         PREDICTOR_MATRIX_KEY:
