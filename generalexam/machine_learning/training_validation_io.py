@@ -34,6 +34,7 @@ there are M*N target variables (the label at each pixel).
 import copy
 import glob
 import os.path
+import random.shuffle
 import numpy
 import keras
 import netCDF4
@@ -537,6 +538,7 @@ def quick_downsized_3d_example_gen(
     example_file_names = find_downsized_3d_example_files(
         top_directory_name=top_input_dir_name, shuffled=True,
         first_batch_number=0, last_batch_number=LARGE_INTEGER)
+    random.shuffle(example_file_names)
 
     num_files = len(example_file_names)
     file_index = 0
@@ -582,7 +584,6 @@ def quick_downsized_3d_example_gen(
 
             num_examples_in_memory = full_target_matrix.shape[0]
 
-        numpy.random.shuffle(batch_indices)
         predictor_matrix = full_predictor_matrix[batch_indices, ...].astype(
             'float32')
         target_matrix = full_target_matrix[batch_indices, ...].astype('float64')
