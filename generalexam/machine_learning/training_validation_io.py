@@ -1597,6 +1597,9 @@ def read_downsized_3d_examples(
         netcdf_dataset.close()
         return example_dict
 
+    print netcdf_dataset.variables[TARGET_MATRIX_KEY].shape
+    print indices_to_keep.shape
+
     example_dict.update({
         PREDICTOR_MATRIX_KEY:
             predictor_matrix[indices_to_keep, ...].astype('float32'),
