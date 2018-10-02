@@ -1282,8 +1282,7 @@ def find_downsized_3d_example_files(
         error_checking.assert_is_geq(last_batch_number, first_batch_number)
 
         downsized_3d_file_pattern = (
-            '{0:s}/batches[0-9][0-6][0-9][0-9][0-9][0-9][0-9]-{1:s}/'
-            'downsized_3d_examples_batch{1:s}.nc'
+            '{0:s}/batches{1:s}-{1:s}/downsized_3d_examples_batch{1:s}.nc'
         ).format(top_directory_name, BATCH_NUMBER_REGEX)
     else:
         error_checking.assert_is_integer(first_target_time_unix_sec)
@@ -1550,40 +1549,46 @@ def read_downsized_3d_examples(
         last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
 
     netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
+
     narr_predictor_names = netCDF4.chartostring(
         netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
     narr_predictor_names = [str(s) for s in narr_predictor_names]
+    if predictor_names_to_keep is None:
+        predictor_names_to_keep = narr_predictor_names + []
+
+    target_times_unix_sec = numpy.array(
+        netcdf_dataset.variables[TARGET_TIMES_KEY][:], dtype=int)
+    row_indices = numpy.array(
+        netcdf_dataset.variables[ROW_INDICES_KEY][:], dtype=int)
+    column_indices = numpy.array(
+        netcdf_dataset.variables[COLUMN_INDICES_KEY][:], dtype=int)
 
     if not metadata_only:
-        predictor_matrix = _decrease_example_size(
-            predictor_matrix=numpy.array(
-                netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:]),
-            num_half_rows=num_half_rows_to_keep,
-            num_half_columns=num_half_columns_to_keep)
+        predictor_matrix = numpy.array(
+            netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:])
         target_matrix = numpy.array(
             netcdf_dataset.variables[TARGET_MATRIX_KEY][:])
 
-    if predictor_names_to_keep is None:
-        predictor_names_to_keep = narr_predictor_names + []
-    elif not metadata_only:
         these_indices = numpy.array(
             [narr_predictor_names.index(p) for p in predictor_names_to_keep],
             dtype=int)
         predictor_matrix = predictor_matrix[..., these_indices]
+        predictor_matrix = _decrease_example_size(
+            predictor_matrix=predictor_matrix,
+            num_half_rows=num_half_rows_to_keep,
+            num_half_columns=num_half_columns_to_keep)
 
-    target_times_unix_sec = numpy.array(
-        netcdf_dataset.variables[TARGET_TIMES_KEY][:], dtype=int)
     indices_to_keep = numpy.where(numpy.logical_and(
         target_times_unix_sec >= first_time_to_keep_unix_sec,
         target_times_unix_sec <= last_time_to_keep_unix_sec
     ))[0]
 
     target_times_unix_sec = target_times_unix_sec[indices_to_keep]
-    row_indices = numpy.array(
-        netcdf_dataset.variables[ROW_INDICES_KEY][indices_to_keep], dtype=int)
-    column_indices = numpy.array(
-        netcdf_dataset.variables[COLUMN_INDICES_KEY][indices_to_keep],
-        dtype=int)
+    row_indices = row_indices[indices_to_keep]
+    column_indices = column_indices[indices_to_keep]
+    if not metadata_only:
+        predictor_matrix = predictor_matrix[indices_to_keep, ...]
+        target_matrix = target_matrix[indices_to_keep, ...]
 
     example_dict = {
         TARGET_TIMES_KEY: target_times_unix_sec,
@@ -1600,13 +1605,9 @@ def read_downsized_3d_examples(
         netcdf_dataset.close()
         return example_dict
 
-    print 'Shape of target matrix: {0:s}'.format(str(target_matrix.shape))
-    print 'Shape of indices to keep: {0:s}'.format(str(indices_to_keep.shape))
-
     example_dict.update({
-        PREDICTOR_MATRIX_KEY:
-            predictor_matrix[indices_to_keep, ...].astype('float32'),
-        TARGET_MATRIX_KEY: target_matrix[indices_to_keep, ...].astype('float64')
+        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float32'),
+        TARGET_MATRIX_KEY: target_matrix.astype('float64')
     })
 
     netcdf_dataset.close()

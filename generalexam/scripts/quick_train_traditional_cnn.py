@@ -26,7 +26,9 @@ PRESSURE_LEVEL_MB = 1000
 
 NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
-TOP_INPUT_DIR_NAME = (
+TOP_TRAINING_DIR_NAME = (
+    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled')
+TOP_VALIDATION_DIR_NAME = (
     '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -144,7 +146,8 @@ def _run(num_epochs, num_examples_per_batch, num_training_batches_per_epoch,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_start_time_unix_sec=training_start_time_unix_sec,
         training_end_time_unix_sec=training_end_time_unix_sec,
-        top_input_dir_name=TOP_INPUT_DIR_NAME,
+        top_training_dir_name=TOP_TRAINING_DIR_NAME,
+        top_validation_dir_name=TOP_VALIDATION_DIR_NAME,
         narr_predictor_names=narr_predictor_names, num_classes=num_classes,
         num_rows_in_half_grid=num_rows_in_half_grid,
         num_columns_in_half_grid=num_columns_in_half_grid,

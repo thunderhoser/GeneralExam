@@ -362,10 +362,11 @@ def train_with_3d_examples(
 def quick_train_3d(
         model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, training_start_time_unix_sec,
-        training_end_time_unix_sec, top_input_dir_name, narr_predictor_names,
+        training_end_time_unix_sec, top_training_dir_name, narr_predictor_names,
         num_classes, num_rows_in_half_grid, num_columns_in_half_grid,
         num_validation_batches_per_epoch=None,
-        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
+        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None,
+        top_validation_dir_name=None):
     """Trains CNN with 3-D examples stored in processed files.
 
     These "processed files" are created by
@@ -379,7 +380,7 @@ def quick_train_3d(
     :param training_start_time_unix_sec: See doc for
         `training_validation_io.quick_downsized_3d_example_gen`.
     :param training_end_time_unix_sec: Same.
-    :param top_input_dir_name: Same.
+    :param top_training_dir_name: Same.
     :param narr_predictor_names: Same.
     :param num_classes: Same.
     :param num_rows_in_half_grid: Same.
@@ -388,6 +389,7 @@ def quick_train_3d(
     :param validation_start_time_unix_sec: See doc for
         `training_validation_io.quick_downsized_3d_example_gen`.
     :param validation_end_time_unix_sec: Same.
+    :param top_validation_dir_name: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -406,7 +408,7 @@ def quick_train_3d(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
-                top_input_dir_name=top_input_dir_name,
+                top_input_dir_name=top_training_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 num_classes=num_classes,
                 num_rows_in_half_grid=num_rows_in_half_grid,
@@ -427,7 +429,7 @@ def quick_train_3d(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
-                top_input_dir_name=top_input_dir_name,
+                top_input_dir_name=top_training_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 num_classes=num_classes,
                 num_rows_in_half_grid=num_rows_in_half_grid,
@@ -438,7 +440,7 @@ def quick_train_3d(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
                 last_target_time_unix_sec=validation_end_time_unix_sec,
-                top_input_dir_name=top_input_dir_name,
+                top_input_dir_name=top_validation_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 num_classes=num_classes,
                 num_rows_in_half_grid=num_rows_in_half_grid,
