@@ -1560,6 +1560,8 @@ def read_downsized_3d_examples(
                 netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:]),
             num_half_rows=num_half_rows_to_keep,
             num_half_columns=num_half_columns_to_keep)
+        target_matrix = numpy.array(
+            netcdf_dataset.variables[TARGET_MATRIX_KEY][:])
 
     if predictor_names_to_keep is None:
         predictor_names_to_keep = narr_predictor_names + []
@@ -1598,18 +1600,13 @@ def read_downsized_3d_examples(
         netcdf_dataset.close()
         return example_dict
 
-    print 'Shape of target matrix: {0:s}'.format(
-        str(netcdf_dataset.variables[TARGET_MATRIX_KEY].shape))
+    print 'Shape of target matrix: {0:s}'.format(str(target_matrix.shape))
     print 'Shape of indices to keep: {0:s}'.format(str(indices_to_keep.shape))
 
     example_dict.update({
         PREDICTOR_MATRIX_KEY:
             predictor_matrix[indices_to_keep, ...].astype('float32'),
-        TARGET_MATRIX_KEY:
-            numpy.array(
-                netcdf_dataset.variables[TARGET_MATRIX_KEY][
-                    indices_to_keep, ...]
-            ).astype('float64')
+        TARGET_MATRIX_KEY: target_matrix[indices_to_keep, ...].astype('float64')
     })
 
     netcdf_dataset.close()
