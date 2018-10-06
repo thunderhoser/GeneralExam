@@ -192,6 +192,13 @@ def _run():
     panel_file_names = numpy.full((4, num_dropout_fractions), '', dtype=object)
 
     for k in range(num_dropout_fractions):
+        if k == 0:
+            these_y_tick_labels = UNIQUE_PREDICTOR_ABBREV_STRINGS + []
+            this_y_axis_label = PREDICTORS_AXIS_LABEL + ''
+        else:
+            these_y_tick_labels = [''] * num_predictor_combos
+            this_y_axis_label = ''
+
         this_title_string = 'Gerrity score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
         panel_file_names[0, k] = (
@@ -205,13 +212,12 @@ def _run():
                 gerrity_score_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 gerrity_score_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
-            x_axis_label=IMAGE_SIZE_AXIS_LABEL,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=PREDICTORS_AXIS_LABEL,
+            x_tick_labels=[''] * num_image_sizes,
+            x_axis_label='',
+            y_tick_labels=these_y_tick_labels,
+            y_axis_label=this_y_axis_label,
             title_string=this_title_string,
-            output_file_name=panel_file_names[0, k],
-            plot_colour_bar=k == num_dropout_fractions - 1)
+            output_file_name=panel_file_names[0, k], plot_colour_bar=True)
 
         this_title_string = 'Peirce score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -226,13 +232,12 @@ def _run():
                 peirce_score_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 peirce_score_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
-            x_axis_label=IMAGE_SIZE_AXIS_LABEL,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=PREDICTORS_AXIS_LABEL,
+            x_tick_labels=[''] * num_image_sizes,
+            x_axis_label='',
+            y_tick_labels=these_y_tick_labels,
+            y_axis_label=this_y_axis_label,
             title_string=this_title_string,
-            output_file_name=panel_file_names[1, k],
-            plot_colour_bar=k == num_dropout_fractions - 1)
+            output_file_name=panel_file_names[1, k], plot_colour_bar=True)
 
         this_title_string = 'Heidke skill score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -247,13 +252,12 @@ def _run():
                 hss_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 hss_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
-            x_axis_label=IMAGE_SIZE_AXIS_LABEL,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=PREDICTORS_AXIS_LABEL,
+            x_tick_labels=[''] * num_image_sizes,
+            x_axis_label='',
+            y_tick_labels=these_y_tick_labels,
+            y_axis_label=this_y_axis_label,
             title_string=this_title_string,
-            output_file_name=panel_file_names[2, k],
-            plot_colour_bar=k == num_dropout_fractions - 1)
+            output_file_name=panel_file_names[2, k], plot_colour_bar=True)
 
         this_title_string = 'Accuracy; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -270,11 +274,10 @@ def _run():
                 accuracy_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=PREDICTORS_AXIS_LABEL,
+            y_tick_labels=these_y_tick_labels,
+            y_axis_label=this_y_axis_label,
             title_string=this_title_string,
-            output_file_name=panel_file_names[3, k],
-            plot_colour_bar=k == num_dropout_fractions - 1)
+            output_file_name=panel_file_names[3, k], plot_colour_bar=True)
 
     concat_file_name = '{0:s}/validation.jpg'.format(TOP_EXPERIMENT_DIR_NAME)
     print 'Concatenating panels to: "{0:s}"...'.format(concat_file_name)
