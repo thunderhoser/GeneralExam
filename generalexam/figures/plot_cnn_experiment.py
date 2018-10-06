@@ -3,6 +3,7 @@
 import os.path
 import warnings
 import numpy
+from PIL import Image
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
@@ -134,6 +135,8 @@ def _run():
     """Plots results of CNN experiment.
 
     This is effectively the main method.
+
+    :raises: ValueError: if any Unix command fails.
     """
 
     num_predictor_combos = len(UNIQUE_PREDICTOR_COMBO_STRINGS)
@@ -165,7 +168,7 @@ def _run():
                     2 + int(UNIQUE_HALF_IMAGE_SIZES[j] > 8),
                     UNIQUE_DROPOUT_FRACTIONS[k]
                 )
-                
+
                 if not os.path.isfile(this_eval_file_name):
                     warning_string = (
                         'POTENTIAL PROBLEM.  Cannot find file expected at: '
@@ -278,6 +281,26 @@ def _run():
             y_axis_label=this_y_axis_label,
             title_string=this_title_string,
             output_file_name=panel_file_names[3, k], plot_colour_bar=True)
+
+    for m in range(4):
+        first_image_object = Image.open(panel_file_names[m, 0])
+        first_height_px = first_image_object.size[1]
+        first_num_pixels_orig = first_height_px * first_image_object.size[0]
+
+        second_image_object = Image.open(panel_file_names[m, 1])
+        second_height_px = second_image_object.size[1]
+        first_num_pixels_new = int(numpy.round(
+            first_num_pixels_orig * float(second_height_px) / first_height_px))
+
+        command_string = '"{0:s}" "{1:s}" -resize {2:d}@ "{1:s}"'.format(
+            imagemagick_utils.DEFAULT_CONVERT_EXE_NAME, panel_file_names[m, 0],
+            first_num_pixels_new)
+
+        print 'Resizing image: "{0:s}"...'.format(panel_file_names[m, 0])
+        exit_code = os.system(command_string)
+        if exit_code != 0:
+            raise ValueError('\nUnix command failed (log messages shown '
+                             'above should explain why).')
 
     concat_file_name = '{0:s}/validation.jpg'.format(TOP_EXPERIMENT_DIR_NAME)
     print 'Concatenating panels to: "{0:s}"...'.format(concat_file_name)
