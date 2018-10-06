@@ -283,18 +283,10 @@ def _run():
             output_file_name=panel_file_names[3, k], plot_colour_bar=True)
 
     for m in range(4):
-        first_image_object = Image.open(panel_file_names[m, 0])
-        first_height_px = first_image_object.size[1]
-        first_num_pixels_orig = first_height_px * first_image_object.size[0]
-
         second_image_object = Image.open(panel_file_names[m, 1])
-        second_height_px = second_image_object.size[1]
-        first_num_pixels_new = int(numpy.round(
-            first_num_pixels_orig * float(second_height_px) / first_height_px))
-
-        command_string = '"{0:s}" "{1:s}" -resize {2:d}@ "{1:s}"'.format(
+        command_string = '"{0:s}" "{1:s}" -resize {2:d}x{3:d}\! "{1:s}"'.format(
             imagemagick_utils.DEFAULT_CONVERT_EXE_NAME, panel_file_names[m, 0],
-            first_num_pixels_new)
+            second_image_object.size[0], second_image_object.size[1])
 
         print 'Resizing image: "{0:s}"...'.format(panel_file_names[m, 0])
         exit_code = os.system(command_string)
