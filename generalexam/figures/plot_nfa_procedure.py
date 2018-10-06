@@ -29,8 +29,7 @@ MAX_LONGITUDE_DEG = 290.
 PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
-NARR_BORDER_COLOUR = numpy.full(3, 152. / 255)
-DEFAULT_BORDER_COLOUR = numpy.full(3, 0.)
+BORDER_COLOUR = numpy.full(3, 0.)
 
 THERMAL_COLOUR_MAP_OBJECT = pyplot.cm.YlGn
 TFP_COLOUR_MAP_OBJECT = pyplot.cm.PRGn
@@ -100,10 +99,15 @@ NARR_MASK_FILE_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
-DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
-DEFAULT_FRONT_PERCENTILE = 99.
-DEFAULT_NUM_CLOSING_ITERS = 1
-DEFAULT_PRESSURE_LEVEL_MB = 900
+DEFAULT_SMOOTHING_RADIUS_PIXELS = 2.
+DEFAULT_FRONT_PERCENTILE = 96.
+DEFAULT_NUM_CLOSING_ITERS = 3
+DEFAULT_PRESSURE_LEVEL_MB = 950
+
+# DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
+# DEFAULT_FRONT_PERCENTILE = 96.
+# DEFAULT_NUM_CLOSING_ITERS = 2
+# DEFAULT_PRESSURE_LEVEL_MB = 900
 TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
@@ -208,7 +212,7 @@ def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
     """
 
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
-    ) = _init_basemap(NARR_BORDER_COLOUR)
+    ) = _init_basemap(BORDER_COLOUR)
 
     wet_bulb_theta_matrix_to_plot = wet_bulb_theta_matrix_kelvins[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
@@ -282,7 +286,7 @@ def _plot_tfp(tfp_matrix_kelvins_m02, annotation_string, output_file_name):
     """
 
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
-    ) = _init_basemap(DEFAULT_BORDER_COLOUR)
+    ) = _init_basemap(BORDER_COLOUR)
 
     matrix_to_plot = tfp_matrix_kelvins_m02[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
@@ -335,7 +339,7 @@ def _plot_locating_variable(
     """
 
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
-    ) = _init_basemap(DEFAULT_BORDER_COLOUR)
+    ) = _init_basemap(BORDER_COLOUR)
 
     matrix_to_plot = locating_var_matrix_m01_s01[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
@@ -390,7 +394,7 @@ def _plot_front_types(
     """
 
     (narr_row_limits, narr_column_limits, axes_object, basemap_object
-    ) = _init_basemap(DEFAULT_BORDER_COLOUR)
+    ) = _init_basemap(BORDER_COLOUR)
 
     matrix_to_plot = predicted_label_matrix[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
@@ -457,10 +461,6 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         wet_bulb_theta_file_name)[0][0, ...]
     wet_bulb_theta_matrix_kelvins = general_utils.fill_nans(
         wet_bulb_theta_matrix_kelvins)
-    wet_bulb_theta_matrix_kelvins = nfa.gaussian_smooth_2d_field(
-        field_matrix=wet_bulb_theta_matrix_kelvins,
-        standard_deviation_pixels=smoothing_radius_pixels,
-        cutoff_radius_pixels=cutoff_radius_pixels)
 
     u_wind_file_name = processed_narr_io.find_file_for_one_time(
         top_directory_name=top_narr_directory_name,
@@ -472,10 +472,6 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     u_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
         u_wind_file_name)[0][0, ...]
     u_wind_matrix_m_s01 = general_utils.fill_nans(u_wind_matrix_m_s01)
-    u_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
-        field_matrix=u_wind_matrix_m_s01,
-        standard_deviation_pixels=smoothing_radius_pixels,
-        cutoff_radius_pixels=cutoff_radius_pixels)
 
     v_wind_file_name = processed_narr_io.find_file_for_one_time(
         top_directory_name=top_narr_directory_name,
@@ -487,17 +483,37 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     v_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
         v_wind_file_name)[0][0, ...]
     v_wind_matrix_m_s01 = general_utils.fill_nans(v_wind_matrix_m_s01)
+
+    unsmoothed_narr_file_name = '{0:s}/unsmoothed_narr_fields.jpg'.format(
+        output_dir_name)
+    _plot_narr_fields(
+        wet_bulb_theta_matrix_kelvins=wet_bulb_theta_matrix_kelvins,
+        u_wind_matrix_m_s01=u_wind_matrix_m_s01,
+        v_wind_matrix_m_s01=v_wind_matrix_m_s01, annotation_string='(a)',
+        output_file_name=unsmoothed_narr_file_name)
+
+    wet_bulb_theta_matrix_kelvins = nfa.gaussian_smooth_2d_field(
+        field_matrix=wet_bulb_theta_matrix_kelvins,
+        standard_deviation_pixels=smoothing_radius_pixels,
+        cutoff_radius_pixels=cutoff_radius_pixels)
+
+    u_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
+        field_matrix=u_wind_matrix_m_s01,
+        standard_deviation_pixels=smoothing_radius_pixels,
+        cutoff_radius_pixels=cutoff_radius_pixels)
+
     v_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
         field_matrix=v_wind_matrix_m_s01,
         standard_deviation_pixels=smoothing_radius_pixels,
         cutoff_radius_pixels=cutoff_radius_pixels)
 
-    narr_fields_file_name = '{0:s}/narr_fields.jpg'.format(output_dir_name)
+    smoothed_narr_file_name = '{0:s}/smoothed_narr_fields.jpg'.format(
+        output_dir_name)
     _plot_narr_fields(
         wet_bulb_theta_matrix_kelvins=wet_bulb_theta_matrix_kelvins,
         u_wind_matrix_m_s01=u_wind_matrix_m_s01,
-        v_wind_matrix_m_s01=v_wind_matrix_m_s01, annotation_string='(a)',
-        output_file_name=narr_fields_file_name)
+        v_wind_matrix_m_s01=v_wind_matrix_m_s01, annotation_string='(b)',
+        output_file_name=smoothed_narr_file_name)
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -509,7 +525,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
 
     tfp_file_name = '{0:s}/tfp.jpg'.format(output_dir_name)
     _plot_tfp(tfp_matrix_kelvins_m02=tfp_matrix_kelvins_m02,
-              annotation_string='(b)', output_file_name=tfp_file_name)
+              annotation_string='(c)', output_file_name=tfp_file_name)
 
     proj_velocity_matrix_m_s01 = nfa.project_wind_to_thermal_gradient(
         u_matrix_grid_relative_m_s01=u_wind_matrix_m_s01,
@@ -525,7 +541,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         output_dir_name)
     _plot_locating_variable(
         locating_var_matrix_m01_s01=locating_var_matrix_m01_s01,
-        annotation_string='(c)', output_file_name=locating_var_file_name)
+        annotation_string='(d)', output_file_name=locating_var_file_name)
 
     predicted_label_matrix = nfa.get_front_types(
         locating_var_matrix_m01_s01=locating_var_matrix_m01_s01,
@@ -535,7 +551,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     unclosed_fronts_file_name = '{0:s}/unclosed_fronts.jpg'.format(
         output_dir_name)
     _plot_front_types(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(d)',
+        predicted_label_matrix=predicted_label_matrix, annotation_string='(e)',
         output_file_name=unclosed_fronts_file_name)
 
     predicted_label_matrix = front_utils.close_frontal_image(
@@ -544,15 +560,16 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
 
     closed_fronts_file_name = '{0:s}/closed_fronts.jpg'.format(output_dir_name)
     _plot_front_types(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(e)',
+        predicted_label_matrix=predicted_label_matrix, annotation_string='(f)',
         output_file_name=closed_fronts_file_name)
 
     concat_file_name = '{0:s}/nfa_procedure.jpg'.format(output_dir_name)
     print 'Concatenating figures to: "{0:s}"...'.format(concat_file_name)
     imagemagick_utils.concatenate_images(
         input_file_names=[
-            narr_fields_file_name, tfp_file_name, locating_var_file_name,
-            unclosed_fronts_file_name, closed_fronts_file_name],
+            unsmoothed_narr_file_name, smoothed_narr_file_name, tfp_file_name,
+            locating_var_file_name, unclosed_fronts_file_name,
+            closed_fronts_file_name],
         output_file_name=concat_file_name, num_panel_rows=3,
         num_panel_columns=2, output_size_pixels=FIGURE_SIZE_PIXELS)
 

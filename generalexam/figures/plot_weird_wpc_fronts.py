@@ -38,7 +38,8 @@ PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
 FRONT_LINE_WIDTH = 8
-BORDER_COLOUR = numpy.full(3, 152. / 255)
+# BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.full(3, 0.)
 WARM_FRONT_COLOUR = numpy.array([217., 95., 2.]) / 255
 COLD_FRONT_COLOUR = numpy.array([117., 112., 179.]) / 255
 

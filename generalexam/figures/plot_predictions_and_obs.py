@@ -37,7 +37,8 @@ WIND_FIELD_NAMES = [
 NARR_FIELD_NAMES = WIND_FIELD_NAMES + [processed_narr_io.WET_BULB_THETA_NAME]
 
 FRONT_LINE_WIDTH = 8
-BORDER_COLOUR = numpy.full(3, 152. / 255)
+# BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.full(3, 0.)
 WARM_FRONT_COLOUR = numpy.array([217., 95., 2.]) / 255
 COLD_FRONT_COLOUR = numpy.array([117., 112., 179.]) / 255
 
