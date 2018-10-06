@@ -1317,9 +1317,6 @@ def find_downsized_3d_example_files(
 
     else:
         downsized_3d_file_names.sort()
-
-        # TODO(thunderhoser): Does this work?  File cannot end before period of
-        # interest, cannot start after POI.
         file_start_times_unix_sec = numpy.array(
             [_file_name_to_target_times(f)[0] for f in downsized_3d_file_names],
             dtype=int)
