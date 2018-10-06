@@ -27,9 +27,10 @@ PRESSURE_LEVEL_MB = 1000
 NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
 TOP_TRAINING_DIR_NAME = (
-    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled')
+    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled/training')
 TOP_VALIDATION_DIR_NAME = (
-    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled')
+    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled/'
+    'validation')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = ml_helper.add_input_arguments(
