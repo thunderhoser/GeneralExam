@@ -1,5 +1,7 @@
 """Plots results of CNN experiment."""
 
+import os.path
+import warnings
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -163,6 +165,14 @@ def _run():
                     2 + int(UNIQUE_HALF_IMAGE_SIZES[j] > 8),
                     UNIQUE_DROPOUT_FRACTIONS[k]
                 )
+                
+                if not os.path.isfile(this_eval_file_name):
+                    warning_string = (
+                        'POTENTIAL PROBLEM.  Cannot find file expected at: '
+                        '"{0:s}"'
+                    ).format(this_eval_file_name)
+                    warnings.warn(warning_string)
+                    continue
 
                 print 'Reading data from: "{0:s}"...'.format(
                     this_eval_file_name)
@@ -191,9 +201,9 @@ def _run():
         _plot_scores_as_grid(
             score_matrix=gerrity_score_matrix[..., k],
             colour_map_object=COLOUR_MAP_OBJECT,
-            min_colour_value=numpy.percentile(
+            min_colour_value=numpy.nanpercentile(
                 gerrity_score_matrix, MIN_COLOUR_PERCENTILE),
-            max_colour_value=numpy.percentile(
+            max_colour_value=numpy.nanpercentile(
                 gerrity_score_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
@@ -212,9 +222,9 @@ def _run():
         _plot_scores_as_grid(
             score_matrix=peirce_score_matrix[..., k],
             colour_map_object=COLOUR_MAP_OBJECT,
-            min_colour_value=numpy.percentile(
+            min_colour_value=numpy.nanpercentile(
                 peirce_score_matrix, MIN_COLOUR_PERCENTILE),
-            max_colour_value=numpy.percentile(
+            max_colour_value=numpy.nanpercentile(
                 peirce_score_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
@@ -232,9 +242,9 @@ def _run():
         _plot_scores_as_grid(
             score_matrix=hss_matrix[..., k],
             colour_map_object=COLOUR_MAP_OBJECT,
-            min_colour_value=numpy.percentile(
+            min_colour_value=numpy.nanpercentile(
                 hss_matrix, MIN_COLOUR_PERCENTILE),
-            max_colour_value=numpy.percentile(
+            max_colour_value=numpy.nanpercentile(
                 hss_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
@@ -252,9 +262,9 @@ def _run():
         _plot_scores_as_grid(
             score_matrix=accuracy_matrix[..., k],
             colour_map_object=COLOUR_MAP_OBJECT,
-            min_colour_value=numpy.percentile(
+            min_colour_value=numpy.nanpercentile(
                 accuracy_matrix, MIN_COLOUR_PERCENTILE),
-            max_colour_value=numpy.percentile(
+            max_colour_value=numpy.nanpercentile(
                 accuracy_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
