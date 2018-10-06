@@ -195,8 +195,8 @@ def _run():
         this_title_string = 'Gerrity score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
         panel_file_names[0, k] = (
-            'gerrity_score_dropout-fraction={0:.2f}.jpg'
-        ).format(UNIQUE_DROPOUT_FRACTIONS[k])
+            '{0:s}/gerrity_score_dropout-fraction={1:.2f}.jpg'
+        ).format(TOP_EXPERIMENT_DIR_NAME, UNIQUE_DROPOUT_FRACTIONS[k])
 
         _plot_scores_as_grid(
             score_matrix=gerrity_score_matrix[..., k],
@@ -216,8 +216,8 @@ def _run():
         this_title_string = 'Peirce score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
         panel_file_names[1, k] = (
-            'peirce_score_dropout-fraction={0:.2f}.jpg'
-        ).format(UNIQUE_DROPOUT_FRACTIONS[k])
+            '{0:s}/peirce_score_dropout-fraction={1:.2f}.jpg'
+        ).format(TOP_EXPERIMENT_DIR_NAME, UNIQUE_DROPOUT_FRACTIONS[k])
 
         _plot_scores_as_grid(
             score_matrix=peirce_score_matrix[..., k],
@@ -236,8 +236,9 @@ def _run():
 
         this_title_string = 'Heidke skill score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
-        panel_file_names[2, k] = 'hss_dropout-fraction={0:.2f}.jpg'.format(
-            UNIQUE_DROPOUT_FRACTIONS[k])
+        panel_file_names[2, k] = (
+            '{0:s}/hss_dropout-fraction={1:.2f}.jpg'
+        ).format(TOP_EXPERIMENT_DIR_NAME, UNIQUE_DROPOUT_FRACTIONS[k])
 
         _plot_scores_as_grid(
             score_matrix=hss_matrix[..., k],
@@ -256,8 +257,9 @@ def _run():
 
         this_title_string = 'Accuracy; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
-        panel_file_names[3, k] = 'accuracy_dropout-fraction={0:.2f}.jpg'.format(
-            UNIQUE_DROPOUT_FRACTIONS[k])
+        panel_file_names[3, k] = (
+            '{0:s}/accuracy_dropout-fraction={1:.2f}.jpg'
+        ).format(TOP_EXPERIMENT_DIR_NAME, UNIQUE_DROPOUT_FRACTIONS[k])
 
         _plot_scores_as_grid(
             score_matrix=accuracy_matrix[..., k],
