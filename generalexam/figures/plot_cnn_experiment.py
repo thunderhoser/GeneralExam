@@ -152,7 +152,7 @@ def _run():
                     UNIQUE_PREDICTOR_COMBO_STRINGS[i].split())
                 this_eval_file_name = (
                     '{0:s}/{1:s}_init-num-filters={2:d}_half-image-size-px='
-                    '{3:02d}_num-conv-layer-sets={4:d}_dropout={5:.2f}'
+                    '{3:d}_num-conv-layer-sets={4:d}_dropout={5:.2f}'
                 ).format(
                     TOP_EXPERIMENT_DIR_NAME,
                     UNIQUE_PREDICTOR_COMBO_STRINGS[i].replace(
