@@ -73,8 +73,7 @@ TOP_PREDICTION_DIR_NAME = (
 
 OUTPUT_DIR_NAME = TOP_PREDICTION_DIR_NAME + ''
 CONCAT_FILE_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-    'predictions_and_obs/predictions_and_obs.jpg')
+    '/condo/swatwork/ralager/paper_experiment_1000mb/predictions_and_obs.jpg')
 
 VALID_TIMES_ARG_NAME = 'valid_time_strings'
 VALID_TIMES_HELP_STRING = (
