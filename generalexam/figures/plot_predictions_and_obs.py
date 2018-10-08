@@ -61,7 +61,10 @@ FIGURE_RESOLUTION_DPI = 600
 FIGURE_SIZE_PIXELS = int(1e7)
 
 TOP_FRONT_DIR_NAME = '/condo/swatwork/ralager/fronts/polylines'
-TOP_NARR_DIRECTORY_NAME = '/condo/swatwork/ralager/narr_data/processed'
+TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
+TOP_NARR_WIND_DIR_NAME = (
+    '/condo/swatwork/ralager/narr_data/processed/earth_relative_wind')
+
 TOP_PREDICTION_DIR_NAME = (
     '/condo/swatwork/ralager/paper_experiment_1000mb/quick_training/'
     'u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_temperature-kelvins_'
@@ -118,8 +121,13 @@ def _plot_observations_one_time(
     narr_matrix_by_field = [numpy.array([])] * num_narr_fields
 
     for j in range(num_narr_fields):
+        if NARR_FIELD_NAMES[j] in WIND_FIELD_NAMES:
+            this_directory_name = TOP_NARR_WIND_DIR_NAME + ''
+        else:
+            this_directory_name = TOP_NARR_DIR_NAME + ''
+
         this_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=TOP_NARR_DIRECTORY_NAME,
+            top_directory_name=this_directory_name,
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
             valid_time_unix_sec=valid_time_unix_sec)
 
