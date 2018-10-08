@@ -1,8 +1,9 @@
 """Plots predicted and observed fronts for one time step."""
 
-import pickle
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -20,7 +21,7 @@ from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
 
 ZERO_CELSIUS_IN_KELVINS = 273.15
-TIME_FORMAT = '%Y-%m-%d-%H'
+TIME_FORMAT = '%Y%m%d%H'
 
 MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
@@ -37,7 +38,6 @@ WIND_FIELD_NAMES = [
 NARR_FIELD_NAMES = WIND_FIELD_NAMES + [processed_narr_io.WET_BULB_THETA_NAME]
 
 FRONT_LINE_WIDTH = 8
-# BORDER_COLOUR = numpy.full(3, 152. / 255)
 BORDER_COLOUR = numpy.full(3, 0.)
 WARM_FRONT_COLOUR = numpy.array([217., 95., 2.]) / 255
 COLD_FRONT_COLOUR = numpy.array([117., 112., 179.]) / 255
@@ -57,19 +57,18 @@ MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
 PLOT_EVERY_KTH_WIND_BARB = 8
 
-OUTPUT_RESOLUTION_DPI = 600
-OUTPUT_SIZE_PIXELS = int(1e7)
+FIGURE_RESOLUTION_DPI = 600
+FIGURE_SIZE_PIXELS = int(1e7)
 
-TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
-TOP_NARR_DIRECTORY_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
+TOP_FRONT_DIR_NAME = '/condo/swatwork/ralager/fronts/polylines'
+TOP_NARR_DIRECTORY_NAME = '/condo/swatwork/ralager/narr_data/processed'
 TOP_PREDICTION_DIR_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/simple_cnn_experiment_1000mb/'
-    'architecture-id=5_l2-weight=-1.000000000/gridded_predictions')
+    '/condo/swatwork/ralager/paper_experiment_1000mb/quick_training/'
+    'u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_temperature-kelvins_'
+    'specific-humidity-kg-kg01_init-num-filters=32_half-image-size-px=16_'
+    'num-conv-layer-sets=3_dropout=0.50/gridded_predictions/testing')
 
-OUTPUT_DIR_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-    'predictions_and_obs')
+OUTPUT_DIR_NAME = TOP_PREDICTION_DIR_NAME + ''
 CONCAT_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
     'predictions_and_obs/predictions_and_obs.jpg')
@@ -80,7 +79,7 @@ VALID_TIMES_HELP_STRING = (
     'observations will be plotted for each valid time, with the top (bottom) '
     'row of the figure showing the first (second) valid time.')
 
-DEFAULT_VALID_TIME_STRINGS = ['2017-01-01-06', '2017-01-01-09']
+DEFAULT_VALID_TIME_STRINGS = ['2017010109', '2017020503']
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -233,7 +232,7 @@ def _plot_observations_one_time(
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
     imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
@@ -334,7 +333,7 @@ def _plot_predictions(
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
     imagemagick_utils.trim_whitespace(
@@ -399,7 +398,7 @@ def _run(valid_time_strings):
     imagemagick_utils.concatenate_images(
         input_file_names=figure_file_names, output_file_name=CONCAT_FILE_NAME,
         num_panel_rows=2, num_panel_columns=2,
-        output_size_pixels=OUTPUT_SIZE_PIXELS)
+        output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
 if __name__ == '__main__':

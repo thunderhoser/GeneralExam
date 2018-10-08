@@ -1,6 +1,5 @@
 """Plots conversion of gridded probabilities into objects."""
 
-import pickle
 import numpy
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
@@ -9,30 +8,35 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import nwp_plotting
+from generalexam.ge_utils import front_utils
+from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 from generalexam.plotting import front_plotting
 
-BINARIZATION_THRESHOLD = 0.3
+BINARIZATION_THRESHOLD = 0.211
 MIN_REGION_AREA_METRES2 = 5e11
 MIN_ENDPOINT_LENGTH_METRES = 5e5
 
 PREDICTION_FILE_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/traditional_cnn_experiment05/'
-    'no-front-fraction=0.700_num-examples-per-batch=1024_weight-loss-function=1'
-    '/object_based_eval_no-isotonic/class_probability_matrix_2016-01-01-15.p')
-VALID_TIME_STRING = '2016-01-01-15'
-TIME_FORMAT = '%Y-%m-%d-%H'
+    '/localdata/ryan.lagerquist/general_exam/paper_experiment_1000mb/'
+    'quick_training/u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_'
+    'temperature-kelvins_specific-humidity-kg-kg01_init-num-filters=32_'
+    'half-image-size-px=16_num-conv-layer-sets=3_dropout=0.50/gridded_'
+    'predictions/testing/gridded_predictions_2017010109-2017010109.p')
+
+VALID_TIME_STRING = '2017010109'
+TIME_FORMAT = '%Y%m%d%H'
 
 MIN_LATITUDE_DEG = 20.
-MIN_LONGITUDE_DEG = 212.5
-MAX_LATITUDE_DEG = 75.
-MAX_LONGITUDE_DEG = 360.
+MIN_LONGITUDE_DEG = 220.
+MAX_LATITUDE_DEG = 80.
+MAX_LONGITUDE_DEG = 290.
 PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
 BORDER_COLOUR = numpy.full(3, 0.)
-OUTPUT_RESOLUTION_DPI = 600
-OUTPUT_SIZE_PIXELS = int(1e7)
+FIGURE_RESOLUTION_DPI = 600
+FIGURE_SIZE_PIXELS = int(1e7)
 
 ALL_REGIONS_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
@@ -109,7 +113,7 @@ def _plot_predictions(
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
     imagemagick_utils.trim_whitespace(
@@ -122,11 +126,18 @@ def _run():
     This is effectively the main method.
     """
 
-    # TODO(thunderhoser): Replace with new prediction file.
-    print 'Reading data from: "{0:s}"...'.format(PREDICTION_FILE_NAME)
-    pickle_file_handle = open(PREDICTION_FILE_NAME, 'rb')
-    class_probability_matrix = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
+    prediction_dict = ml_utils.read_gridded_predictions(PREDICTION_FILE_NAME)
+    class_probability_matrix = prediction_dict[ml_utils.PROBABILITY_MATRIX_KEY]
+
+    for this_id in front_utils.VALID_INTEGER_IDS:
+        if this_id == front_utils.NO_FRONT_INTEGER_ID:
+            class_probability_matrix[
+                ..., this_id
+            ][numpy.isnan(class_probability_matrix[..., this_id])] = 1.
+        else:
+            class_probability_matrix[
+                ..., this_id
+            ][numpy.isnan(class_probability_matrix[..., this_id])] = 0.
 
     predicted_label_matrix = object_eval.determinize_probabilities(
         class_probability_matrix=class_probability_matrix,
@@ -193,7 +204,7 @@ def _run():
         input_file_names=[ALL_REGIONS_FILE_NAME, LARGE_REGIONS_FILE_NAME,
                           ALL_SKELETONS_FILE_NAME, MAIN_SKELETONS_FILE_NAME],
         output_file_name=CONCAT_FILE_NAME, num_panel_rows=2,
-        num_panel_columns=2, output_size_pixels=OUTPUT_SIZE_PIXELS)
+        num_panel_columns=2, output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
 if __name__ == '__main__':

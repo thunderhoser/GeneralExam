@@ -110,9 +110,9 @@ def _plot_ternary_table():
                 fontsize=OVERLAY_FONT_SIZE, color=MAIN_COLOUR,
                 horizontalalignment='center', verticalalignment='center')
 
-    plotting_utils.annotate_axes(
-        axes_object=axes_object, annotation_string='(b)',
-        font_colour=ANNOTATION_COLOUR)
+    # plotting_utils.annotate_axes(
+    #     axes_object=axes_object, annotation_string='(b)',
+    #     font_colour=ANNOTATION_COLOUR)
 
     print 'Saving figure to: "{0:s}"...'.format(TERNARY_CT_FILE_NAME)
     file_system_utils.mkdir_recursive_if_necessary(
