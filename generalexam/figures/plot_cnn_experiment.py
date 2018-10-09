@@ -98,19 +98,21 @@ def _plot_scores_as_grid(
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
 
-    score_matrix = numpy.ma.masked_where(
-        numpy.isnan(score_matrix), score_matrix)
+    score_matrix_to_plot = score_matrix + 0.
+    score_matrix_to_plot[numpy.isnan(score_matrix_to_plot)] = 0.
     pyplot.imshow(
-        score_matrix, cmap=colour_map_object, origin='lower',
+        score_matrix_to_plot, cmap=colour_map_object, origin='lower',
         vmin=min_colour_value, vmax=max_colour_value)
 
     x_tick_values = numpy.linspace(
-        0, score_matrix.shape[1] - 1, num=score_matrix.shape[1], dtype=float)
+        0, score_matrix_to_plot.shape[1] - 1,
+        num=score_matrix_to_plot.shape[1], dtype=float)
     pyplot.xticks(x_tick_values, x_tick_labels)
     pyplot.xlabel(x_axis_label)
 
     y_tick_values = numpy.linspace(
-        0, score_matrix.shape[0] - 1, num=score_matrix.shape[0], dtype=float)
+        0, score_matrix_to_plot.shape[0] - 1,
+        num=score_matrix_to_plot.shape[0], dtype=float)
     pyplot.yticks(y_tick_values, y_tick_labels)
     pyplot.ylabel(y_axis_label, color=y_axis_label_colour)
 
@@ -118,7 +120,8 @@ def _plot_scores_as_grid(
 
     if plot_colour_bar:
         plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=axes_object, values_to_colour=score_matrix,
+            axes_object_or_list=axes_object,
+            values_to_colour=score_matrix_to_plot,
             colour_map=colour_map_object, colour_min=min_colour_value,
             colour_max=max_colour_value, orientation='vertical',
             extend_min=True, extend_max=True)
@@ -145,7 +148,8 @@ def _run():
     num_dropout_fractions = len(UNIQUE_DROPOUT_FRACTIONS)
 
     gerrity_score_matrix = numpy.full(
-        (num_predictor_combos, num_image_sizes, num_dropout_fractions), 0.)
+        (num_predictor_combos, num_image_sizes, num_dropout_fractions),
+        numpy.nan)
     peirce_score_matrix = gerrity_score_matrix + 0.
     hss_matrix = gerrity_score_matrix + 0.
     accuracy_matrix = gerrity_score_matrix + 0.
