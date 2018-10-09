@@ -73,7 +73,8 @@ OUTPUT_FILE_HELP_STRING = (
 
 DEFAULT_MIN_AREA_METRES2 = 5e11  # 0.5 million km^2
 DEFAULT_MIN_LENGTH_METRES = 5e5  # 500 km
-TOP_FRONT_LINE_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts/polylines'
+TOP_FRONT_LINE_DIR_NAME_DEFAULT = (
+    '/condo/swatwork/ralager/fronts/polylines/masked')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -142,9 +143,11 @@ def _read_actual_polylines(
     polyline_table = pandas.concat(
         list_of_polyline_tables, axis=0, ignore_index=True)
 
-    print 'Removing fronts in masked area...'
-    return front_utils.remove_polylines_in_masked_area(
-        polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix)
+    # print 'Removing fronts in masked area...'
+    # return front_utils.remove_polylines_in_masked_area(
+    #     polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix)
+
+    return polyline_table
 
 
 def _run(input_prediction_dir_name, first_time_string, last_time_string,
