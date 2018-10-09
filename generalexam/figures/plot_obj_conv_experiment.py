@@ -1,5 +1,6 @@
 """Plots results of object-conversion experiment."""
 
+import pickle
 import os.path
 import warnings
 import argparse
@@ -14,8 +15,9 @@ from generalexam.evaluation import object_based_evaluation as object_eval
 
 METRES_TO_KM = 1e-3
 METRES2_TO_MILLION_KM2 = 1e-12
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.2, 0.2, num=9) + 0.553
+UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.2, 0.2, num=9) + 0.611
 UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
 UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
 
@@ -57,12 +59,16 @@ pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
 EXPERIMENT_DIR_ARG_NAME = 'experiment_dir_name'
+MATCHING_DISTANCE_ARG_NAME = 'matching_distance_metres'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 EXPERIMENT_DIR_HELP_STRING = (
     'Name of directory with predicted and observed objects.  Should contain one'
     ' file for each experiment trial.  These files will be read by '
     '`object_eval.read_evaluation_results`.')
+
+MATCHING_DISTANCE_HELP_STRING = 'Matching distance for object-based evaluation.'
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
 
@@ -72,6 +78,10 @@ INPUT_ARG_PARSER.add_argument(
     help=EXPERIMENT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + MATCHING_DISTANCE_ARG_NAME, type=float, required=True,
+    help=MATCHING_DISTANCE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
@@ -79,7 +89,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
         x_tick_labels, x_axis_label, y_tick_labels, y_axis_label,
-        annotation_string, output_file_name):
+        output_file_name, annotation_string=None, title_string=None):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -93,10 +103,11 @@ def _plot_scores_as_grid(
     :param x_axis_label: String label for the entire x-axis.
     :param y_tick_labels: length-M list of string labels.
     :param y_axis_label: String label for the entire y-axis.
-    :param annotation_string: Text annotation (will be placed in top left of
-        figure).
     :param output_file_name: Path to output file (the figure will be saved
         here).
+    :param annotation_string: Text annotation (will be placed in top left of
+        figure).
+    :param title_string: Figure title (will be placed above figure).
     """
 
     _, axes_object = pyplot.subplots(
@@ -125,12 +136,11 @@ def _plot_scores_as_grid(
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
         extend_max=True, fraction_of_axis_length=0.8)
 
-    print '\n\n'
-    print score_matrix
-    print '\n\n'
-
-    plotting_utils.annotate_axes(
-        axes_object=axes_object, annotation_string=annotation_string)
+    if annotation_string is not None:
+        plotting_utils.annotate_axes(
+            axes_object=axes_object, annotation_string=annotation_string)
+    if title_string is not None:
+        pyplot.title(title_string)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -141,12 +151,13 @@ def _plot_scores_as_grid(
         input_file_name=output_file_name, output_file_name=output_file_name)
 
 
-def _run(experiment_dir_name, output_dir_name):
+def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
     """Plots results of object-conversion experiment.
 
     This is effectively the main method.
 
     :param experiment_dir_name: See documentation at top of file.
+    :param matching_distance_metres: Same.
     :param output_dir_name: Same.
     """
 
@@ -165,11 +176,14 @@ def _run(experiment_dir_name, output_dir_name):
         for j in range(num_min_areas):
             for k in range(num_min_lengths):
                 this_file_name = (
-                    '{0:s}/obe_validation_binarization-threshold={1:.4f}_'
-                    'min-area-metres2={2:012d}_min-length-metres={3:06d}.p'
+                    '{0:s}/obe_{1:d}km_binarization-threshold={2:.3f}_'
+                    'min-area-metres2={3:013d}_min-length-metres={4:07d}.p'
                 ).format(
-                    experiment_dir_name, UNIQUE_BINARIZATION_THRESHOLDS[i],
-                    UNIQUE_MIN_AREAS_METRES2[j], UNIQUE_MIN_LENGTHS_METRES[k]
+                    experiment_dir_name,
+                    int(numpy.round(matching_distance_metres * METRES_TO_KM)),
+                    UNIQUE_BINARIZATION_THRESHOLDS[i],
+                    UNIQUE_MIN_AREAS_METRES2[j],
+                    UNIQUE_MIN_LENGTHS_METRES[k]
                 )
 
                 if not os.path.isfile(this_file_name):
@@ -192,6 +206,24 @@ def _run(experiment_dir_name, output_dir_name):
                 frequency_bias_matrix[i, j, k] = this_evaluation_dict[
                     object_eval.BINARY_FREQUENCY_BIAS_KEY]
 
+    print SEPARATOR_STRING
+
+    score_dict = {
+        'csi_matrix': csi_matrix,
+        'pod_matrix': pod_matrix,
+        'success_ratio_matrix': success_ratio_matrix,
+        'frequency_bias_matrix': frequency_bias_matrix
+    }
+    all_scores_file_name = '{0:s}/obe_{1:d}km_all-scores.p'.format(
+        output_dir_name,
+        int(numpy.round(matching_distance_metres * METRES_TO_KM))
+    )
+
+    print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
+    pickle_file_handle = open(all_scores_file_name, 'wb')
+    pickle.dump(score_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1), MAX_COLOUR_PERCENTILE)
     min_colour_frequency_bias = 1 - this_offset
@@ -203,6 +235,8 @@ def _run(experiment_dir_name, output_dir_name):
     frequency_bias_file_names = []
 
     for i in range(num_binarization_thresholds):
+        this_title_string = r'$p^*$ = {0:.3f}'.format(
+            UNIQUE_BINARIZATION_THRESHOLDS[i])
         this_file_name = '{0:s}/csi_binarization-threshold={1:.4f}.jpg'.format(
             output_dir_name, UNIQUE_BINARIZATION_THRESHOLDS[i])
         csi_file_names.append(this_file_name)
@@ -218,8 +252,7 @@ def _run(experiment_dir_name, output_dir_name):
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
-            annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
-            output_file_name=csi_file_names[-1])
+            title_string=this_title_string, output_file_name=csi_file_names[-1])
 
         this_file_name = '{0:s}/pod_binarization-threshold={1:.4f}.jpg'.format(
             output_dir_name, UNIQUE_BINARIZATION_THRESHOLDS[i])
@@ -236,8 +269,7 @@ def _run(experiment_dir_name, output_dir_name):
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
-            annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
-            output_file_name=pod_file_names[-1])
+            title_string=this_title_string, output_file_name=pod_file_names[-1])
 
         this_file_name = (
             '{0:s}/success_ratio_binarization-threshold={1:.4f}.jpg'
@@ -255,7 +287,7 @@ def _run(experiment_dir_name, output_dir_name):
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
-            annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
+            title_string=this_title_string,
             output_file_name=success_ratio_file_names[-1])
 
         this_file_name = (
@@ -272,7 +304,7 @@ def _run(experiment_dir_name, output_dir_name):
             x_axis_label=MIN_LENGTH_AXIS_LABEL,
             y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             y_axis_label=MIN_AREA_AXIS_LABEL,
-            annotation_string=ANNOTATION_STRING_BY_THRESHOLD[i],
+            title_string=this_title_string,
             output_file_name=frequency_bias_file_names[-1])
 
         print '\n'
@@ -313,4 +345,6 @@ if __name__ == '__main__':
 
     _run(
         experiment_dir_name=getattr(INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME),
+        matching_distance_metres=getattr(
+            INPUT_ARG_OBJECT, MATCHING_DISTANCE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
