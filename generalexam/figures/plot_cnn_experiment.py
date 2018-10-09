@@ -74,7 +74,7 @@ PREDICTORS_AXIS_LABEL = 'Predictor variables'
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
         x_tick_labels, x_axis_label, y_tick_labels, y_axis_label,
-        title_string, output_file_name, plot_colour_bar):
+        y_axis_label_colour, title_string, output_file_name, plot_colour_bar):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -88,6 +88,7 @@ def _plot_scores_as_grid(
     :param x_axis_label: String label for the entire x-axis.
     :param y_tick_labels: length-M list of string labels.
     :param y_axis_label: String label for the entire y-axis.
+    :param y_axis_label_colour: Colour (length-3 numpy array) for y-axis label.
     :param title_string: Figure title.
     :param output_file_name: Path to output file (the figure will be saved
         here).
@@ -111,7 +112,7 @@ def _plot_scores_as_grid(
     y_tick_values = numpy.linspace(
         0, score_matrix.shape[0] - 1, num=score_matrix.shape[0], dtype=float)
     pyplot.yticks(y_tick_values, y_tick_labels)
-    pyplot.ylabel(y_axis_label)
+    pyplot.ylabel(y_axis_label, color=y_axis_label_colour)
 
     pyplot.title(title_string)
 
@@ -196,9 +197,9 @@ def _run():
 
     for k in range(num_dropout_fractions):
         if k == 0:
-            this_y_axis_label = PREDICTORS_AXIS_LABEL + ''
+            this_y_label_colour = numpy.full(3, 0.)
         else:
-            this_y_axis_label = ''
+            this_y_label_colour = numpy.full(3, 1.)
 
         this_title_string = 'Gerrity score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -216,7 +217,8 @@ def _run():
             x_tick_labels=[''] * num_image_sizes,
             x_axis_label='',
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label=PREDICTORS_AXIS_LABEL,
+            y_axis_label_colour=this_y_label_colour,
             title_string=this_title_string,
             output_file_name=panel_file_names[0, k], plot_colour_bar=True)
 
@@ -236,7 +238,8 @@ def _run():
             x_tick_labels=[''] * num_image_sizes,
             x_axis_label='',
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label=PREDICTORS_AXIS_LABEL,
+            y_axis_label_colour=this_y_label_colour,
             title_string=this_title_string,
             output_file_name=panel_file_names[1, k], plot_colour_bar=True)
 
@@ -256,7 +259,8 @@ def _run():
             x_tick_labels=[''] * num_image_sizes,
             x_axis_label='',
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label=PREDICTORS_AXIS_LABEL,
+            y_axis_label_colour=this_y_label_colour,
             title_string=this_title_string,
             output_file_name=panel_file_names[2, k], plot_colour_bar=True)
 
@@ -276,7 +280,8 @@ def _run():
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label=PREDICTORS_AXIS_LABEL,
+            y_axis_label_colour=this_y_label_colour,
             title_string=this_title_string,
             output_file_name=panel_file_names[3, k], plot_colour_bar=True)
 
