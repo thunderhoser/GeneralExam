@@ -145,8 +145,7 @@ def _run():
     num_dropout_fractions = len(UNIQUE_DROPOUT_FRACTIONS)
 
     gerrity_score_matrix = numpy.full(
-        (num_predictor_combos, num_image_sizes, num_dropout_fractions),
-        numpy.nan)
+        (num_predictor_combos, num_image_sizes, num_dropout_fractions), 0.)
     peirce_score_matrix = gerrity_score_matrix + 0.
     hss_matrix = gerrity_score_matrix + 0.
     accuracy_matrix = gerrity_score_matrix + 0.
