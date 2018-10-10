@@ -13,18 +13,18 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 from generalexam.plotting import front_plotting
 
-BINARIZATION_THRESHOLD = 0.211
-MIN_REGION_AREA_METRES2 = 5e11
-MIN_ENDPOINT_LENGTH_METRES = 5e5
+BINARIZATION_THRESHOLD = 0.411
+MIN_REGION_AREA_METRES2 = 3e11
+MIN_ENDPOINT_LENGTH_METRES = 4e5
 
 PREDICTION_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/paper_experiment_1000mb/'
     'quick_training/u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_'
     'temperature-kelvins_specific-humidity-kg-kg01_init-num-filters=32_'
     'half-image-size-px=16_num-conv-layer-sets=3_dropout=0.50/gridded_'
-    'predictions/testing/gridded_predictions_2017010109-2017010109.p')
+    'predictions/testing/gridded_predictions_2017012500-2017012500.p')
 
-VALID_TIME_STRING = '2017010109'
+VALID_TIME_STRING = '2017012500'
 TIME_FORMAT = '%Y%m%d%H'
 
 MIN_LATITUDE_DEG = 20.

@@ -19,7 +19,7 @@ PREDICTION_FILE_NAME = (
     'quick_training/u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_'
     'temperature-kelvins_specific-humidity-kg-kg01_init-num-filters=32_'
     'half-image-size-px=16_num-conv-layer-sets=3_dropout=0.50/gridded_'
-    'predictions/testing/gridded_predictions_2017010109-2017010109.p')
+    'predictions/testing/gridded_predictions_2017012500-2017012500.p')
 
 MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
