@@ -245,7 +245,8 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
     frequency_bias_file_names = []
 
     for i in range(num_binarization_thresholds):
-        this_title_string = r'$p^*$ = {0:.3f}'.format(
+        this_title_string = r'$p_{NF}^*$'
+        this_title_string += ' = {0:.3f}'.format(
             UNIQUE_BINARIZATION_THRESHOLDS[i])
         this_file_name = '{0:s}/csi_binarization-threshold={1:.4f}.jpg'.format(
             output_dir_name, UNIQUE_BINARIZATION_THRESHOLDS[i])
