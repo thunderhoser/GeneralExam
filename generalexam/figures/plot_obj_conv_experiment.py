@@ -46,7 +46,7 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 40
+FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -131,7 +131,7 @@ def _plot_scores_as_grid(
         axes_object_or_list=axes_object, values_to_colour=score_matrix,
         colour_map=colour_map_object, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
-        extend_max=True, fraction_of_axis_length=0.8)
+        extend_max=True, fraction_of_axis_length=0.8, font_size=FONT_SIZE)
 
     if annotation_string is not None:
         plotting_utils.annotate_axes(
