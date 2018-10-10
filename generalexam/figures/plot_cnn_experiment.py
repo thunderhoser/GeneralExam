@@ -67,7 +67,7 @@ UNIQUE_PREDICTOR_ABBREV_STRINGS = [
 ]
 
 IMAGE_SIZE_AXIS_LABEL = 'Grid size'
-PREDICTORS_AXIS_LABEL = 'Predictor variables'
+PREDICTORS_AXIS_LABEL = ''
 
 
 def _plot_scores_as_grid(
