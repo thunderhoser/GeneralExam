@@ -141,7 +141,7 @@ def _plot_scores_as_grid(
             axes_object_or_list=axes_object, values_to_colour=score_matrix,
             colour_map=colour_map_object, colour_min=min_colour_value,
             colour_max=max_colour_value, orientation='vertical',
-            extend_min=True, extend_max=True)
+            extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
