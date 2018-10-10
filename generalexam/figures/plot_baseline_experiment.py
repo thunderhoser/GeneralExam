@@ -1,6 +1,7 @@
 """Plots results of baseline experiment."""
 
 import pickle
+import os.path
 import argparse
 import numpy
 import matplotlib
@@ -168,77 +169,90 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
     num_min_lengths = len(UNIQUE_MIN_LENGTHS_METRES)
     num_min_areas = len(UNIQUE_MIN_AREAS_METRES2)
 
-    csi_matrix = numpy.full(
-        (num_smoothing_radii, num_percentiles, num_closing_iter_counts,
-         num_pressure_levels, num_min_lengths, num_min_areas),
-        numpy.nan)
-    pod_matrix = csi_matrix + 0.
-    success_ratio_matrix = csi_matrix + 0.
-    frequency_bias_matrix = csi_matrix + 0.
-
-    for i in range(num_smoothing_radii):
-        for j in range(num_percentiles):
-            for k in range(num_closing_iter_counts):
-                for m in range(num_pressure_levels):
-                    for n in range(num_min_lengths):
-                        for p in range(num_min_areas):
-                            this_file_name = (
-                                '{0:s}/smoothing-radius-px={1:d}_'
-                                'front-percentile={2:02d}_'
-                                'num-closing-iters={3:d}_'
-                                'pressure-level-mb={4:04d}/objects_'
-                                'min-area-metres2={6:012d}_'
-                                'min-length-metres={5:07d}/testing_'
-                                'min-area-metres2={6:012d}_'
-                                'min-length-metres={5:07d}_'
-                                'matching-distance-metres={7:06d}.p'
-                            ).format(
-                                input_experiment_dir_name,
-                                UNIQUE_SMOOTHING_RADII_PX[i],
-                                UNIQUE_FRONT_PERCENTILES[j],
-                                UNIQUE_CLOSING_ITER_COUNTS[k],
-                                UNIQUE_PRESSURE_LEVELS_MB[m],
-                                UNIQUE_MIN_LENGTHS_METRES[n],
-                                UNIQUE_MIN_AREAS_METRES2[p],
-                                matching_distance_metres
-                            )
-
-                            print 'Reading data from: "{0:s}"...'.format(
-                                this_file_name)
-                            this_evaluation_dict = (
-                                object_eval.read_evaluation_results(
-                                    this_file_name)
-                            )
-
-                            csi_matrix[i, j, k, m, n, p] = this_evaluation_dict[
-                                object_eval.BINARY_CSI_KEY]
-                            pod_matrix[i, j, k, m, n, p] = this_evaluation_dict[
-                                object_eval.BINARY_POD_KEY]
-                            success_ratio_matrix[i, j, k, m, n, p] = (
-                                this_evaluation_dict[
-                                    object_eval.BINARY_SUCCESS_RATIO_KEY]
-                            )
-                            frequency_bias_matrix[i, j, k, m, n, p] = (
-                                this_evaluation_dict[
-                                    object_eval.BINARY_FREQUENCY_BIAS_KEY]
-                            )
-
-    print SEPARATOR_STRING
-
-    score_dict = {
-        'csi_matrix': csi_matrix,
-        'pod_matrix': pod_matrix,
-        'success_ratio_matrix': success_ratio_matrix,
-        'frequency_bias_matrix': frequency_bias_matrix
-    }
     all_scores_file_name = (
         '{0:s}/all_scores_matching-distance-metres={1:06d}.p'
     ).format(output_dir_name, matching_distance_metres)
 
-    print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
-    pickle_file_handle = open(all_scores_file_name, 'wb')
-    pickle.dump(score_dict, pickle_file_handle)
-    pickle_file_handle.close()
+    if os.path.isfile(all_scores_file_name):
+        print 'Reading data from: "{0:s}"...\n'.format(all_scores_file_name)
+        pickle_file_handle = open(all_scores_file_name, 'rb')
+        score_dict = pickle.load(pickle_file_handle)
+        pickle_file_handle.close()
+
+        csi_matrix = score_dict['csi_matrix']
+        pod_matrix = score_dict['pod_matrix']
+        success_ratio_matrix = score_dict['success_ratio_matrix']
+        frequency_bias_matrix = score_dict['frequency_bias_matrix']
+
+    else:
+        csi_matrix = numpy.full(
+            (num_smoothing_radii, num_percentiles, num_closing_iter_counts,
+             num_pressure_levels, num_min_lengths, num_min_areas),
+            numpy.nan)
+        pod_matrix = csi_matrix + 0.
+        success_ratio_matrix = csi_matrix + 0.
+        frequency_bias_matrix = csi_matrix + 0.
+
+        for i in range(num_smoothing_radii):
+            for j in range(num_percentiles):
+                for k in range(num_closing_iter_counts):
+                    for m in range(num_pressure_levels):
+                        for n in range(num_min_lengths):
+                            for p in range(num_min_areas):
+                                this_file_name = (
+                                    '{0:s}/smoothing-radius-px={1:d}_'
+                                    'front-percentile={2:02d}_'
+                                    'num-closing-iters={3:d}_'
+                                    'pressure-level-mb={4:04d}/objects_'
+                                    'min-area-metres2={6:012d}_'
+                                    'min-length-metres={5:07d}/testing_'
+                                    'min-area-metres2={6:012d}_'
+                                    'min-length-metres={5:07d}_'
+                                    'matching-distance-metres={7:06d}.p'
+                                ).format(
+                                    input_experiment_dir_name,
+                                    UNIQUE_SMOOTHING_RADII_PX[i],
+                                    UNIQUE_FRONT_PERCENTILES[j],
+                                    UNIQUE_CLOSING_ITER_COUNTS[k],
+                                    UNIQUE_PRESSURE_LEVELS_MB[m],
+                                    UNIQUE_MIN_LENGTHS_METRES[n],
+                                    UNIQUE_MIN_AREAS_METRES2[p],
+                                    matching_distance_metres
+                                )
+
+                                print 'Reading data from: "{0:s}"...'.format(
+                                    this_file_name)
+                                this_evaluation_dict = (
+                                    object_eval.read_evaluation_results(
+                                        this_file_name)
+                                )
+
+                                csi_matrix[i, j, k, m, n, p] = this_evaluation_dict[
+                                    object_eval.BINARY_CSI_KEY]
+                                pod_matrix[i, j, k, m, n, p] = this_evaluation_dict[
+                                    object_eval.BINARY_POD_KEY]
+                                success_ratio_matrix[i, j, k, m, n, p] = (
+                                    this_evaluation_dict[
+                                        object_eval.BINARY_SUCCESS_RATIO_KEY]
+                                )
+                                frequency_bias_matrix[i, j, k, m, n, p] = (
+                                    this_evaluation_dict[
+                                        object_eval.BINARY_FREQUENCY_BIAS_KEY]
+                                )
+
+        print SEPARATOR_STRING
+
+        score_dict = {
+            'csi_matrix': csi_matrix,
+            'pod_matrix': pod_matrix,
+            'success_ratio_matrix': success_ratio_matrix,
+            'frequency_bias_matrix': frequency_bias_matrix
+        }
+
+        print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
+        pickle_file_handle = open(all_scores_file_name, 'wb')
+        pickle.dump(score_dict, pickle_file_handle)
+        pickle_file_handle.close()
 
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1), MAX_COLOUR_PERCENTILE)
