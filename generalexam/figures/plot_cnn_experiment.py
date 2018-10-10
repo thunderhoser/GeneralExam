@@ -23,7 +23,7 @@ MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
 COLOUR_MAP_OBJECT = pyplot.cm.plasma
 
-FONT_SIZE = 50
+FONT_SIZE = 40
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
