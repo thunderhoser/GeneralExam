@@ -17,6 +17,7 @@ from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.evaluation import object_based_evaluation as object_eval
 from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
 
@@ -42,6 +43,7 @@ BORDER_COLOUR = numpy.full(3, 0.)
 WARM_FRONT_COLOUR = numpy.array([217., 95., 2.]) / 255
 COLD_FRONT_COLOUR = numpy.array([117., 112., 179.]) / 255
 
+DETERMINISTIC_OPACITY = 1.
 PROBABILISTIC_OPACITY = 0.5
 LENGTH_FRACTION_FOR_PROB_COLOUR_BAR = 0.5
 LENGTH_FRACTION_FOR_THETA_COLOUR_BAR = 0.75
@@ -57,6 +59,10 @@ MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
 PLOT_EVERY_KTH_WIND_BARB = 8
 
+GRIDDED_PREDICTION_PANEL_LABELS = ['(a)', '(d)']
+OBJECT_PREDICTION_PANEL_LABELS = ['(b)', '(e)']
+OBSERVATION_PANEL_LABELS = ['(c)', '(f)']
+
 FIGURE_RESOLUTION_DPI = 600
 FIGURE_SIZE_PIXELS = int(1e7)
 
@@ -70,6 +76,10 @@ TOP_PREDICTION_DIR_NAME = (
     'u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_temperature-kelvins_'
     'specific-humidity-kg-kg01_init-num-filters=32_half-image-size-px=16_'
     'num-conv-layer-sets=3_dropout=0.50/gridded_predictions/testing')
+
+OBJECT_PREDICTION_FILE_NAME = (
+    '{0:s}/objects/objects_binarization-threshold=0.411_'
+    'min-area-metres2=0300000000000_min-length-metres=0400000.p')
 
 OUTPUT_DIR_NAME = TOP_PREDICTION_DIR_NAME + ''
 CONCAT_FILE_NAME = (
@@ -246,15 +256,19 @@ def _plot_observations_one_time(
                                       output_file_name=output_file_name)
 
 
-def _plot_predictions(
-        class_probability_matrix, annotation_string, output_file_name):
-    """Plots predicted front probabilities.
+def _plot_predictions_one_time(
+        output_file_name, annotation_string, predicted_label_matrix=None,
+        class_probability_matrix=None):
+    """Plots predictions (objects or probability grid) for one valid time.
 
-    :param class_probability_matrix: See doc for
-        `machine_learning_utils.write_gridded_predictions`.
+    :param output_file_name: Path to output file (figure will be saved here).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
-    :param output_file_name: Path to output file (figure will be saved here).
+    :param predicted_label_matrix: See doc for `target_matrix` in
+        `machine_learning_utils.write_gridded_predictions`.
+    :param class_probability_matrix:
+        [used iff `predicted_label_matrix is None`]
+        See doc for `machine_learning_utils.write_gridded_predictions`.
     """
 
     (narr_row_limits, narr_column_limits
@@ -289,51 +303,63 @@ def _plot_predictions(
         bottom_left_lng_deg=0., upper_right_lng_deg=360.,
         meridian_spacing_deg=MERIDIAN_SPACING_DEG)
 
-    this_matrix = class_probability_matrix[
-        0, narr_row_limits[0]:(narr_row_limits[1] + 1),
-        narr_column_limits[0]:(narr_column_limits[1] + 1),
-        front_utils.WARM_FRONT_INTEGER_ID
-    ]
-    prediction_plotting.plot_narr_grid(
-        probability_matrix=this_matrix,
-        front_string_id=front_utils.WARM_FRONT_STRING_ID,
-        axes_object=axes_object, basemap_object=basemap_object,
-        first_row_in_narr_grid=narr_row_limits[0],
-        first_column_in_narr_grid=narr_column_limits[0],
-        opacity=PROBABILISTIC_OPACITY)
+    if class_probability_matrix is None:
+        this_matrix = predicted_label_matrix[
+            0, narr_row_limits[0]:(narr_row_limits[1] + 1),
+            narr_column_limits[0]:(narr_column_limits[1] + 1)
+        ]
+        front_plotting.plot_narr_grid(
+            frontal_grid_matrix=this_matrix, axes_object=axes_object,
+            basemap_object=basemap_object,
+            first_row_in_narr_grid=narr_row_limits[0],
+            first_column_in_narr_grid=narr_column_limits[0],
+            opacity=DETERMINISTIC_OPACITY)
+    else:
+        this_matrix = class_probability_matrix[
+            0, narr_row_limits[0]:(narr_row_limits[1] + 1),
+            narr_column_limits[0]:(narr_column_limits[1] + 1),
+            front_utils.WARM_FRONT_INTEGER_ID
+        ]
+        prediction_plotting.plot_narr_grid(
+            probability_matrix=this_matrix,
+            front_string_id=front_utils.WARM_FRONT_STRING_ID,
+            axes_object=axes_object, basemap_object=basemap_object,
+            first_row_in_narr_grid=narr_row_limits[0],
+            first_column_in_narr_grid=narr_column_limits[0],
+            opacity=PROBABILISTIC_OPACITY)
 
-    this_matrix = class_probability_matrix[
-        0, narr_row_limits[0]:(narr_row_limits[1] + 1),
-        narr_column_limits[0]:(narr_column_limits[1] + 1),
-        front_utils.COLD_FRONT_INTEGER_ID
-    ]
-    prediction_plotting.plot_narr_grid(
-        probability_matrix=this_matrix,
-        front_string_id=front_utils.COLD_FRONT_STRING_ID,
-        axes_object=axes_object, basemap_object=basemap_object,
-        first_row_in_narr_grid=narr_row_limits[0],
-        first_column_in_narr_grid=narr_column_limits[0],
-        opacity=PROBABILISTIC_OPACITY)
+        this_matrix = class_probability_matrix[
+            0, narr_row_limits[0]:(narr_row_limits[1] + 1),
+            narr_column_limits[0]:(narr_column_limits[1] + 1),
+            front_utils.COLD_FRONT_INTEGER_ID
+        ]
+        prediction_plotting.plot_narr_grid(
+            probability_matrix=this_matrix,
+            front_string_id=front_utils.COLD_FRONT_STRING_ID,
+            axes_object=axes_object, basemap_object=basemap_object,
+            first_row_in_narr_grid=narr_row_limits[0],
+            first_column_in_narr_grid=narr_column_limits[0],
+            opacity=PROBABILISTIC_OPACITY)
 
-    (this_colour_map_object, this_colour_norm_object
-    ) = prediction_plotting.get_warm_front_colour_map()[:2]
-    plotting_utils.add_colour_bar(
-        axes_object_or_list=axes_object, colour_map=this_colour_map_object,
-        colour_norm_object=this_colour_norm_object,
-        values_to_colour=class_probability_matrix[
-            ..., front_utils.WARM_FRONT_INTEGER_ID],
-        orientation='vertical', extend_min=True, extend_max=False,
-        fraction_of_axis_length=LENGTH_FRACTION_FOR_PROB_COLOUR_BAR)
+        (this_colour_map_object, this_colour_norm_object
+        ) = prediction_plotting.get_warm_front_colour_map()[:2]
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            values_to_colour=class_probability_matrix[
+                ..., front_utils.WARM_FRONT_INTEGER_ID],
+            orientation='vertical', extend_min=True, extend_max=False,
+            fraction_of_axis_length=LENGTH_FRACTION_FOR_PROB_COLOUR_BAR)
 
-    (this_colour_map_object, this_colour_norm_object
-    ) = prediction_plotting.get_cold_front_colour_map()[:2]
-    plotting_utils.add_colour_bar(
-        axes_object_or_list=axes_object, colour_map=this_colour_map_object,
-        colour_norm_object=this_colour_norm_object,
-        values_to_colour=class_probability_matrix[
-            ..., front_utils.COLD_FRONT_INTEGER_ID],
-        orientation='vertical', extend_min=True, extend_max=False,
-        fraction_of_axis_length=LENGTH_FRACTION_FOR_PROB_COLOUR_BAR)
+        (this_colour_map_object, this_colour_norm_object
+        ) = prediction_plotting.get_cold_front_colour_map()[:2]
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            values_to_colour=class_probability_matrix[
+                ..., front_utils.COLD_FRONT_INTEGER_ID],
+            orientation='vertical', extend_min=True, extend_max=False,
+            fraction_of_axis_length=LENGTH_FRACTION_FOR_PROB_COLOUR_BAR)
 
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
@@ -365,8 +391,13 @@ def _run(valid_time_strings):
          for s in valid_time_strings],
         dtype=int)
 
-    prediction_annotation_strings = ['(a)', '(c)']
-    observation_annotation_strings = ['(b)', '(d)']
+    num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+
+    print 'Reading data from: "{0:s}"...'.format(OBJECT_PREDICTION_FILE_NAME)
+    predicted_region_table = object_eval.read_predictions_and_obs(
+        OBJECT_PREDICTION_FILE_NAME)[0]
+
     figure_file_names = []
 
     for i in range(num_times):
@@ -382,14 +413,29 @@ def _run(valid_time_strings):
             ml_utils.PROBABILITY_MATRIX_KEY]
         this_probability_matrix[numpy.isnan(this_probability_matrix)] = 0.
 
-        this_figure_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
+        this_figure_file_name = '{0:s}/gridded_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
         figure_file_names.append(this_figure_file_name)
+        _plot_predictions_one_time(
+            output_file_name=this_figure_file_name,
+            annotation_string=GRIDDED_PREDICTION_PANEL_LABELS[i],
+            class_probability_matrix=this_probability_matrix)
 
-        _plot_predictions(
-            class_probability_matrix=this_probability_matrix,
-            annotation_string=prediction_annotation_strings[i],
-            output_file_name=this_figure_file_name)
+        this_predicted_region_table = predicted_region_table.loc[
+            predicted_region_table[front_utils.TIME_COLUMN] ==
+            valid_times_unix_sec[i]
+        ]
+        this_predicted_label_matrix = object_eval.regions_to_images(
+            predicted_region_table=this_predicted_region_table,
+            num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
+
+        this_figure_file_name = '{0:s}/object_predictions_{1:s}.jpg'.format(
+            OUTPUT_DIR_NAME, valid_time_strings[i])
+        figure_file_names.append(this_figure_file_name)
+        _plot_predictions_one_time(
+            output_file_name=this_figure_file_name,
+            annotation_string=OBJECT_PREDICTION_PANEL_LABELS[i],
+            predicted_label_matrix=this_predicted_label_matrix)
 
         this_figure_file_name = '{0:s}/observations_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
@@ -397,7 +443,7 @@ def _run(valid_time_strings):
 
         _plot_observations_one_time(
             valid_time_string=valid_time_strings[i],
-            annotation_string=observation_annotation_strings[i],
+            annotation_string=OBSERVATION_PANEL_LABELS[i],
             output_file_name=this_figure_file_name)
         print '\n'
 
