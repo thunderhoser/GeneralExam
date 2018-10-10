@@ -63,7 +63,7 @@ UNIQUE_PREDICTOR_ABBREV_STRINGS = [
     r'$u, v, T, q, \theta_w$',
     r'$u, v, \theta_w$, Z',
     r'$u, v, T, q, Z$',
-    r'$u, v, T, q, \theta_w, Z$'
+    'All'
 ]
 
 IMAGE_SIZE_AXIS_LABEL = 'Grid size'

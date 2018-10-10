@@ -21,9 +21,6 @@ UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.35, 0.2, num=12) + 0.611
 UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
 UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
 
-ANNOTATION_STRING_BY_THRESHOLD = [
-    '(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)', '(i)'
-]
 UNIQUE_MIN_AREA_STRINGS = [
     '{0:.1f}'.format(a * METRES2_TO_MILLION_KM2)
     for a in UNIQUE_MIN_AREAS_METRES2
@@ -33,8 +30,8 @@ UNIQUE_MIN_LENGTH_STRINGS = [
     for l in UNIQUE_MIN_LENGTHS_METRES
 ]
 
-MIN_AREA_AXIS_LABEL = r'Minimum region area ($\times$ 10$^6$ km$^2$)'
-MIN_LENGTH_AXIS_LABEL = 'Minimum end-to-end length (km)'
+MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^6$ km$^2$)'
+MIN_LENGTH_AXIS_LABEL = 'Minimum length (km)'
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -49,7 +46,7 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 30
+FONT_SIZE = 40
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
