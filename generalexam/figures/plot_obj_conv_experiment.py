@@ -14,7 +14,7 @@ from gewittergefahr.plotting import imagemagick_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
 METRES_TO_KM = 1e-3
-METRES2_TO_MILLION_KM2 = 1e-12
+METRES2_TO_HUNDRED_THOUSAND_KM2 = 1e-12
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.35, 0.2, num=12) + 0.611
@@ -22,7 +22,7 @@ UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
 UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
 
 UNIQUE_MIN_AREA_STRINGS = [
-    '{0:.1f}'.format(a * METRES2_TO_MILLION_KM2)
+    '{0:d}'.format(int(numpy.round(a * METRES2_TO_HUNDRED_THOUSAND_KM2)))
     for a in UNIQUE_MIN_AREAS_METRES2
 ]
 UNIQUE_MIN_LENGTH_STRINGS = [
@@ -30,7 +30,7 @@ UNIQUE_MIN_LENGTH_STRINGS = [
     for l in UNIQUE_MIN_LENGTHS_METRES
 ]
 
-MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^6$ km$^2$)'
+MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^5$ km$^2$)'
 MIN_LENGTH_AXIS_LABEL = 'Minimum length (km)'
 
 FIGURE_WIDTH_INCHES = 15

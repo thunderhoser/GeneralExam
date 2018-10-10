@@ -24,7 +24,7 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 30
+FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -60,8 +60,8 @@ UNIQUE_MIN_AREA_STRINGS = [
     for a in UNIQUE_MIN_AREAS_METRES2
 ]
 
-MIN_LENGTH_AXIS_LABEL = 'Minimum end-to-end length (km)'
-MIN_AREA_AXIS_LABEL = r'Minimum region area ($\times$ 1000 km$^2$)'
+MIN_LENGTH_AXIS_LABEL = 'Minimum length (km)'
+MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 1000 km$^2$)'
 
 EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_metres'
@@ -282,7 +282,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                     )
 
                     this_title_string = (
-                        r'$q$ = {0:d} ... {1:d} closing iterations'
+                        r'$q$ = {0:d} ... {1:d} closing iters'
                     ).format(UNIQUE_FRONT_PERCENTILES[j],
                              UNIQUE_CLOSING_ITER_COUNTS[k])
 
