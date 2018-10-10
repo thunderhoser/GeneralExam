@@ -23,7 +23,7 @@ MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
 COLOUR_MAP_OBJECT = pyplot.cm.plasma
 
-FONT_SIZE = 30
+FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -55,8 +55,7 @@ UNIQUE_HALF_IMAGE_SIZES = numpy.array([4, 8, 12, 16], dtype=int)
 UNIQUE_DROPOUT_FRACTIONS = numpy.array([0.25, 0.5])
 
 UNIQUE_IMAGE_SIZE_STRINGS = [
-    r'{0:d} $\times$ {0:d}'.format(2*n + 1)
-    for n in UNIQUE_HALF_IMAGE_SIZES
+    r'{0:d}'.format(2*n + 1) for n in UNIQUE_HALF_IMAGE_SIZES
 ]
 UNIQUE_PREDICTOR_ABBREV_STRINGS = [
     r'$u, v, \theta_w$',
