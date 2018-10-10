@@ -248,8 +248,8 @@ def _run(input_prediction_file_name, matching_distance_metres,
         else:
             print '\n'
 
-    min_percentile_level = (1. - confidence_level) / 2
-    max_percentile_level = confidence_level + min_percentile_level
+    min_percentile_level = 100 * (1. - confidence_level) / 2
+    max_percentile_level = min_percentile_level + 100 * confidence_level
 
     min_binary_pod = numpy.percentile(binary_pod_values, min_percentile_level)
     max_binary_pod = numpy.percentile(binary_pod_values, max_percentile_level)
