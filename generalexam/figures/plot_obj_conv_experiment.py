@@ -17,7 +17,7 @@ METRES_TO_KM = 1e-3
 METRES2_TO_MILLION_KM2 = 1e-12
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.4, 0.2, num=13) + 0.611
+UNIQUE_BINARIZATION_THRESHOLDS = numpy.linspace(-0.35, 0.2, num=12) + 0.611
 UNIQUE_MIN_AREAS_METRES2 = (numpy.linspace(0.1, 1., num=10) * 1e12).astype(int)
 UNIQUE_MIN_LENGTHS_METRES = (numpy.linspace(0.1, 1., num=10) * 1e6).astype(int)
 
@@ -33,7 +33,7 @@ UNIQUE_MIN_LENGTH_STRINGS = [
     for l in UNIQUE_MIN_LENGTHS_METRES
 ]
 
-MIN_AREA_AXIS_LABEL = r'Minimum area of frontal region ($10^6$ km$^2$)'
+MIN_AREA_AXIS_LABEL = r'Minimum region area ($\times$ 10$^6$ km$^2$)'
 MIN_LENGTH_AXIS_LABEL = 'Minimum end-to-end length (km)'
 
 FIGURE_WIDTH_INCHES = 15
@@ -41,7 +41,7 @@ FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 600
 
 NUM_PANEL_ROWS = 4
-NUM_PANEL_COLUMNS = 4
+NUM_PANEL_COLUMNS = 3
 FIGURE_SIZE_PIXELS = int(1e7)
 
 MIN_COLOUR_PERCENTILE = 1.
@@ -165,64 +165,77 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
     num_min_areas = len(UNIQUE_MIN_AREAS_METRES2)
     num_min_lengths = len(UNIQUE_MIN_LENGTHS_METRES)
 
-    csi_matrix = numpy.full(
-        (num_binarization_thresholds, num_min_areas, num_min_lengths),
-        numpy.nan)
-    pod_matrix = csi_matrix + 0.
-    success_ratio_matrix = csi_matrix + 0.
-    frequency_bias_matrix = csi_matrix + 0.
-
-    for i in range(num_binarization_thresholds):
-        for j in range(num_min_areas):
-            for k in range(num_min_lengths):
-                this_file_name = (
-                    '{0:s}/obe_{1:d}km_binarization-threshold={2:.3f}_'
-                    'min-area-metres2={3:013d}_min-length-metres={4:07d}.p'
-                ).format(
-                    experiment_dir_name,
-                    int(numpy.round(matching_distance_metres * METRES_TO_KM)),
-                    UNIQUE_BINARIZATION_THRESHOLDS[i],
-                    UNIQUE_MIN_AREAS_METRES2[j],
-                    UNIQUE_MIN_LENGTHS_METRES[k]
-                )
-
-                if not os.path.isfile(this_file_name):
-                    warning_string = (
-                        'Cannot find file.  Expected at: "{0:s}"'
-                    ).format(this_file_name)
-                    warnings.warn(warning_string)
-                    continue
-
-                print 'Reading data from: "{0:s}"...'.format(this_file_name)
-                this_evaluation_dict = object_eval.read_evaluation_results(
-                    this_file_name)
-
-                csi_matrix[i, j, k] = this_evaluation_dict[
-                    object_eval.BINARY_CSI_KEY]
-                pod_matrix[i, j, k] = this_evaluation_dict[
-                    object_eval.BINARY_POD_KEY]
-                success_ratio_matrix[i, j, k] = this_evaluation_dict[
-                    object_eval.BINARY_SUCCESS_RATIO_KEY]
-                frequency_bias_matrix[i, j, k] = this_evaluation_dict[
-                    object_eval.BINARY_FREQUENCY_BIAS_KEY]
-
-    print SEPARATOR_STRING
-
-    score_dict = {
-        'csi_matrix': csi_matrix,
-        'pod_matrix': pod_matrix,
-        'success_ratio_matrix': success_ratio_matrix,
-        'frequency_bias_matrix': frequency_bias_matrix
-    }
     all_scores_file_name = '{0:s}/obe_{1:d}km_all-scores.p'.format(
         output_dir_name,
         int(numpy.round(matching_distance_metres * METRES_TO_KM))
     )
 
-    print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
-    pickle_file_handle = open(all_scores_file_name, 'wb')
-    pickle.dump(score_dict, pickle_file_handle)
-    pickle_file_handle.close()
+    if os.path.isfile(all_scores_file_name):
+        print 'Reading data from: "{0:s}"...\n'.format(all_scores_file_name)
+        pickle_file_handle = open(all_scores_file_name, 'rb')
+        score_dict = pickle.load(pickle_file_handle)
+        pickle_file_handle.close()
+
+        csi_matrix = score_dict['csi_matrix'][1:, ...]
+        pod_matrix = score_dict['pod_matrix'][1:, ...]
+        success_ratio_matrix = score_dict['success_ratio_matrix'][1:, ...]
+        frequency_bias_matrix = score_dict['frequency_bias_matrix'][1:, ...]
+
+    else:
+        csi_matrix = numpy.full(
+            (num_binarization_thresholds, num_min_areas, num_min_lengths),
+            numpy.nan)
+        pod_matrix = csi_matrix + 0.
+        success_ratio_matrix = csi_matrix + 0.
+        frequency_bias_matrix = csi_matrix + 0.
+
+        for i in range(num_binarization_thresholds):
+            for j in range(num_min_areas):
+                for k in range(num_min_lengths):
+                    this_file_name = (
+                        '{0:s}/obe_{1:d}km_binarization-threshold={2:.3f}_'
+                        'min-area-metres2={3:013d}_min-length-metres={4:07d}.p'
+                    ).format(
+                        experiment_dir_name,
+                        int(numpy.round(matching_distance_metres * METRES_TO_KM)),
+                        UNIQUE_BINARIZATION_THRESHOLDS[i],
+                        UNIQUE_MIN_AREAS_METRES2[j],
+                        UNIQUE_MIN_LENGTHS_METRES[k]
+                    )
+
+                    if not os.path.isfile(this_file_name):
+                        warning_string = (
+                            'Cannot find file.  Expected at: "{0:s}"'
+                        ).format(this_file_name)
+                        warnings.warn(warning_string)
+                        continue
+
+                    print 'Reading data from: "{0:s}"...'.format(this_file_name)
+                    this_evaluation_dict = object_eval.read_evaluation_results(
+                        this_file_name)
+
+                    csi_matrix[i, j, k] = this_evaluation_dict[
+                        object_eval.BINARY_CSI_KEY]
+                    pod_matrix[i, j, k] = this_evaluation_dict[
+                        object_eval.BINARY_POD_KEY]
+                    success_ratio_matrix[i, j, k] = this_evaluation_dict[
+                        object_eval.BINARY_SUCCESS_RATIO_KEY]
+                    frequency_bias_matrix[i, j, k] = this_evaluation_dict[
+                        object_eval.BINARY_FREQUENCY_BIAS_KEY]
+
+        print SEPARATOR_STRING
+
+        score_dict = {
+            'csi_matrix': csi_matrix,
+            'pod_matrix': pod_matrix,
+            'success_ratio_matrix': success_ratio_matrix,
+            'frequency_bias_matrix': frequency_bias_matrix
+        }
+
+        print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
+        pickle_file_handle = open(all_scores_file_name, 'wb')
+        pickle.dump(score_dict, pickle_file_handle)
+        pickle_file_handle.close()
 
     this_offset = numpy.nanpercentile(
         numpy.absolute(frequency_bias_matrix - 1), MAX_COLOUR_PERCENTILE)
@@ -242,16 +255,16 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
         csi_file_names.append(this_file_name)
 
         _plot_scores_as_grid(
-            score_matrix=csi_matrix[i, ...],
+            score_matrix=numpy.transpose(csi_matrix[i, ...]),
             colour_map_object=SEQUENTIAL_COLOUR_MAP_OBJECT,
             min_colour_value=numpy.nanpercentile(
                 csi_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 csi_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-            x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-            y_axis_label=MIN_AREA_AXIS_LABEL,
+            y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+            y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+            x_axis_label=MIN_AREA_AXIS_LABEL,
             title_string=this_title_string, output_file_name=csi_file_names[-1])
 
         this_file_name = '{0:s}/pod_binarization-threshold={1:.4f}.jpg'.format(
@@ -259,16 +272,16 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
         pod_file_names.append(this_file_name)
 
         _plot_scores_as_grid(
-            score_matrix=pod_matrix[i, ...],
+            score_matrix=numpy.transpose(pod_matrix[i, ...]),
             colour_map_object=SEQUENTIAL_COLOUR_MAP_OBJECT,
             min_colour_value=numpy.nanpercentile(
                 pod_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 pod_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-            x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-            y_axis_label=MIN_AREA_AXIS_LABEL,
+            y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+            y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+            x_axis_label=MIN_AREA_AXIS_LABEL,
             title_string=this_title_string, output_file_name=pod_file_names[-1])
 
         this_file_name = (
@@ -277,16 +290,16 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
         success_ratio_file_names.append(this_file_name)
 
         _plot_scores_as_grid(
-            score_matrix=success_ratio_matrix[i, ...],
+            score_matrix=numpy.transpose(success_ratio_matrix[i, ...]),
             colour_map_object=SEQUENTIAL_COLOUR_MAP_OBJECT,
             min_colour_value=numpy.nanpercentile(
                 success_ratio_matrix, MIN_COLOUR_PERCENTILE),
             max_colour_value=numpy.nanpercentile(
                 success_ratio_matrix, MAX_COLOUR_PERCENTILE),
-            x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-            x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-            y_axis_label=MIN_AREA_AXIS_LABEL,
+            y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+            y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+            x_axis_label=MIN_AREA_AXIS_LABEL,
             title_string=this_title_string,
             output_file_name=success_ratio_file_names[-1])
 
@@ -296,14 +309,14 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
         frequency_bias_file_names.append(this_file_name)
 
         _plot_scores_as_grid(
-            score_matrix=frequency_bias_matrix[i, ...],
+            score_matrix=numpy.transpose(frequency_bias_matrix[i, ...]),
             colour_map_object=DIVERGENT_COLOUR_MAP_OBJECT,
             min_colour_value=min_colour_frequency_bias,
             max_colour_value=max_colour_frequency_bias,
-            x_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
-            x_axis_label=MIN_LENGTH_AXIS_LABEL,
-            y_tick_labels=UNIQUE_MIN_AREA_STRINGS,
-            y_axis_label=MIN_AREA_AXIS_LABEL,
+            y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
+            y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
+            x_axis_label=MIN_AREA_AXIS_LABEL,
             title_string=this_title_string,
             output_file_name=frequency_bias_file_names[-1])
 

@@ -23,7 +23,7 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 22.5
+FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -36,10 +36,6 @@ UNIQUE_SMOOTHING_RADII_PX = numpy.array([1, 2])
 UNIQUE_FRONT_PERCENTILES = numpy.array([96, 97, 98, 99])
 UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1, 2, 3])
 UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900, 950, 1000])
-# UNIQUE_SMOOTHING_RADII_PX = numpy.array([1])
-# UNIQUE_FRONT_PERCENTILES = numpy.array([96])
-# UNIQUE_CLOSING_ITER_COUNTS = numpy.array([1])
-# UNIQUE_PRESSURE_LEVELS_MB = numpy.array([900])
 UNIQUE_MIN_LENGTHS_METRES = numpy.array(
     [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) * 1e6
 UNIQUE_MIN_AREAS_METRES2 = numpy.array([20, 40, 60, 80, 100]) * 1e9
@@ -272,14 +268,9 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                     )
 
                     this_title_string = (
-                        'Front percentile = {0:d} ... {1:d} closing iters'
+                        r'$q$ = {0:d} ... {1:d} closing iterations'
                     ).format(UNIQUE_FRONT_PERCENTILES[j],
                              UNIQUE_CLOSING_ITER_COUNTS[k])
-
-                    this_plot_cbar_flag = (
-                        j == num_percentiles - 1 and
-                        k == num_closing_iter_counts - 1
-                    )
 
                     this_file_name = '{0:s}/csi_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -297,7 +288,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
                         output_file_name=these_csi_file_names[-1],
-                        plot_colour_bar=this_plot_cbar_flag)
+                        plot_colour_bar=True)
 
                     this_file_name = '{0:s}/pod_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -315,7 +306,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
                         output_file_name=these_pod_file_names[-1],
-                        plot_colour_bar=this_plot_cbar_flag)
+                        plot_colour_bar=True)
 
                     this_file_name = '{0:s}/success_ratio_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -333,7 +324,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
                         output_file_name=these_sr_file_names[-1],
-                        plot_colour_bar=this_plot_cbar_flag)
+                        plot_colour_bar=True)
 
                     this_file_name = '{0:s}/frequency_bias_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -349,7 +340,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         x_axis_label=MIN_AREA_AXIS_LABEL,
                         title_string=this_title_string,
                         output_file_name=these_fb_file_names[-1],
-                        plot_colour_bar=this_plot_cbar_flag)
+                        plot_colour_bar=True)
 
                     print '\n'
 
