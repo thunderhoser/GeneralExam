@@ -81,7 +81,7 @@ VALID_TIMES_HELP_STRING = (
     'observations will be plotted for each valid time, with the top (bottom) '
     'row of the figure showing the first (second) valid time.')
 
-DEFAULT_VALID_TIME_STRINGS = ['2017010109', '2017020503']
+DEFAULT_VALID_TIME_STRINGS = ['2017012500', '2017020503']
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
