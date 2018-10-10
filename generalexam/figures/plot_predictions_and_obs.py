@@ -63,6 +63,8 @@ GRIDDED_PREDICTION_PANEL_LABELS = ['(a)', '(d)']
 OBJECT_PREDICTION_PANEL_LABELS = ['(b)', '(e)']
 OBSERVATION_PANEL_LABELS = ['(c)', '(f)']
 
+NUM_PANEL_ROWS = 2
+NUM_PANEL_COLUMNS = 3
 FIGURE_RESOLUTION_DPI = 600
 FIGURE_SIZE_PIXELS = int(1e7)
 
@@ -451,7 +453,7 @@ def _run(valid_time_strings):
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(
         input_file_names=figure_file_names, output_file_name=CONCAT_FILE_NAME,
-        num_panel_rows=2, num_panel_columns=2,
+        num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
         output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
