@@ -79,7 +79,8 @@ TOP_PREDICTION_DIR_NAME = (
 
 OBJECT_PREDICTION_FILE_NAME = (
     '{0:s}/objects/objects_binarization-threshold=0.411_'
-    'min-area-metres2=0300000000000_min-length-metres=0400000.p')
+    'min-area-metres2=0300000000000_min-length-metres=0400000.p'
+).format(TOP_PREDICTION_DIR_NAME)
 
 OUTPUT_DIR_NAME = TOP_PREDICTION_DIR_NAME + ''
 CONCAT_FILE_NAME = (
