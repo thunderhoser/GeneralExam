@@ -194,12 +194,12 @@ def _run(input_prediction_file_name, matching_distance_metres,
                 continue
 
             these_predicted_region_tables[-1] = (
-                these_predicted_region_tables[i].align(
+                these_predicted_region_tables[-1].align(
                     these_predicted_region_tables[0], axis=1
                 )[0]
             )
             these_actual_polyline_tables[-1] = (
-                these_actual_polyline_tables[i].align(
+                these_actual_polyline_tables[-1].align(
                     these_actual_polyline_tables[0], axis=1
                 )[0]
             )
