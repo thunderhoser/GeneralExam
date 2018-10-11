@@ -279,7 +279,7 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
         output_file_name=cold_front_map_file_name, mask_matrix=None,
         add_colour_bar=True)
 
-    both_fronts_title_string = r'Grid cells with $\ge$ {0:d} fronts'.format(
+    both_fronts_title_string = r'Grid cells with at least {0:d} fronts'.format(
         min_num_fronts)
     both_fronts_map_file_name = '{0:s}/num_both_fronts.jpg'.format(
         output_dir_name)

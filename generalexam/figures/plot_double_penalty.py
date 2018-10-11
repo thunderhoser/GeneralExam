@@ -83,8 +83,8 @@ def _get_colour_map(for_actual_fronts):
 
 
 def _plot_fronts(
-        actual_binary_matrix, predicted_binary_matrix, annotation_string,
-        output_file_name):
+        actual_binary_matrix, predicted_binary_matrix, title_string,
+        annotation_string, output_file_name):
     """Plots actual and predicted fronts.
 
     M = number of rows in grid
@@ -94,6 +94,7 @@ def _plot_fronts(
         actual_binary_matrix[i, j] = 1, there is an actual front passing through
         grid cell [i, j].
     :param predicted_binary_matrix: Same but for predicted fronts.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -161,6 +162,7 @@ def _plot_fronts(
         first_column_in_full_grid=narr_column_limits[0],
         opacity=PREDICTED_FRONT_OPACITY)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -216,7 +218,8 @@ def _run():
     _plot_fronts(
         actual_binary_matrix=actual_binary_matrix,
         predicted_binary_matrix=predicted_binary_matrix,
-        annotation_string='(a)', output_file_name=NO_DILATION_FILE_NAME)
+        title_string='Without dilation', annotation_string='(a)',
+        output_file_name=NO_DILATION_FILE_NAME)
 
     actual_binary_matrix = ml_utils.dilate_binary_target_images(
         target_matrix=actual_binary_matrix,
@@ -228,7 +231,8 @@ def _run():
     _plot_fronts(
         actual_binary_matrix=actual_binary_matrix,
         predicted_binary_matrix=predicted_binary_matrix,
-        annotation_string='(b)', output_file_name=WITH_DILATION_FILE_NAME)
+        title_string='With dilation', annotation_string='(b)',
+        output_file_name=WITH_DILATION_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(
