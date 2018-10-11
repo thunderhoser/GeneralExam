@@ -261,7 +261,8 @@ def _plot_observations_one_time(
 
 def _plot_predictions_one_time(
         output_file_name, annotation_string, predicted_label_matrix=None,
-        class_probability_matrix=None, plot_colour_bars=True):
+        class_probability_matrix=None, plot_warm_colour_bar=True,
+        plot_cold_colour_bar=True):
     """Plots predictions (objects or probability grid) for one valid time.
 
     :param output_file_name: Path to output file (figure will be saved here).
@@ -272,8 +273,10 @@ def _plot_predictions_one_time(
     :param class_probability_matrix:
         [used iff `predicted_label_matrix is None`]
         See doc for `machine_learning_utils.write_gridded_predictions`.
-    :param plot_colour_bars: [used iff `predicted_label_matrix is None`]
-        Boolean flag, indicating whether or not to plot colour bars.
+    :param plot_warm_colour_bar: [used iff `predicted_label_matrix is None`]
+        Boolean flag, indicating whether or not to plot colour bar for warm-
+        front probability.
+    :param plot_cold_colour_bar: Same but for cold-front probability.
     """
 
     (narr_row_limits, narr_column_limits
@@ -345,8 +348,8 @@ def _plot_predictions_one_time(
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0],
             opacity=PROBABILISTIC_OPACITY)
-        
-        if plot_colour_bars:
+
+        if plot_warm_colour_bar:
             (this_colour_map_object, this_colour_norm_object
             ) = prediction_plotting.get_warm_front_colour_map()[:2]
             plotting_utils.add_colour_bar(
@@ -357,7 +360,8 @@ def _plot_predictions_one_time(
                     ..., front_utils.WARM_FRONT_INTEGER_ID],
                 orientation='vertical', extend_min=True, extend_max=False,
                 fraction_of_axis_length=LENGTH_FRACTION_FOR_PROB_COLOUR_BAR)
-
+        
+        if plot_cold_colour_bar:
             (this_colour_map_object, this_colour_norm_object
             ) = prediction_plotting.get_cold_front_colour_map()[:2]
             plotting_utils.add_colour_bar(
@@ -427,7 +431,8 @@ def _run(valid_time_strings):
             output_file_name=figure_file_names[0, i],
             annotation_string=GRIDDED_PREDICTION_PANEL_LABELS[i],
             class_probability_matrix=this_probability_matrix,
-            plot_colour_bars=i == num_times - 1)
+            plot_warm_colour_bar=i == 0,
+            plot_cold_colour_bar=i == num_times - 1)
 
         this_predicted_region_table = predicted_region_table.loc[
             predicted_region_table[front_utils.TIME_COLUMN] ==
