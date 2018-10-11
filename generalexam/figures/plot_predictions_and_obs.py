@@ -63,8 +63,8 @@ GRIDDED_PREDICTION_PANEL_LABELS = ['(a)', '(d)']
 OBJECT_PREDICTION_PANEL_LABELS = ['(b)', '(e)']
 OBSERVATION_PANEL_LABELS = ['(c)', '(f)']
 
-NUM_PANEL_ROWS = 2
-NUM_PANEL_COLUMNS = 3
+NUM_PANEL_ROWS = 3
+NUM_PANEL_COLUMNS = 2
 FIGURE_RESOLUTION_DPI = 600
 FIGURE_SIZE_PIXELS = int(1e7)
 
@@ -401,7 +401,7 @@ def _run(valid_time_strings):
     predicted_region_table = object_eval.read_predictions_and_obs(
         OBJECT_PREDICTION_FILE_NAME)[0]
 
-    figure_file_names = []
+    figure_file_names = numpy.full((3, num_times), '', dtype=object)
 
     for i in range(num_times):
         this_prediction_file_name = ml_utils.find_gridded_prediction_file(
@@ -416,11 +416,10 @@ def _run(valid_time_strings):
             ml_utils.PROBABILITY_MATRIX_KEY]
         this_probability_matrix[numpy.isnan(this_probability_matrix)] = 0.
 
-        this_figure_file_name = '{0:s}/gridded_predictions_{1:s}.jpg'.format(
+        figure_file_names[0, i] = '{0:s}/gridded_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
-        figure_file_names.append(this_figure_file_name)
         _plot_predictions_one_time(
-            output_file_name=this_figure_file_name,
+            output_file_name=figure_file_names[0, i],
             annotation_string=GRIDDED_PREDICTION_PANEL_LABELS[i],
             class_probability_matrix=this_probability_matrix)
 
@@ -432,27 +431,25 @@ def _run(valid_time_strings):
             predicted_region_table=this_predicted_region_table,
             num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
-        this_figure_file_name = '{0:s}/object_predictions_{1:s}.jpg'.format(
+        figure_file_names[1, i] = '{0:s}/object_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
-        figure_file_names.append(this_figure_file_name)
         _plot_predictions_one_time(
-            output_file_name=this_figure_file_name,
+            output_file_name=figure_file_names[1, i],
             annotation_string=OBJECT_PREDICTION_PANEL_LABELS[i],
             predicted_label_matrix=this_predicted_label_matrix)
 
-        this_figure_file_name = '{0:s}/observations_{1:s}.jpg'.format(
+        figure_file_names[2, i] = '{0:s}/observations_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
-        figure_file_names.append(this_figure_file_name)
-
         _plot_observations_one_time(
             valid_time_string=valid_time_strings[i],
             annotation_string=OBSERVATION_PANEL_LABELS[i],
-            output_file_name=this_figure_file_name)
+            output_file_name=figure_file_names[2, i])
         print '\n'
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(
-        input_file_names=figure_file_names, output_file_name=CONCAT_FILE_NAME,
+        input_file_names=numpy.ravel(figure_file_names).tolist(),
+        output_file_name=CONCAT_FILE_NAME,
         num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
         output_size_pixels=FIGURE_SIZE_PIXELS)
 
