@@ -13,7 +13,7 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
-METRES_TO_KM = 1e-3
+METRES_TO_HUNDRED_KM = 1e-5
 METRES2_TO_HUNDRED_THOUSAND_KM2 = 1e-11
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -26,12 +26,12 @@ UNIQUE_MIN_AREA_STRINGS = [
     for a in UNIQUE_MIN_AREAS_METRES2
 ]
 UNIQUE_MIN_LENGTH_STRINGS = [
-    '{0:d}'.format(int(numpy.round(l * METRES_TO_KM)))
+    '{0:d}'.format(int(numpy.round(l * METRES_TO_HUNDRED_KM)))
     for l in UNIQUE_MIN_LENGTHS_METRES
 ]
 
 MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^5$ km$^2$)'
-MIN_LENGTH_AXIS_LABEL = 'Minimum length (km)'
+MIN_LENGTH_AXIS_LABEL = r'Minimum length ($\times$ 100 km)'
 
 WHITE_COLOUR = numpy.full(3, 253. / 255)
 BLACK_COLOUR = numpy.full(3, 0.)
@@ -49,7 +49,7 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 40
+FONT_SIZE = 50
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -163,7 +163,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
 
     all_scores_file_name = '{0:s}/obe_{1:d}km_all-scores.p'.format(
         output_dir_name,
-        int(numpy.round(matching_distance_metres * METRES_TO_KM))
+        int(numpy.round(matching_distance_metres * METRES_TO_HUNDRED_KM))
     )
 
     if os.path.isfile(all_scores_file_name):
@@ -194,7 +194,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                     ).format(
                         experiment_dir_name,
                         int(numpy.round(
-                            matching_distance_metres * METRES_TO_KM)),
+                            matching_distance_metres * METRES_TO_HUNDRED_KM)),
                         UNIQUE_BINARIZATION_THRESHOLDS[i],
                         UNIQUE_MIN_AREAS_METRES2[j],
                         UNIQUE_MIN_LENGTHS_METRES[k]
