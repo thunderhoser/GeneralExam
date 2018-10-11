@@ -13,6 +13,7 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
+METRES_TO_KM = 1e-3
 METRES_TO_HUNDRED_KM = 1e-5
 METRES2_TO_HUNDRED_THOUSAND_KM2 = 1e-11
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -163,7 +164,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
 
     all_scores_file_name = '{0:s}/obe_{1:d}km_all-scores.p'.format(
         output_dir_name,
-        int(numpy.round(matching_distance_metres * METRES_TO_HUNDRED_KM))
+        int(numpy.round(matching_distance_metres * METRES_TO_KM))
     )
 
     if os.path.isfile(all_scores_file_name):
@@ -194,7 +195,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                     ).format(
                         experiment_dir_name,
                         int(numpy.round(
-                            matching_distance_metres * METRES_TO_HUNDRED_KM)),
+                            matching_distance_metres * METRES_TO_KM)),
                         UNIQUE_BINARIZATION_THRESHOLDS[i],
                         UNIQUE_MIN_AREAS_METRES2[j],
                         UNIQUE_MIN_LENGTHS_METRES[k]
