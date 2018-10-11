@@ -136,7 +136,7 @@ def _plot_scores_as_grid(
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
         extend_max=True, fraction_of_axis_length=0.8, font_size=FONT_SIZE)
 
-    pyplot.title(title_string, pad=10)
+    pyplot.title(title_string, verticalalignment='bottom')
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
