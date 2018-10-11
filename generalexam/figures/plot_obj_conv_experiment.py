@@ -33,6 +33,9 @@ UNIQUE_MIN_LENGTH_STRINGS = [
 MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^5$ km$^2$)'
 MIN_LENGTH_AXIS_LABEL = 'Minimum length (km)'
 
+WHITE_COLOUR = numpy.full(3, 253. / 255)
+BLACK_COLOUR = numpy.full(3, 0.)
+
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 600
@@ -85,8 +88,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
-        x_tick_labels, x_axis_label, y_tick_labels, y_axis_label,
-        output_file_name, annotation_string=None, title_string=None):
+        x_tick_labels, x_axis_label, x_axis_text_colour, y_tick_labels,
+        y_axis_label, y_axis_text_colour, title_string, output_file_name):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -98,13 +101,13 @@ def _plot_scores_as_grid(
     :param max_colour_value: Max value in colour map.
     :param x_tick_labels: length-N list of string labels.
     :param x_axis_label: String label for the entire x-axis.
+    :param x_axis_text_colour: Colour for all text labels along x-axis.
     :param y_tick_labels: length-M list of string labels.
     :param y_axis_label: String label for the entire y-axis.
+    :param y_axis_text_colour: Colour for all text labels along y-axis.
+    :param title_string: Title (will be placed above figure).
     :param output_file_name: Path to output file (the figure will be saved
         here).
-    :param annotation_string: Text annotation (will be placed in top left of
-        figure).
-    :param title_string: Figure title (will be placed above figure).
     """
 
     _, axes_object = pyplot.subplots(
@@ -119,13 +122,13 @@ def _plot_scores_as_grid(
     num_columns = score_matrix.shape[1]
     x_tick_values = numpy.linspace(
         0, num_columns - 1, num=num_columns, dtype=float)
-    pyplot.xticks(x_tick_values, x_tick_labels)
-    pyplot.xlabel(x_axis_label)
+    pyplot.xticks(x_tick_values, x_tick_labels, color=x_axis_text_colour)
+    pyplot.xlabel(x_axis_label, color=x_axis_text_colour)
 
     num_rows = score_matrix.shape[0]
     y_tick_values = numpy.linspace(0, num_rows - 1, num=num_rows, dtype=float)
-    pyplot.yticks(y_tick_values, y_tick_labels)
-    pyplot.ylabel(y_axis_label)
+    pyplot.yticks(y_tick_values, y_tick_labels, color=y_axis_text_colour)
+    pyplot.ylabel(y_axis_label, color=y_axis_text_colour)
 
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=score_matrix,
@@ -133,11 +136,7 @@ def _plot_scores_as_grid(
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
         extend_max=True, fraction_of_axis_length=0.8, font_size=FONT_SIZE)
 
-    if annotation_string is not None:
-        plotting_utils.annotate_axes(
-            axes_object=axes_object, annotation_string=annotation_string)
-    if title_string is not None:
-        pyplot.title(title_string)
+    pyplot.title(title_string, pad=10)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -194,7 +193,8 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                         'min-area-metres2={3:013d}_min-length-metres={4:07d}.p'
                     ).format(
                         experiment_dir_name,
-                        int(numpy.round(matching_distance_metres * METRES_TO_KM)),
+                        int(numpy.round(
+                            matching_distance_metres * METRES_TO_KM)),
                         UNIQUE_BINARIZATION_THRESHOLDS[i],
                         UNIQUE_MIN_AREAS_METRES2[j],
                         UNIQUE_MIN_LENGTHS_METRES[k]
@@ -245,9 +245,20 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
     frequency_bias_file_names = []
 
     for i in range(num_binarization_thresholds):
+        if numpy.mod(i, NUM_PANEL_COLUMNS) == 0:
+            this_y_axis_text_colour = BLACK_COLOUR + 0.
+        else:
+            this_y_axis_text_colour = WHITE_COLOUR + 0.
+
+        if i >= num_binarization_thresholds - NUM_PANEL_COLUMNS:
+            this_x_axis_text_colour = BLACK_COLOUR + 0.
+        else:
+            this_x_axis_text_colour = WHITE_COLOUR + 0.
+
         this_title_string = r'$p_{NF}^*$'
         this_title_string += ' = {0:.3f}'.format(
             UNIQUE_BINARIZATION_THRESHOLDS[i])
+
         this_file_name = '{0:s}/csi_binarization-threshold={1:.4f}.jpg'.format(
             output_dir_name, UNIQUE_BINARIZATION_THRESHOLDS[i])
         csi_file_names.append(this_file_name)
@@ -261,8 +272,10 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                 csi_matrix, MAX_COLOUR_PERCENTILE),
             y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            y_axis_text_colour=this_y_axis_text_colour,
             x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             x_axis_label=MIN_AREA_AXIS_LABEL,
+            x_axis_text_colour=this_x_axis_text_colour,
             title_string=this_title_string, output_file_name=csi_file_names[-1])
 
         this_file_name = '{0:s}/pod_binarization-threshold={1:.4f}.jpg'.format(
@@ -278,8 +291,10 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                 pod_matrix, MAX_COLOUR_PERCENTILE),
             y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            y_axis_text_colour=this_y_axis_text_colour,
             x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             x_axis_label=MIN_AREA_AXIS_LABEL,
+            x_axis_text_colour=this_x_axis_text_colour,
             title_string=this_title_string, output_file_name=pod_file_names[-1])
 
         this_file_name = (
@@ -296,8 +311,10 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                 success_ratio_matrix, MAX_COLOUR_PERCENTILE),
             y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            y_axis_text_colour=this_y_axis_text_colour,
             x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             x_axis_label=MIN_AREA_AXIS_LABEL,
+            x_axis_text_colour=this_x_axis_text_colour,
             title_string=this_title_string,
             output_file_name=success_ratio_file_names[-1])
 
@@ -313,8 +330,10 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
             max_colour_value=max_colour_frequency_bias,
             y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
             y_axis_label=MIN_LENGTH_AXIS_LABEL,
+            y_axis_text_colour=this_y_axis_text_colour,
             x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
             x_axis_label=MIN_AREA_AXIS_LABEL,
+            x_axis_text_colour=this_x_axis_text_colour,
             title_string=this_title_string,
             output_file_name=frequency_bias_file_names[-1])
 
