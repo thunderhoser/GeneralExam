@@ -24,7 +24,10 @@ MAX_COLOUR_PERCENTILE = 99.
 SEQUENTIAL_COLOUR_MAP_OBJECT = pyplot.cm.plasma
 DIVERGENT_COLOUR_MAP_OBJECT = pyplot.cm.seismic
 
-FONT_SIZE = 50
+WHITE_COLOUR = numpy.full(3, 253. / 255)
+BLACK_COLOUR = numpy.full(3, 0.)
+
+FONT_SIZE = 45
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -48,20 +51,20 @@ UNIQUE_PRESSURE_LEVELS_MB = UNIQUE_PRESSURE_LEVELS_MB.astype(int)
 UNIQUE_MIN_LENGTHS_METRES = UNIQUE_MIN_LENGTHS_METRES.astype(int)
 UNIQUE_MIN_AREAS_METRES2 = UNIQUE_MIN_AREAS_METRES2.astype(int)
 
-METRES_TO_KM = 1e-3
-METRES2_TO_THOUSAND_KM2 = 1e-9
+METRES_TO_HUNDRED_KM = 1e-5
+METRES2_TO_TEN_THOUSAND_KM2 = 1e-10
 
 UNIQUE_MIN_LENGTH_STRINGS = [
-    '{0:d}'.format(int(numpy.round(l * METRES_TO_KM)))
+    '{0:d}'.format(int(numpy.round(l * METRES_TO_HUNDRED_KM)))
     for l in UNIQUE_MIN_LENGTHS_METRES
 ]
 UNIQUE_MIN_AREA_STRINGS = [
-    '{0:d}'.format(int(numpy.round(a * METRES2_TO_THOUSAND_KM2)))
+    '{0:d}'.format(int(numpy.round(a * METRES2_TO_TEN_THOUSAND_KM2)))
     for a in UNIQUE_MIN_AREAS_METRES2
 ]
 
-MIN_LENGTH_AXIS_LABEL = 'Minimum length (km)'
-MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 1000 km$^2$)'
+MIN_LENGTH_AXIS_LABEL = 'Minimum length ($\times$ 100 km)'
+MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^4$ km$^2$)'
 
 EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'
 MATCHING_DISTANCE_ARG_NAME = 'matching_distance_metres'
@@ -94,8 +97,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
-        x_tick_labels, x_axis_label, y_tick_labels, y_axis_label,
-        title_string, output_file_name, plot_colour_bar):
+        x_tick_labels, x_axis_label, x_axis_text_colour, y_tick_labels,
+        y_axis_label, y_axis_text_colour, title_string, output_file_name):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -107,8 +110,10 @@ def _plot_scores_as_grid(
     :param max_colour_value: Max value in colour map.
     :param x_tick_labels: length-N list of string labels.
     :param x_axis_label: String label for the entire x-axis.
+    :param x_axis_text_colour: Colour for all text labels along x-axis.
     :param y_tick_labels: length-M list of string labels.
     :param y_axis_label: String label for the entire y-axis.
+    :param y_axis_text_colour: Colour for all text labels along y-axis.
     :param title_string: Figure title.
     :param output_file_name: Path to output file (the figure will be saved
         here).
@@ -126,22 +131,20 @@ def _plot_scores_as_grid(
 
     x_tick_values = numpy.linspace(
         0, score_matrix.shape[1] - 1, num=score_matrix.shape[1], dtype=float)
-    pyplot.xticks(x_tick_values, x_tick_labels)
-    pyplot.xlabel(x_axis_label)
+    pyplot.xticks(x_tick_values, x_tick_labels, color=x_axis_text_colour)
+    pyplot.xlabel(x_axis_label, color=x_axis_text_colour)
 
     y_tick_values = numpy.linspace(
         0, score_matrix.shape[0] - 1, num=score_matrix.shape[0], dtype=float)
-    pyplot.yticks(y_tick_values, y_tick_labels)
-    pyplot.ylabel(y_axis_label)
+    pyplot.yticks(y_tick_values, y_tick_labels, color=y_axis_text_colour)
+    pyplot.ylabel(y_axis_label, color=y_axis_text_colour)
 
     pyplot.title(title_string)
-
-    if plot_colour_bar:
-        plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=axes_object, values_to_colour=score_matrix,
-            colour_map=colour_map_object, colour_min=min_colour_value,
-            colour_max=max_colour_value, orientation='vertical',
-            extend_min=True, extend_max=True, font_size=FONT_SIZE)
+    plotting_utils.add_linear_colour_bar(
+        axes_object_or_list=axes_object, values_to_colour=score_matrix,
+        colour_map=colour_map_object, colour_min=min_colour_value,
+        colour_max=max_colour_value, orientation='vertical',
+        extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -227,10 +230,14 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                                         this_file_name)
                                 )
 
-                                csi_matrix[i, j, k, m, n, p] = this_evaluation_dict[
-                                    object_eval.BINARY_CSI_KEY]
-                                pod_matrix[i, j, k, m, n, p] = this_evaluation_dict[
-                                    object_eval.BINARY_POD_KEY]
+                                csi_matrix[i, j, k, m, n, p] = (
+                                    this_evaluation_dict[
+                                        object_eval.BINARY_CSI_KEY]
+                                )
+                                pod_matrix[i, j, k, m, n, p] = (
+                                    this_evaluation_dict[
+                                        object_eval.BINARY_POD_KEY]
+                                )
                                 success_ratio_matrix[i, j, k, m, n, p] = (
                                     this_evaluation_dict[
                                         object_eval.BINARY_SUCCESS_RATIO_KEY]
@@ -268,6 +275,16 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             for j in range(num_percentiles):
                 for k in range(num_closing_iter_counts):
+                    if k == 0:
+                        this_y_axis_text_colour = BLACK_COLOUR + 0.
+                    else:
+                        this_y_axis_text_colour = WHITE_COLOUR + 0.
+
+                    if j == num_percentiles - 1:
+                        this_x_axis_text_colour = BLACK_COLOUR + 0.
+                    else:
+                        this_x_axis_text_colour = WHITE_COLOUR + 0.
+
                     this_file_name_suffix = (
                         'matching-distance-metres={0:06d}_'
                         'smoothing-radius-px={1:d}_'
@@ -282,7 +299,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                     )
 
                     this_title_string = (
-                        r'$q$ = {0:d} ... {1:d} closing iters'
+                        'FP = {0:d}; {1:d} closing iters'
                     ).format(UNIQUE_FRONT_PERCENTILES[j],
                              UNIQUE_CLOSING_ITER_COUNTS[k])
 
@@ -298,11 +315,12 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             csi_matrix, MAX_COLOUR_PERCENTILE),
                         y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
                         y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        y_axis_text_colour=this_y_axis_text_colour,
                         x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
                         x_axis_label=MIN_AREA_AXIS_LABEL,
+                        x_axis_text_colour=this_x_axis_text_colour,
                         title_string=this_title_string,
-                        output_file_name=these_csi_file_names[-1],
-                        plot_colour_bar=True)
+                        output_file_name=these_csi_file_names[-1])
 
                     this_file_name = '{0:s}/pod_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -316,11 +334,12 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             pod_matrix, MAX_COLOUR_PERCENTILE),
                         y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
                         y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        y_axis_text_colour=this_y_axis_text_colour,
                         x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
                         x_axis_label=MIN_AREA_AXIS_LABEL,
+                        x_axis_text_colour=this_x_axis_text_colour,
                         title_string=this_title_string,
-                        output_file_name=these_pod_file_names[-1],
-                        plot_colour_bar=True)
+                        output_file_name=these_pod_file_names[-1])
 
                     this_file_name = '{0:s}/success_ratio_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -334,11 +353,12 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                             success_ratio_matrix, MAX_COLOUR_PERCENTILE),
                         y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
                         y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        y_axis_text_colour=this_y_axis_text_colour,
                         x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
                         x_axis_label=MIN_AREA_AXIS_LABEL,
+                        x_axis_text_colour=this_x_axis_text_colour,
                         title_string=this_title_string,
-                        output_file_name=these_sr_file_names[-1],
-                        plot_colour_bar=True)
+                        output_file_name=these_sr_file_names[-1])
 
                     this_file_name = '{0:s}/frequency_bias_{1:s}'.format(
                         output_dir_name, this_file_name_suffix)
@@ -350,11 +370,12 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         max_colour_value=max_colour_frequency_bias,
                         y_tick_labels=UNIQUE_MIN_LENGTH_STRINGS,
                         y_axis_label=MIN_LENGTH_AXIS_LABEL,
+                        y_axis_text_colour=this_y_axis_text_colour,
                         x_tick_labels=UNIQUE_MIN_AREA_STRINGS,
                         x_axis_label=MIN_AREA_AXIS_LABEL,
+                        x_axis_text_colour=this_x_axis_text_colour,
                         title_string=this_title_string,
-                        output_file_name=these_fb_file_names[-1],
-                        plot_colour_bar=True)
+                        output_file_name=these_fb_file_names[-1])
 
                     print '\n'
 
