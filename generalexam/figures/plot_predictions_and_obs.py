@@ -432,7 +432,7 @@ def _run(valid_time_strings):
 
         figure_file_names[0, i] = '{0:s}/gridded_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
-        this_title_string = 'Gridded predictions for {0:s}'.format(
+        this_title_string = 'Gridded predictions at {0:s}'.format(
             time_conversion.unix_sec_to_string(
                 valid_times_unix_sec[i], OUTPUT_TIME_FORMAT)
         )
@@ -455,7 +455,7 @@ def _run(valid_time_strings):
 
         figure_file_names[1, i] = '{0:s}/object_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
-        this_title_string = 'Object-based predictions for {0:s}'.format(
+        this_title_string = 'Object-based predictions at {0:s}'.format(
             time_conversion.unix_sec_to_string(
                 valid_times_unix_sec[i], OUTPUT_TIME_FORMAT)
         )
