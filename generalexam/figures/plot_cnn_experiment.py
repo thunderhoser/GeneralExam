@@ -200,8 +200,10 @@ def _run():
     for k in range(num_dropout_fractions):
         if k == 0:
             this_y_axis_text_colour = BLACK_COLOUR + 0.
+            these_y_tick_labels = UNIQUE_PREDICTOR_ABBREV_STRINGS + []
         else:
             this_y_axis_text_colour = WHITE_COLOUR + 0.
+            these_y_tick_labels = [''] * num_predictor_combos
         
         this_title_string = 'Gerrity score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -219,7 +221,7 @@ def _run():
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
             x_axis_text_colour=WHITE_COLOUR,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
+            y_tick_labels=these_y_tick_labels,
             y_axis_label='',
             y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
@@ -241,7 +243,7 @@ def _run():
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
             x_axis_text_colour=WHITE_COLOUR,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
+            y_tick_labels=these_y_tick_labels,
             y_axis_label='',
             y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
@@ -263,7 +265,7 @@ def _run():
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
             x_axis_text_colour=WHITE_COLOUR,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
+            y_tick_labels=these_y_tick_labels,
             y_axis_label='',
             y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
@@ -285,7 +287,7 @@ def _run():
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
             x_axis_text_colour=BLACK_COLOUR,
-            y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
+            y_tick_labels=these_y_tick_labels,
             y_axis_label='',
             y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
