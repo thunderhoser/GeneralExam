@@ -22,6 +22,8 @@ FIGURE_SIZE_PIXELS = int(1e7)
 MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
 COLOUR_MAP_OBJECT = pyplot.cm.plasma
+WHITE_COLOUR = numpy.full(3, 253. / 255)
+BLACK_COLOUR = numpy.full(3, 0.)
 
 FONT_SIZE = 40
 pyplot.rc('font', size=FONT_SIZE)
@@ -72,8 +74,8 @@ PREDICTORS_AXIS_LABEL = ''
 
 def _plot_scores_as_grid(
         score_matrix, colour_map_object, min_colour_value, max_colour_value,
-        x_tick_labels, x_axis_label, y_tick_labels, y_axis_label, title_string,
-        output_file_name, plot_colour_bar):
+        x_tick_labels, x_axis_label, x_axis_text_colour, y_tick_labels,
+        y_axis_label, y_axis_text_colour, title_string, output_file_name):
     """Plots model scores as 2-D grid.
 
     M = number of rows in grid
@@ -85,12 +87,13 @@ def _plot_scores_as_grid(
     :param max_colour_value: Max value in colour map.
     :param x_tick_labels: length-N list of string labels.
     :param x_axis_label: String label for the entire x-axis.
+    :param x_axis_text_colour: Colour for all text labels along x-axis.
     :param y_tick_labels: length-M list of string labels.
     :param y_axis_label: String label for the entire y-axis.
+    :param y_axis_text_colour: Colour for all text labels along y-axis.
     :param title_string: Figure title.
     :param output_file_name: Path to output file (the figure will be saved
         here).
-    :param plot_colour_bar: Boolean flag.
     """
 
     _, axes_object = pyplot.subplots(
@@ -105,24 +108,22 @@ def _plot_scores_as_grid(
     x_tick_values = numpy.linspace(
         0, score_matrix_to_plot.shape[1] - 1,
         num=score_matrix_to_plot.shape[1], dtype=float)
-    pyplot.xticks(x_tick_values, x_tick_labels)
-    pyplot.xlabel(x_axis_label)
+    pyplot.xticks(x_tick_values, x_tick_labels, color=x_axis_text_colour)
+    pyplot.xlabel(x_axis_label, color=x_axis_text_colour)
 
     y_tick_values = numpy.linspace(
         0, score_matrix_to_plot.shape[0] - 1,
         num=score_matrix_to_plot.shape[0], dtype=float)
-    pyplot.yticks(y_tick_values, y_tick_labels)
-    pyplot.ylabel(y_axis_label)
+    pyplot.yticks(y_tick_values, y_tick_labels, color=y_axis_text_colour)
+    pyplot.ylabel(y_axis_label, color=y_axis_text_colour)
 
     pyplot.title(title_string)
-
-    if plot_colour_bar:
-        plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=axes_object,
-            values_to_colour=score_matrix_to_plot,
-            colour_map=colour_map_object, colour_min=min_colour_value,
-            colour_max=max_colour_value, orientation='vertical',
-            extend_min=True, extend_max=True, font_size=FONT_SIZE)
+    plotting_utils.add_linear_colour_bar(
+        axes_object_or_list=axes_object,
+        values_to_colour=score_matrix_to_plot,
+        colour_map=colour_map_object, colour_min=min_colour_value,
+        colour_max=max_colour_value, orientation='vertical',
+        extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -198,10 +199,10 @@ def _run():
 
     for k in range(num_dropout_fractions):
         if k == 0:
-            this_y_axis_label = PREDICTORS_AXIS_LABEL + ''
+            this_y_axis_text_colour = BLACK_COLOUR + 0.
         else:
-            this_y_axis_label = ''
-
+            this_y_axis_text_colour = WHITE_COLOUR + 0.
+        
         this_title_string = 'Gerrity score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
         panel_file_names[0, k] = (
@@ -217,10 +218,12 @@ def _run():
                 gerrity_score_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
+            x_axis_text_colour=WHITE_COLOUR,
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label='',
+            y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
-            output_file_name=panel_file_names[0, k], plot_colour_bar=True)
+            output_file_name=panel_file_names[0, k])
 
         this_title_string = 'Peirce score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -237,10 +240,12 @@ def _run():
                 peirce_score_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
+            x_axis_text_colour=WHITE_COLOUR,
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label='',
+            y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
-            output_file_name=panel_file_names[1, k], plot_colour_bar=True)
+            output_file_name=panel_file_names[1, k])
 
         this_title_string = 'Heidke skill score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -257,10 +262,12 @@ def _run():
                 hss_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
+            x_axis_text_colour=WHITE_COLOUR,
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label='',
+            y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
-            output_file_name=panel_file_names[2, k], plot_colour_bar=True)
+            output_file_name=panel_file_names[2, k])
 
         this_title_string = 'Accuracy; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
@@ -277,10 +284,12 @@ def _run():
                 accuracy_matrix, MAX_COLOUR_PERCENTILE),
             x_tick_labels=UNIQUE_IMAGE_SIZE_STRINGS,
             x_axis_label=IMAGE_SIZE_AXIS_LABEL,
+            x_axis_text_colour=BLACK_COLOUR,
             y_tick_labels=UNIQUE_PREDICTOR_ABBREV_STRINGS,
-            y_axis_label=this_y_axis_label,
+            y_axis_label='',
+            y_axis_text_colour=this_y_axis_text_colour,
             title_string=this_title_string,
-            output_file_name=panel_file_names[3, k], plot_colour_bar=True)
+            output_file_name=panel_file_names[3, k])
 
     for m in range(4):
         second_image_object = Image.open(panel_file_names[m, 1])
