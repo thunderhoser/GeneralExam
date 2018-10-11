@@ -39,7 +39,7 @@ FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
-MIN_FRONTAL_GRID_CELLS_ARG_NAME = 'min_frontal_grid_cells'
+MIN_FRONTS_ARG_NAME = 'min_num_fronts'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 FRONTAL_GRID_DIR_HELP_STRING = (
@@ -57,10 +57,10 @@ DILATION_DISTANCE_HELP_STRING = (
     'At each time step, both warm and cold fronts will be dilated with this '
     'distance buffer.')
 
-MIN_FRONTAL_GRID_CELLS_HELP_STRING = (
+MIN_FRONTS_HELP_STRING = (
     'Masking threshold.  Any grid cell with >= `{0:s}` fronts will be retained.'
     '  All other grid cells will be masked out.'
-).format(MIN_FRONTAL_GRID_CELLS_ARG_NAME)
+).format(MIN_FRONTS_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Results will be saved here.')
@@ -68,7 +68,7 @@ OUTPUT_DIR_HELP_STRING = (
 DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
 DEFAULT_DILATION_DISTANCE_METRES = 50000.
-DEFAULT_MIN_FRONTAL_GRID_CELLS = 100
+DEFAULT_MIN_FRONTS = 100
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -88,9 +88,9 @@ INPUT_ARG_PARSER.add_argument(
     help=DILATION_DISTANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_FRONTAL_GRID_CELLS_ARG_NAME, type=int, required=False,
-    default=DEFAULT_MIN_FRONTAL_GRID_CELLS,
-    help=MIN_FRONTAL_GRID_CELLS_HELP_STRING)
+    '--' + MIN_FRONTS_ARG_NAME, type=int, required=False,
+    default=DEFAULT_MIN_FRONTS,
+    help=MIN_FRONTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -98,7 +98,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_front_densities(
-        num_fronts_matrix, colour_map_object, annotation_string,
+        num_fronts_matrix, colour_map_object, title_string, annotation_string,
         output_file_name, mask_matrix=None, add_colour_bar=True):
     """Plots number of fronts at each NARR grid cell.
 
@@ -108,6 +108,7 @@ def _plot_front_densities(
     :param num_fronts_matrix: M-by-N numpy array with number of fronts at each
         grid cell.
     :param colour_map_object: Instance of `matplotlib.pyplot.cm`.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output (image) file.  The figure will be
@@ -157,6 +158,7 @@ def _plot_front_densities(
             colour_max=max_colour_value, orientation='horizontal',
             extend_min=False, extend_max=True)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -169,7 +171,7 @@ def _plot_front_densities(
 
 
 def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
-         dilation_distance_metres, min_frontal_grid_cells, output_dir_name):
+         dilation_distance_metres, min_num_fronts, output_dir_name):
     """Creates mask, indicating where human forecasters usually draw fronts.
 
     This is effectively the main method.
@@ -178,13 +180,13 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param dilation_distance_metres: Same.
-    :param min_frontal_grid_cells: Same.
+    :param min_num_fronts: Same.
     :param output_dir_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
-    error_checking.assert_is_greater(min_frontal_grid_cells, 0)
+    error_checking.assert_is_greater(min_num_fronts, 0)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -242,9 +244,9 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
     print SEPARATOR_STRING
 
     print 'Masking out grid cells with < {0:d} fronts...'.format(
-        min_frontal_grid_cells)
+        min_num_fronts)
     num_both_fronts_matrix = num_warm_fronts_matrix + num_cold_fronts_matrix
-    mask_matrix = (num_both_fronts_matrix >= min_frontal_grid_cells).astype(int)
+    mask_matrix = (num_both_fronts_matrix >= min_num_fronts).astype(int)
 
     pickle_file_name = '{0:s}/narr_mask.p'.format(output_dir_name)
     print 'Writing mask to: "{0:s}"...'.format(pickle_file_name)
@@ -255,7 +257,8 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
         output_dir_name)
     _plot_front_densities(
         num_fronts_matrix=num_warm_fronts_matrix,
-        colour_map_object=WARM_FRONT_COLOUR_MAP_OBJECT, annotation_string='(a)',
+        colour_map_object=WARM_FRONT_COLOUR_MAP_OBJECT,
+        title_string='Number of warm fronts', annotation_string='(a)',
         output_file_name=warm_front_map_file_name, mask_matrix=None,
         add_colour_bar=True)
 
@@ -263,17 +266,22 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
         output_dir_name)
     _plot_front_densities(
         num_fronts_matrix=num_cold_fronts_matrix,
-        colour_map_object=COLD_FRONT_COLOUR_MAP_OBJECT, annotation_string='(b)',
+        colour_map_object=COLD_FRONT_COLOUR_MAP_OBJECT,
+        title_string='Number of cold fronts', annotation_string='(b)',
         output_file_name=cold_front_map_file_name, mask_matrix=None,
         add_colour_bar=True)
 
+    both_fronts_title_string = r'Grid cells with $\ge$ {0:d} fronts'.format(
+        min_num_fronts)
     both_fronts_map_file_name = '{0:s}/num_both_fronts.jpg'.format(
         output_dir_name)
     num_both_fronts_matrix[num_both_fronts_matrix > 1] = 1
+
     _plot_front_densities(
         num_fronts_matrix=num_both_fronts_matrix,
         colour_map_object=BOTH_FRONTS_COLOUR_MAP_OBJECT,
-        annotation_string='(c)', output_file_name=both_fronts_map_file_name,
+        title_string=both_fronts_title_string, annotation_string='(c)',
+        output_file_name=both_fronts_map_file_name,
         mask_matrix=mask_matrix, add_colour_bar=False)
 
 
@@ -287,6 +295,6 @@ if __name__ == '__main__':
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         dilation_distance_metres=getattr(
             INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME),
-        min_frontal_grid_cells=getattr(
-            INPUT_ARG_OBJECT, MIN_FRONTAL_GRID_CELLS_ARG_NAME),
+        min_num_fronts=getattr(
+            INPUT_ARG_OBJECT, MIN_FRONTS_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))

@@ -19,7 +19,8 @@ NUM_COLUMNS_AFTER_POOLING = 3
 MIN_FEATURE_VALUE = -5
 MAX_FEATURE_VALUE = 5
 POSSIBLE_KERNEL_VALUES = numpy.array([-1, -0.5, 0, 0.5, 1])
-COLOUR_MAP_OBJECT = pyplot.cm.binary
+COLOUR_MAP_OBJECT = pyplot.cm.spring
+HIGHLIGHTED_VALUE = 0.
 
 LINE_WIDTH = 4
 LINE_COLOUR = numpy.full(3, 0.)
@@ -67,11 +68,17 @@ def _plot_feature_map_before_conv():
         size=(NUM_ROWS_BEFORE_POOLING, NUM_COLUMNS_BEFORE_POOLING)
     )
 
+    dummy_matrix = numpy.full(
+        (NUM_ROWS_BEFORE_POOLING, NUM_COLUMNS_BEFORE_POOLING), numpy.nan)
+    dummy_matrix[:3, :3] = HIGHLIGHTED_VALUE
+    dummy_matrix = numpy.ma.masked_where(
+        numpy.isnan(dummy_matrix), dummy_matrix)
+
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
     pyplot.imshow(
-        feature_matrix, cmap=COLOUR_MAP_OBJECT, vmin=LARGE_NUMBER,
-        vmax=LARGE_NUMBER + 1, axes=axes_object, origin='upper')
+        dummy_matrix, cmap=COLOUR_MAP_OBJECT, vmin=HIGHLIGHTED_VALUE - 1,
+        vmax=HIGHLIGHTED_VALUE, axes=axes_object, origin='upper')
     pyplot.xticks([], [])
     pyplot.yticks([], [])
 
@@ -87,11 +94,11 @@ def _plot_feature_map_before_conv():
                 fontsize=OVERLAY_FONT_SIZE, color=this_colour,
                 horizontalalignment='center', verticalalignment='center')
 
-    polygon_x_coords = numpy.array([0, 3, 3, 0, 0], dtype=float) - 0.5
-    polygon_y_coords = numpy.array([3, 3, 0, 0, 3], dtype=float) - 0.5
-    axes_object.plot(
-        polygon_x_coords, polygon_y_coords, color=LINE_COLOUR,
-        linewidth=LINE_WIDTH)
+    # polygon_x_coords = numpy.array([0, 3, 3, 0, 0], dtype=float) - 0.5
+    # polygon_y_coords = numpy.array([3, 3, 0, 0, 3], dtype=float) - 0.5
+    # axes_object.plot(
+    #     polygon_x_coords, polygon_y_coords, color=LINE_COLOUR,
+    #     linewidth=LINE_WIDTH)
 
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string='(a)',
@@ -122,11 +129,14 @@ def _plot_kernel():
         a=POSSIBLE_KERNEL_VALUES,
         size=(NUM_ROWS_IN_KERNEL, NUM_COLUMNS_IN_KERNEL), replace=True)
 
+    dummy_matrix = numpy.full(
+        (NUM_ROWS_IN_KERNEL, NUM_COLUMNS_IN_KERNEL), HIGHLIGHTED_VALUE)
+
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
     pyplot.imshow(
-        kernel_matrix, cmap=COLOUR_MAP_OBJECT, vmin=LARGE_NUMBER,
-        vmax=LARGE_NUMBER + 1, axes=axes_object, origin='upper')
+        dummy_matrix, cmap=COLOUR_MAP_OBJECT, vmin=HIGHLIGHTED_VALUE - 1,
+        vmax=HIGHLIGHTED_VALUE, axes=axes_object, origin='upper')
     pyplot.xticks([], [])
     pyplot.yticks([], [])
 
@@ -186,11 +196,14 @@ def _plot_feature_map_after_conv(feature_matrix):
     :param feature_matrix: Feature map as M-by-N numpy array.
     """
 
+    dummy_matrix = numpy.full(feature_matrix.shape, numpy.nan)
+    dummy_matrix[:2, :2] = HIGHLIGHTED_VALUE
+
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
     pyplot.imshow(
-        feature_matrix, cmap=COLOUR_MAP_OBJECT, vmin=LARGE_NUMBER,
-        vmax=LARGE_NUMBER + 1, axes=axes_object, origin='upper')
+        dummy_matrix, cmap=COLOUR_MAP_OBJECT, vmin=HIGHLIGHTED_VALUE - 1,
+        vmax=HIGHLIGHTED_VALUE, axes=axes_object, origin='upper')
     pyplot.xticks([], [])
     pyplot.yticks([], [])
 
@@ -206,11 +219,11 @@ def _plot_feature_map_after_conv(feature_matrix):
                 fontsize=OVERLAY_FONT_SIZE, color=this_colour,
                 horizontalalignment='center', verticalalignment='center')
 
-    polygon_x_coords = numpy.array([0, 2, 2, 0, 0], dtype=float) - 0.5
-    polygon_y_coords = numpy.array([2, 2, 0, 0, 2], dtype=float) - 0.5
-    axes_object.plot(
-        polygon_x_coords, polygon_y_coords, color=LINE_COLOUR,
-        linewidth=LINE_WIDTH)
+    # polygon_x_coords = numpy.array([0, 2, 2, 0, 0], dtype=float) - 0.5
+    # polygon_y_coords = numpy.array([2, 2, 0, 0, 2], dtype=float) - 0.5
+    # axes_object.plot(
+    #     polygon_x_coords, polygon_y_coords, color=LINE_COLOUR,
+    #     linewidth=LINE_WIDTH)
 
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string='(c)',
@@ -258,11 +271,14 @@ def _plot_feature_map_after_pooling(feature_matrix):
     :param feature_matrix: Feature map as m-by-n numpy array.
     """
 
+    dummy_matrix = numpy.full(feature_matrix.shape, numpy.nan)
+    dummy_matrix[0, 0] = HIGHLIGHTED_VALUE
+
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES))
     pyplot.imshow(
-        feature_matrix, cmap=COLOUR_MAP_OBJECT, vmin=LARGE_NUMBER,
-        vmax=LARGE_NUMBER + 1, axes=axes_object, origin='upper')
+        dummy_matrix, cmap=COLOUR_MAP_OBJECT, vmin=HIGHLIGHTED_VALUE - 1,
+        vmax=HIGHLIGHTED_VALUE, axes=axes_object, origin='upper')
     pyplot.xticks([], [])
     pyplot.yticks([], [])
 

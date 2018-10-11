@@ -132,8 +132,8 @@ def _get_front_lengths(front_line_table):
     return front_lengths_metres
 
 
-def _plot_histogram(num_fronts_by_bin, front_type_string, annotation_string,
-                    output_file_name):
+def _plot_histogram(num_fronts_by_bin, front_type_string, title_string,
+                    annotation_string, output_file_name):
     """Plots histogram of either cold-front or warm-front lengths.
 
     B = number of bins
@@ -142,6 +142,7 @@ def _plot_histogram(num_fronts_by_bin, front_type_string, annotation_string,
         bin.
     :param front_type_string: Front type (must be accepted by
         `front_utils.check_front_type`).
+    :param title_string: Figure title (will be placed above the figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -195,6 +196,7 @@ def _plot_histogram(num_fronts_by_bin, front_type_string, annotation_string,
     pyplot.xlabel('Front length (km)')
     pyplot.ylabel('Frequency')
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -275,7 +277,8 @@ def _run():
     _plot_histogram(
         num_fronts_by_bin=num_warm_fronts_by_bin,
         front_type_string=front_utils.WARM_FRONT_STRING_ID,
-        annotation_string='(a)', output_file_name=WARM_FRONT_FILE_NAME)
+        title_string='Warm fronts', annotation_string='(a)',
+        output_file_name=WARM_FRONT_FILE_NAME)
 
     _, num_cold_fronts_by_bin = histograms.create_histogram(
         input_values=cold_front_lengths_metres, num_bins=NUM_BINS,
@@ -287,7 +290,8 @@ def _run():
     _plot_histogram(
         num_fronts_by_bin=num_cold_fronts_by_bin,
         front_type_string=front_utils.COLD_FRONT_STRING_ID,
-        annotation_string='(b)', output_file_name=COLD_FRONT_FILE_NAME)
+        title_string='Cold fronts', annotation_string='(b)',
+        output_file_name=COLD_FRONT_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
     imagemagick_utils.concatenate_images(

@@ -38,10 +38,11 @@ PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
 FRONT_LINE_WIDTH = 8
-# BORDER_COLOUR = numpy.full(3, 152. / 255)
 BORDER_COLOUR = numpy.full(3, 0.)
 WARM_FRONT_COLOUR = numpy.array([217., 95., 2.]) / 255
 COLD_FRONT_COLOUR = numpy.array([117., 112., 179.]) / 255
+# WARM_FRONT_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
+# COLD_FRONT_COLOUR = numpy.array([141, 160, 203], dtype=float) / 255
 
 THERMAL_COLOUR_MAP_OBJECT = pyplot.cm.YlGn
 MIN_COLOUR_PERCENTILE = 1.
@@ -79,11 +80,18 @@ SHORT_LINE_TIME_STRINGS = ['2017-12-06-06']
 MORPH_CHANGE_TIME_STRINGS = ['2017-12-06-12', '2017-12-06-15']
 INCONSISTENCY_TIME_STRINGS = ['2017-12-08-00', '2017-12-08-03', '2017-12-08-06']
 
+SHORT_LINE_TITLE_STRINGS = ['0600 UTC 6 Dec 2017']
+MORPH_CHANGE_TITLE_STRINGS = ['1200 UTC 6 Dec 2017', '1500 UTC 6 Dec 2017']
+INCONSISTENCY_TITLE_STRINGS = [
+    '0000 UTC 8 Dec 2017', '0300 UTC 8 Dec 2017', '0600 UTC 8 Dec 2017'
+]
 
-def _plot_one_time(valid_time_string, annotation_string):
+
+def _plot_one_time(valid_time_string, title_string, annotation_string):
     """Plots WPC fronts and NARR fields at one time.
 
     :param valid_time_string: Valid time ("yyyy-mm-dd-HH").
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :return: figure_file_name: Path to output file (where the figure was saved).
@@ -218,6 +226,7 @@ def _plot_one_time(valid_time_string, annotation_string):
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -247,6 +256,7 @@ def _run():
     for k in range(len(INCONSISTENCY_TIME_STRINGS)):
         these_file_names.append(
             _plot_one_time(valid_time_string=INCONSISTENCY_TIME_STRINGS[k],
+                           title_string=INCONSISTENCY_TITLE_STRINGS[k],
                            annotation_string=annotation_strings[k])
         )
         print '\n'
@@ -263,11 +273,13 @@ def _run():
     print SEPARATOR_STRING
 
     these_time_strings = MORPH_CHANGE_TIME_STRINGS + SHORT_LINE_TIME_STRINGS
+    these_title_strings = MORPH_CHANGE_TITLE_STRINGS + SHORT_LINE_TITLE_STRINGS
     these_file_names = []
 
     for k in range(len(these_time_strings)):
         these_file_names.append(
             _plot_one_time(valid_time_string=these_time_strings[k],
+                           title_string=these_title_strings[k],
                            annotation_string=annotation_strings[k])
         )
         print '\n'
