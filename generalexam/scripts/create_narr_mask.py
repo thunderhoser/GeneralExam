@@ -3,6 +3,8 @@
 This mask will be defined over the NARR grid.
 """
 
+import os.path
+import warnings
 import argparse
 import numpy
 import matplotlib
@@ -209,7 +211,13 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
             top_directory_name=top_frontal_grid_dir_name,
             file_type=fronts_io.GRIDDED_FILE_TYPE,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            raise_error_if_missing=True)
+            raise_error_if_missing=False)
+        if not os.path.isfile(this_file_name):
+            warning_string = (
+                'POTENTIAL PROBLEM.  Cannot find file: "{0:s}"'
+            ).format(this_file_name)
+            warnings.warn(warning_string)
+            continue
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
