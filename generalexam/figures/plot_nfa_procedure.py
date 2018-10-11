@@ -36,6 +36,7 @@ TFP_COLOUR_MAP_OBJECT = pyplot.cm.PRGn
 LOCATING_VAR_COLOUR_MAP_OBJECT = pyplot.cm.RdBu
 MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
+COLOUR_BAR_LENGTH_FRACTION = 0.9
 
 WIND_COLOUR_MAP_OBJECT = pyplot.cm.binary
 WIND_BARB_LENGTH = 8
@@ -189,8 +190,9 @@ def _init_basemap(border_colour):
     return narr_row_limits, narr_column_limits, axes_object, basemap_object
 
 
-def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
-                      v_wind_matrix_m_s01, annotation_string, output_file_name):
+def _plot_narr_fields(
+        wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01, v_wind_matrix_m_s01,
+        title_string, annotation_string, output_file_name):
     """Plots NARR fields.
 
     M = number of rows in grid
@@ -201,6 +203,7 @@ def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
     :param u_wind_matrix_m_s01: M-by-N numpy array of u-wind components (metres
         per second).
     :param v_wind_matrix_m_s01: Same but for v-wind.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -241,7 +244,8 @@ def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
             wet_bulb_theta_matrix_to_plot, MIN_COLOUR_PERCENTILE),
         colour_max=numpy.nanpercentile(
             wet_bulb_theta_matrix_to_plot, MAX_COLOUR_PERCENTILE),
-        orientation='horizontal', extend_min=True, extend_max=True)
+        orientation='horizontal', extend_min=True, extend_max=True,
+        fraction_of_axis_length=COLOUR_BAR_LENGTH_FRACTION)
 
     nwp_plotting.plot_wind_barbs_on_subgrid(
         u_wind_matrix_m_s01=u_wind_matrix_to_plot,
@@ -257,6 +261,7 @@ def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
         colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
         colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -268,13 +273,15 @@ def _plot_narr_fields(wet_bulb_theta_matrix_kelvins, u_wind_matrix_m_s01,
                                       output_file_name=output_file_name)
 
 
-def _plot_tfp(tfp_matrix_kelvins_m02, annotation_string, output_file_name):
+def _plot_tfp(tfp_matrix_kelvins_m02, title_string, annotation_string,
+              output_file_name):
     """Plots TFP (thermal front parameter).
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param tfp_matrix_kelvins_m02: M-by-N numpy array of TFP values.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -306,8 +313,9 @@ def _plot_tfp(tfp_matrix_kelvins_m02, annotation_string, output_file_name):
         values_to_colour=matrix_to_plot,
         colour_map=TFP_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='horizontal', extend_min=True,
-        extend_max=True)
+        extend_max=True, fraction_of_axis_length=COLOUR_BAR_LENGTH_FRACTION)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -320,7 +328,8 @@ def _plot_tfp(tfp_matrix_kelvins_m02, annotation_string, output_file_name):
 
 
 def _plot_locating_variable(
-        locating_var_matrix_m01_s01, annotation_string, output_file_name):
+        locating_var_matrix_m01_s01, title_string, annotation_string,
+        output_file_name):
     """Plots locating variable.
 
     M = number of rows in grid
@@ -328,6 +337,7 @@ def _plot_locating_variable(
 
     :param locating_var_matrix_m01_s01: M-by-N numpy array with values of
         locating variable.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
     figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -360,8 +370,9 @@ def _plot_locating_variable(
         values_to_colour=matrix_to_plot,
         colour_map=LOCATING_VAR_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='horizontal', extend_min=True,
-        extend_max=True)
+        extend_max=True, fraction_of_axis_length=COLOUR_BAR_LENGTH_FRACTION)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -373,8 +384,8 @@ def _plot_locating_variable(
                                       output_file_name=output_file_name)
 
 
-def _plot_front_types(
-        predicted_label_matrix, annotation_string, output_file_name):
+def _plot_front_types(predicted_label_matrix, title_string, annotation_string,
+                      output_file_name):
     """Plots front type at each grid cell.
 
     M = number of rows in grid
@@ -383,6 +394,7 @@ def _plot_front_types(
     :param predicted_label_matrix: M-by-N numpy array with predicted front type
         at each grid cell.  Each front type is from the list
         `front_utils.VALID_INTEGER_IDS`.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
     figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -402,6 +414,7 @@ def _plot_front_types(
         first_row_in_narr_grid=narr_row_limits[0],
         first_column_in_narr_grid=narr_column_limits[0])
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -484,7 +497,8 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     _plot_narr_fields(
         wet_bulb_theta_matrix_kelvins=wet_bulb_theta_matrix_kelvins,
         u_wind_matrix_m_s01=u_wind_matrix_m_s01,
-        v_wind_matrix_m_s01=v_wind_matrix_m_s01, annotation_string='(a)',
+        v_wind_matrix_m_s01=v_wind_matrix_m_s01,
+        title_string='Predictors before smoothing', annotation_string='(a)',
         output_file_name=unsmoothed_narr_file_name)
 
     wet_bulb_theta_matrix_kelvins = nfa.gaussian_smooth_2d_field(
@@ -507,7 +521,8 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     _plot_narr_fields(
         wet_bulb_theta_matrix_kelvins=wet_bulb_theta_matrix_kelvins,
         u_wind_matrix_m_s01=u_wind_matrix_m_s01,
-        v_wind_matrix_m_s01=v_wind_matrix_m_s01, annotation_string='(b)',
+        v_wind_matrix_m_s01=v_wind_matrix_m_s01,
+        title_string='Predictors after smoothing', annotation_string='(b)',
         output_file_name=smoothed_narr_file_name)
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
@@ -519,8 +534,11 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     tfp_matrix_kelvins_m02[narr_mask_matrix == 0] = 0.
 
     tfp_file_name = '{0:s}/tfp.jpg'.format(output_dir_name)
+    tfp_title_string = (
+        r'Thermal front parameter ($\times$ 10$^{-10}$ K m$^{-2}$)')
     _plot_tfp(tfp_matrix_kelvins_m02=tfp_matrix_kelvins_m02,
-              annotation_string='(c)', output_file_name=tfp_file_name)
+              title_string=tfp_title_string, annotation_string='(c)',
+              output_file_name=tfp_file_name)
 
     proj_velocity_matrix_m_s01 = nfa.project_wind_to_thermal_gradient(
         u_matrix_grid_relative_m_s01=u_wind_matrix_m_s01,
@@ -534,9 +552,12 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
 
     locating_var_file_name = '{0:s}/locating_variable.jpg'.format(
         output_dir_name)
+    locating_var_title_string = (
+        r'Locating variable ($\times$ 10$^{-9}$ K m$^{-1}$ s$^{-1}$)')
     _plot_locating_variable(
         locating_var_matrix_m01_s01=locating_var_matrix_m01_s01,
-        annotation_string='(d)', output_file_name=locating_var_file_name)
+        title_string=locating_var_title_string, annotation_string='(d)',
+        output_file_name=locating_var_file_name)
 
     predicted_label_matrix = nfa.get_front_types(
         locating_var_matrix_m01_s01=locating_var_matrix_m01_s01,
@@ -546,7 +567,8 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
     unclosed_fronts_file_name = '{0:s}/unclosed_fronts.jpg'.format(
         output_dir_name)
     _plot_front_types(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(e)',
+        predicted_label_matrix=predicted_label_matrix,
+        title_string='Frontal regions before closing', annotation_string='(e)',
         output_file_name=unclosed_fronts_file_name)
 
     predicted_label_matrix = front_utils.close_frontal_image(
@@ -555,7 +577,8 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
 
     closed_fronts_file_name = '{0:s}/closed_fronts.jpg'.format(output_dir_name)
     _plot_front_types(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(f)',
+        predicted_label_matrix=predicted_label_matrix,
+        title_string='Frontal regions after closing', annotation_string='(f)',
         output_file_name=closed_fronts_file_name)
 
     concat_file_name = '{0:s}/nfa_procedure.jpg'.format(output_dir_name)

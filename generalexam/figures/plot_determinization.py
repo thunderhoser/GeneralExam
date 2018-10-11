@@ -48,13 +48,14 @@ CONCAT_FILE_NAME = (
 
 
 def _plot_predictions(
-        output_file_name, annotation_string, class_probability_matrix=None,
-        predicted_label_matrix=None):
+        output_file_name, title_string, annotation_string,
+        class_probability_matrix=None, predicted_label_matrix=None):
     """Plots predicted front locations or probabilities.
 
     :param output_file_name: Path to output file (figure will be saved here).
     :param class_probability_matrix: See doc for
         `machine_learning_utils.write_gridded_predictions`.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param predicted_label_matrix: See doc for `target_matrix` in
@@ -151,6 +152,7 @@ def _plot_predictions(
             orientation='vertical', extend_min=True, extend_max=False,
             fraction_of_axis_length=AXIS_LENGTH_FRACTION_FOR_CBAR)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -183,7 +185,8 @@ def _run():
             ][numpy.isnan(class_probability_matrix[..., this_id])] = 0.
 
     _plot_predictions(
-        output_file_name=BEFORE_FILE_NAME, annotation_string='(a)',
+        output_file_name=BEFORE_FILE_NAME,
+        title_string='Probabilistic predictions', annotation_string='(a)',
         class_probability_matrix=class_probability_matrix)
 
     predicted_label_matrix = object_eval.determinize_probabilities(
@@ -191,7 +194,8 @@ def _run():
         binarization_threshold=BINARIZATION_THRESHOLD)
 
     _plot_predictions(
-        output_file_name=AFTER_FILE_NAME, annotation_string='(b)',
+        output_file_name=AFTER_FILE_NAME,
+        title_string='Deterministic predictions', annotation_string='(b)',
         predicted_label_matrix=predicted_label_matrix)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)

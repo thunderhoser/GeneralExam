@@ -56,11 +56,13 @@ CONCAT_FILE_NAME = (
 
 
 def _plot_predictions(
-        predicted_label_matrix, annotation_string, output_file_name):
+        predicted_label_matrix, title_string, annotation_string,
+        output_file_name):
     """Plots predicted front locations.
 
     :param predicted_label_matrix: See doc for `target_matrix` in
         `machine_learning_utils.write_gridded_predictions`.
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -108,6 +110,7 @@ def _plot_predictions(
         first_row_in_narr_grid=narr_row_limits[0],
         first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -144,7 +147,8 @@ def _run():
         binarization_threshold=BINARIZATION_THRESHOLD)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(a)',
+        predicted_label_matrix=predicted_label_matrix,
+        title_string='All frontal regions', annotation_string='(a)',
         output_file_name=ALL_REGIONS_FILE_NAME)
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -170,7 +174,8 @@ def _run():
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(b)',
+        predicted_label_matrix=predicted_label_matrix,
+        title_string='Large frontal regions', annotation_string='(b)',
         output_file_name=LARGE_REGIONS_FILE_NAME)
 
     predicted_region_table = object_eval.skeletonize_frontal_regions(
@@ -181,7 +186,8 @@ def _run():
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(c)',
+        predicted_label_matrix=predicted_label_matrix,
+        title_string='All skeleton lines', annotation_string='(c)',
         output_file_name=ALL_SKELETONS_FILE_NAME)
 
     predicted_region_table = object_eval.find_main_skeletons(
@@ -196,7 +202,8 @@ def _run():
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
-        predicted_label_matrix=predicted_label_matrix, annotation_string='(d)',
+        predicted_label_matrix=predicted_label_matrix,
+        title_string='Main skeleton lines', annotation_string='(d)',
         output_file_name=MAIN_SKELETONS_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
