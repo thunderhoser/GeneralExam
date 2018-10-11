@@ -22,7 +22,8 @@ from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
 
 ZERO_CELSIUS_IN_KELVINS = 273.15
-TIME_FORMAT = '%Y%m%d%H'
+INPUT_TIME_FORMAT = '%Y%m%d%H'
+OUTPUT_TIME_FORMAT = '%H00 UTC %-d %b %Y'
 
 MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
@@ -103,10 +104,11 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_observations_one_time(
-        valid_time_string, annotation_string, output_file_name):
+        valid_time_string, title_string, annotation_string, output_file_name):
     """Plots observations (NARR predictors and WPC fronts) for one valid time.
 
     :param valid_time_string: Valid time (format "yyyy-mm-dd-HH").
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param output_file_name: Path to output file (figure will be saved here).
@@ -120,7 +122,7 @@ def _plot_observations_one_time(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
-        valid_time_string, TIME_FORMAT)
+        valid_time_string, INPUT_TIME_FORMAT)
     front_file_name = fronts_io.find_file_for_one_time(
         top_directory_name=TOP_FRONT_DIR_NAME,
         file_type=fronts_io.POLYLINE_FILE_TYPE,
@@ -247,6 +249,7 @@ def _plot_observations_one_time(
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -260,12 +263,13 @@ def _plot_observations_one_time(
 
 
 def _plot_predictions_one_time(
-        output_file_name, annotation_string, predicted_label_matrix=None,
-        class_probability_matrix=None, plot_warm_colour_bar=True,
-        plot_cold_colour_bar=True):
+        output_file_name, title_string, annotation_string,
+        predicted_label_matrix=None, class_probability_matrix=None,
+        plot_warm_colour_bar=True, plot_cold_colour_bar=True):
     """Plots predictions (objects or probability grid) for one valid time.
 
     :param output_file_name: Path to output file (figure will be saved here).
+    :param title_string: Title (will be placed above figure).
     :param annotation_string: Text annotation (will be placed in top left of
         figure).
     :param predicted_label_matrix: See doc for `target_matrix` in
@@ -373,6 +377,7 @@ def _plot_predictions_one_time(
                 orientation='vertical', extend_min=True, extend_max=False,
                 fraction_of_axis_length=LENGTH_FRACTION_FOR_PROB_COLOUR_BAR)
 
+    pyplot.title(title_string)
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
@@ -399,7 +404,7 @@ def _run(valid_time_strings):
         exact_dimensions=numpy.array([num_times]))
 
     valid_times_unix_sec = numpy.array(
-        [time_conversion.string_to_unix_sec(s, TIME_FORMAT)
+        [time_conversion.string_to_unix_sec(s, INPUT_TIME_FORMAT)
          for s in valid_time_strings],
         dtype=int)
 
@@ -427,8 +432,14 @@ def _run(valid_time_strings):
 
         figure_file_names[0, i] = '{0:s}/gridded_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
+        this_title_string = 'Gridded predictions for {0:s}'.format(
+            time_conversion.unix_sec_to_string(
+                valid_times_unix_sec[i], OUTPUT_TIME_FORMAT)
+        )
+
         _plot_predictions_one_time(
             output_file_name=figure_file_names[0, i],
+            title_string=this_title_string,
             annotation_string=GRIDDED_PREDICTION_PANEL_LABELS[i],
             class_probability_matrix=this_probability_matrix,
             plot_warm_colour_bar=i == 0,
@@ -444,15 +455,27 @@ def _run(valid_time_strings):
 
         figure_file_names[1, i] = '{0:s}/object_predictions_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
+        this_title_string = 'Object-based predictions for {0:s}'.format(
+            time_conversion.unix_sec_to_string(
+                valid_times_unix_sec[i], OUTPUT_TIME_FORMAT)
+        )
+
         _plot_predictions_one_time(
             output_file_name=figure_file_names[1, i],
+            title_string=this_title_string,
             annotation_string=OBJECT_PREDICTION_PANEL_LABELS[i],
             predicted_label_matrix=this_predicted_label_matrix)
 
         figure_file_names[2, i] = '{0:s}/observations_{1:s}.jpg'.format(
             OUTPUT_DIR_NAME, valid_time_strings[i])
+        this_title_string = 'Observations at {0:s}'.format(
+            time_conversion.unix_sec_to_string(
+                valid_times_unix_sec[i], OUTPUT_TIME_FORMAT)
+        )
+
         _plot_observations_one_time(
             valid_time_string=valid_time_strings[i],
+            title_string=this_title_string,
             annotation_string=OBSERVATION_PANEL_LABELS[i],
             output_file_name=figure_file_names[2, i])
         print '\n'
