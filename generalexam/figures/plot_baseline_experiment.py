@@ -63,7 +63,7 @@ UNIQUE_MIN_AREA_STRINGS = [
     for a in UNIQUE_MIN_AREAS_METRES2
 ]
 
-MIN_LENGTH_AXIS_LABEL = 'Minimum length ($\times$ 100 km)'
+MIN_LENGTH_AXIS_LABEL = r'Minimum length ($\times$ 100 km)'
 MIN_AREA_AXIS_LABEL = r'Minimum area ($\times$ 10$^4$ km$^2$)'
 
 EXPERIMENT_DIR_ARG_NAME = 'input_experiment_dir_name'

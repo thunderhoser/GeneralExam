@@ -29,9 +29,9 @@ OVERLAY_COLOUR = numpy.full(3, 0.)
 OVERLAY_FONT_SIZE = 50
 COLOUR_MAP_OPACITY = 0.75
 
-THETA_GRADIENT_STRING = r'$\vec{\nabla}\theta$'
+THETA_GRADIENT_STRING = r'$\vec{\nabla}\tau$'
 GRADIENT_GRADIENT_STRING = (
-    r'$\vec{\nabla} \left \| \left \| \vec{\nabla}\theta \right \| \right \|$')
+    r'$\vec{\nabla} \left \| \left \| \vec{\nabla}\tau \right \| \right \|$')
 TFP_POSITIVE_STRING = r'TFP $>$ 0'
 TFP_NEGATIVE_STRING = r'TFP $<$ 0'
 TFP_MIN_STRING = 'TFP = min'
@@ -159,7 +159,7 @@ def _plot_temperature_grid(temperature_matrix_kelvins):
         orientation='vertical', extend_min=False, extend_max=False)
 
     colour_bar_object.set_ticks([])
-    colour_bar_object.set_label('Temperature')
+    colour_bar_object.set_label(r'Thermal variable ($\tau$)')
 
     pyplot.xticks([], [])
     pyplot.yticks([], [])
