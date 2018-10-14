@@ -224,7 +224,7 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
                 this_last_time_unix_sec = target_times_unix_sec[i - 1]
                 this_output_file_name = (
                     trainval_io.find_downsized_3d_example_file(
-                        directory_name=output_dir_name,
+                        top_directory_name=output_dir_name,
                         first_target_time_unix_sec=this_first_time_unix_sec,
                         last_target_time_unix_sec=this_last_time_unix_sec,
                         raise_error_if_missing=False)
@@ -273,7 +273,7 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
     if this_example_dict is not None:
         this_last_time_unix_sec = target_times_unix_sec[-1]
         this_output_file_name = trainval_io.find_downsized_3d_example_file(
-            directory_name=output_dir_name,
+            top_directory_name=output_dir_name,
             first_target_time_unix_sec=this_first_time_unix_sec,
             last_target_time_unix_sec=this_last_time_unix_sec,
             raise_error_if_missing=False)

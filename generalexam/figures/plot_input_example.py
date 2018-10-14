@@ -186,7 +186,7 @@ def _run():
         first_row_in_full_grid=first_narr_row_index,
         last_row_in_full_grid=last_narr_row_index,
         first_column_in_full_grid=first_narr_column_index,
-        last_column_in_full_grid=last_narr_column_index)
+        last_column_in_full_grid=last_narr_column_index, resolution_string='i')
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
