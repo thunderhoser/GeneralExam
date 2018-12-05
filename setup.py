@@ -40,7 +40,6 @@ PACKAGE_REQUIREMENTS = [
     'pyproj',
     'opencv-python',
     'matplotlib',
-    'basemap',
     'pandas',
     'shapely',
     'astar',
