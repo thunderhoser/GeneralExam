@@ -25,6 +25,7 @@ CLASSIFIERS = [
 # pip.  They can both be installed by "git clone" and "python setup.py install",
 # the normal way one installs a GitHub package.
 #
+# https://github.com/matplotlib/basemap
 # https://github.com/sharppy/SHARPpy
 # https://github.com/thunderhoser/GewitterGefahr
 
