@@ -215,7 +215,7 @@ def _run(input_file_name, num_panel_rows, predictor_colour_map_name,
             contour_interval=this_contour_interval,
             line_width=saliency_contour_line_width)
 
-        this_figure_file_name = '{0:s}/example{1:d}_saliency.jpg'.format(
+        this_figure_file_name = '{0:s}/example{1:06d}_saliency.jpg'.format(
             output_dir_name, i)
 
         print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)

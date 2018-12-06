@@ -173,7 +173,7 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
                 this_max_cval_by_predictor[k] = numpy.percentile(
                     this_combined_matrix[..., k], max_colour_percentile)
 
-        this_figure_file_name = '{0:s}/example{1:d}_original.jpg'.format(
+        this_figure_file_name = '{0:s}/example{1:06d}_original.jpg'.format(
             original_output_dir_name, i)
 
         example_plotting.plot_many_2d_grids(
@@ -187,7 +187,7 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
-        this_figure_file_name = '{0:s}/example{1:d}_optimized.jpg'.format(
+        this_figure_file_name = '{0:s}/example{1:06d}_optimized.jpg'.format(
             optimized_output_dir_name, i)
 
         example_plotting.plot_many_2d_grids(
