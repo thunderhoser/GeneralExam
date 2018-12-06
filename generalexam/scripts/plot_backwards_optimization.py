@@ -57,7 +57,7 @@ SAME_COLOUR_MAP_HELP_STRING = (
     ' example and predictor.')
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.')
+    'Name of top-level output directory.  Figures will be saved here.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -91,7 +91,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(input_file_name, num_panel_rows, colour_map_name,
          min_colour_percentile, max_colour_percentile,
-         same_cmap_for_all_predictors, output_dir_name):
+         same_cmap_for_all_predictors, top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
@@ -102,11 +102,16 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
     :param min_colour_percentile: Same.
     :param max_colour_percentile: Same.
     :param same_cmap_for_all_predictors: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
+    original_output_dir_name = '{0:s}/original'.format(top_output_dir_name)
+    optimized_output_dir_name = '{0:s}/optimized'.format(top_output_dir_name)
+
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=original_output_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=optimized_output_dir_name)
 
     error_checking.assert_is_geq(min_colour_percentile, 0.)
     error_checking.assert_is_leq(max_colour_percentile, 100.)
@@ -169,7 +174,7 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
                     this_combined_matrix[..., k], max_colour_percentile)
 
         this_figure_file_name = '{0:s}/example{1:d}_original.jpg'.format(
-            output_dir_name, i)
+            original_output_dir_name, i)
 
         example_plotting.plot_many_2d_grids(
             predictor_matrix_3d=original_predictor_matrix[i, ...],
@@ -183,7 +188,7 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
         pyplot.close()
 
         this_figure_file_name = '{0:s}/example{1:d}_optimized.jpg'.format(
-            output_dir_name, i)
+            optimized_output_dir_name, i)
 
         example_plotting.plot_many_2d_grids(
             predictor_matrix_3d=optimized_predictor_matrix[i, ...],
@@ -210,5 +215,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         same_cmap_for_all_predictors=bool(getattr(
             INPUT_ARG_OBJECT, SAME_COLOUR_MAP_ARG_NAME)),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
