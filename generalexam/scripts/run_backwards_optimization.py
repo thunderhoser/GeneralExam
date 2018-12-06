@@ -234,7 +234,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             optimized_predictor_matrix[i, ...] = (
                 backwards_opt.optimize_input_for_class(
                     model_object=model_object, target_class=target_class,
-                    init_function_or_matrices=[predictor_matrix[i, ...]],
+                    init_function_or_matrices=[predictor_matrix[[i], ...]],
                     num_iterations=num_iterations, learning_rate=learning_rate
                 )[0]
             )
@@ -249,7 +249,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
                 backwards_opt.optimize_input_for_neuron_activation(
                     model_object=model_object, layer_name=layer_name,
                     neuron_indices=neuron_indices,
-                    init_function_or_matrices=[predictor_matrix[i, ...]],
+                    init_function_or_matrices=[predictor_matrix[[i], ...]],
                     num_iterations=num_iterations, learning_rate=learning_rate,
                     ideal_activation=ideal_activation
                 )[0]
@@ -265,7 +265,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
                 backwards_opt.optimize_input_for_channel_activation(
                     model_object=model_object, layer_name=layer_name,
                     channel_index=channel_index,
-                    init_function_or_matrices=[predictor_matrix[i, ...]],
+                    init_function_or_matrices=[predictor_matrix[[i], ...]],
                     stat_function_for_neuron_activations=K.max,
                     num_iterations=num_iterations, learning_rate=learning_rate,
                     ideal_activation=ideal_activation
