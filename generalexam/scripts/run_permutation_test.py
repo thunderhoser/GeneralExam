@@ -143,12 +143,12 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         first_target_time_unix_sec=first_time_unix_sec,
         last_target_time_unix_sec=last_time_unix_sec)
 
-    num_times = min([num_times, example_file_names])
+    num_times = min([num_times, len(example_file_names)])
     random.shuffle(example_file_names)
     example_file_names = example_file_names[:num_times]
 
     predictor_matrix = None
-    target_values = numpy.array([], dtype=int)
+    target_matrix = None
     print SEPARATOR_STRING
 
     for i in range(num_times):
@@ -180,23 +180,24 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
 
         this_predictor_matrix = this_example_dict[
             trainval_io.PREDICTOR_MATRIX_KEY][these_example_indices, ...]
-        these_target_values = numpy.argmax(
-            this_example_dict[trainval_io.TARGET_MATRIX_KEY][
-                these_example_indices, ...],
-            axis=1)
+        this_target_matrix = this_example_dict[
+            trainval_io.TARGET_MATRIX_KEY][these_example_indices, ...]
 
         if predictor_matrix is None:
             predictor_matrix = this_predictor_matrix + 0.
+            target_matrix = this_target_matrix + 0
         else:
             predictor_matrix = numpy.concatenate(
                 (predictor_matrix, this_predictor_matrix), axis=0)
+            target_matrix = numpy.concatenate(
+                (target_matrix, this_target_matrix), axis=0)
 
-        target_values = numpy.concatenate((target_values, these_target_values))
-        print 'Number of examples in memory = {0:d}\n'.format(
-            len(target_values))
+        num_examples_by_class = numpy.sum(target_matrix, axis=0)
+        print 'Number of examples in each class: {0:s}\n'.format(
+            str(num_examples_by_class))
 
     print SEPARATOR_STRING
-    return predictor_matrix, target_values
+    return predictor_matrix, numpy.argmax(target_matrix, axis=1)
 
 
 def _run(model_file_name, top_example_dir_name, first_time_string,
