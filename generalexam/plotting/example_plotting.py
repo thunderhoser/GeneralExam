@@ -63,10 +63,10 @@ def plot_2d_grid(
         colour_norm_object=None, min_colour_value=None, max_colour_value=None,
         annotation_string=None):
     """Plots 2-D grid (one field at one time) as colour map.
-    
+
     M = number of rows in grid
     N = number of columns in grid
-    
+
     :param predictor_matrix_2d: M-by-N numpy array of values to plot (either
         normalized or unnormalized -- this method doesn't care).
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
@@ -137,6 +137,8 @@ def plot_many_2d_grids(
     :param max_colour_value_by_predictor:
         [used only if `cnorm_object_by_predictor is None`]
         length-P numpy array with max value in each colour scheme.
+    :return: figure_object: See doc for `_create_paneled_figure`.
+    :return: axes_objects_2d_list: Same.
     :raises: TypeError: if `cmap_object_by_predictor` is not a list;
         if `cnorm_object_by_predictor` is neither None nor list.
     :raises: ValueError: if `cmap_object_by_predictor` or
@@ -238,3 +240,5 @@ def plot_many_2d_grids(
             colour_map=cmap_object_by_predictor[k],
             colour_norm_object=cnorm_object_by_predictor[k],
             orientation='vertical')
+
+    return figure_object, axes_objects_2d_list
