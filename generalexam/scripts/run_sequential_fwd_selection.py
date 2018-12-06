@@ -32,6 +32,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
 )))
 
+LARGE_INTEGER = int(1e10)
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -42,13 +43,11 @@ ORIG_MODEL_FILE_ARG_NAME = 'orig_model_file_name'
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
-NUM_TRAINING_TIMES_ARG_NAME = 'num_training_times'
-NUM_EXAMPLES_PER_TTIME_ARG_NAME = 'num_ex_per_training_time'
+NUM_TRAINING_EXAMPLES_ARG_NAME = 'num_training_examples'
 VALIDN_DIR_ARG_NAME = 'input_validn_dir_name'
 FIRST_VALIDN_TIME_ARG_NAME = 'first_validn_time_string'
 LAST_VALIDN_TIME_ARG_NAME = 'last_validn_time_string'
-NUM_VALIDN_TIMES_ARG_NAME = 'num_validn_times'
-NUM_EXAMPLES_PER_VTIME_ARG_NAME = 'num_ex_per_validn_time'
+NUM_VALIDN_EXAMPLES_ARG_NAME = 'num_validn_examples'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 ORIG_MODEL_FILE_HELP_STRING = (
@@ -68,15 +67,9 @@ TRAINING_TIME_HELP_STRING = (
     'the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
 
-NUM_TRAINING_TIMES_HELP_STRING = (
-    'Number of training times (will be sampled randomly from '
-    '`{0:s}`...`{1:s}`).'
-).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
-
-NUM_EXAMPLES_PER_TTIME_HELP_STRING = (
-    'Number of examples for each training time.  The total number of training '
-    'examples will be `{0:s} * {1:s}`.'
-).format(NUM_TRAINING_TIMES_ARG_NAME, NUM_EXAMPLES_PER_TTIME_ARG_NAME)
+NUM_TRAINING_EXAMPLES_HELP_STRING = (
+    'Number of training examples (will be sampled randomly from `{0:s}`).'
+).format(TRAINING_DIR_ARG_NAME)
 
 VALIDN_DIR_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
     TRAINING_DIR_ARG_NAME)
@@ -87,11 +80,8 @@ FIRST_VALIDN_TIME_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
 LAST_VALIDN_TIME_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
     LAST_TRAINING_TIME_ARG_NAME)
 
-NUM_VALIDN_TIMES_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
-    NUM_TRAINING_TIMES_ARG_NAME)
-
-NUM_EXAMPLES_PER_VTIME_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
-    NUM_EXAMPLES_PER_TTIME_ARG_NAME)
+NUM_VALIDN_EXAMPLES_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
+    NUM_TRAINING_EXAMPLES_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output (Pickle) file.  Will be written by '
@@ -115,12 +105,8 @@ INPUT_ARG_PARSER.add_argument(
     help=TRAINING_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_TRAINING_TIMES_ARG_NAME, type=int, required=True,
-    help=NUM_TRAINING_TIMES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_PER_TTIME_ARG_NAME, type=int, required=True,
-    help=NUM_EXAMPLES_PER_TTIME_HELP_STRING)
+    '--' + NUM_TRAINING_EXAMPLES_ARG_NAME, type=int, required=True,
+    help=NUM_TRAINING_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + VALIDN_DIR_ARG_NAME, type=str, required=True,
@@ -135,12 +121,8 @@ INPUT_ARG_PARSER.add_argument(
     help=LAST_VALIDN_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_VALIDN_TIMES_ARG_NAME, type=int, required=True,
-    help=NUM_VALIDN_TIMES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_PER_VTIME_ARG_NAME, type=int, required=True,
-    help=NUM_EXAMPLES_PER_VTIME_HELP_STRING)
+    '--' + NUM_VALIDN_EXAMPLES_ARG_NAME, type=int, required=True,
+    help=NUM_VALIDN_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -222,7 +204,7 @@ def _create_model_builder(orig_model_object):
 
 
 def _read_examples(top_example_dir_name, first_time_string, last_time_string,
-                   num_times, num_examples_per_time, model_metadata_dict):
+                   num_examples, model_metadata_dict):
     """Reads learning examples for either training or validation.
 
     :param top_example_dir_name: See doc for either `top_training_dir_name` or
@@ -231,10 +213,8 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         `top_validn_dir_name` at top of file.
     :param last_time_string: See doc for either `top_training_dir_name` or
         `top_validn_dir_name` at top of file.
-    :param num_times: See doc for either `top_training_dir_name` or
-        `top_validn_dir_name` at top of file.
-    :param num_examples_per_time: See doc for either `top_training_dir_name` or
-        `top_validn_dir_name` at top of file.
+    :param num_examples: See doc for either `num_training_examples` or
+        `num_validn_examples` at top of file.
     :param model_metadata_dict: Dictionary (created by
         `traditional_cnn.read_model_metadata`) for original model, whose
         architecture will be mostly copied to train the new models.
@@ -244,8 +224,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         class labels).
     """
 
-    error_checking.assert_is_greater(num_times, 0)
-    error_checking.assert_is_geq(num_examples_per_time, 10)
+    error_checking.assert_is_geq(num_examples, 100)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -253,22 +232,17 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         last_time_string, INPUT_TIME_FORMAT)
 
     example_file_names = trainval_io.find_downsized_3d_example_files(
-        top_directory_name=top_example_dir_name, shuffled=False,
-        first_target_time_unix_sec=first_time_unix_sec,
-        last_target_time_unix_sec=last_time_unix_sec)
-
-    num_times = min([num_times, len(example_file_names)])
-    random.shuffle(example_file_names)
-    example_file_names = example_file_names[:num_times]
+        top_directory_name=top_example_dir_name, shuffled=True,
+        first_batch_number=0, last_batch_number=LARGE_INTEGER)
 
     predictor_matrix = None
     target_matrix = None
 
-    for i in range(num_times):
-        print 'Reading data from: "{0:s}"...'.format(example_file_names[i])
+    for this_example_file_name in example_file_names:
+        print 'Reading data from: "{0:s}"...'.format(this_example_file_name)
 
         this_example_dict = trainval_io.read_downsized_3d_examples(
-            netcdf_file_name=example_file_names[i],
+            netcdf_file_name=this_example_file_name,
             predictor_names_to_keep=model_metadata_dict[
                 traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
             num_half_rows_to_keep=model_metadata_dict[
@@ -278,23 +252,10 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
-        this_num_examples_total = this_example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY].shape[0]
-        this_num_examples_to_keep = min(
-            [num_examples_per_time, this_num_examples_total]
-        )
-
-        these_example_indices = numpy.linspace(
-            0, this_num_examples_total - 1, num=this_num_examples_total,
-            dtype=int)
-        these_example_indices = numpy.random.choice(
-            these_example_indices, size=this_num_examples_to_keep,
-            replace=False)
-
         this_predictor_matrix = this_example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY][these_example_indices, ...]
+            trainval_io.PREDICTOR_MATRIX_KEY]
         this_target_matrix = this_example_dict[
-            trainval_io.TARGET_MATRIX_KEY][these_example_indices, ...]
+            trainval_io.TARGET_MATRIX_KEY]
 
         if predictor_matrix is None:
             predictor_matrix = this_predictor_matrix + 0.
@@ -305,18 +266,24 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
             target_matrix = numpy.concatenate(
                 (target_matrix, this_target_matrix), axis=0)
 
+        if predictor_matrix.shape[0] > num_examples:
+            predictor_matrix = predictor_matrix[:num_examples, ...]
+            target_matrix = target_matrix[:num_examples, ...]
+
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
         print 'Number of examples in each class: {0:s}\n'.format(
             str(num_examples_by_class))
+
+        if predictor_matrix.shape[0] >= num_examples:
+            break
 
     return predictor_matrix, numpy.argmax(target_matrix, axis=1)
 
 
 def _run(orig_model_file_name, top_training_dir_name,
          first_training_time_string, last_training_time_string,
-         num_training_times, num_ex_per_training_time, top_validn_dir_name,
-         first_validn_time_string, last_validn_time_string, num_validn_times,
-         num_ex_per_validn_time, output_file_name):
+         num_training_examples, top_validn_dir_name, first_validn_time_string,
+         last_validn_time_string, num_validn_examples, output_file_name):
     """Runs sequential forward selection.
 
     This is effectively the main method.
@@ -325,13 +292,11 @@ def _run(orig_model_file_name, top_training_dir_name,
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
-    :param num_training_times: Same.
-    :param num_ex_per_training_time: Same.
+    :param num_training_examples: Same.
     :param top_validn_dir_name: Same.
     :param first_validn_time_string: Same.
     :param last_validn_time_string: Same.
-    :param num_validn_times: Same.
-    :param num_ex_per_validn_time: Same.
+    :param num_validn_examples: Same.
     :param output_file_name: Same.
     """
 
@@ -351,8 +316,7 @@ def _run(orig_model_file_name, top_training_dir_name,
         top_example_dir_name=top_training_dir_name,
         first_time_string=first_training_time_string,
         last_time_string=last_training_time_string,
-        num_times=num_training_times,
-        num_examples_per_time=num_ex_per_training_time,
+        num_examples=num_training_examples,
         model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
@@ -360,8 +324,7 @@ def _run(orig_model_file_name, top_training_dir_name,
         top_example_dir_name=top_validn_dir_name,
         first_time_string=first_validn_time_string,
         last_time_string=last_validn_time_string,
-        num_times=num_validn_times,
-        num_examples_per_time=num_ex_per_validn_time,
+        num_examples=num_validn_examples,
         model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
@@ -389,13 +352,11 @@ def _run(orig_model_file_name, top_training_dir_name,
         TRAINING_DIR_ARG_NAME: top_training_dir_name,
         FIRST_TRAINING_TIME_ARG_NAME: first_training_time_string,
         LAST_TRAINING_TIME_ARG_NAME: last_training_time_string,
-        NUM_TRAINING_TIMES_ARG_NAME: num_training_times,
-        NUM_EXAMPLES_PER_TTIME_ARG_NAME: num_ex_per_training_time,
+        NUM_TRAINING_EXAMPLES_ARG_NAME: num_training_examples,
         VALIDN_DIR_ARG_NAME: top_validn_dir_name,
         FIRST_VALIDN_TIME_ARG_NAME: first_validn_time_string,
         LAST_VALIDN_TIME_ARG_NAME: last_validn_time_string,
-        NUM_VALIDN_TIMES_ARG_NAME: num_validn_times,
-        NUM_EXAMPLES_PER_VTIME_ARG_NAME: num_ex_per_validn_time
+        NUM_VALIDN_EXAMPLES_ARG_NAME: num_validn_examples
     })
 
     print 'Writing results to: "{0:s}"...'.format(output_file_name)
@@ -413,18 +374,14 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, FIRST_TRAINING_TIME_ARG_NAME),
         last_training_time_string=getattr(
             INPUT_ARG_OBJECT, LAST_TRAINING_TIME_ARG_NAME),
-        num_training_times=getattr(
-            INPUT_ARG_OBJECT, NUM_TRAINING_TIMES_ARG_NAME),
-        num_ex_per_training_time=getattr(
-            INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_TTIME_ARG_NAME),
+        num_training_examples=getattr(
+            INPUT_ARG_OBJECT, NUM_TRAINING_EXAMPLES_ARG_NAME),
         top_validn_dir_name=getattr(INPUT_ARG_OBJECT, VALIDN_DIR_ARG_NAME),
         first_validn_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_VALIDN_TIME_ARG_NAME),
         last_validn_time_string=getattr(
             INPUT_ARG_OBJECT, LAST_VALIDN_TIME_ARG_NAME),
-        num_validn_times=getattr(
-            INPUT_ARG_OBJECT, NUM_VALIDN_TIMES_ARG_NAME),
-        num_ex_per_validn_time=getattr(
-            INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_VTIME_ARG_NAME),
+        num_validn_examples=getattr(
+            INPUT_ARG_OBJECT, NUM_VALIDN_EXAMPLES_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
