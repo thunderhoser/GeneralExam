@@ -63,7 +63,7 @@ NUM_EXAMPLES_PER_TIME_HELP_STRING = (
 ).format(NUM_TIMES_ARG_NAME, NUM_EXAMPLES_PER_TIME_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output (Pickle) file.  Will be written by'
+    'Path to output (Pickle) file.  Will be written by '
     '`permutation_importance.write_results`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -133,6 +133,9 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         class labels).
     """
 
+    error_checking.assert_is_greater(num_times, 0)
+    error_checking.assert_is_geq(num_examples_per_time, 10)
+
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -149,7 +152,6 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
 
     predictor_matrix = None
     target_matrix = None
-    print SEPARATOR_STRING
 
     for i in range(num_times):
         print 'Reading data from: "{0:s}"...'.format(example_file_names[i])
@@ -196,7 +198,6 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         print 'Number of examples in each class: {0:s}\n'.format(
             str(num_examples_by_class))
 
-    print SEPARATOR_STRING
     return predictor_matrix, numpy.argmax(target_matrix, axis=1)
 
 
@@ -215,9 +216,6 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
     :param output_file_name: Same.
     """
 
-    error_checking.assert_is_greater(num_times, 0)
-    error_checking.assert_is_geq(num_examples_per_time, 10)
-
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = traditional_cnn.read_keras_model(model_file_name)
 
@@ -229,11 +227,13 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
     model_metadata_dict = traditional_cnn.read_model_metadata(
         model_metafile_name)
 
+    print SEPARATOR_STRING
     predictor_matrix, target_values = _read_examples(
         top_example_dir_name=top_example_dir_name,
         first_time_string=first_time_string, last_time_string=last_time_string,
         num_times=num_times, num_examples_per_time=num_examples_per_time,
         model_metadata_dict=model_metadata_dict)
+    print SEPARATOR_STRING
 
     narr_predictor_names = model_metadata_dict[
         traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
