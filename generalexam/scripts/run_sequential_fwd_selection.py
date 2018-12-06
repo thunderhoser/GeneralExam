@@ -234,6 +234,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
     example_file_names = trainval_io.find_downsized_3d_example_files(
         top_directory_name=top_example_dir_name, shuffled=True,
         first_batch_number=0, last_batch_number=LARGE_INTEGER)
+    random.shuffle(example_file_names)
 
     predictor_matrix = None
     target_matrix = None

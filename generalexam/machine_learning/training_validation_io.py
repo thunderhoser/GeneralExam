@@ -1575,6 +1575,11 @@ def read_downsized_3d_examples(
             num_half_rows=num_half_rows_to_keep,
             num_half_columns=num_half_columns_to_keep)
 
+    print time_conversion.unix_sec_to_string(
+        numpy.min(target_times_unix_sec), TIME_FORMAT)
+    print time_conversion.unix_sec_to_string(
+        numpy.max(target_times_unix_sec), TIME_FORMAT)
+
     indices_to_keep = numpy.where(numpy.logical_and(
         target_times_unix_sec >= first_time_to_keep_unix_sec,
         target_times_unix_sec <= last_time_to_keep_unix_sec
