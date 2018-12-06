@@ -197,6 +197,11 @@ def _create_model_builder(orig_model_object):
             this_layer_dict['config'] = this_config_dict
 
         model_object = Model.from_config(model_dict)
+        model_object.compile(
+            loss=orig_model_object.loss_functions,
+            optimizer=orig_model_object.optimizer,
+            metrics=orig_model_object.metrics)
+
         model_object.summary()
         return model_object
 
