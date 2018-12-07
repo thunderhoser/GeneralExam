@@ -21,7 +21,6 @@ from gewittergefahr.deep_learning import sequential_selection
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import training_validation_io as trainval_io
 
-# TODO(thunderhoser): Stopping criteria should be input args to the script.
 # TODO(thunderhoser): Predictors and pressure level should also be input args to
 # the script.
 
@@ -36,9 +35,6 @@ LARGE_INTEGER = int(1e10)
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_TRAINING_EXAMPLES_PER_BATCH = 256
-NUM_EPOCHS = 10
-
 ORIG_MODEL_FILE_ARG_NAME = 'orig_model_file_name'
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
@@ -48,6 +44,11 @@ VALIDN_DIR_ARG_NAME = 'input_validn_dir_name'
 FIRST_VALIDN_TIME_ARG_NAME = 'first_validn_time_string'
 LAST_VALIDN_TIME_ARG_NAME = 'last_validn_time_string'
 NUM_VALIDN_EXAMPLES_ARG_NAME = 'num_validn_examples'
+NUM_TRAIN_EX_PER_BATCH_ARG_NAME = 'num_training_examples_per_batch'
+NUM_EPOCHS_ARG_NAME = 'num_epochs'
+MIN_LOSS_DECREASE_ARG_NAME = 'min_loss_decrease'
+MIN_PERCENT_DECREASE_ARG_NAME = 'min_percentage_loss_decrease'
+NUM_STEPS_FOR_DECREASE_ARG_NAME = 'num_steps_for_loss_decrease'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 ORIG_MODEL_FILE_HELP_STRING = (
@@ -83,9 +84,37 @@ LAST_VALIDN_TIME_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
 NUM_VALIDN_EXAMPLES_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
     NUM_TRAINING_EXAMPLES_ARG_NAME)
 
+NUM_TRAIN_EX_PER_BATCH_HELP_STRING = 'Number of training examples per batch.'
+
+NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
+
+MIN_LOSS_DECREASE_HELP_STRING = (
+    'Used to determine stopping criterion.  For details, see doc for '
+    '`sequential_selection.run_sfs`.  If you want to use `{0:s}` instead, make '
+    'this negative.'
+).format(MIN_PERCENT_DECREASE_ARG_NAME)
+
+MIN_PERCENT_DECREASE_HELP_STRING = (
+    'Used to determine stopping criterion.  For details, see doc for '
+    '`sequential_selection.run_sfs`.  If you want to use `{0:s}` instead, make '
+    'this negative.'
+).format(MIN_LOSS_DECREASE_ARG_NAME)
+
+NUM_STEPS_FOR_DECREASE_HELP_STRING = (
+    'Used to determine stopping criterion.  For details, see doc for '
+    '`sequential_selection.run_sfs`.')
+
 OUTPUT_FILE_HELP_STRING = (
     'Path to output (Pickle) file.  Will be written by '
     '`sequential_selection.write_results`.')
+
+NUM_TRAINING_EXAMPLES_DEFAULT = 5120
+NUM_VALIDN_EXAMPLES_DEFAULT = 5120
+NUM_TRAIN_EX_PER_BATCH_DEFAULT = 256
+NUM_EPOCHS_DEFAULT = 10
+MIN_LOSS_DECREASE_DEFAULT = -1.
+MIN_PERCENT_DECREASE_DEFAULT = 1.
+NUM_STEPS_FOR_DECREASE_DEFAULT = 10
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -105,7 +134,8 @@ INPUT_ARG_PARSER.add_argument(
     help=TRAINING_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_TRAINING_EXAMPLES_ARG_NAME, type=int, required=True,
+    '--' + NUM_TRAINING_EXAMPLES_ARG_NAME, type=int, required=False,
+    default=NUM_TRAINING_EXAMPLES_DEFAULT,
     help=NUM_TRAINING_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -121,8 +151,30 @@ INPUT_ARG_PARSER.add_argument(
     help=LAST_VALIDN_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_VALIDN_EXAMPLES_ARG_NAME, type=int, required=True,
+    '--' + NUM_VALIDN_EXAMPLES_ARG_NAME, type=int, required=False,
+    default=NUM_TRAINING_EXAMPLES_DEFAULT, help=NUM_VALIDN_EXAMPLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_TRAIN_EX_PER_BATCH_ARG_NAME, type=int, required=False,
+    default=NUM_TRAIN_EX_PER_BATCH_DEFAULT,
     help=NUM_VALIDN_EXAMPLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
+    default=NUM_EPOCHS_DEFAULT, help=NUM_EPOCHS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_LOSS_DECREASE_ARG_NAME, type=float, required=False,
+    default=MIN_LOSS_DECREASE_DEFAULT, help=MIN_LOSS_DECREASE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_PERCENT_DECREASE_ARG_NAME, type=float, required=False,
+    default=MIN_PERCENT_DECREASE_DEFAULT, help=MIN_PERCENT_DECREASE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_STEPS_FOR_DECREASE_ARG_NAME, type=int, required=False,
+    default=NUM_STEPS_FOR_DECREASE_DEFAULT,
+    help=NUM_STEPS_FOR_DECREASE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -289,7 +341,10 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
 def _run(orig_model_file_name, top_training_dir_name,
          first_training_time_string, last_training_time_string,
          num_training_examples, top_validn_dir_name, first_validn_time_string,
-         last_validn_time_string, num_validn_examples, output_file_name):
+         last_validn_time_string, num_validn_examples,
+         num_training_examples_per_batch, num_epochs, min_loss_decrease,
+         min_percentage_loss_decrease, num_steps_for_loss_decrease,
+         output_file_name):
     """Runs sequential forward selection.
 
     This is effectively the main method.
@@ -303,6 +358,11 @@ def _run(orig_model_file_name, top_training_dir_name,
     :param first_validn_time_string: Same.
     :param last_validn_time_string: Same.
     :param num_validn_examples: Same.
+    :param num_training_examples_per_batch: Same.
+    :param num_epochs: Same.
+    :param min_loss_decrease: Same.
+    :param min_percentage_loss_decrease: Same.
+    :param num_steps_for_loss_decrease: Same.
     :param output_file_name: Same.
     """
 
@@ -337,10 +397,9 @@ def _run(orig_model_file_name, top_training_dir_name,
     narr_predictor_names = model_metadata_dict[
         traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
 
-    # TODO(thunderhoser): These things should be input args to the script.
     training_function = sequential_selection.create_training_function(
-        num_training_examples_per_batch=NUM_TRAINING_EXAMPLES_PER_BATCH,
-        num_epochs=NUM_EPOCHS)
+        num_training_examples_per_batch=num_training_examples_per_batch,
+        num_epochs=num_epochs)
 
     result_dict = sequential_selection.run_sfs(
         list_of_training_matrices=[training_predictor_matrix],
@@ -350,7 +409,9 @@ def _run(orig_model_file_name, top_training_dir_name,
         predictor_names_by_matrix=[narr_predictor_names],
         model_builder=_create_model_builder(orig_model_object),
         training_function=training_function,
-        min_loss_decrease=0.01)
+        min_loss_decrease=min_loss_decrease,
+        min_percentage_loss_decrease=min_percentage_loss_decrease,
+        num_steps_for_loss_decrease=num_steps_for_loss_decrease)
     print SEPARATOR_STRING
 
     result_dict.update({
@@ -389,5 +450,13 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, LAST_VALIDN_TIME_ARG_NAME),
         num_validn_examples=getattr(
             INPUT_ARG_OBJECT, NUM_VALIDN_EXAMPLES_ARG_NAME),
+        num_training_examples_per_batch=getattr(
+            INPUT_ARG_OBJECT, NUM_TRAIN_EX_PER_BATCH_ARG_NAME),
+        num_epochs=getattr(INPUT_ARG_OBJECT, NUM_EPOCHS_ARG_NAME),
+        min_loss_decrease=getattr(INPUT_ARG_OBJECT, MIN_LOSS_DECREASE_ARG_NAME),
+        min_percentage_loss_decrease=getattr(
+            INPUT_ARG_OBJECT, MIN_PERCENT_DECREASE_ARG_NAME),
+        num_steps_for_loss_decrease=getattr(
+            INPUT_ARG_OBJECT, NUM_STEPS_FOR_DECREASE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
