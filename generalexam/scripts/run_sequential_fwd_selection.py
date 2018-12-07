@@ -36,7 +36,7 @@ LARGE_INTEGER = int(1e10)
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_TRAINING_EXAMPLES_PER_BATCH = 512
+NUM_TRAINING_EXAMPLES_PER_BATCH = 256
 NUM_EPOCHS = 10
 
 ORIG_MODEL_FILE_ARG_NAME = 'orig_model_file_name'
@@ -283,7 +283,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         if predictor_matrix.shape[0] >= num_examples:
             break
 
-    return predictor_matrix, numpy.argmax(target_matrix, axis=1)
+    return predictor_matrix, target_matrix
 
 
 def _run(orig_model_file_name, top_training_dir_name,
