@@ -283,7 +283,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         if predictor_matrix.shape[0] >= num_examples:
             break
 
-    return predictor_matrix, target_matrix
+    return predictor_matrix, numpy.argmax(target_matrix, axis=1)
 
 
 def _run(orig_model_file_name, top_training_dir_name,
