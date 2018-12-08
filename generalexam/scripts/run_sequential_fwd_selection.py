@@ -21,9 +21,6 @@ from gewittergefahr.deep_learning import sequential_selection
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import training_validation_io as trainval_io
 
-# TODO(thunderhoser): Predictors and pressure level should also be input args to
-# the script.
-
 random.seed(6695)
 numpy.random.seed(6695)
 
@@ -44,6 +41,7 @@ VALIDN_DIR_ARG_NAME = 'input_validn_dir_name'
 FIRST_VALIDN_TIME_ARG_NAME = 'first_validn_time_string'
 LAST_VALIDN_TIME_ARG_NAME = 'last_validn_time_string'
 NUM_VALIDN_EXAMPLES_ARG_NAME = 'num_validn_examples'
+NARR_PREDICTORS_ARG_NAME = 'narr_predictor_names'
 NUM_TRAIN_EX_PER_BATCH_ARG_NAME = 'num_training_examples_per_batch'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 MIN_LOSS_DECREASE_ARG_NAME = 'min_loss_decrease'
@@ -83,6 +81,12 @@ LAST_VALIDN_TIME_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
 
 NUM_VALIDN_EXAMPLES_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
     NUM_TRAINING_EXAMPLES_ARG_NAME)
+
+NARR_PREDICTORS_HELP_STRING = (
+    'List of predictor variables to test.  Each must be accepted by '
+    '`processed_narr_io.check_field_name`.  To test only predictors used in the'
+    ' original model (represented by `{0:s}`), leave this argument alone.'
+).format(ORIG_MODEL_FILE_ARG_NAME)
 
 NUM_TRAIN_EX_PER_BATCH_HELP_STRING = 'Number of training examples per batch.'
 
@@ -153,6 +157,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_VALIDN_EXAMPLES_ARG_NAME, type=int, required=False,
     default=NUM_TRAINING_EXAMPLES_DEFAULT, help=NUM_VALIDN_EXAMPLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NARR_PREDICTORS_ARG_NAME, type=str, nargs='+', required=False,
+    default=[''], help=NARR_PREDICTORS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TRAIN_EX_PER_BATCH_ARG_NAME, type=int, required=False,
@@ -341,7 +349,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
 def _run(orig_model_file_name, top_training_dir_name,
          first_training_time_string, last_training_time_string,
          num_training_examples, top_validn_dir_name, first_validn_time_string,
-         last_validn_time_string, num_validn_examples,
+         last_validn_time_string, num_validn_examples, narr_predictor_names,
          num_training_examples_per_batch, num_epochs, min_loss_decrease,
          min_percentage_loss_decrease, num_steps_for_loss_decrease,
          output_file_name):
@@ -358,6 +366,7 @@ def _run(orig_model_file_name, top_training_dir_name,
     :param first_validn_time_string: Same.
     :param last_validn_time_string: Same.
     :param num_validn_examples: Same.
+    :param narr_predictor_names: Same.
     :param num_training_examples_per_batch: Same.
     :param num_epochs: Same.
     :param min_loss_decrease: Same.
@@ -394,8 +403,11 @@ def _run(orig_model_file_name, top_training_dir_name,
         model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
-    narr_predictor_names = model_metadata_dict[
-        traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
+    # TODO(thunderhoser): I could make the code more efficient by making
+    # `narr_predictor_names` an input arg to `_read_examples`.
+    if narr_predictor_names[0] in ['', 'None']:
+        narr_predictor_names = model_metadata_dict[
+            traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
 
     training_function = sequential_selection.create_training_function(
         num_training_examples_per_batch=num_training_examples_per_batch,
@@ -450,6 +462,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, LAST_VALIDN_TIME_ARG_NAME),
         num_validn_examples=getattr(
             INPUT_ARG_OBJECT, NUM_VALIDN_EXAMPLES_ARG_NAME),
+        narr_predictor_names=getattr(
+            INPUT_ARG_OBJECT, NARR_PREDICTORS_ARG_NAME),
         num_training_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, NUM_TRAIN_EX_PER_BATCH_ARG_NAME),
         num_epochs=getattr(INPUT_ARG_OBJECT, NUM_EPOCHS_ARG_NAME),
