@@ -5,8 +5,7 @@ import argparse
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import \
-    feature_optimization as backwards_opt
+from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.deep_learning import model_interpretation
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import training_validation_io as trainval_io
@@ -275,17 +274,15 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         print SEPARATOR_STRING
 
     print 'Writing results to: "{0:s}"...'.format(output_file_name)
-    backwards_opt.write_file(
+    backwards_opt.write_results(
         pickle_file_name=output_file_name,
         list_of_optimized_input_matrices=[optimized_predictor_matrix],
         model_file_name=model_file_name,
         init_function_name_or_matrices=[predictor_matrix],
         num_iterations=num_iterations, learning_rate=learning_rate,
         component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0),
-        channel_indices=numpy.array([channel_index], dtype=int)
-    )
+        layer_name=layer_name, neuron_indices=neuron_indices,
+        channel_index=channel_index, ideal_activation=ideal_activation)
 
 
 if __name__ == '__main__':
