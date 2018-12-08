@@ -245,7 +245,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             ).format(i + 1, num_examples, str(neuron_indices), layer_name)
 
             optimized_predictor_matrix[i, ...] = (
-                backwards_opt.optimize_input_for_neuron_activation(
+                backwards_opt.optimize_input_for_neuron(
                     model_object=model_object, layer_name=layer_name,
                     neuron_indices=neuron_indices,
                     init_function_or_matrices=[predictor_matrix[[i], ...]],
@@ -261,7 +261,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             ).format(i + 1, num_examples, channel_index, layer_name)
 
             optimized_predictor_matrix[i, ...] = (
-                backwards_opt.optimize_input_for_channel_activation(
+                backwards_opt.optimize_input_for_channel(
                     model_object=model_object, layer_name=layer_name,
                     channel_index=channel_index,
                     init_function_or_matrices=[predictor_matrix[[i], ...]],
