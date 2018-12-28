@@ -154,7 +154,7 @@ def _trainval_generator(
 
         target_matrix = full_target_matrix[batch_indices, ...].astype('float32')
 
-        with get_default_graph().asdefault():
+        with get_default_graph().as_default():
             feature_matrix = partial_cnn_model_object.predict(
                 target_matrix, batch_size=num_examples_per_batch)
 
