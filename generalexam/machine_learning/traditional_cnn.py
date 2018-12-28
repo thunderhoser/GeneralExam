@@ -114,7 +114,7 @@ def get_flattening_layer(model_object):
     :raises: TypeError: if flattening layer cannot be found.
     """
 
-    layer_names = [lyr.name for lyr in model_object.layers]
+    layer_names = [str(lyr.name) for lyr in model_object.layers]
 
     flattening_flags = numpy.array(
         ['flatten' in n for n in layer_names], dtype=bool)
