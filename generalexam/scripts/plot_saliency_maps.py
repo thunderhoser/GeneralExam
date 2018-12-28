@@ -16,7 +16,6 @@ from generalexam.plotting import saliency_plotting
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 PREDICTOR_CMAP_ARG_NAME = 'predictor_colour_map_name'
 MIN_PREDICTOR_PRCTILE_ARG_NAME = 'min_colour_prctile_for_predictors'
 MAX_PREDICTOR_PRCTILE_ARG_NAME = 'max_colour_prctile_for_predictors'
@@ -28,14 +27,6 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_file`.')
-
-NUM_PANEL_ROWS_HELP_STRING = (
-    'Number of rows in each paneled figure.  Each figure corresponds to one '
-    'example, and each panel corresponds to one predictor for the given '
-    'example.  Each panel will contain a predictor field (colour fill) and '
-    'saliency field (overlain line contours).  Default value for `{0:s}` is '
-    'floor(sqrt(num_predictors)).'
-).format(NUM_PANEL_ROWS_ARG_NAME)
 
 PREDICTOR_CMAP_HELP_STRING = (
     'Name of colour map.  Each predictor will be plotted with the same colour '
@@ -82,10 +73,6 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_PANEL_ROWS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + PREDICTOR_CMAP_ARG_NAME, type=str, required=False, default='plasma',
     help=PREDICTOR_CMAP_HELP_STRING)
 
@@ -118,7 +105,7 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(input_file_name, num_panel_rows, predictor_colour_map_name,
+def _run(input_file_name, predictor_colour_map_name,
          min_colour_prctile_for_predictors, max_colour_prctile_for_predictors,
          saliency_colour_map_name, max_colour_prctile_for_saliency,
          saliency_contour_line_width, num_saliency_contours, output_dir_name):
@@ -127,7 +114,6 @@ def _run(input_file_name, num_panel_rows, predictor_colour_map_name,
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param num_panel_rows: Same.
     :param predictor_colour_map_name: Same.
     :param min_colour_prctile_for_predictors: Same.
     :param max_colour_prctile_for_predictors: Same.
@@ -175,9 +161,6 @@ def _run(input_file_name, num_panel_rows, predictor_colour_map_name,
     narr_predictor_names = model_metadata_dict[
         traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
     num_predictors = len(narr_predictor_names)
-    if num_panel_rows <= 0:
-        num_panel_rows = int(numpy.floor(numpy.sqrt(num_predictors)))
-
     num_examples = predictor_matrix.shape[0]
 
     for i in range(num_examples):
@@ -190,9 +173,9 @@ def _run(input_file_name, num_panel_rows, predictor_colour_map_name,
             this_max_cval_by_predictor[k] = numpy.percentile(
                 predictor_matrix[i, ..., k], max_colour_prctile_for_predictors)
 
-        _, these_axes_objects = example_plotting.plot_many_2d_grids(
-            predictor_matrix_3d=predictor_matrix[i, ...],
-            predictor_names=narr_predictor_names, num_panel_rows=num_panel_rows,
+        _, these_axes_objects = example_plotting.plot_many_predictors_sans_barbs(
+            predictor_matrix=predictor_matrix[i, ...],
+            predictor_names=narr_predictor_names,
             cmap_object_by_predictor=
             [predictor_colour_map_object] * num_predictors,
             min_colour_value_by_predictor=this_min_cval_by_predictor,
@@ -227,7 +210,6 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         predictor_colour_map_name=getattr(
             INPUT_ARG_OBJECT, PREDICTOR_CMAP_ARG_NAME),
         min_colour_prctile_for_predictors=getattr(

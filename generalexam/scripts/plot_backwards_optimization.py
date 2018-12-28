@@ -15,7 +15,6 @@ from generalexam.plotting import example_plotting
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MIN_PERCENTILE_ARG_NAME = 'min_colour_percentile'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
@@ -24,14 +23,6 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `backwards_opt.read_file`.')
-
-NUM_PANEL_ROWS_HELP_STRING = (
-    'Number of rows in each paneled figure.  Each figure corresponds to one '
-    'example, and each panel corresponds to one predictor for the given '
-    'example.  Two figures will be plotted for each example: the original '
-    '(example itself) and optimized versions.  Default value for `{0:s}` is '
-    'floor(sqrt(num_predictors)).'
-).format(NUM_PANEL_ROWS_ARG_NAME)
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map.  Each predictor will be plotted with the same colour '
@@ -65,10 +56,6 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_PANEL_ROWS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='plasma',
     help=COLOUR_MAP_HELP_STRING)
 
@@ -89,15 +76,14 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(input_file_name, num_panel_rows, colour_map_name,
-         min_colour_percentile, max_colour_percentile,
-         same_cmap_for_all_predictors, top_output_dir_name):
+def _run(input_file_name, colour_map_name, min_colour_percentile,
+         max_colour_percentile, same_cmap_for_all_predictors,
+         top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param num_panel_rows: Same.
     :param colour_map_name: Same.
     :param min_colour_percentile: Same.
     :param max_colour_percentile: Same.
@@ -130,7 +116,7 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
     del this_list
 
     original_predictor_matrix = backwards_opt_metadata_dict[
-        backwards_opt.INIT_FUNCTION_KEY][0]
+        backwards_opt.INIT_FUNCTION_NAME_KEY][0]
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=backwards_opt_metadata_dict[
@@ -144,8 +130,12 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
     narr_predictor_names = model_metadata_dict[
         traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
     num_predictors = len(narr_predictor_names)
-    if num_panel_rows <= 0:
-        num_panel_rows = int(numpy.floor(numpy.sqrt(num_predictors)))
+
+    try:
+        example_plotting.get_wind_indices(narr_predictor_names)
+        plot_wind_barbs = True
+    except ValueError:
+        plot_wind_barbs = False
 
     for i in range(num_examples):
         this_combined_matrix = numpy.concatenate(
@@ -176,12 +166,20 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
         this_figure_file_name = '{0:s}/example{1:06d}_original.jpg'.format(
             original_output_dir_name, i)
 
-        example_plotting.plot_many_2d_grids(
-            predictor_matrix_3d=original_predictor_matrix[i, ...],
-            predictor_names=narr_predictor_names, num_panel_rows=num_panel_rows,
-            cmap_object_by_predictor=[colour_map_object] * num_predictors,
-            min_colour_value_by_predictor=this_min_cval_by_predictor,
-            max_colour_value_by_predictor=this_max_cval_by_predictor)
+        if plot_wind_barbs:
+            example_plotting.plot_many_predictors_with_barbs(
+                predictor_matrix=original_predictor_matrix[i, ...],
+                predictor_names=narr_predictor_names,
+                cmap_object_by_predictor=[colour_map_object] * num_predictors,
+                min_colour_value_by_predictor=this_min_cval_by_predictor,
+                max_colour_value_by_predictor=this_max_cval_by_predictor)
+        else:
+            example_plotting.plot_many_predictors_sans_barbs(
+                predictor_matrix=original_predictor_matrix[i, ...],
+                predictor_names=narr_predictor_names,
+                cmap_object_by_predictor=[colour_map_object] * num_predictors,
+                min_colour_value_by_predictor=this_min_cval_by_predictor,
+                max_colour_value_by_predictor=this_max_cval_by_predictor)
 
         print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -190,12 +188,20 @@ def _run(input_file_name, num_panel_rows, colour_map_name,
         this_figure_file_name = '{0:s}/example{1:06d}_optimized.jpg'.format(
             optimized_output_dir_name, i)
 
-        example_plotting.plot_many_2d_grids(
-            predictor_matrix_3d=optimized_predictor_matrix[i, ...],
-            predictor_names=narr_predictor_names, num_panel_rows=num_panel_rows,
-            cmap_object_by_predictor=[colour_map_object] * num_predictors,
-            min_colour_value_by_predictor=this_min_cval_by_predictor,
-            max_colour_value_by_predictor=this_max_cval_by_predictor)
+        if plot_wind_barbs:
+            example_plotting.plot_many_predictors_with_barbs(
+                predictor_matrix=optimized_predictor_matrix[i, ...],
+                predictor_names=narr_predictor_names,
+                cmap_object_by_predictor=[colour_map_object] * num_predictors,
+                min_colour_value_by_predictor=this_min_cval_by_predictor,
+                max_colour_value_by_predictor=this_max_cval_by_predictor)
+        else:
+            example_plotting.plot_many_predictors_sans_barbs(
+                predictor_matrix=optimized_predictor_matrix[i, ...],
+                predictor_names=narr_predictor_names,
+                cmap_object_by_predictor=[colour_map_object] * num_predictors,
+                min_colour_value_by_predictor=this_min_cval_by_predictor,
+                max_colour_value_by_predictor=this_max_cval_by_predictor)
 
         print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -207,7 +213,6 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         min_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MIN_PERCENTILE_ARG_NAME),
