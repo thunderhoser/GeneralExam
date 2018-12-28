@@ -89,8 +89,19 @@ def _trainval_generator(
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
 
+    # TODO(thunderhoser): The following is a HACK.  It is necessary because,
+    # when `cnn.model_to_feature_generator` makes the flattening layer the
+    # output layer, I get an error that says:
+    #
+    # Tensor("flatten_1/Reshape:0", shape=(?, ?), dtype=float32) is not an
+    # element of this graph.
+
+    cnn_layer_names = [str(lyr.name) for lyr in cnn_model_object.layers]
+    this_layer_index = cnn_layer_names.index(cnn_feature_layer_name) - 1
+    this_layer_name = cnn_layer_names[this_layer_index]
+
     partial_cnn_model_object = cnn.model_to_feature_generator(
-        model_object=cnn_model_object, output_layer_name=cnn_feature_layer_name)
+        model_object=cnn_model_object, output_layer_name=this_layer_name)
 
     example_file_names = trainval_io.find_downsized_3d_example_files(
         top_directory_name=top_input_dir_name, shuffled=True,
@@ -143,6 +154,12 @@ def _trainval_generator(
         target_matrix = full_target_matrix[batch_indices, ...].astype('float32')
         feature_matrix = partial_cnn_model_object.predict(
             target_matrix, batch_size=num_examples_per_batch)
+
+        # TODO(thunderhoser): The following is also a HACK (related to the first
+        # hack).
+        num_features = numpy.prod(numpy.array(feature_matrix.shape)[1:])
+        feature_matrix = numpy.reshape(
+            feature_matrix, (num_examples_per_batch, num_features))
 
         num_examples_in_memory = 0
         full_target_matrix = None

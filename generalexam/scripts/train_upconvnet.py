@@ -205,8 +205,6 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
 
     cnn_feature_layer_name = traditional_cnn.get_flattening_layer(
         cnn_model_object)
-    print cnn_feature_layer_name
-    print type(cnn_feature_layer_name)
 
     cnn_feature_layer_object = cnn_model_object.get_layer(
         name=cnn_feature_layer_name)
