@@ -14,7 +14,9 @@ WIND_NAMES = [
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME
 ]
 
+TITLE_FONT_SIZE = 20
 DEFAULT_WIND_SPEED_SCALING_FACTOR = 0.2
+
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
@@ -134,6 +136,8 @@ def plot_wind_2d(u_wind_matrix, v_wind_matrix, axes_object=None,
         `wind_speed_scaling_factor` will correspond to a long line (which is
         usually 10 kt).
     """
+
+    error_checking.assert_is_greater(scaling_factor, 0.)
 
     if axes_object is None:
         _, axes_object = pyplot.subplots(
@@ -355,13 +359,14 @@ def plot_many_predictors_sans_barbs(
             if this_linear_index >= num_predictors:
                 break
 
-            this_colour_bar_object = plot_predictor_2d(
+            plot_predictor_2d(
                 predictor_matrix=predictor_matrix[..., this_linear_index],
                 colour_map_object=cmap_object_by_predictor[this_linear_index],
                 colour_norm_object=cnorm_object_by_predictor[this_linear_index],
                 axes_object=axes_objects_2d_list[i][j])
 
-            this_colour_bar_object.set_label(predictor_names[this_linear_index])
+            axes_objects_2d_list[i][j].set_title(
+                predictor_names[this_linear_index], fontsize=TITLE_FONT_SIZE)
 
     return figure_object, axes_objects_2d_list
 
@@ -407,16 +412,17 @@ def plot_many_predictors_with_barbs(
     for k in range(len(non_wind_predictor_names)):
         this_index = predictor_names.index(non_wind_predictor_names[k])
 
-        this_colour_bar_object = plot_predictor_2d(
+        plot_predictor_2d(
             predictor_matrix=predictor_matrix[..., this_index],
             colour_map_object=cmap_object_by_predictor[this_index],
             colour_norm_object=cnorm_object_by_predictor[this_index],
             axes_object=axes_objects_2d_list[k][0])
 
-        this_colour_bar_object.set_label(predictor_names[this_index])
-
         plot_wind_2d(u_wind_matrix=u_wind_matrix, v_wind_matrix=v_wind_matrix,
                      axes_object=axes_objects_2d_list[k][0],
                      scaling_factor=wind_speed_scaling_factor)
+
+        axes_objects_2d_list[k][0].set_title(
+            predictor_names[this_index], fontsize=TITLE_FONT_SIZE)
 
     return figure_object, axes_objects_2d_list
