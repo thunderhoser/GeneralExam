@@ -7,8 +7,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import \
-    feature_optimization as backwards_opt
+from gewittergefahr.deep_learning import backwards_optimization as bwo
 from generalexam.machine_learning import traditional_cnn
 from generalexam.plotting import example_plotting
 
@@ -22,7 +21,8 @@ SAME_COLOUR_MAP_ARG_NAME = 'same_cmap_for_all_predictors'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `backwards_opt.read_file`.')
+    'Path to input file.  Will be read by '
+    '`backwards_optimization.read_results`.')
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map.  Each predictor will be plotted with the same colour '
@@ -107,20 +107,15 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    this_list, backwards_opt_metadata_dict = (
-        backwards_opt.read_file(input_file_name)
-    )
+    this_list, bwo_metadata_dict = bwo.read_results(input_file_name)
 
     optimized_predictor_matrix = this_list[0]
     num_examples = optimized_predictor_matrix.shape[0]
     del this_list
 
-    original_predictor_matrix = backwards_opt_metadata_dict[
-        backwards_opt.INIT_FUNCTION_NAME_KEY][0]
-
+    original_predictor_matrix = bwo_metadata_dict[bwo.INIT_FUNCTION_KEY][0]
     model_metafile_name = traditional_cnn.find_metafile(
-        model_file_name=backwards_opt_metadata_dict[
-            backwards_opt.MODEL_FILE_NAME_KEY]
+        model_file_name=bwo_metadata_dict[bwo.MODEL_FILE_NAME_KEY]
     )
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
