@@ -103,6 +103,34 @@ NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME)
 
 
+def get_flattening_layer(model_object):
+    """Finds flattening layer in CNN.
+
+    This method assumes that there is only one flattening layer.  If there are
+    several, this method will return the first (shallowest).
+
+    :param model_object: Instance of `keras.models.Model`.
+    :return: layer_name: Name of flattening layer.
+    :raises: TypeError: if flattening layer cannot be found.
+    """
+
+    layer_names = [lyr.name for lyr in model_object.layers]
+
+    flattening_flags = numpy.array(
+        ['flatten' in n for n in layer_names], dtype=bool)
+    flattening_indices = numpy.where(flattening_flags)[0]
+
+    if len(flattening_indices) == 0:
+        error_string = (
+            'Cannot find flattening layer in model.  Layer names are listed '
+            'below.\n{0:s}'
+        ).format(str(layer_names))
+
+        raise TypeError(error_string)
+
+    return layer_names[flattening_indices[0]]
+
+
 def find_metafile(model_file_name, raise_error_if_missing=True):
     """Finds metafile (should be written by `write_model_metadata`).
 
