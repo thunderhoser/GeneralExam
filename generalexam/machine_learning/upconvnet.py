@@ -4,6 +4,7 @@ import pickle
 from random import shuffle
 import numpy
 import keras
+from tensorflow import get_default_graph
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -102,7 +103,6 @@ def _trainval_generator(
 
     partial_cnn_model_object = cnn.model_to_feature_generator(
         model_object=cnn_model_object, output_layer_name=this_layer_name)
-    partial_cnn_model_object._make_predict_function()
 
     example_file_names = trainval_io.find_downsized_3d_example_files(
         top_directory_name=top_input_dir_name, shuffled=True,
@@ -153,8 +153,10 @@ def _trainval_generator(
             num_examples_in_memory = full_target_matrix.shape[0]
 
         target_matrix = full_target_matrix[batch_indices, ...].astype('float32')
-        feature_matrix = partial_cnn_model_object.predict(
-            target_matrix, batch_size=num_examples_per_batch)
+
+        with get_default_graph().asdefault():
+            feature_matrix = partial_cnn_model_object.predict(
+                target_matrix, batch_size=num_examples_per_batch)
 
         # TODO(thunderhoser): The following is also a HACK (related to the first
         # hack).
