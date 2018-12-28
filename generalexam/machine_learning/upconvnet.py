@@ -4,7 +4,6 @@ import pickle
 from random import shuffle
 import numpy
 import keras
-from tensorflow import get_default_graph
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -153,10 +152,8 @@ def _trainval_generator(
             num_examples_in_memory = full_target_matrix.shape[0]
 
         target_matrix = full_target_matrix[batch_indices, ...].astype('float32')
-
-        with get_default_graph().as_default():
-            feature_matrix = partial_cnn_model_object.predict(
-                target_matrix, batch_size=num_examples_per_batch)
+        feature_matrix = partial_cnn_model_object.predict(
+            target_matrix, batch_size=num_examples_per_batch)
 
         # TODO(thunderhoser): The following is also a HACK (related to the first
         # hack).
@@ -382,7 +379,7 @@ def train_upconvnet(
         ucn_model_object.fit_generator(
             generator=training_generator,
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=list_of_callback_objects)
+            verbose=1, callbacks=list_of_callback_objects, workers=0)
 
         return
 
@@ -409,7 +406,7 @@ def train_upconvnet(
     ucn_model_object.fit_generator(
         generator=training_generator,
         steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-        verbose=1, callbacks=list_of_callback_objects,
+        verbose=1, callbacks=list_of_callback_objects, workers=0,
         validation_data=validation_generator,
         validation_steps=num_validation_batches_per_epoch)
 
