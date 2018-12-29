@@ -80,10 +80,14 @@ PREDICTOR_DIMENSION_KEY = 'predictor_variable'
 CHARACTER_DIMENSION_KEY = 'predictor_variable_char'
 CLASS_DIMENSION_KEY = 'class'
 
+FIRST_NORM_PARAM_KEY = 'first_normalization_param_matrix'
+SECOND_NORM_PARAM_KEY = 'second_normalization_param_matrix'
+
 MAIN_KEYS = [
     PREDICTOR_MATRIX_KEY, TARGET_MATRIX_KEY, TARGET_TIMES_KEY, ROW_INDICES_KEY,
-    COLUMN_INDICES_KEY
+    COLUMN_INDICES_KEY, FIRST_NORM_PARAM_KEY, SECOND_NORM_PARAM_KEY
 ]
+OPTIONAL_KEYS = [FIRST_NORM_PARAM_KEY, SECOND_NORM_PARAM_KEY]
 
 
 def _file_name_to_target_times(downsized_3d_file_name):
@@ -1077,7 +1081,9 @@ def prep_downsized_3d_examples_to_write(
         target_time_unix_sec, max_num_examples, top_narr_directory_name,
         top_frontal_grid_dir_name, narr_predictor_names,
         pressure_level_mb, dilation_distance_metres, class_fractions,
-        num_rows_in_half_grid, num_columns_in_half_grid, narr_mask_matrix=None):
+        num_rows_in_half_grid, num_columns_in_half_grid,
+        normalization_type_string=ml_utils.Z_SCORE_STRING,
+        narr_mask_matrix=None):
     """Prepares downsized 3-D examples for writing to a file.
 
     :param target_time_unix_sec: Target time.
@@ -1095,7 +1101,11 @@ def prep_downsized_3d_examples_to_write(
     :param num_rows_in_half_grid: See doc for
         `downsized_3d_example_generator`.
     :param num_columns_in_half_grid: Same.
-    :param narr_mask_matrix: Same.
+    :param normalization_type_string: Normalization type (see
+        `machine_learning_utils.normalize_predictors` for details).
+    :param narr_mask_matrix: See doc for
+        `downsized_3d_example_generator`.
+
     :return: example_dict: Dictionary with the following keys.
     example_dict['predictor_matrix']: E-by-M-by-N-by-C numpy array of predictor
         images.
@@ -1107,6 +1117,11 @@ def prep_downsized_3d_examples_to_write(
         center of each example.
     example_dict['column_indices']: length-E numpy array with NARR column at the
         center of each example.
+    example_dict['first_normalization_param_matrix']: E-by-C numpy array with
+        values of first normalization parameter (either minimum or mean value).
+    example_dict['second_normalization_param_matrix']: E-by-C numpy array with
+        values of second normalization parameter (either max value or standard
+        deviation).
     """
 
     error_checking.assert_is_numpy_array(
@@ -1143,8 +1158,9 @@ def prep_downsized_3d_examples_to_write(
 
     predictor_matrix = ml_utils.stack_predictor_variables(
         tuple_of_predictor_matrices)
-    predictor_matrix, _ = ml_utils.normalize_predictors(
-        predictor_matrix=predictor_matrix)
+    predictor_matrix, normalization_dict = ml_utils.normalize_predictors(
+        predictor_matrix=predictor_matrix,
+        normalization_type_string=normalization_type_string)
 
     print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
     frontal_grid_table = fronts_io.read_narr_grids_from_file(
@@ -1177,7 +1193,7 @@ def prep_downsized_3d_examples_to_write(
     print 'Fraction of examples in each class: {0:s}'.format(
         str(actual_class_fractions))
 
-    return {
+    example_dict = {
         PREDICTOR_MATRIX_KEY: predictor_matrix,
         TARGET_MATRIX_KEY: target_matrix,
         TARGET_TIMES_KEY:
@@ -1185,6 +1201,23 @@ def prep_downsized_3d_examples_to_write(
         ROW_INDICES_KEY: row_indices,
         COLUMN_INDICES_KEY: column_indices
     }
+
+    if normalization_type_string == ml_utils.MINMAX_STRING:
+        example_dict.update({
+            FIRST_NORM_PARAM_KEY:
+                normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY],
+            SECOND_NORM_PARAM_KEY:
+                normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY]
+        })
+    else:
+        example_dict.update({
+            FIRST_NORM_PARAM_KEY:
+                normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY],
+            SECOND_NORM_PARAM_KEY:
+                normalization_dict[ml_utils.STDEV_MATRIX_KEY]
+        })
+
+    return example_dict
 
 
 def find_downsized_3d_example_file(
@@ -1357,15 +1390,18 @@ def write_downsized_3d_examples(
         existing file if necessary.
     """
 
-    error_checking.assert_is_string_list(narr_predictor_names)
-    num_predictors = example_dict[PREDICTOR_MATRIX_KEY].shape[3]
-    error_checking.assert_is_numpy_array(
-        numpy.array(narr_predictor_names),
-        exact_dimensions=numpy.array([num_predictors]))
-
+    # Check input args.
     error_checking.assert_is_integer(pressure_level_mb)
     error_checking.assert_is_greater(pressure_level_mb, 0)
     error_checking.assert_is_geq(dilation_distance_metres, 0.)
+    error_checking.assert_is_boolean(append_to_file)
+
+    num_predictors = example_dict[PREDICTOR_MATRIX_KEY].shape[3]
+
+    error_checking.assert_is_string_list(narr_predictor_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(narr_predictor_names),
+        exact_dimensions=numpy.array([num_predictors]))
 
     num_narr_rows, num_narr_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -1374,19 +1410,21 @@ def write_downsized_3d_examples(
             (num_narr_rows, num_narr_columns), 1, dtype=int)
 
     ml_utils.check_narr_mask(narr_mask_matrix)
-    error_checking.assert_is_boolean(append_to_file)
 
+    # Do other stuff.
     if append_to_file:
         netcdf_dataset = netCDF4.Dataset(
             netcdf_file_name, 'a', format='NETCDF3_64BIT_OFFSET')
 
         orig_predictor_names = netCDF4.chartostring(
-            netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
+            netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:]
+        )
         orig_predictor_names = [str(s) for s in orig_predictor_names]
         assert orig_predictor_names == narr_predictor_names
 
         orig_pressure_level_mb = int(
-            getattr(netcdf_dataset, PRESSURE_LEVEL_KEY))
+            getattr(netcdf_dataset, PRESSURE_LEVEL_KEY)
+        )
         assert orig_pressure_level_mb == pressure_level_mb
 
         orig_dilation_distance_metres = getattr(
@@ -1442,17 +1480,20 @@ def write_downsized_3d_examples(
 
     string_type = 'S{0:d}'.format(num_predictor_chars)
     predictor_names_as_char_array = netCDF4.stringtochar(numpy.array(
-        narr_predictor_names, dtype=string_type))
+        narr_predictor_names, dtype=string_type
+    ))
 
     netcdf_dataset.createVariable(
         PREDICTOR_NAMES_KEY, datatype='S1',
-        dimensions=(PREDICTOR_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
+        dimensions=(PREDICTOR_DIMENSION_KEY, CHARACTER_DIMENSION_KEY)
+    )
     netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:] = numpy.array(
         predictor_names_as_char_array)
 
     netcdf_dataset.createVariable(
         NARR_MASK_KEY, datatype=numpy.int32,
-        dimensions=(NARR_ROW_DIMENSION_KEY, NARR_COLUMN_DIMENSION_KEY))
+        dimensions=(NARR_ROW_DIMENSION_KEY, NARR_COLUMN_DIMENSION_KEY)
+    )
     netcdf_dataset.variables[NARR_MASK_KEY][:] = narr_mask_matrix
 
     netcdf_dataset.createVariable(
@@ -1465,7 +1506,8 @@ def write_downsized_3d_examples(
 
     netcdf_dataset.createVariable(
         TARGET_MATRIX_KEY, datatype=numpy.int32,
-        dimensions=(EXAMPLE_DIMENSION_KEY, CLASS_DIMENSION_KEY))
+        dimensions=(EXAMPLE_DIMENSION_KEY, CLASS_DIMENSION_KEY)
+    )
     netcdf_dataset.variables[TARGET_MATRIX_KEY][:] = example_dict[
         TARGET_MATRIX_KEY]
 
@@ -1484,6 +1526,20 @@ def write_downsized_3d_examples(
         dimensions=EXAMPLE_DIMENSION_KEY)
     netcdf_dataset.variables[COLUMN_INDICES_KEY][:] = example_dict[
         COLUMN_INDICES_KEY]
+
+    netcdf_dataset.createVariable(
+        FIRST_NORM_PARAM_KEY, datatype=numpy.float32,
+        dimensions=(EXAMPLE_DIMENSION_KEY, PREDICTOR_DIMENSION_KEY)
+    )
+    netcdf_dataset.variables[FIRST_NORM_PARAM_KEY][:] = example_dict[
+        FIRST_NORM_PARAM_KEY]
+
+    netcdf_dataset.createVariable(
+        SECOND_NORM_PARAM_KEY, datatype=numpy.float32,
+        dimensions=(EXAMPLE_DIMENSION_KEY, PREDICTOR_DIMENSION_KEY)
+    )
+    netcdf_dataset.variables[SECOND_NORM_PARAM_KEY][:] = example_dict[
+        SECOND_NORM_PARAM_KEY]
 
     netcdf_dataset.close()
 
@@ -1511,12 +1567,18 @@ def read_downsized_3d_examples(
     :param first_time_to_keep_unix_sec: Will throw out earlier target times.
     :param last_time_to_keep_unix_sec: Will throw out later target times.
     :return: example_dict: Dictionary with the following keys.
+        `first_normalization_param_matrix` and
+        `second_normalization_param_matrix` may not be present (present only in
+        newer files).
+
     example_dict['predictor_matrix']: See doc for
         `prep_downsized_3d_examples_to_write`.
     example_dict['target_matrix']: Same.
     example_dict['target_times_unix_sec']: Same.
     example_dict['row_indices']: Same.
     example_dict['column_indices']: Same.
+    example_dict['first_normalization_param_matrix']: Same.
+    example_dict['second_normalization_param_matrix']: Same.
     example_dict['predictor_names_to_keep']: See doc for
         `write_downsized_3d_examples`.
     example_dict['pressure_level_mb']: Same.
@@ -1524,11 +1586,10 @@ def read_downsized_3d_examples(
     example_dict['narr_mask_matrix']: Same.
     """
 
+    # Check input args.
     if predictor_names_to_keep is not None:
         error_checking.assert_is_numpy_array(
             numpy.array(predictor_names_to_keep), num_dimensions=1)
-        for this_name in predictor_names_to_keep:
-            processed_narr_io.check_field_name(this_name)
 
     if first_time_to_keep_unix_sec is None:
         first_time_to_keep_unix_sec = 0
@@ -1541,10 +1602,12 @@ def read_downsized_3d_examples(
     error_checking.assert_is_geq(
         last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
 
+    # Do other stuff.
     netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
 
     narr_predictor_names = netCDF4.chartostring(
-        netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:])
+        netcdf_dataset.variables[PREDICTOR_NAMES_KEY][:]
+    )
     narr_predictor_names = [str(s) for s in narr_predictor_names]
     if predictor_names_to_keep is None:
         predictor_names_to_keep = narr_predictor_names + []
@@ -1555,6 +1618,17 @@ def read_downsized_3d_examples(
         netcdf_dataset.variables[ROW_INDICES_KEY][:], dtype=int)
     column_indices = numpy.array(
         netcdf_dataset.variables[COLUMN_INDICES_KEY][:], dtype=int)
+
+    found_normalization_params = (
+        FIRST_NORM_PARAM_KEY in netcdf_dataset.variables or
+        SECOND_NORM_PARAM_KEY in netcdf_dataset.variables
+    )
+
+    if found_normalization_params:
+        first_normalization_param_matrix = numpy.array(
+            netcdf_dataset.variables[FIRST_NORM_PARAM_KEY][:])
+        second_normalization_param_matrix = numpy.array(
+            netcdf_dataset.variables[SECOND_NORM_PARAM_KEY][:])
 
     if not metadata_only:
         predictor_matrix = numpy.array(
@@ -1576,17 +1650,10 @@ def read_downsized_3d_examples(
         target_times_unix_sec <= last_time_to_keep_unix_sec
     ))[0]
 
-    target_times_unix_sec = target_times_unix_sec[indices_to_keep]
-    row_indices = row_indices[indices_to_keep]
-    column_indices = column_indices[indices_to_keep]
-    if not metadata_only:
-        predictor_matrix = predictor_matrix[indices_to_keep, ...]
-        target_matrix = target_matrix[indices_to_keep, ...]
-
     example_dict = {
-        TARGET_TIMES_KEY: target_times_unix_sec,
-        ROW_INDICES_KEY: row_indices,
-        COLUMN_INDICES_KEY: column_indices,
+        TARGET_TIMES_KEY: target_times_unix_sec[indices_to_keep],
+        ROW_INDICES_KEY: row_indices[indices_to_keep],
+        COLUMN_INDICES_KEY: column_indices[indices_to_keep],
         PREDICTOR_NAMES_KEY: predictor_names_to_keep,
         PRESSURE_LEVEL_KEY: int(getattr(netcdf_dataset, PRESSURE_LEVEL_KEY)),
         DILATION_DISTANCE_KEY: getattr(netcdf_dataset, DILATION_DISTANCE_KEY),
@@ -1594,14 +1661,21 @@ def read_downsized_3d_examples(
             numpy.array(netcdf_dataset.variables[NARR_MASK_KEY][:], dtype=int)
     }
 
-    if metadata_only:
-        netcdf_dataset.close()
-        return example_dict
+    if found_normalization_params:
+        example_dict = {
+            FIRST_NORM_PARAM_KEY:
+                first_normalization_param_matrix[indices_to_keep, ...],
+            SECOND_NORM_PARAM_KEY:
+                second_normalization_param_matrix[indices_to_keep, ...]
+        }
 
-    example_dict.update({
-        PREDICTOR_MATRIX_KEY: predictor_matrix.astype('float32'),
-        TARGET_MATRIX_KEY: target_matrix.astype('float64')
-    })
+    if not metadata_only:
+        example_dict.update({
+            PREDICTOR_MATRIX_KEY:
+                predictor_matrix[indices_to_keep, ...].astype('float32'),
+            TARGET_MATRIX_KEY:
+                target_matrix[indices_to_keep, ...].astype('float64')
+        })
 
     netcdf_dataset.close()
     return example_dict
