@@ -43,6 +43,15 @@ TARGET_MATRIX_KEY = 'target_matrix'
 MODEL_FILE_NAME_KEY = 'model_file_name'
 USED_ISOTONIC_KEY = 'used_isotonic_regression'
 
+MINMAX_STRING = 'minmax'
+Z_SCORE_STRING = 'z_score'
+VALID_NORM_TYPE_STRINGS = [MINMAX_STRING, Z_SCORE_STRING]
+
+MIN_VALUE_MATRIX_KEY = 'min_value_matrix'
+MAX_VALUE_MATRIX_KEY = 'max_value_matrix'
+MEAN_VALUE_MATRIX_KEY = 'mean_value_matrix'
+STDEV_MATRIX_KEY = 'standard_deviation_matrix'
+
 
 def _check_full_narr_matrix(full_narr_matrix):
     """Checks input matrix (must contain data on full NARR grid).
@@ -325,6 +334,24 @@ def _class_fractions_to_num_points(class_fractions, num_points_total):
     return num_points_by_class
 
 
+def _check_normalization_type(normalization_type_string):
+    """Ensures that normalization type is valid.
+
+    :param normalization_type_string: Normalization type.
+    :raises: ValueError: if
+        `normalization_type_string not in VALID_NORM_TYPE_STRINGS`.
+    """
+
+    error_checking.assert_is_string(normalization_type_string)
+    if normalization_type_string not in VALID_NORM_TYPE_STRINGS:
+        error_string = (
+            '\n{0:s}\nValid normalization types (listed above) do not include'
+            ' "{1:s}".'
+        ).format(str(VALID_NORM_TYPE_STRINGS), normalization_type_string)
+
+        raise ValueError(error_string)
+
+
 def check_narr_mask(mask_matrix):
     """Error-checks NARR mask.
 
@@ -380,72 +407,163 @@ def get_class_weight_dict(class_frequencies):
     return class_weight_dict
 
 
-def normalize_predictor_matrix(
-        predictor_matrix, normalize_by_example=False, predictor_names=None,
-        normalization_dict=None, percentile_offset=1.):
-    """Normalizes predictor matrix.
+def normalize_predictors(
+        predictor_matrix, normalization_type_string=MINMAX_STRING,
+        percentile_offset=1.):
+    """Normalizes predictor variables.
 
-    Specifically, each value will be normalized as follows.
+    If normalization_type_string = "z_score", each variable is normalized with
+    the following equation, where `mean_value` and `standard_deviation` are the
+    mean and standard deviation over the given example.
 
-    new_value = (old_value - min_value) / (max_value - min_value)
+    normalized_value = (unnormalized_value - mean_value) / standard_deviation
 
-    If normalize_by_example = False, min_value and max_value will be the same
-    for each example (taken from normalization_dict).
+    If normalization_type_string = "minmax", each variable is normalized with
+    the following equation, where `min_value` is the [q]th percentile over the
+    given example; `max_value` is the [100 - q]th percentile over the given
+    example; and q = `percentile_offset`.
 
-    If normalize_by_example = True, min_value and max_value will be different
-    for each example and predictor variable (channel).  Specifically, for the
-    [i]th example and [j]th predictor variable, they will be the [k]th and
-    [100 - k]th percentiles of the [j]th predictor variable in the [i]th
-    example, where k = percentile_offset.
+    normalized_value = (unnormalized_value - min_value) /
+                       (max_value - min_value)
 
     :param predictor_matrix: numpy array of predictor images.  Dimensions may be
         E x M x N x C or E x M x N x T x C.
-    :param normalize_by_example: Boolean flag (see general discussion above).
-    :param predictor_names: [used only if normalize_by_example = False]
-        length-C list of predictor names (strings).
-    :param normalization_dict: [used only if normalize_by_image = False]
-        Dictionary, where each key is the name of a predictor (from
-        `predictor_names`) and each value is a length-2 numpy array with
-        (min_value, max_value).
-    [used only if normalize_by_image = True]
-        See k in the general discussion above.
-    :return: predictor_matrix: Same as input, except normalized.
+    :param normalization_type_string: See general discussion above.
+    :param percentile_offset: See general discussion above.
+    :return: predictor_matrix: Normalized version of input (same dimensions).
+    :return: normalization_dict: Dictionary with the following keys.
+    normalization_dict['min_value_matrix']: E-by-C numpy array of minimum values
+        (actually [q]th percentiles).  If normalization_type_string != "minmax",
+        this is None.
+    normalization_dict['max_value_matrix']: Same but for max values (actually
+        [100 - q]th percentiles).
+    normalization_dict['mean_value_matrix']: E-by-C numpy array of mean values.
+        If normalization_type_string != "z_score", this is None.
+    normalization_dict['standard_deviation_matrix']: Same but for standard
+        deviations.
     """
 
     _check_predictor_matrix(
         predictor_matrix, allow_nan=True, min_num_dimensions=4,
         max_num_dimensions=5)
+    _check_normalization_type(normalization_type_string)
+
+    num_examples = predictor_matrix.shape[0]
     num_predictors = predictor_matrix.shape[-1]
 
-    error_checking.assert_is_boolean(normalize_by_example)
+    min_value_matrix = None
+    max_value_matrix = None
+    mean_value_matrix = None
+    standard_deviation_matrix = None
 
-    if normalize_by_example:
+    if normalization_type_string == MINMAX_STRING:
         error_checking.assert_is_geq(percentile_offset, 0.)
         error_checking.assert_is_less_than(percentile_offset, 50.)
 
-        num_examples = predictor_matrix.shape[0]
+        min_value_matrix = numpy.full((num_examples, num_predictors), numpy.nan)
+        max_value_matrix = numpy.full((num_examples, num_predictors), numpy.nan)
+
         for i in range(num_examples):
             for m in range(num_predictors):
-                this_min_value = numpy.nanpercentile(
+                min_value_matrix[i, m] = numpy.nanpercentile(
                     predictor_matrix[i, ..., m], percentile_offset)
-                this_max_value = numpy.nanpercentile(
+                max_value_matrix[i, m] = numpy.nanpercentile(
                     predictor_matrix[i, ..., m], 100. - percentile_offset)
 
                 predictor_matrix[i, ..., m] = (
-                    (predictor_matrix[i, ..., m] - this_min_value) /
-                    (this_max_value - this_min_value))
+                    (predictor_matrix[i, ..., m] - min_value_matrix[i, m]) /
+                    (max_value_matrix[i, m] - min_value_matrix[i, m])
+                )
     else:
-        error_checking.assert_is_string_list(predictor_names)
-        error_checking.assert_is_numpy_array(
-            numpy.array(predictor_names),
-            exact_dimensions=numpy.array([num_predictors]))
+        mean_value_matrix = numpy.full(
+            (num_examples, num_predictors), numpy.nan)
+        standard_deviation_matrix = numpy.full(
+            (num_examples, num_predictors), numpy.nan)
 
-        for m in range(num_predictors):
-            this_min_value = normalization_dict[predictor_names[m]][0]
-            this_max_value = normalization_dict[predictor_names[m]][1]
-            predictor_matrix[..., m] = (
-                (predictor_matrix[..., m] - this_min_value) /
-                (this_max_value - this_min_value))
+        for i in range(num_examples):
+            for m in range(num_predictors):
+                mean_value_matrix[i, m] = numpy.nanmean(
+                    predictor_matrix[i, ..., m])
+                standard_deviation_matrix[i, m] = numpy.nanstd(
+                    predictor_matrix[i, ..., m], ddof=1)
+
+                predictor_matrix[i, ..., m] = (
+                    (predictor_matrix[i, ..., m] - mean_value_matrix[i, m]) /
+                    standard_deviation_matrix[i, m]
+                )
+
+    normalization_dict = {
+        MIN_VALUE_MATRIX_KEY: min_value_matrix,
+        MAX_VALUE_MATRIX_KEY: max_value_matrix,
+        MEAN_VALUE_MATRIX_KEY: mean_value_matrix,
+        STDEV_MATRIX_KEY: standard_deviation_matrix
+    }
+
+    return predictor_matrix, normalization_dict
+
+
+def denormalize_predictors(predictor_matrix, normalization_dict):
+    """Deormalizes predictor variables.
+
+    :param predictor_matrix: See output doc for `normalize_predictors`.
+    :param normalization_dict: Same.
+    :return: predictor_matrix: Denormalized version of input (same dimensions).
+    """
+
+    _check_predictor_matrix(
+        predictor_matrix, allow_nan=True, min_num_dimensions=4,
+        max_num_dimensions=5)
+
+    num_examples = predictor_matrix.shape[0]
+    num_predictors = predictor_matrix.shape[-1]
+    expected_param_dimensions = numpy.array(
+        [num_examples, num_predictors], dtype=int)
+
+    if normalization_dict[MIN_VALUE_MATRIX_KEY] is None:
+        normalization_type_string = Z_SCORE_STRING + ''
+    else:
+        normalization_type_string = MINMAX_STRING + ''
+
+    if normalization_type_string == MINMAX_STRING:
+        min_value_matrix = normalization_dict[MIN_VALUE_MATRIX_KEY]
+        max_value_matrix = normalization_dict[MAX_VALUE_MATRIX_KEY]
+
+        error_checking.assert_is_numpy_array_without_nan(min_value_matrix)
+        error_checking.assert_is_numpy_array(
+            min_value_matrix, exact_dimensions=expected_param_dimensions)
+
+        error_checking.assert_is_numpy_array_without_nan(max_value_matrix)
+        error_checking.assert_is_numpy_array(
+            max_value_matrix, exact_dimensions=expected_param_dimensions)
+
+        for i in range(num_examples):
+            for m in range(num_predictors):
+                predictor_matrix[i, ..., m] = (
+                    min_value_matrix[i, m] +
+                    predictor_matrix[i, ..., m] *
+                    (max_value_matrix[i, m] - min_value_matrix[i, m])
+                )
+    else:
+        mean_value_matrix = normalization_dict[MEAN_VALUE_MATRIX_KEY]
+        standard_deviation_matrix = normalization_dict[STDEV_MATRIX_KEY]
+
+        error_checking.assert_is_numpy_array_without_nan(mean_value_matrix)
+        error_checking.assert_is_numpy_array(
+            mean_value_matrix, exact_dimensions=expected_param_dimensions)
+
+        error_checking.assert_is_numpy_array_without_nan(
+            standard_deviation_matrix)
+        error_checking.assert_is_numpy_array(
+            standard_deviation_matrix,
+            exact_dimensions=expected_param_dimensions)
+
+        for i in range(num_examples):
+            for m in range(num_predictors):
+                predictor_matrix[i, ..., m] = (
+                    mean_value_matrix[i, m] +
+                    predictor_matrix[i, ..., m] *
+                    standard_deviation_matrix[i, m]
+                )
 
     return predictor_matrix
 

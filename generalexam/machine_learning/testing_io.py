@@ -135,8 +135,8 @@ def create_downsized_3d_examples(
 
         full_predictor_matrix = ml_utils.stack_predictor_variables(
             tuple_of_full_predictor_matrices)
-        full_predictor_matrix = ml_utils.normalize_predictor_matrix(
-            predictor_matrix=full_predictor_matrix, normalize_by_example=True)
+        full_predictor_matrix, _ = ml_utils.normalize_predictors(
+            predictor_matrix=full_predictor_matrix)
 
         full_target_matrix = ml_utils.front_table_to_images(
             frontal_grid_table=frontal_grid_table,
@@ -282,8 +282,8 @@ def create_downsized_4d_examples(
         frontal_grid_table = fronts_io.read_narr_grids_from_file(
             frontal_grid_file_name)
 
-        full_predictor_matrix = ml_utils.normalize_predictor_matrix(
-            predictor_matrix=full_predictor_matrix, normalize_by_example=True)
+        full_predictor_matrix, _ = ml_utils.normalize_predictors(
+            predictor_matrix=full_predictor_matrix)
 
         full_target_matrix = ml_utils.front_table_to_images(
             frontal_grid_table=frontal_grid_table,
@@ -384,8 +384,8 @@ def create_full_size_3d_example(
 
     predictor_matrix = ml_utils.stack_predictor_variables(
         tuple_of_predictor_matrices)
-    predictor_matrix = ml_utils.normalize_predictor_matrix(
-        predictor_matrix=predictor_matrix, normalize_by_example=True)
+    predictor_matrix, _ = ml_utils.normalize_predictors(
+        predictor_matrix=predictor_matrix)
 
     target_matrix = ml_utils.front_table_to_images(
         frontal_grid_table=frontal_grid_table,
@@ -489,9 +489,8 @@ def create_full_size_4d_example(
         frontal_grid_file_name)
 
     print 'Processing full-size 4-D machine-learning example...'
-
-    predictor_matrix = ml_utils.normalize_predictor_matrix(
-        predictor_matrix=predictor_matrix, normalize_by_example=True)
+    predictor_matrix, _ = ml_utils.normalize_predictors(
+        predictor_matrix=predictor_matrix)
 
     target_matrix = ml_utils.front_table_to_images(
         frontal_grid_table=frontal_grid_table,

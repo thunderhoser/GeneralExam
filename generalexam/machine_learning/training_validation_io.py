@@ -436,9 +436,8 @@ def downsized_3d_example_generator(
 
             this_full_predictor_matrix = ml_utils.stack_predictor_variables(
                 tuple_of_predictor_matrices)
-            this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
-                predictor_matrix=this_full_predictor_matrix,
-                normalize_by_example=True)
+            this_full_predictor_matrix, _ = ml_utils.normalize_predictors(
+                predictor_matrix=this_full_predictor_matrix)
 
             this_full_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
@@ -714,9 +713,8 @@ def downsized_4d_example_generator(
 
             this_full_predictor_matrix = ml_utils.stack_time_steps(
                 tuple_of_4d_predictor_matrices)
-            this_full_predictor_matrix = ml_utils.normalize_predictor_matrix(
-                predictor_matrix=this_full_predictor_matrix,
-                normalize_by_example=True)
+            this_full_predictor_matrix, _ = ml_utils.normalize_predictors(
+                predictor_matrix=this_full_predictor_matrix)
 
             this_full_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
@@ -864,9 +862,8 @@ def full_size_3d_example_generator(
 
             this_predictor_matrix = ml_utils.stack_predictor_variables(
                 tuple_of_predictor_matrices)
-            this_predictor_matrix = ml_utils.normalize_predictor_matrix(
-                predictor_matrix=this_predictor_matrix,
-                normalize_by_example=True)
+            this_predictor_matrix, _ = ml_utils.normalize_predictors(
+                predictor_matrix=this_predictor_matrix)
 
             this_frontal_grid_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
@@ -1018,9 +1015,8 @@ def full_size_4d_example_generator(
             if target_time_index >= num_target_times:
                 target_time_index = 0
 
-            this_predictor_matrix = ml_utils.normalize_predictor_matrix(
-                predictor_matrix=this_predictor_matrix,
-                normalize_by_example=True)
+            this_predictor_matrix, _ = ml_utils.normalize_predictors(
+                predictor_matrix=this_predictor_matrix)
 
             this_frontal_grid_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_frontal_grid_table,
@@ -1147,8 +1143,8 @@ def prep_downsized_3d_examples_to_write(
 
     predictor_matrix = ml_utils.stack_predictor_variables(
         tuple_of_predictor_matrices)
-    predictor_matrix = ml_utils.normalize_predictor_matrix(
-        predictor_matrix=predictor_matrix, normalize_by_example=True)
+    predictor_matrix, _ = ml_utils.normalize_predictors(
+        predictor_matrix=predictor_matrix)
 
     print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
     frontal_grid_table = fronts_io.read_narr_grids_from_file(

@@ -172,61 +172,95 @@ NUM_POINTS_BY_CLASS_TERNARY_SMALL = numpy.array([1, 1, 2])
 CLASS_WEIGHT_DICT_BINARY = {0: 0.9, 1: 0.1}
 CLASS_WEIGHT_DICT_TERNARY = {0: 0.6087, 1: 0.3043, 2: 0.0870}
 
-# The following constants are used to test normalize_predictor_matrix, with
-# normalize_by_example = True.
-PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
+# The following constants are used to test normalize_predictors with
+# normalization type = "minmax".
+PRCTILE_OFFSET_FOR_NORMALIZATION = 0.
 
-FIRST_GRID_MATRIX = numpy.array([[0, 1, 2, 3],
-                                 [4, 5, 6, 7]], dtype=numpy.float32)
-SECOND_GRID_MATRIX = numpy.array([[2, 4, 6, numpy.nan],
-                                  [-1, -3, -5, -7]], dtype=numpy.float32)
+FIRST_PREDICTOR_MATRIX_2D = numpy.array(
+    [[0, 1, 2, 3],
+     [4, 5, 6, 7]], dtype=float
+)
 
-THIS_3D_MATRIX = numpy.stack((FIRST_GRID_MATRIX, FIRST_GRID_MATRIX), axis=-1)
-PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_EXAMPLE = numpy.stack(
-    (THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
+SECOND_PREDICTOR_MATRIX_2D = numpy.array(
+    [[2, 4, 6, numpy.nan],
+     [-1, -3, -5, -7]]
+)
 
-THIS_3D_MATRIX = numpy.stack((SECOND_GRID_MATRIX, SECOND_GRID_MATRIX), axis=-1)
-THIS_4D_MATRIX = numpy.stack((THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
-PREDICTOR_MATRIX_5D_BEFORE_NORM_BY_EXAMPLE = numpy.stack(
-    (PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_EXAMPLE, THIS_4D_MATRIX), axis=-2)
+THIS_FIRST_MATRIX_3D = numpy.stack(
+    (FIRST_PREDICTOR_MATRIX_2D, FIRST_PREDICTOR_MATRIX_2D), axis=-1)
+PREDICTOR_MATRIX_4D_DENORM = numpy.stack(
+    (THIS_FIRST_MATRIX_3D, THIS_FIRST_MATRIX_3D), axis=0)
 
-THIS_3D_MATRIX = numpy.stack(
-    ((FIRST_GRID_MATRIX - 0) / 7, (FIRST_GRID_MATRIX - 0) / 7), axis=-1)
-PREDICTOR_MATRIX_4D_NORMALIZED_BY_EXAMPLE = numpy.stack(
-    (THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
+THIS_SECOND_MATRIX_3D = numpy.stack(
+    (SECOND_PREDICTOR_MATRIX_2D, SECOND_PREDICTOR_MATRIX_2D), axis=-1)
+THIS_SECOND_MATRIX_4D = numpy.stack(
+    (THIS_SECOND_MATRIX_3D, THIS_SECOND_MATRIX_3D), axis=0)
+PREDICTOR_MATRIX_5D_DENORM = numpy.stack(
+    (PREDICTOR_MATRIX_4D_DENORM, THIS_SECOND_MATRIX_4D), axis=-2)
 
-THIS_3D_MATRIX = numpy.stack(
-    ((FIRST_GRID_MATRIX + 7) / 14, (FIRST_GRID_MATRIX + 7) / 14), axis=-1)
-THIS_FIRST_4D_MATRIX = numpy.stack((THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
-THIS_3D_MATRIX = numpy.stack(
-    ((SECOND_GRID_MATRIX + 7) / 14, (SECOND_GRID_MATRIX + 7) / 14), axis=-1)
-THIS_SECOND_4D_MATRIX = numpy.stack((THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
-PREDICTOR_MATRIX_5D_NORMALIZED_BY_EXAMPLE = numpy.stack(
-    (THIS_FIRST_4D_MATRIX, THIS_SECOND_4D_MATRIX), axis=-2)
+THIS_MIN = 0.
+THIS_MAX_LESS_MIN = 7.
 
-# The following constants are used to test normalize_predictor_matrix, with
-# normalize_by_example = False.
-PREDICTOR_NAMES = ['foo', 'bar']
-PREDICTOR_NORMALIZATION_DICT = {
-    'foo': numpy.array([0., 10.]),
-    'bar': numpy.array([-5., 5.])
-}
+THIS_FIRST_MATRIX_3D = numpy.stack((
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MIN) / THIS_MAX_LESS_MIN,
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MIN) / THIS_MAX_LESS_MIN
+), axis=-1)
+PREDICTOR_MATRIX_4D_MINMAX_NORM = numpy.stack(
+    (THIS_FIRST_MATRIX_3D, THIS_FIRST_MATRIX_3D), axis=0)
 
-THIS_3D_MATRIX = numpy.stack((FIRST_GRID_MATRIX, SECOND_GRID_MATRIX), axis=-1)
-PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_DICT = numpy.stack(
-    (THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
+THIS_MIN = -7.
+THIS_MAX_LESS_MIN = 14.
 
-PREDICTOR_MATRIX_5D_BEFORE_NORM_BY_DICT = numpy.stack(
-    (PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_DICT,
-     PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_DICT), axis=-2)
+THIS_FIRST_MATRIX_3D = numpy.stack((
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MIN) / THIS_MAX_LESS_MIN,
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MIN) / THIS_MAX_LESS_MIN
+), axis=-1)
+THIS_FIRST_MATRIX_4D = numpy.stack(
+    (THIS_FIRST_MATRIX_3D, THIS_FIRST_MATRIX_3D), axis=0)
 
-THIS_3D_MATRIX = numpy.stack(
-    ((FIRST_GRID_MATRIX - 0) / 10, (SECOND_GRID_MATRIX + 5) / 10), axis=-1)
-PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT = numpy.stack(
-    (THIS_3D_MATRIX, THIS_3D_MATRIX), axis=0)
-PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT = numpy.stack(
-    (PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT,
-     PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT), axis=-2)
+THIS_SECOND_MATRIX_3D = numpy.stack((
+    (SECOND_PREDICTOR_MATRIX_2D - THIS_MIN) / THIS_MAX_LESS_MIN,
+    (SECOND_PREDICTOR_MATRIX_2D - THIS_MIN) / THIS_MAX_LESS_MIN
+), axis=-1)
+THIS_SECOND_MATRIX_4D = numpy.stack(
+    (THIS_SECOND_MATRIX_3D, THIS_SECOND_MATRIX_3D), axis=0)
+
+PREDICTOR_MATRIX_5D_MINMAX_NORM = numpy.stack(
+    (THIS_FIRST_MATRIX_4D, THIS_SECOND_MATRIX_4D), axis=-2)
+
+# The following constants are used to test normalize_predictors with
+# normalization type = "z_score".
+THIS_MEAN = numpy.mean(FIRST_PREDICTOR_MATRIX_2D)
+THIS_STDEV = numpy.std(FIRST_PREDICTOR_MATRIX_2D, ddof=1)
+
+THIS_FIRST_MATRIX_3D = numpy.stack((
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MEAN) / THIS_STDEV,
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MEAN) / THIS_STDEV
+), axis=-1)
+PREDICTOR_MATRIX_4D_Z_NORM = numpy.stack(
+    (THIS_FIRST_MATRIX_3D, THIS_FIRST_MATRIX_3D), axis=0)
+
+ALL_PREDICTORS = numpy.stack(
+    (FIRST_PREDICTOR_MATRIX_2D, SECOND_PREDICTOR_MATRIX_2D), axis=-1)
+THIS_MEAN = numpy.nanmean(ALL_PREDICTORS)
+THIS_STDEV = numpy.nanstd(ALL_PREDICTORS, ddof=1)
+
+THIS_FIRST_MATRIX_3D = numpy.stack((
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MEAN) / THIS_STDEV,
+    (FIRST_PREDICTOR_MATRIX_2D - THIS_MEAN) / THIS_STDEV
+), axis=-1)
+THIS_FIRST_MATRIX_4D = numpy.stack(
+    (THIS_FIRST_MATRIX_3D, THIS_FIRST_MATRIX_3D), axis=0)
+
+THIS_SECOND_MATRIX_3D = numpy.stack((
+    (SECOND_PREDICTOR_MATRIX_2D - THIS_MEAN) / THIS_STDEV,
+    (SECOND_PREDICTOR_MATRIX_2D - THIS_MEAN) / THIS_STDEV
+), axis=-1)
+THIS_SECOND_MATRIX_4D = numpy.stack(
+    (THIS_SECOND_MATRIX_3D, THIS_SECOND_MATRIX_3D), axis=0)
+
+PREDICTOR_MATRIX_5D_Z_NORM = numpy.stack(
+    (THIS_FIRST_MATRIX_4D, THIS_SECOND_MATRIX_4D), axis=-2)
 
 # The following constants are used to test front_table_to_images.
 NUM_GRID_ROWS = 6
@@ -1131,71 +1165,161 @@ class MachineLearningUtilsTests(unittest.TestCase):
                 CLASS_WEIGHT_DICT_TERNARY[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
-    def test_normalize_predictor_matrix_by_example_4d(self):
-        """Ensures correct output from normalize_predictor_matrix.
+    def test_normalize_predictors_4d_minmax(self):
+        """Ensures correct output from normalize_predictors.
 
-        In this case, input matrix is 4-D and normalize_by_example = True.
+        In this case, predictor matrix is 4-D (no time dimension) and
+        normalization method is min-max.
         """
 
-        this_input_matrix = copy.deepcopy(
-            PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_EXAMPLE)
-        this_normalized_matrix = ml_utils.normalize_predictor_matrix(
-            predictor_matrix=this_input_matrix, normalize_by_example=True,
-            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
+        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+            predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
+            normalization_type_string=ml_utils.MINMAX_STRING,
+            percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
 
         self.assertTrue(numpy.allclose(
-            this_normalized_matrix, PREDICTOR_MATRIX_4D_NORMALIZED_BY_EXAMPLE,
-            atol=TOLERANCE, equal_nan=True))
+            this_predictor_matrix, PREDICTOR_MATRIX_4D_MINMAX_NORM,
+            atol=TOLERANCE, equal_nan=True
+        ))
 
-    def test_normalize_predictor_matrix_by_example_5d(self):
-        """Ensures correct output from normalize_predictor_matrix.
+    def test_normalize_predictors_5d_minmax(self):
+        """Ensures correct output from normalize_predictors.
 
-        In this case, input matrix is 5-D and normalize_by_example = True.
+        In this case, predictor matrix is 5-D (has time dimension) and
+        normalization method is min-max.
         """
 
-        this_input_matrix = copy.deepcopy(
-            PREDICTOR_MATRIX_5D_BEFORE_NORM_BY_EXAMPLE)
-        this_normalized_matrix = ml_utils.normalize_predictor_matrix(
-            predictor_matrix=this_input_matrix, normalize_by_example=True,
-            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
+        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+            predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
+            normalization_type_string=ml_utils.MINMAX_STRING,
+            percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
 
         self.assertTrue(numpy.allclose(
-            this_normalized_matrix, PREDICTOR_MATRIX_5D_NORMALIZED_BY_EXAMPLE,
-            atol=TOLERANCE, equal_nan=True))
+            this_predictor_matrix, PREDICTOR_MATRIX_5D_MINMAX_NORM,
+            atol=TOLERANCE, equal_nan=True
+        ))
 
-    def test_normalize_predictor_matrix_by_dict_4d(self):
-        """Ensures correct output from normalize_predictor_matrix.
+    def test_normalize_predictors_4d_z(self):
+        """Ensures correct output from normalize_predictors.
 
-        In this case, input matrix is 4-D and normalize_by_example = False.
+        In this case, predictor matrix is 4-D (no time dimension) and
+        normalization method is z-score.
         """
 
-        this_input_matrix = copy.deepcopy(
-            PREDICTOR_MATRIX_4D_BEFORE_NORM_BY_DICT)
-        this_normalized_matrix = ml_utils.normalize_predictor_matrix(
-            predictor_matrix=this_input_matrix, normalize_by_example=False,
-            predictor_names=PREDICTOR_NAMES,
-            normalization_dict=PREDICTOR_NORMALIZATION_DICT)
+        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+            predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
+            normalization_type_string=ml_utils.Z_SCORE_STRING)
 
         self.assertTrue(numpy.allclose(
-            this_normalized_matrix, PREDICTOR_MATRIX_4D_NORMALIZED_BY_DICT,
-            atol=TOLERANCE, equal_nan=True))
+            this_predictor_matrix, PREDICTOR_MATRIX_4D_Z_NORM, atol=TOLERANCE,
+            equal_nan=True
+        ))
 
-    def test_normalize_predictor_matrix_by_dict_5d(self):
-        """Ensures correct output from normalize_predictor_matrix.
+    def test_normalize_predictors_5d_z(self):
+        """Ensures correct output from normalize_predictors.
 
-        In this case, input matrix is 5-D and normalize_by_example = False.
+        In this case, predictor matrix is 5-D (has time dimension) and
+        normalization method is z-score.
         """
 
-        this_input_matrix = copy.deepcopy(
-            PREDICTOR_MATRIX_5D_BEFORE_NORM_BY_DICT)
-        this_normalized_matrix = ml_utils.normalize_predictor_matrix(
-            predictor_matrix=this_input_matrix, normalize_by_example=False,
-            predictor_names=PREDICTOR_NAMES,
-            normalization_dict=PREDICTOR_NORMALIZATION_DICT)
+        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+            predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
+            normalization_type_string=ml_utils.Z_SCORE_STRING)
 
         self.assertTrue(numpy.allclose(
-            this_normalized_matrix, PREDICTOR_MATRIX_5D_NORMALIZED_BY_DICT,
-            atol=TOLERANCE, equal_nan=True))
+            this_predictor_matrix, PREDICTOR_MATRIX_5D_Z_NORM, atol=TOLERANCE,
+            equal_nan=True
+        ))
+
+    def test_denormalize_predictors_4d_minmax(self):
+        """Ensures correct output from denormalize_predictors.
+
+        In this case, predictor matrix is 4-D (no time dimension) and
+        normalization method is min-max.
+        """
+
+        this_predictor_matrix, this_normalization_dict = (
+            ml_utils.normalize_predictors(
+                predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
+                normalization_type_string=ml_utils.MINMAX_STRING,
+                percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
+        )
+
+        this_predictor_matrix = ml_utils.denormalize_predictors(
+            predictor_matrix=this_predictor_matrix,
+            normalization_dict=this_normalization_dict)
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_4D_DENORM,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_denormalize_predictors_5d_minmax(self):
+        """Ensures correct output from denormalize_predictors.
+
+        In this case, predictor matrix is 5-D (no time dimension) and
+        normalization method is min-max.
+        """
+
+        this_predictor_matrix, this_normalization_dict = (
+            ml_utils.normalize_predictors(
+                predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
+                normalization_type_string=ml_utils.MINMAX_STRING,
+                percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
+        )
+
+        this_predictor_matrix = ml_utils.denormalize_predictors(
+            predictor_matrix=this_predictor_matrix,
+            normalization_dict=this_normalization_dict)
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_5D_DENORM,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_denormalize_predictors_4d_z(self):
+        """Ensures correct output from denormalize_predictors.
+
+        In this case, predictor matrix is 4-D (no time dimension) and
+        normalization method is z-score.
+        """
+
+        this_predictor_matrix, this_normalization_dict = (
+            ml_utils.normalize_predictors(
+                predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
+                normalization_type_string=ml_utils.Z_SCORE_STRING)
+        )
+
+        this_predictor_matrix = ml_utils.denormalize_predictors(
+            predictor_matrix=this_predictor_matrix,
+            normalization_dict=this_normalization_dict)
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_4D_DENORM,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_denormalize_predictors_5d_z(self):
+        """Ensures correct output from denormalize_predictors.
+
+        In this case, predictor matrix is 5-D (no time dimension) and
+        normalization method is z-score.
+        """
+
+        this_predictor_matrix, this_normalization_dict = (
+            ml_utils.normalize_predictors(
+                predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
+                normalization_type_string=ml_utils.Z_SCORE_STRING)
+        )
+
+        this_predictor_matrix = ml_utils.denormalize_predictors(
+            predictor_matrix=this_predictor_matrix,
+            normalization_dict=this_normalization_dict)
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_5D_DENORM,
+            atol=TOLERANCE, equal_nan=True
+        ))
 
     def test_sample_target_points_binary_no_mask(self):
         """Ensures correct output from sample_target_points.
