@@ -15,12 +15,6 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 NARR_TIME_STEP_SECONDS = 10800
 
-MAIN_KEYS = [
-    trainval_io.PREDICTOR_MATRIX_KEY, trainval_io.TARGET_MATRIX_KEY,
-    trainval_io.TARGET_TIMES_KEY, trainval_io.ROW_INDICES_KEY,
-    trainval_io.COLUMN_INDICES_KEY
-]
-
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 MAX_EXAMPLES_PER_TIME_ARG_NAME = 'max_num_examples_per_time'
@@ -30,6 +24,7 @@ DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 CLASS_FRACTIONS_ARG_NAME = 'class_fractions'
 NUM_HALF_ROWS_ARG_NAME = 'num_half_rows'
 NUM_HALF_COLUMNS_ARG_NAME = 'num_half_columns'
+NORMALIZATION_TYPE_ARG_NAME = 'normalization_type_string'
 FRONT_DIR_ARG_NAME = 'top_frontal_grid_dir_name'
 NARR_DIRECTORY_ARG_NAME = 'top_narr_directory_name'
 NARR_MASK_FILE_ARG_NAME = 'narr_mask_file_name'
@@ -69,6 +64,10 @@ NUM_HALF_COLUMNS_HELP_STRING = (
     ' will be 2 * `{0:s}` + 1.'
 ).format(NUM_HALF_COLUMNS_ARG_NAME)
 
+NORMALIZATION_TYPE_HELP_STRING = (
+    'Normalization type.  Must be accepted by '
+    '`machine_learning_utils._check_normalization_type`.')
+
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with frontal grids (full-size target images).'
     '  Files therein will be found by `fronts_io.find_file_for_one_time` and '
@@ -101,10 +100,13 @@ DEFAULT_NARR_PREDICTOR_NAMES = [
     processed_narr_io.SPECIFIC_HUMIDITY_NAME,
     processed_narr_io.HEIGHT_NAME
 ]
+
 DEFAULT_DILATION_DISTANCE_METRES = 50000.
 DEFAULT_CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
 DEFAULT_NUM_HALF_ROWS = 32
 DEFAULT_NUM_HALF_COLUMNS = 32
+DEFAULT_NORMALIZATION_TYPE_STRING = ml_utils.Z_SCORE_STRING + ''
+
 DEFAULT_TOP_FRONT_DIR_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
 DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
@@ -150,6 +152,11 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_NUM_HALF_COLUMNS, help=NUM_HALF_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NORMALIZATION_TYPE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_NORMALIZATION_TYPE_STRING,
+    help=NORMALIZATION_TYPE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + FRONT_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_TOP_FRONT_DIR_NAME, help=FRONT_DIR_HELP_STRING)
 
@@ -174,8 +181,9 @@ INPUT_ARG_PARSER.add_argument(
 def _run(first_time_string, last_time_string, max_num_examples_per_time,
          pressure_level_mb, narr_predictor_names, dilation_distance_metres,
          class_fractions, num_half_rows, num_half_columns,
-         top_frontal_grid_dir_name, top_narr_directory_name,
-         narr_mask_file_name, output_dir_name, num_times_per_output_file):
+         normalization_type_string, top_frontal_grid_dir_name,
+         top_narr_directory_name, narr_mask_file_name, output_dir_name,
+         num_times_per_output_file):
     """Writes downsized 3-D training examples to files.
 
     This is effectively the main method.
@@ -189,6 +197,7 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
     :param class_fractions: Same.
     :param num_half_rows: Same.
     :param num_half_columns: Same.
+    :param normalization_type_string: Same.
     :param top_frontal_grid_dir_name: Same.
     :param top_narr_directory_name: Same.
     :param narr_mask_file_name: Same.
@@ -255,6 +264,7 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
             class_fractions=class_fractions,
             num_rows_in_half_grid=num_half_rows,
             num_columns_in_half_grid=num_half_columns,
+            normalization_type_string=normalization_type_string,
             narr_mask_matrix=narr_mask_matrix)
 
         print '\n'
@@ -265,7 +275,7 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
             this_example_dict = copy.deepcopy(this_new_example_dict)
             continue
 
-        for this_key in MAIN_KEYS:
+        for this_key in trainval_io.MAIN_KEYS:
             this_example_dict[this_key] = numpy.concatenate(
                 (this_example_dict[this_key],
                  this_new_example_dict[this_key]), axis=0)
@@ -306,6 +316,8 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, CLASS_FRACTIONS_ARG_NAME)),
         num_half_rows=getattr(INPUT_ARG_OBJECT, NUM_HALF_ROWS_ARG_NAME),
         num_half_columns=getattr(INPUT_ARG_OBJECT, NUM_HALF_COLUMNS_ARG_NAME),
+        normalization_type_string=getattr(
+            INPUT_ARG_OBJECT, NORMALIZATION_TYPE_ARG_NAME),
         top_frontal_grid_dir_name=getattr(INPUT_ARG_OBJECT, FRONT_DIR_ARG_NAME),
         top_narr_directory_name=getattr(
             INPUT_ARG_OBJECT, NARR_DIRECTORY_ARG_NAME),
