@@ -47,7 +47,7 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_BASELINE_EX_ARG_NAME = 'num_baseline_examples'
 NUM_TEST_EX_ARG_NAME = 'num_test_examples'
-NUM_SVD_MODES_ARG_NAME = 'num_svd_modes_to_keep'
+PERCENT_VARIANCE_ARG_NAME = 'percent_svd_variance_to_keep'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 UPCONVNET_FILE_HELP_STRING = (
@@ -79,9 +79,9 @@ NUM_TEST_EX_HELP_STRING = (
     'examples.'
 ).format(NUM_TEST_EX_ARG_NAME, FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-NUM_SVD_MODES_HELP_STRING = (
-    'Number of modes (top eigenvectors) to retain in the SVD (singular-value '
-    'decomposition) model.')
+PERCENT_VARIANCE_HELP_STRING = (
+    'Percent of variance to retain in the SVD (singular-value decomposition) '
+    'model.  This determines how many modes (eigenvectors) are kept.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  The dictionary created by '
@@ -117,8 +117,9 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_NUM_TEST_EXAMPLES, help=NUM_TEST_EX_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_SVD_MODES_ARG_NAME, type=int, required=True,
-    help=NUM_SVD_MODES_HELP_STRING)
+    '--' + PERCENT_VARIANCE_ARG_NAME, type=float, required=False,
+    default=novelty_detection.DEFAULT_PCT_VARIANCE_TO_KEEP,
+    help=PERCENT_VARIANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -472,7 +473,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
 
 def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
          last_time_string, num_baseline_examples, num_test_examples,
-         num_svd_modes_to_keep, top_output_dir_name):
+         percent_svd_variance_to_keep, top_output_dir_name):
     """Runs novelty detection.
 
     :param upconvnet_file_name: See documentation at top of file.
@@ -481,7 +482,7 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
     :param last_time_string: Same.
     :param num_baseline_examples: Same.
     :param num_test_examples: Same.
-    :param num_svd_modes_to_keep: Same.
+    :param percent_svd_variance_to_keep: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -525,7 +526,7 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
         ucn_model_object=ucn_model_object,
         num_novel_test_images=num_test_examples,
         norm_function=None, denorm_function=None,
-        num_svd_modes_to_keep=num_svd_modes_to_keep)
+        percent_svd_variance_to_keep=percent_svd_variance_to_keep)
     print SEPARATOR_STRING
 
     novelty_dict[novelty_detection.UCN_FILE_NAME_KEY] = upconvnet_file_name
@@ -555,6 +556,7 @@ if __name__ == '__main__':
         num_baseline_examples=getattr(
             INPUT_ARG_OBJECT, NUM_BASELINE_EX_ARG_NAME),
         num_test_examples=getattr(INPUT_ARG_OBJECT, NUM_TEST_EX_ARG_NAME),
-        num_svd_modes_to_keep=getattr(INPUT_ARG_OBJECT, NUM_SVD_MODES_ARG_NAME),
+        percent_svd_variance_to_keep=getattr(
+            INPUT_ARG_OBJECT, PERCENT_VARIANCE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
