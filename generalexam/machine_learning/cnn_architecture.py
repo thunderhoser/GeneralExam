@@ -1,12 +1,29 @@
 """Methods for creating a CNN (building the architecture)."""
 
-import keras.layers
-import keras.models
+import numpy
+import keras
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import architecture_utils
-from gewittergefahr.deep_learning import keras_metrics
+from generalexam.machine_learning import keras_metrics
 
-DEFAULT_METRIC_FUNCTION_LIST = [
+L1_WEIGHT = 0.
+L2_WEIGHT = 0.001
+NUM_CHANNELS_TO_FIRST_NUM_FILTERS = 8
+NUM_CONV_LAYER_SETS = 2
+NUM_CONV_LAYERS_PER_SET = 2
+NUM_CONV_FILTER_ROWS = 3
+NUM_CONV_FILTER_COLUMNS = 3
+CONV_LAYER_DROPOUT_FRACTION = None
+USE_BATCH_NORMALIZATION = True
+SLOPE_FOR_RELU = 0.2
+NUM_POOLING_ROWS = 2
+NUM_POOLING_COLUMNS = 2
+NUM_DENSE_LAYERS = 3
+DENSE_LAYER_DROPOUT_FRACTION = 0.5
+
+NUM_CLASSES = 3
+
+LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.accuracy, keras_metrics.binary_accuracy,
     keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
     keras_metrics.binary_pod, keras_metrics.binary_pofd,
@@ -14,619 +31,135 @@ DEFAULT_METRIC_FUNCTION_LIST = [
     keras_metrics.binary_focn
 ]
 
-NUM_CLASSES = 3
-INIT_NUM_FILTERS = 32
 
+def create_cnn(num_half_rows, num_half_columns, num_channels):
+    """Creates (but does not train) CNN.
 
-def _get_output_layer_and_loss_function(num_classes):
-    """Creates output layer and loss function.
-
-    :param num_classes: Number of classes.
-    :return: dense_layer_object: Instance of `keras.layers.Dense`, with no
-        activation.
-    :return: activation_layer_object: Instance of `keras.layers.Activation`,
-        `keras.layers.ELU`, or `keras.layers.LeakyReLU`.
-    :return: loss_function: Instance of `keras.losses.binary_crossentropy` or
-        `keras.losses.categorical_crossentropy`.
+    :param num_half_rows: Number of rows in half-grid.  Total number of rows =
+        `2 * num_half_rows + 1`.
+    :param num_half_columns: Same but for columns.
+    :param num_channels: Number of channels (predictor variables).
+    :return: cnn_model_object: Untrained instance of `keras.models.Model`.
     """
 
-    if num_classes == 2:
-        num_output_units = 1
-        loss_function = keras.losses.binary_crossentropy
-        activation_function_string = architecture_utils.SIGMOID_FUNCTION_STRING
-    else:
-        num_output_units = num_classes
-        loss_function = keras.losses.categorical_crossentropy
-        activation_function_string = architecture_utils.SOFTMAX_FUNCTION_STRING
-
-    dense_layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=num_output_units)
-    activation_layer_object = architecture_utils.get_activation_layer(
-        activation_function_string=activation_function_string)
-
-    return dense_layer_object, activation_layer_object, loss_function
-
-
-def get_first_architecture(num_rows, num_columns, num_channels):
-    """Creates 2-D CNN with the simplest architecture.
-
-    :param num_rows: Number of pixel rows per image.
-    :param num_columns: Number of pixel columns per image.
-    :param num_channels: Number of channels (predictor variables) per image.
-    :return: model_object: Instance of `keras.models` with the aforementioned
-        architecture.
-    """
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_second_architecture(num_rows, num_columns, num_channels):
-    """Creates 2-D CNN with the second-simplest architecture.
-
-    The only difference between this method and `get_first_architecture` is that
-    this method uses 5-by-5, rather than 3-by-3, kernels.
-
-    :param num_rows: See doc for `get_first_architecture`.
-    :param num_columns: Same.
-    :param num_channels: Same.
-    :return: model_object: Same.
-    """
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=5,
-        num_kernel_columns=5, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=5,
-        num_kernel_columns=5, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_third_architecture(num_rows, num_columns, num_channels, l2_weight):
-    """Creates 2-D CNN with the third-simplest architecture.
-
-    The only difference between this method and `get_first_architecture` is that
-    this method uses L2 regularization.
-
-    :param num_rows: See doc for `get_first_architecture`.
-    :param num_columns: Same.
-    :param num_channels: Same.
-    :param l2_weight: Weight for L2 regularization.
-    :return: model_object: Same.
-    """
-
-    regularizer_object = architecture_utils.get_weight_regularizer(
-        l1_penalty=0, l2_penalty=l2_weight)
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=regularizer_object, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=regularizer_object)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_fourth_architecture(num_rows, num_columns, num_channels):
-    """Creates 2-D CNN with the fourth-simplest architecture.
-
-    The only difference between this method and `get_first_architecture` is that
-    this method uses batch normalization.
-
-    :param num_rows: See doc for `get_first_architecture`.
-    :param num_columns: Same.
-    :param num_channels: Same.
-    :return: model_object: Same.
-    """
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-    model_object.add(architecture_utils.get_batch_normalization_layer())
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-    model_object.add(architecture_utils.get_batch_normalization_layer())
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_fifth_architecture(num_rows, num_columns, num_channels):
-    """Creates 2-D CNN with the fifth-simplest architecture.
-
-    The only difference between this method and `get_first_architecture` is that
-    this method does not use dropout for conv layers.
-
-    :param num_rows: Number of pixel rows per image.
-    :param num_columns: Number of pixel columns per image.
-    :param num_channels: Number of channels (predictor variables) per image.
-    :return: model_object: Instance of `keras.models` with the aforementioned
-        architecture.
-    """
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_sixth_architecture(num_rows, num_columns, num_channels):
-    """Creates 2-D CNN with the sixth-simplest architecture.
-
-    The only difference between this method and `get_first_architecture` is that
-    this method uses the Adam, instead of Adadelta, optimizer.
-
-    :param num_rows: Number of pixel rows per image.
-    :param num_columns: Number of pixel columns per image.
-    :param num_channels: Number of channels (predictor variables) per image.
-    :return: model_object: Instance of `keras.models` with the aforementioned
-        architecture.
-    """
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_seventh_architecture(num_rows, num_columns, num_channels):
-    """Creates 2-D CNN with the seventh-simplest architecture.
-
-    The only difference between this method and `get_first_architecture` is that
-    this method uses padding, so convolution does not change the size of the
-    feature maps.
-
-    :param num_rows: Number of pixel rows per image.
-    :param num_columns: Number of pixel columns per image.
-    :param num_channels: Number of channels (predictor variables) per image.
-    :return: model_object: Instance of `keras.models` with the aforementioned
-        architecture.
-    """
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.YES_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.YES_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.25)
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
-
-
-def get_eighth_architecture(
-        num_rows, num_columns, num_channels, num_conv_layer_sets):
-    """Creates 2-D CNN with the eighth-simplest architecture.
-
-    Differences between this method and `get_first_architecture`:
-
-    - This method does not use dropout for conv layers.
-    - This method uses multiple conv layers.
-
-    :param num_rows: Number of pixel rows per image.
-    :param num_columns: Number of pixel columns per image.
-    :param num_channels: Number of channels (predictor variables) per image.
-    :param num_conv_layer_sets: Number of sets of conv layers.
-    :return: model_object: Instance of `keras.models` with the aforementioned
-        architecture.
-    """
-
-    error_checking.assert_is_integer(num_conv_layer_sets)
-    error_checking.assert_is_greater(num_conv_layer_sets, 1)
-
-    model_object = keras.models.Sequential()
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None, is_first_layer=True,
-        num_input_rows=num_rows, num_input_columns=num_columns,
-        num_input_channels=num_channels)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_conv_layer(
-        num_output_filters=2 * INIT_NUM_FILTERS, num_kernel_rows=3,
-        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=architecture_utils.NO_PADDING_TYPE,
-        kernel_weight_regularizer=None)
-    model_object.add(layer_object)
-
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_2d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=architecture_utils.MAX_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
-
-    this_num_output_filters = 4 * INIT_NUM_FILTERS
-    for i in range(1, num_conv_layer_sets):
-        if i != 1:
-            this_num_output_filters *= 2
-
-        layer_object = architecture_utils.get_2d_conv_layer(
-            num_output_filters=this_num_output_filters, num_kernel_rows=3,
-            num_kernel_columns=3, num_rows_per_stride=1,
-            num_columns_per_stride=1,
-            padding_type=architecture_utils.NO_PADDING_TYPE,
-            kernel_weight_regularizer=None, is_first_layer=False)
-        model_object.add(layer_object)
-
-        model_object.add(architecture_utils.get_activation_layer(
-            activation_function_string='relu'))
-
-        layer_object = architecture_utils.get_2d_pooling_layer(
-            num_rows_in_window=2, num_columns_in_window=2,
-            pooling_type=architecture_utils.MAX_POOLING_TYPE,
-            num_rows_per_stride=2,
-            num_columns_per_stride=2)
-        model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_flattening_layer()
-    model_object.add(layer_object)
-
-    layer_object = architecture_utils.get_fully_connected_layer(
-        num_output_units=128)
-    model_object.add(layer_object)
-    model_object.add(architecture_utils.get_activation_layer(
-        activation_function_string='relu'))
-
-    layer_object = architecture_utils.get_dropout_layer(dropout_fraction=0.5)
-    model_object.add(layer_object)
-
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(NUM_CLASSES)
-    model_object.add(dense_layer_object)
-    model_object.add(activation_layer_object)
-
-    model_object.compile(
-        loss=loss_function, optimizer=keras.optimizers.Adadelta(),
-        metrics=DEFAULT_METRIC_FUNCTION_LIST)
-
-    model_object.summary()
-    return model_object
+    error_checking.assert_is_integer(num_half_rows)
+    error_checking.assert_is_integer(num_half_columns)
+    error_checking.assert_is_integer(num_channels)
+
+    error_checking.assert_is_greater(num_half_rows, 0)
+    error_checking.assert_is_greater(num_half_columns, 0)
+    error_checking.assert_is_greater(num_channels, 0)
+
+    regularizer_object = keras.regularizers.l1_l2(l1=L1_WEIGHT, l2=L2_WEIGHT)
+
+    num_grid_rows = 2 * num_half_rows + 1
+    num_grid_columns = 2 * num_half_columns + 1
+    input_layer_object = keras.layers.Input(
+        shape=(num_grid_rows, num_grid_columns, num_channels)
+    )
+
+    current_num_filters = None
+    current_layer_object = None
+
+    # Add convolutional layers.
+    for _ in range(NUM_CONV_LAYER_SETS):
+        for _ in range(NUM_CONV_LAYERS_PER_SET):
+
+            if current_num_filters is None:
+                current_num_filters = (
+                    num_channels * NUM_CHANNELS_TO_FIRST_NUM_FILTERS)
+                this_input_layer_object = input_layer_object
+
+            else:
+                current_num_filters *= 2
+                this_input_layer_object = current_layer_object
+
+            current_layer_object = keras.layers.Conv2D(
+                filters=current_num_filters,
+                kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
+                strides=(1, 1), padding='valid', data_format='channels_last',
+                dilation_rate=(1, 1), activation=None, use_bias=True,
+                kernel_initializer='glorot_uniform', bias_initializer='zeros',
+                kernel_regularizer=regularizer_object
+            )(this_input_layer_object)
+
+            current_layer_object = keras.layers.LeakyReLU(
+                alpha=SLOPE_FOR_RELU
+            )(current_layer_object)
+
+            if CONV_LAYER_DROPOUT_FRACTION is not None:
+                current_layer_object = keras.layers.Dropout(
+                    rate=CONV_LAYER_DROPOUT_FRACTION
+                )(current_layer_object)
+
+            if USE_BATCH_NORMALIZATION:
+                current_layer_object = keras.layers.BatchNormalization(
+                    axis=-1, center=True, scale=True
+                )(current_layer_object)
+
+        current_layer_object = keras.layers.MaxPooling2D(
+            pool_size=(NUM_POOLING_ROWS, NUM_POOLING_COLUMNS),
+            strides=(NUM_POOLING_ROWS, NUM_POOLING_COLUMNS),
+            padding='valid', data_format='channels_last'
+        )(current_layer_object)
+
+    these_dimensions = numpy.array(
+        current_layer_object.get_shape().as_list()[1:], dtype=int)
+    num_features = numpy.prod(these_dimensions)
+
+    current_layer_object = keras.layers.Flatten()(current_layer_object)
+
+    # Add intermediate dense layers.
+    _, num_outputs_by_dense_layer = (
+        architecture_utils.get_dense_layer_dimensions(
+            num_input_units=num_features, num_classes=NUM_CLASSES,
+            num_dense_layers=NUM_DENSE_LAYERS)
+    )
+
+    for k in range(NUM_DENSE_LAYERS - 1):
+        current_layer_object = keras.layers.Dense(
+            num_outputs_by_dense_layer[k], activation=None, use_bias=True,
+            kernel_initializer='glorot_uniform', bias_initializer='zeros',
+            kernel_regularizer=regularizer_object
+        )(current_layer_object)
+
+        current_layer_object = keras.layers.LeakyReLU(
+            alpha=SLOPE_FOR_RELU
+        )(current_layer_object)
+
+        if DENSE_LAYER_DROPOUT_FRACTION is not None:
+            current_layer_object = keras.layers.Dropout(
+                rate=DENSE_LAYER_DROPOUT_FRACTION
+            )(current_layer_object)
+
+        if USE_BATCH_NORMALIZATION:
+            current_layer_object = keras.layers.BatchNormalization(
+                axis=-1, center=True, scale=True
+            )(current_layer_object)
+
+    # Add output layer (also dense).
+    current_layer_object = keras.layers.Dense(
+        NUM_CLASSES, activation=None, use_bias=True,
+        kernel_initializer='glorot_uniform', bias_initializer='zeros',
+        kernel_regularizer=regularizer_object
+    )(current_layer_object)
+
+    current_layer_object = keras.layers.Activation(
+        'softmax'
+    )(current_layer_object)
+
+    if DENSE_LAYER_DROPOUT_FRACTION is not None and NUM_DENSE_LAYERS == 1:
+        current_layer_object = keras.layers.Dropout(
+            rate=DENSE_LAYER_DROPOUT_FRACTION
+        )(current_layer_object)
+
+    # Put the whole thing together and compile.
+    cnn_model_object = keras.models.Model(
+        inputs=input_layer_object, outputs=current_layer_object)
+    cnn_model_object.compile(
+        loss=keras.losses.categorical_crossentropy,
+        optimizer=keras.optimizers.Adam(),
+        metrics=LIST_OF_METRIC_FUNCTIONS)
+
+    cnn_model_object.summary()
+    return cnn_model_object

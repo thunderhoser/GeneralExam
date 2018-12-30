@@ -14,7 +14,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-UPSAMPLING_FACTORS = numpy.array([2, 1, 2, 1, 2, 1], dtype=int)
+UPSAMPLING_FACTORS = numpy.array([2, 1, 1, 2, 1, 1], dtype=int)
 
 CNN_FILE_ARG_NAME = 'input_cnn_file_name'
 USE_BATCH_NORM_ARG_NAME = 'use_batch_norm_for_out_layer'

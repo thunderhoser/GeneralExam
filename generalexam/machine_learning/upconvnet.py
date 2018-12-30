@@ -15,11 +15,9 @@ from generalexam.machine_learning import training_validation_io as trainval_io
 
 L1_WEIGHT = 0.
 L2_WEIGHT = 0.001
-SLOPE_FOR_RELU = 0.
-NUM_CONV_FILTER_ROWS = 5
-NUM_CONV_FILTER_COLUMNS = 5
-# NUM_CONV_FILTER_ROWS = 3
-# NUM_CONV_FILTER_COLUMNS = 3
+SLOPE_FOR_RELU = 0.2
+NUM_CONV_FILTER_ROWS = 3
+NUM_CONV_FILTER_COLUMNS = 3
 
 LARGE_INTEGER = int(1e10)
 MIN_MSE_DECREASE_FOR_EARLY_STOP = 0.005
@@ -173,7 +171,7 @@ def create_net(
     :param use_transposed_conv: Boolean flag.  If True, upsampling will be done
         with transposed-convolution layers.  If False, each upsampling will be
         done with an upsampling layer followed by a conv layer.
-    :return: model_object: Untrained instance of `keras.models.Model`.
+    :return: ucn_model_object: Untrained instance of `keras.models.Model`.
     """
 
     error_checking.assert_is_integer(num_input_features)
@@ -213,7 +211,7 @@ def create_net(
     for i in range(num_main_layers):
         this_upsampling_factor = upsampling_factors[i]
 
-        if i >= num_main_layers - 2:
+        if i == num_main_layers - 2:
             current_num_filters = num_output_channels + 0
         elif this_upsampling_factor == 1:
             current_num_filters = int(numpy.round(current_num_filters / 2))
@@ -233,11 +231,16 @@ def create_net(
             )(layer_object)
 
         elif use_transposed_conv:
+            if this_upsampling_factor > 1:
+                this_padding_arg = 'same'
+            else:
+                this_padding_arg = 'valid'
+
             layer_object = keras.layers.Conv2DTranspose(
                 filters=current_num_filters,
                 kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
                 strides=(this_upsampling_factor, this_upsampling_factor),
-                padding='same', data_format='channels_last',
+                padding=this_padding_arg, data_format='channels_last',
                 dilation_rate=(1, 1), activation=None, use_bias=True,
                 kernel_initializer='glorot_uniform', bias_initializer='zeros',
                 kernel_regularizer=regularizer_object
@@ -265,6 +268,11 @@ def create_net(
                 kernel_regularizer=regularizer_object
             )(layer_object)
 
+            if this_upsampling_factor == 1:
+                layer_object = keras.layers.ZeroPadding2D(
+                    padding=(1, 1), data_format='channels_last'
+                )(layer_object)
+
         if i < num_main_layers - 1 or use_activation_for_out_layer:
             layer_object = keras.layers.LeakyReLU(
                 alpha=SLOPE_FOR_RELU
@@ -275,13 +283,13 @@ def create_net(
                 axis=-1, center=True, scale=True
             )(layer_object)
 
-    model_object = keras.models.Model(
+    ucn_model_object = keras.models.Model(
         inputs=input_layer_object, outputs=layer_object)
-    model_object.compile(
+    ucn_model_object.compile(
         loss=keras.losses.mean_squared_error, optimizer=keras.optimizers.Adam())
 
-    model_object.summary()
-    return model_object
+    ucn_model_object.summary()
+    return ucn_model_object
 
 
 def train_upconvnet(
