@@ -106,7 +106,8 @@ def _find_input_files(input_dir_name, first_time_unix_sec, last_time_unix_sec):
             last_time_to_keep_unix_sec=last_time_unix_sec, metadata_only=True)
 
         num_examples_total += len(
-            this_example_dict[trainval_io.TARGET_TIMES_KEY])
+            this_example_dict[trainval_io.TARGET_TIMES_KEY]
+        )
 
     return input_file_names, num_examples_total
 
@@ -170,6 +171,7 @@ def _shuffle_one_input_file(
     example_indices = numpy.linspace(
         0, num_examples - 1, num=num_examples, dtype=int)
     numpy.random.shuffle(example_indices)
+
     for this_key in trainval_io.MAIN_KEYS:
         example_dict[this_key] = example_dict[this_key][example_indices, ...]
 

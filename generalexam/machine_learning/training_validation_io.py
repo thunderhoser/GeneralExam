@@ -1180,7 +1180,7 @@ def prep_downsized_3d_examples_to_write(
     if sampled_target_point_dict is None:
         return None
 
-    (predictor_matrix, target_values, _, row_indices, column_indices
+    (predictor_matrix, target_values, time_indices, row_indices, column_indices
     ) = ml_utils.downsize_grids_around_selected_points(
         predictor_matrix=predictor_matrix, target_matrix=target_matrix,
         num_rows_in_half_window=num_rows_in_half_grid,
@@ -1204,16 +1204,19 @@ def prep_downsized_3d_examples_to_write(
     if normalization_type_string == ml_utils.MINMAX_STRING:
         example_dict.update({
             FIRST_NORM_PARAM_KEY:
-                normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY],
+                normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY][
+                    time_indices, ...],
             SECOND_NORM_PARAM_KEY:
-                normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY]
+                normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY][
+                    time_indices, ...]
         })
     else:
         example_dict.update({
             FIRST_NORM_PARAM_KEY:
-                normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY],
+                normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY][
+                    time_indices, ...],
             SECOND_NORM_PARAM_KEY:
-                normalization_dict[ml_utils.STDEV_MATRIX_KEY]
+                normalization_dict[ml_utils.STDEV_MATRIX_KEY][time_indices, ...]
         })
 
     return example_dict
@@ -1661,12 +1664,12 @@ def read_downsized_3d_examples(
     }
 
     if found_normalization_params:
-        example_dict = {
+        example_dict.update({
             FIRST_NORM_PARAM_KEY:
                 first_normalization_param_matrix[indices_to_keep, ...],
             SECOND_NORM_PARAM_KEY:
                 second_normalization_param_matrix[indices_to_keep, ...]
-        }
+        })
 
     if not metadata_only:
         example_dict.update({
