@@ -286,7 +286,7 @@ if __name__ == '__main__':
         last_training_time_string=getattr(
             INPUT_ARG_OBJECT, LAST_TRAINING_TIME_ARG_NAME),
         top_validation_dir_name=getattr(
-            INPUT_ARG_OBJECT, TRAINING_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, VALIDATION_DIR_ARG_NAME),
         first_validation_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_VALIDATION_TIME_ARG_NAME),
         last_validation_time_string=getattr(
