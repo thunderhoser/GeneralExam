@@ -152,7 +152,7 @@ def create_net(
         num_input_features, first_num_rows, first_num_columns,
         upsampling_factors, num_output_channels,
         use_activation_for_out_layer=False, use_bn_for_out_layer=True,
-        use_transposed_conv=False):
+        use_transposed_conv=False, use_conv_for_out_layer=True):
     """Creates (but does not train) upconvnet.
 
     L = number of conv or deconv layers
@@ -171,6 +171,9 @@ def create_net(
     :param use_transposed_conv: Boolean flag.  If True, upsampling will be done
         with transposed-convolution layers.  If False, each upsampling will be
         done with an upsampling layer followed by a conv layer.
+    :param use_conv_for_out_layer: Boolean flag.  If True, will do normal (not
+        transposed) convolution for output layer, after zero-padding.  If False,
+        will just do zero-padding.
     :return: ucn_model_object: Untrained instance of `keras.models.Model`.
     """
 
@@ -191,6 +194,7 @@ def create_net(
     error_checking.assert_is_boolean(use_activation_for_out_layer)
     error_checking.assert_is_boolean(use_bn_for_out_layer)
     error_checking.assert_is_boolean(use_transposed_conv)
+    error_checking.assert_is_boolean(use_conv_for_out_layer)
 
     regularizer_object = keras.regularizers.l1_l2(l1=L1_WEIGHT, l2=L2_WEIGHT)
     input_layer_object = keras.layers.Input(shape=(num_input_features,))
@@ -221,14 +225,16 @@ def create_net(
                 padding=((1, 0), (1, 0)), data_format='channels_last'
             )(layer_object)
 
-            layer_object = keras.layers.Conv2D(
-                filters=current_num_filters,
-                kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                strides=(1, 1), padding='same', data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
-                kernel_initializer='glorot_uniform', bias_initializer='zeros',
-                kernel_regularizer=regularizer_object
-            )(layer_object)
+            if use_conv_for_out_layer:
+                layer_object = keras.layers.Conv2D(
+                    filters=current_num_filters,
+                    kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
+                    strides=(1, 1), padding='same', data_format='channels_last',
+                    dilation_rate=(1, 1), activation=None, use_bias=True,
+                    kernel_initializer='glorot_uniform',
+                    bias_initializer='zeros',
+                    kernel_regularizer=regularizer_object
+                )(layer_object)
 
         elif use_transposed_conv:
             if this_upsampling_factor > 1:
