@@ -1,4 +1,15 @@
-"""Methods for setting up, training, and applying upconvolution networks."""
+"""Methods for setting up, training, and applying upconvolution networks.
+
+--- NOTATION ---
+
+The following letters are used throughout this module.
+
+E = number of examples
+M = number of rows in each grid
+N = number of columns in each grid
+C = number of channels (predictor variables)
+Z = number of scalar features (produced by flattening layer of CNN)
+"""
 
 import pickle
 from random import shuffle
@@ -52,13 +63,6 @@ def _trainval_generator(
         num_examples_per_batch, cnn_model_object, cnn_feature_layer_name):
     """Generates training or validation examples for upconvnet on the fly.
 
-    E = number of examples
-    M = number of rows in each grid
-    N = number of columns in each grid
-    C = number of channels (predictor variables)
-    Z = number of scalar features (neurons in layer `cnn_feature_layer_name` of
-        the CNN specified by `cnn_model_object`)
-
     :param top_input_dir_name: Name of top-level directory with downsized 3-D
         examples (two spatial dimensions).  Files therein will be found by
         `training_validation_io.find_downsized_3d_example_file` (with
@@ -101,6 +105,7 @@ def _trainval_generator(
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
 
+    num_predictors = len(narr_predictor_names)
     num_examples_in_memory = 0
     full_target_matrix = None
 
@@ -142,6 +147,13 @@ def _trainval_generator(
         target_matrix = full_target_matrix[batch_indices, ...].astype('float32')
         feature_matrix = partial_cnn_model_object.predict(
             target_matrix, batch_size=num_examples_per_batch)
+
+        for i in range(num_examples_per_batch):
+            for m in range(num_predictors):
+                target_matrix[i, ..., m] = (
+                    target_matrix[i, ..., m] -
+                    numpy.mean(target_matrix[i, ..., m])
+                )
 
         num_examples_in_memory = 0
         full_target_matrix = None
@@ -431,6 +443,74 @@ def train_upconvnet(
         verbose=1, callbacks=list_of_callback_objects, workers=0,
         validation_data=validation_generator,
         validation_steps=num_validation_batches_per_epoch)
+
+
+def apply_upconvnet(actual_image_matrix, cnn_model_object, ucn_model_object):
+    """Applies upconvnet to new images.
+
+    Specifically, this method uses the CNN to encode images and upconvnet to
+    decode (reconstruct) them.
+
+    :param actual_image_matrix: E-by-M-by-N-by-C numpy array with actual images
+        (input examples to CNN).
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model`).
+    :param ucn_model_object: Trained upconvnet (instance of
+        `keras.models.Model`).
+    :return: reconstructed_image_matrix: E-by-M-by-N-by-C numpy array with
+        reconstructed images (output of upconvnet).
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(actual_image_matrix)
+    error_checking.assert_is_numpy_array(actual_image_matrix, num_dimensions=4)
+
+    partial_cnn_model_object = cnn.model_to_feature_generator(
+        model_object=cnn_model_object,
+        output_layer_name=traditional_cnn.get_flattening_layer(cnn_model_object)
+    )
+
+    num_examples = actual_image_matrix.shape[0]
+    num_predictors = actual_image_matrix.shape[-1]
+    num_examples_per_batch = 1000
+    reconstructed_image_matrix = None
+
+    for i in range(0, num_examples, num_examples_per_batch):
+        this_first_index = i
+        this_last_index = min(
+            [i + num_examples_per_batch - 1, num_examples - 1]
+        )
+
+        print (
+            'Using upconvnet to reconstruct examples {0:d}-{1:d} of {2:d}...'
+        ).format(this_first_index, this_last_index, num_examples)
+
+        these_indices = numpy.linspace(
+            this_first_index, this_last_index,
+            num=this_last_index - this_first_index + 1, dtype=int)
+
+        this_feature_matrix = partial_cnn_model_object.predict(
+            actual_image_matrix[these_indices, ...],
+            batch_size=len(these_indices))
+
+        this_reconstructed_matrix = ucn_model_object.predict(
+            this_feature_matrix, batch_size=len(these_indices))
+
+        if reconstructed_image_matrix is None:
+            reconstructed_image_matrix = this_reconstructed_matrix + 0.
+        else:
+            reconstructed_image_matrix = numpy.concatenate(
+                (reconstructed_image_matrix, this_reconstructed_matrix), axis=0)
+
+    print 'Used upconvnet to reconstruct all {0:d} examples!'.format(
+        num_examples)
+
+    for i in range(num_examples):
+        for m in range(num_predictors):
+            reconstructed_image_matrix[i, ..., m] = (
+                reconstructed_image_matrix[i, ..., m] +
+                numpy.mean(actual_image_matrix[i, ..., m])
+            )
+
+    return reconstructed_image_matrix
 
 
 def write_model_metadata(
