@@ -19,7 +19,6 @@ import matplotlib.pyplot as pyplot
 from keras import backend as K
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import cnn
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import upconvnet
 from generalexam.machine_learning import training_validation_io as trainval_io
@@ -126,38 +125,6 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
             example_indices, size=num_examples, replace=False)
 
     return actual_image_matrix[example_indices, ...]
-
-
-def _reconstruct_images(actual_image_matrix, cnn_model_object,
-                        ucn_model_object):
-    """Uses CNN to encode images and upconvnet to reconstruct (decode) them.
-
-    :param actual_image_matrix: E-by-M-by-N-by-C numpy array with actual images
-        (input examples to CNN).
-    :param cnn_model_object: Trained CNN (instance of `keras.models.Model`).
-    :param ucn_model_object: Trained upconvnet (instance of
-        `keras.models.Model`).
-    :return: reconstructed_image_matrix: E-by-M-by-N-by-C numpy array with
-        reconstructed images (output of upconvnet).
-    """
-
-    num_examples = actual_image_matrix.shape[0]
-    print 'Using CNN to convert {0:d} images into scalar features...'.format(
-        num_examples)
-
-    partial_cnn_model_object = cnn.model_to_feature_generator(
-        model_object=cnn_model_object,
-        output_layer_name=traditional_cnn.get_flattening_layer(cnn_model_object)
-    )
-
-    feature_matrix = partial_cnn_model_object.predict(
-        actual_image_matrix, batch_size=num_examples)
-
-    print (
-        'Using upconvnet to reconstruct {0:d} images from scalar features...'
-    ).format(num_examples)
-
-    return ucn_model_object.predict(feature_matrix, batch_size=num_examples)
 
 
 def _plot_examples(actual_image_matrix, reconstructed_image_matrix,
@@ -301,8 +268,9 @@ def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
         example_file_name=example_file_name,
         cnn_metadata_dict=cnn_metadata_dict, num_examples=num_examples,
         example_indices=example_indices)
+    print SEPARATOR_STRING
 
-    reconstructed_image_matrix = _reconstruct_images(
+    reconstructed_image_matrix = upconvnet.apply_upconvnet(
         actual_image_matrix=actual_image_matrix,
         cnn_model_object=cnn_model_object, ucn_model_object=ucn_model_object)
     print SEPARATOR_STRING
