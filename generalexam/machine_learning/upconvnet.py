@@ -7,6 +7,7 @@ import keras
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import upconvnet as gg_upconvnet
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import training_validation_io as trainval_io
 
@@ -152,7 +153,8 @@ def create_net(
         num_input_features, first_num_rows, first_num_columns,
         upsampling_factors, num_output_channels,
         use_activation_for_out_layer=False, use_bn_for_out_layer=True,
-        use_transposed_conv=False, use_conv_for_out_layer=True):
+        use_transposed_conv=False, use_conv_for_out_layer=True,
+        smoothing_radius_px=None):
     """Creates (but does not train) upconvnet.
 
     L = number of conv or deconv layers
@@ -174,6 +176,9 @@ def create_net(
     :param use_conv_for_out_layer: Boolean flag.  If True, will do normal (not
         transposed) convolution for output layer, after zero-padding.  If False,
         will just do zero-padding.
+    :param smoothing_radius_px: Smoothing radius (pixels).  Gaussian smoothing
+        with this e-folding radius will be done after each upsampling.  If
+        `smoothing_radius_px is None`, no smoothing will be done.
     :return: ucn_model_object: Untrained instance of `keras.models.Model`.
     """
 
@@ -214,6 +219,7 @@ def create_net(
 
     for i in range(num_main_layers):
         this_upsampling_factor = upsampling_factors[i]
+        do_smoothing_here = smoothing_radius_px is not None
 
         if i == num_main_layers - 2:
             current_num_filters = num_output_channels + 0
@@ -235,6 +241,8 @@ def create_net(
                     bias_initializer='zeros',
                     kernel_regularizer=regularizer_object
                 )(layer_object)
+            else:
+                do_smoothing_here = False
 
         elif use_transposed_conv:
             if this_upsampling_factor > 1:
@@ -278,6 +286,23 @@ def create_net(
                 layer_object = keras.layers.ZeroPadding2D(
                     padding=(1, 1), data_format='channels_last'
                 )(layer_object)
+
+        if do_smoothing_here:
+            this_weight_matrix = gg_upconvnet.create_smoothing_filter(
+                smoothing_radius_px=smoothing_radius_px,
+                num_channels=current_num_filters)
+
+            this_bias_vector = numpy.zeros(current_num_filters)
+
+            layer_object = keras.layers.Conv2D(
+                filters=current_num_filters,
+                kernel_size=this_weight_matrix.shape[:2],
+                strides=(1, 1), padding='same', data_format='channels_last',
+                dilation_rate=(1, 1), activation=None, use_bias=True,
+                kernel_initializer='glorot_uniform', bias_initializer='zeros',
+                kernel_regularizer=regularizer_object, trainable=False,
+                weights=[this_weight_matrix, this_bias_vector]
+            )(layer_object)
 
         if i < num_main_layers - 1 or use_activation_for_out_layer:
             layer_object = keras.layers.LeakyReLU(

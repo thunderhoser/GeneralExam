@@ -20,6 +20,8 @@ CNN_FILE_ARG_NAME = 'input_cnn_file_name'
 USE_BATCH_NORM_ARG_NAME = 'use_batch_norm_for_out_layer'
 USE_TRANSPOSED_CONV_ARG_NAME = 'use_transposed_conv'
 USE_CONV_ARG_NAME = 'use_conv_for_out_layer'
+SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_px'
+
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
@@ -49,6 +51,11 @@ USE_TRANSPOSED_CONV_HELP_STRING = (
 USE_CONV_HELP_STRING = (
     'Boolean flag.  If 1, will use normal (not transposed) convolution for '
     'output layer, after zero-padding.  If 0, will just do zero-padding.')
+
+SMOOTHING_RADIUS_HELP_STRING = (
+    'Smoothing radius (pixels), used to smooth output of each conv or '
+    'transposed-conv layer in the upconvnet.  If you want no smoothing, make '
+    'this non-positive.')
 
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training data.  Files therein (containing'
@@ -87,6 +94,7 @@ OUTPUT_FILE_HELP_STRING = (
 DEFAULT_USE_BATCH_NORM_FLAG = 1
 DEFAULT_TRANSPOSED_CONV_FLAG = 0
 DEFAULT_USE_CONV_FLAG = 1
+DEFAULT_SMOOTHING_RADIUS_PX = -1.
 
 DEFAULT_TOP_TRAINING_DIR_NAME = (
     '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled/training')
@@ -120,6 +128,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + USE_CONV_ARG_NAME, type=int, required=False,
     default=DEFAULT_USE_CONV_FLAG, help=USE_CONV_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
+    default=DEFAULT_SMOOTHING_RADIUS_PX, help=SMOOTHING_RADIUS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,
@@ -169,7 +181,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
-         use_conv_for_out_layer, top_training_dir_name,
+         use_conv_for_out_layer, smoothing_radius_px, top_training_dir_name,
          first_training_time_string, last_training_time_string,
          top_validation_dir_name, first_validation_time_string,
          last_validation_time_string, num_examples_per_batch, num_epochs,
@@ -183,6 +195,7 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
     :param use_batch_norm_for_out_layer: Same.
     :param use_transposed_conv: Same.
     :param use_conv_for_out_layer: Same.
+    :param smoothing_radius_px: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -205,6 +218,9 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
         first_validation_time_string, TIME_FORMAT)
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
         last_validation_time_string, TIME_FORMAT)
+
+    if smoothing_radius_px <= 0:
+        smoothing_radius_px = None
 
     print 'Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name)
     cnn_model_object = traditional_cnn.read_keras_model(input_cnn_file_name)
@@ -258,7 +274,8 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
         use_activation_for_out_layer=False,
         use_bn_for_out_layer=use_batch_norm_for_out_layer,
         use_transposed_conv=use_transposed_conv,
-        use_conv_for_out_layer=use_conv_for_out_layer)
+        use_conv_for_out_layer=use_conv_for_out_layer,
+        smoothing_radius_px=smoothing_radius_px)
     print SEPARATOR_STRING
 
     upconvnet.train_upconvnet(
@@ -290,6 +307,8 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, USE_TRANSPOSED_CONV_ARG_NAME)),
         use_conv_for_out_layer=bool(
             getattr(INPUT_ARG_OBJECT, USE_CONV_ARG_NAME)),
+        smoothing_radius_px=getattr(
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
         top_training_dir_name=getattr(INPUT_ARG_OBJECT, TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_TRAINING_TIME_ARG_NAME),
