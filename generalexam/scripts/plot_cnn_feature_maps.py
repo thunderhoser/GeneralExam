@@ -113,7 +113,7 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
     for i in range(num_examples):
         _, these_axes_objects = (
             feature_map_plotting.plot_many_2d_feature_maps(
-                feature_matrix=numpy.flip(feature_matrix[i, ...], axis=0),
+                feature_matrix=feature_matrix[i, 2:-2, 2:-2, ...],
                 annotation_string_by_panel=annotation_string_by_channel,
                 num_panel_rows=num_panel_rows,
                 colour_map_object=pyplot.cm.seismic,
