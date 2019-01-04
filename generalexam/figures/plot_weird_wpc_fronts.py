@@ -5,8 +5,6 @@
 """
 
 import numpy
-import matplotlib
-matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -30,6 +28,7 @@ WIND_FIELD_NAMES = [
     processed_narr_io.U_WIND_EARTH_RELATIVE_NAME,
     processed_narr_io.V_WIND_EARTH_RELATIVE_NAME
 ]
+
 NARR_FIELD_NAMES = WIND_FIELD_NAMES + [processed_narr_io.WET_BULB_THETA_NAME]
 
 MIN_LATITUDE_DEG = 20.
@@ -59,7 +58,7 @@ PLOT_EVERY_KTH_WIND_BARB = 8
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
-OUTPUT_RESOLUTION_DPI = 300
+OUTPUT_RESOLUTION_DPI = 600
 OUTPUT_SIZE_PIXELS = int(1e7)
 
 FONT_SIZE = 30
@@ -71,24 +70,18 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-# TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
-# TOP_NARR_DIRECTORY_NAME = (
-#     '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
-# OUTPUT_DIR_NAME = (
-#     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-#     'weird_wpc_fronts')
+TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
+TOP_NARR_DIRECTORY_NAME = (
+    '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
+OUTPUT_DIR_NAME = (
+    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
+    'weird_wpc_fronts')
 
-TOP_FRONT_DIR_NAME = '/condo/swatwork/ralager/fronts/polylines'
-TOP_NARR_DIRECTORY_NAME = '/condo/swatwork/ralager/narr_data/processed'
-OUTPUT_DIR_NAME = '/condo/swatwork/ralager/ams2019_fronts'
-
-# SHORT_LINE_TIME_STRINGS = ['2017-12-06-06']
-SHORT_LINE_TIME_STRINGS = ['2017-01-25-00']
+SHORT_LINE_TIME_STRINGS = ['2017-12-06-06']
 MORPH_CHANGE_TIME_STRINGS = ['2017-12-06-12', '2017-12-06-15']
 INCONSISTENCY_TIME_STRINGS = ['2017-12-08-00', '2017-12-08-03', '2017-12-08-06']
 
-# SHORT_LINE_TITLE_STRINGS = ['0600 UTC 6 Dec 2017']
-SHORT_LINE_TITLE_STRINGS = ['Inputs']
+SHORT_LINE_TITLE_STRINGS = ['0600 UTC 6 Dec 2017']
 MORPH_CHANGE_TITLE_STRINGS = ['1200 UTC 6 Dec 2017', '1500 UTC 6 Dec 2017']
 INCONSISTENCY_TITLE_STRINGS = [
     '0000 UTC 8 Dec 2017', '0300 UTC 8 Dec 2017', '0600 UTC 8 Dec 2017'
@@ -126,17 +119,8 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
     narr_matrix_by_field = [numpy.array([])] * num_narr_fields
 
     for j in range(num_narr_fields):
-        if NARR_FIELD_NAMES[j] in [
-            processed_narr_io.U_WIND_EARTH_RELATIVE_NAME,
-            processed_narr_io.V_WIND_EARTH_RELATIVE_NAME
-        ]:
-            this_top_dir_name = '{0:s}/earth_relative_wind'.format(
-                TOP_NARR_DIRECTORY_NAME)
-        else:
-            this_top_dir_name = TOP_NARR_DIRECTORY_NAME + ''
-
         this_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=this_top_dir_name,
+            top_directory_name=TOP_NARR_DIRECTORY_NAME,
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
             valid_time_unix_sec=valid_time_unix_sec)
 
@@ -233,19 +217,19 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
         else:
             this_colour = COLD_FRONT_COLOUR
 
-        # front_plotting.plot_polyline(
-        #     latitudes_deg=front_line_table[
-        #         front_utils.LATITUDES_COLUMN].values[i],
-        #     longitudes_deg=front_line_table[
-        #         front_utils.LONGITUDES_COLUMN].values[i],
-        #     basemap_object=basemap_object, axes_object=axes_object,
-        #     front_type=front_line_table[
-        #         front_utils.FRONT_TYPE_COLUMN].values[i],
-        #     line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
+        front_plotting.plot_polyline(
+            latitudes_deg=front_line_table[
+                front_utils.LATITUDES_COLUMN].values[i],
+            longitudes_deg=front_line_table[
+                front_utils.LONGITUDES_COLUMN].values[i],
+            basemap_object=basemap_object, axes_object=axes_object,
+            front_type=front_line_table[
+                front_utils.FRONT_TYPE_COLUMN].values[i],
+            line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
     pyplot.title(title_string)
-    # plotting_utils.annotate_axes(
-    #     axes_object=axes_object, annotation_string=annotation_string)
+    plotting_utils.annotate_axes(
+        axes_object=axes_object, annotation_string=annotation_string)
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME)
@@ -263,7 +247,6 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
 
 def _run():
     """Plots weird WPC fronts, along with theta_w and wind barbs from NARR.
-
     This is effectively the main method.
     """
 
