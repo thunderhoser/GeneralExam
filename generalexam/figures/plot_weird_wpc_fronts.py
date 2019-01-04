@@ -124,8 +124,17 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
     narr_matrix_by_field = [numpy.array([])] * num_narr_fields
 
     for j in range(num_narr_fields):
+        if NARR_FIELD_NAMES[j] in [
+            processed_narr_io.U_WIND_EARTH_RELATIVE_NAME,
+            processed_narr_io.V_WIND_EARTH_RELATIVE_NAME
+        ]:
+            this_top_dir_name = '{0:s}/earth_relative_wind'.format(
+                TOP_NARR_DIRECTORY_NAME)
+        else:
+            this_top_dir_name = TOP_NARR_DIRECTORY_NAME + ''
+
         this_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=TOP_NARR_DIRECTORY_NAME,
+            top_directory_name=this_top_dir_name,
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
             valid_time_unix_sec=valid_time_unix_sec)
 
