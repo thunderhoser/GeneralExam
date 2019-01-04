@@ -723,7 +723,7 @@ def apply_model_to_4d_example(
     :param model_object: Trained instance of `keras.models.Sequential`.
     :param target_time_unix_sec: See doc for
         `testing_io.create_downsized_4d_examples`.
-        :param num_lead_time_steps: Same.
+    :param num_lead_time_steps: Same.
     :param predictor_time_step_offsets: Same.
     :param top_narr_directory_name: Same.
     :param top_frontal_grid_dir_name: Same.
