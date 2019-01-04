@@ -233,19 +233,19 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
         else:
             this_colour = COLD_FRONT_COLOUR
 
-        front_plotting.plot_polyline(
-            latitudes_deg=front_line_table[
-                front_utils.LATITUDES_COLUMN].values[i],
-            longitudes_deg=front_line_table[
-                front_utils.LONGITUDES_COLUMN].values[i],
-            basemap_object=basemap_object, axes_object=axes_object,
-            front_type=front_line_table[
-                front_utils.FRONT_TYPE_COLUMN].values[i],
-            line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
+        # front_plotting.plot_polyline(
+        #     latitudes_deg=front_line_table[
+        #         front_utils.LATITUDES_COLUMN].values[i],
+        #     longitudes_deg=front_line_table[
+        #         front_utils.LONGITUDES_COLUMN].values[i],
+        #     basemap_object=basemap_object, axes_object=axes_object,
+        #     front_type=front_line_table[
+        #         front_utils.FRONT_TYPE_COLUMN].values[i],
+        #     line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
     pyplot.title(title_string)
-    plotting_utils.annotate_axes(
-        axes_object=axes_object, annotation_string=annotation_string)
+    # plotting_utils.annotate_axes(
+    #     axes_object=axes_object, annotation_string=annotation_string)
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME)
