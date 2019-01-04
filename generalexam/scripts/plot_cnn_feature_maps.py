@@ -136,6 +136,7 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
 
         print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.close()
 
 
 def _run(model_file_name, example_file_name, num_examples, example_indices,
@@ -194,6 +195,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         example_indices = numpy.random.choice(
             example_indices, size=num_examples, replace=False)
 
+    print example_indices[14]
     predictor_matrix = predictor_matrix[example_indices, ...]
     num_examples = predictor_matrix.shape[0]
 
