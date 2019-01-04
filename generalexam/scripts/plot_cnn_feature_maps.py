@@ -195,7 +195,6 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         example_indices = numpy.random.choice(
             example_indices, size=num_examples, replace=False)
 
-    print example_indices[14]
     predictor_matrix = predictor_matrix[example_indices, ...]
     num_examples = predictor_matrix.shape[0]
 
