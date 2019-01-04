@@ -57,7 +57,7 @@ PLOT_EVERY_KTH_WIND_BARB = 8
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
-OUTPUT_RESOLUTION_DPI = 600
+OUTPUT_RESOLUTION_DPI = 300
 OUTPUT_SIZE_PIXELS = int(1e7)
 
 FONT_SIZE = 30
@@ -69,18 +69,24 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
-TOP_NARR_DIRECTORY_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
-OUTPUT_DIR_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-    'weird_wpc_fronts')
+# TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
+# TOP_NARR_DIRECTORY_NAME = (
+#     '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
+# OUTPUT_DIR_NAME = (
+#     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
+#     'weird_wpc_fronts')
 
-SHORT_LINE_TIME_STRINGS = ['2017-12-06-06']
+TOP_FRONT_DIR_NAME = '/condo/swatwork/ralager/fronts/polylines'
+TOP_NARR_DIRECTORY_NAME = '/condo/swatwork/ralager/narr_data/processed'
+OUTPUT_DIR_NAME = '/condo/swatwork/ralager/ams2019_fronts'
+
+# SHORT_LINE_TIME_STRINGS = ['2017-12-06-06']
+SHORT_LINE_TIME_STRINGS = ['2017-01-25-00']
 MORPH_CHANGE_TIME_STRINGS = ['2017-12-06-12', '2017-12-06-15']
 INCONSISTENCY_TIME_STRINGS = ['2017-12-08-00', '2017-12-08-03', '2017-12-08-06']
 
-SHORT_LINE_TITLE_STRINGS = ['0600 UTC 6 Dec 2017']
+# SHORT_LINE_TITLE_STRINGS = ['0600 UTC 6 Dec 2017']
+SHORT_LINE_TITLE_STRINGS = ['']
 MORPH_CHANGE_TITLE_STRINGS = ['1200 UTC 6 Dec 2017', '1500 UTC 6 Dec 2017']
 INCONSISTENCY_TITLE_STRINGS = [
     '0000 UTC 8 Dec 2017', '0300 UTC 8 Dec 2017', '0600 UTC 8 Dec 2017'
