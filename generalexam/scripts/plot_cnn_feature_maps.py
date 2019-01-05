@@ -128,8 +128,8 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
             colour_max=max_colour_value, orientation='horizontal',
             extend_min=True, extend_max=True)
 
-        this_title_string = 'Layer "{0:s}", example {1:d}'.format(layer_name, i)
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        # this_title_string = 'Layer "{0:s}", example {1:d}'.format(layer_name, i)
+        # pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_figure_file_name = '{0:s}/example{1:06d}.jpg'.format(
             output_dir_name, i)
