@@ -29,8 +29,8 @@ WIND_FIELD_NAMES = [
 ]
 NARR_FIELD_NAMES = WIND_FIELD_NAMES + [processed_narr_io.WET_BULB_THETA_NAME]
 
-APPROX_FRONT_LATITUDE_DEG = 55.
-APPROX_FRONT_LONGITUDE_DEG = 265.
+APPROX_FRONT_LATITUDE_DEG = 74.3966862359
+APPROX_FRONT_LONGITUDE_DEG = 302.030230639
 PARALLEL_SPACING_DEG = 2.
 MERIDIAN_SPACING_DEG = 5.
 NUM_ROWS_IN_HALF_GRID = 16
@@ -53,11 +53,13 @@ MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
 PLOT_EVERY_KTH_WIND_BARB = 1
 
-VALID_TIME_STRING = '2017-01-12-09'
-OUTPUT_RESOLUTION_DPI = 600
+VALID_TIME_STRING = '2016-01-05-15'
+OUTPUT_RESOLUTION_DPI = 300
 OUTPUT_FILE_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-    'input_example/input_example.jpg')
+    '/condo/swatwork/ralager/paper_experiment_1000mb/quick_training/'
+    'u-wind-grid-relative-m-s01_v-wind-grid-relative-m-s01_temperature-kelvins_'
+    'specific-humidity-kg-kg01_init-num-filters=32_half-image-size-px=16_'
+    'num-conv-layer-sets=3_dropout=0.50/feature_maps_2016-01-05/inputs.jpg')
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -68,9 +70,9 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-TOP_FRONT_DIR_NAME = '/localdata/ryan.lagerquist/general_exam/fronts/polylines'
+TOP_FRONT_DIR_NAME = '/condo/swatwork/ralager/fronts/polylines'
 TOP_NARR_DIRECTORY_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/narr_data/processed')
+    '/condo/swatwork/ralager/narr_data/processed')
 
 
 def _find_nearest_front(
@@ -130,8 +132,14 @@ def _run():
     narr_matrix_by_field = [numpy.array([])] * num_narr_fields
 
     for j in range(num_narr_fields):
+        if NARR_FIELD_NAMES[j] in WIND_FIELD_NAMES:
+            this_directory_name = '{0:s}/earth_relative_wind'.format(
+                TOP_NARR_DIRECTORY_NAME)
+        else:
+            this_directory_name = TOP_NARR_DIRECTORY_NAME + ''
+
         this_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=TOP_NARR_DIRECTORY_NAME,
+            top_directory_name=this_directory_name,
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
             valid_time_unix_sec=valid_time_unix_sec)
 
@@ -145,11 +153,14 @@ def _run():
                 narr_matrix_by_field[j] - ZERO_CELSIUS_IN_KELVINS
             )
 
-    (_, front_centroid_latitude_deg, front_centroid_longitude_deg
-    ) = _find_nearest_front(
-        front_line_table=front_line_table,
-        query_latitude_deg=APPROX_FRONT_LATITUDE_DEG,
-        query_longitude_deg=APPROX_FRONT_LONGITUDE_DEG)
+    # (_, front_centroid_latitude_deg, front_centroid_longitude_deg
+    # ) = _find_nearest_front(
+    #     front_line_table=front_line_table,
+    #     query_latitude_deg=APPROX_FRONT_LATITUDE_DEG,
+    #     query_longitude_deg=APPROX_FRONT_LONGITUDE_DEG)
+
+    front_centroid_latitude_deg = APPROX_FRONT_LATITUDE_DEG + 0.
+    front_centroid_longitude_deg = APPROX_FRONT_LONGITUDE_DEG + 0.
 
     projection_object = nwp_model_utils.init_model_projection(
         nwp_model_utils.NARR_MODEL_NAME)
