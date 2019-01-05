@@ -272,15 +272,15 @@ def _run():
         else:
             this_colour = COLD_FRONT_COLOUR
 
-        front_plotting.plot_polyline(
-            latitudes_deg=front_line_table[
-                front_utils.LATITUDES_COLUMN].values[i],
-            longitudes_deg=front_line_table[
-                front_utils.LONGITUDES_COLUMN].values[i],
-            basemap_object=basemap_object, axes_object=axes_object,
-            front_type=front_line_table[
-                front_utils.FRONT_TYPE_COLUMN].values[i],
-            line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
+        # front_plotting.plot_polyline(
+        #     latitudes_deg=front_line_table[
+        #         front_utils.LATITUDES_COLUMN].values[i],
+        #     longitudes_deg=front_line_table[
+        #         front_utils.LONGITUDES_COLUMN].values[i],
+        #     basemap_object=basemap_object, axes_object=axes_object,
+        #     front_type=front_line_table[
+        #         front_utils.FRONT_TYPE_COLUMN].values[i],
+        #     line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
     print 'Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME)
     file_system_utils.mkdir_recursive_if_necessary(file_name=OUTPUT_FILE_NAME)
