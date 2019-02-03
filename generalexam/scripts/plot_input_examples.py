@@ -208,13 +208,13 @@ def _run(input_file_name, num_examples, example_indices, thetaw_colour_map_name,
             this_first_column_index:(this_last_column_index + 1)
         ]
 
-        this_u_wind_matrix_m_s01, this_v_wind_matrix_m_s01 = (
-            nwp_model_utils.rotate_winds_to_earth_relative(
-                u_winds_grid_relative_m_s01=this_u_wind_matrix_m_s01,
-                v_winds_grid_relative_m_s01=this_v_wind_matrix_m_s01,
-                rotation_angle_cosines=this_cos_matrix,
-                rotation_angle_sines=this_sin_matrix)
-        )
+        # this_u_wind_matrix_m_s01, this_v_wind_matrix_m_s01 = (
+        #     nwp_model_utils.rotate_winds_to_earth_relative(
+        #         u_winds_grid_relative_m_s01=this_u_wind_matrix_m_s01,
+        #         v_winds_grid_relative_m_s01=this_v_wind_matrix_m_s01,
+        #         rotation_angle_cosines=this_cos_matrix,
+        #         rotation_angle_sines=this_sin_matrix)
+        # )
 
         _, axes_object, basemap_object = nwp_plotting.init_basemap(
             model_name=nwp_model_utils.NARR_MODEL_NAME,
