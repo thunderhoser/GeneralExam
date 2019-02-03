@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
@@ -305,6 +306,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             file_type=fronts_io.POLYLINE_FILE_TYPE,
             valid_time_unix_sec=example_dict[trainval_io.TARGET_TIMES_KEY][i]
         )
+
+        print time_conversion.unix_sec_to_string(
+            example_dict[trainval_io.TARGET_TIMES_KEY][i], '%Y-%m-%d-%H')
 
         this_polyline_table = fronts_io.read_polylines_from_file(
             this_front_file_name)
