@@ -36,7 +36,8 @@ MAX_COLOUR_WIND_SPEED_KT = 0.
 
 PARALLEL_SPACING_DEG = 2.
 MERIDIAN_SPACING_DEG = 4.
-BORDER_COLOUR = numpy.full(3, 0.)
+BORDER_WIDTH = 2
+BORDER_COLOUR = numpy.full(3, 152. / 255)
 
 TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
@@ -92,7 +93,7 @@ INPUT_ARG_PARSER.add_argument(
     default=[-1], help=EXAMPLE_INDICES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlGn',
+    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='plasma',
     help=COLOUR_MAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -225,13 +226,13 @@ def _run(input_file_name, num_examples, example_indices, thetaw_colour_map_name,
 
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=axes_object,
-            line_colour=BORDER_COLOUR)
+            line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_countries(
             basemap_object=basemap_object, axes_object=axes_object,
-            line_colour=BORDER_COLOUR)
+            line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_states_and_provinces(
             basemap_object=basemap_object, axes_object=axes_object,
-            line_colour=BORDER_COLOUR)
+            line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_parallels(
             basemap_object=basemap_object, axes_object=axes_object,
             bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
