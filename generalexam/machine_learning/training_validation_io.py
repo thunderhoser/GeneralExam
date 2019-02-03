@@ -1632,16 +1632,23 @@ def read_downsized_3d_examples(
         second_normalization_param_matrix = numpy.array(
             netcdf_dataset.variables[SECOND_NORM_PARAM_KEY][:])
 
+    predictor_indices = numpy.array(
+        [narr_predictor_names.index(p) for p in predictor_names_to_keep],
+        dtype=int)
+
+    if found_normalization_params:
+        first_normalization_param_matrix = first_normalization_param_matrix[
+            ..., predictor_indices]
+        second_normalization_param_matrix = second_normalization_param_matrix[
+            ..., predictor_indices]
+
     if not metadata_only:
         predictor_matrix = numpy.array(
             netcdf_dataset.variables[PREDICTOR_MATRIX_KEY][:])
         target_matrix = numpy.array(
             netcdf_dataset.variables[TARGET_MATRIX_KEY][:])
 
-        these_indices = numpy.array(
-            [narr_predictor_names.index(p) for p in predictor_names_to_keep],
-            dtype=int)
-        predictor_matrix = predictor_matrix[..., these_indices]
+        predictor_matrix = predictor_matrix[..., predictor_indices]
         predictor_matrix = _decrease_example_size(
             predictor_matrix=predictor_matrix,
             num_half_rows=num_half_rows_to_keep,
