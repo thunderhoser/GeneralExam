@@ -65,7 +65,7 @@ EXAMPLE_INDICES_HELP_STRING = (
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map for wet-bulb potential temperature.  For example, if '
-    'name is "Greys", the colour map used will be `pyplot.cm.Greys`.  This '
+    'name is "YlGn", the colour map used will be `pyplot.cm.YlGn`.  This '
     'argument supports only pyplot colour maps.')
 
 MAX_PERCENTILE_HELP_STRING = (
@@ -145,6 +145,8 @@ def _run(input_file_name, num_examples, example_indices, thetaw_colour_map_name,
     standard_deviation_matrix = example_dict[trainval_io.SECOND_NORM_PARAM_KEY]
 
     normalization_dict = {
+        ml_utils.MIN_VALUE_MATRIX_KEY: None,
+        ml_utils.MAX_VALUE_MATRIX_KEY: None,
         ml_utils.MEAN_VALUE_MATRIX_KEY: mean_value_matrix,
         ml_utils.STDEV_MATRIX_KEY: standard_deviation_matrix
     }
