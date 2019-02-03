@@ -206,7 +206,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             layer_names[k])
 
         this_partial_model_object = cnn.model_to_feature_generator(
-            model_object=model_object, output_layer_name=layer_names[k])
+            model_object=model_object, feature_layer_name=layer_names[k])
 
         feature_matrix_by_layer[k] = this_partial_model_object.predict(
             predictor_matrix, batch_size=num_examples)
