@@ -185,14 +185,18 @@ def _run(input_file_name, num_examples, example_indices, thetaw_colour_map_name,
     v_wind_index = NARR_PREDICTOR_NAMES.index(
         processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
 
-    num_examples = len(example_indices)
-
     for i in example_indices:
         this_first_row_index = example_dict[trainval_io.ROW_INDICES_KEY][i]
         this_last_row_index = this_first_row_index + 2 * NUM_HALF_ROWS
         this_first_column_index = example_dict[
             trainval_io.COLUMN_INDICES_KEY][i]
         this_last_column_index = this_first_column_index + 2 * NUM_HALF_COLUMNS
+
+        print this_first_row_index
+        print this_last_row_index
+        print this_first_column_index
+        print this_last_column_index
+        print '\n\n'
 
         this_u_wind_matrix_m_s01 = example_dict[
             trainval_io.PREDICTOR_MATRIX_KEY][i, ..., u_wind_index]
