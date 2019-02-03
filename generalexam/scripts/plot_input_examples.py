@@ -264,7 +264,7 @@ def _run(input_file_name, num_examples, example_indices, thetaw_colour_map_name,
             values_to_colour=this_thetaw_matrix_kelvins,
             colour_map=thetaw_colour_map_object, colour_min=this_min_value,
             colour_max=this_max_value, orientation='horizontal',
-            extend_min=True, extend_max=True)
+            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
 
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
