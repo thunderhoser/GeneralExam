@@ -103,9 +103,11 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
     num_channels = feature_matrix.shape[-1]
 
     num_panel_rows = int(numpy.round(numpy.sqrt(num_channels)))
-    annotation_string_by_channel = [
-        'Filter {0:d}'.format(c + 1) for c in range(num_channels)
-    ]
+    annotation_string_by_channel = [None] * num_channels
+
+    # annotation_string_by_channel = [
+    #     'Filter {0:d}'.format(c + 1) for c in range(num_channels)
+    # ]
 
     max_colour_value = numpy.percentile(numpy.absolute(feature_matrix), 99)
     min_colour_value = -1 * max_colour_value
