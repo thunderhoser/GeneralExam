@@ -186,17 +186,13 @@ def _run(input_file_name, num_examples, example_indices, thetaw_colour_map_name,
         processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
 
     for i in example_indices:
-        this_first_row_index = example_dict[trainval_io.ROW_INDICES_KEY][i]
-        this_last_row_index = this_first_row_index + 2 * NUM_HALF_ROWS
-        this_first_column_index = example_dict[
-            trainval_io.COLUMN_INDICES_KEY][i]
-        this_last_column_index = this_first_column_index + 2 * NUM_HALF_COLUMNS
+        this_center_row_index = example_dict[trainval_io.ROW_INDICES_KEY][i]
+        this_first_row_index = this_center_row_index - NUM_HALF_ROWS
+        this_last_row_index = this_center_row_index + NUM_HALF_ROWS
 
-        print this_first_row_index
-        print this_last_row_index
-        print this_first_column_index
-        print this_last_column_index
-        print '\n\n'
+        this_center_column_index = example_dict[trainval_io.COLUMN_INDICES_KEY][i]
+        this_first_column_index = this_center_column_index - NUM_HALF_COLUMNS
+        this_last_column_index = this_center_column_index + NUM_HALF_COLUMNS
 
         this_u_wind_matrix_m_s01 = example_dict[
             trainval_io.PREDICTOR_MATRIX_KEY][i, ..., u_wind_index]
