@@ -74,7 +74,7 @@ class ProcessedNarrIoTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             processed_narr_io.check_field_name(
-                narr_netcdf_io.TEMPERATURE_NAME_ORIG)
+                narr_netcdf_io.TEMPERATURE_NAME_NETCDF)
 
     def test_check_field_name_fake(self):
         """Ensures correct output from check_field_name.

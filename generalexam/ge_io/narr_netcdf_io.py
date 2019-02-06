@@ -21,189 +21,220 @@ NARR_ZERO_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
 
 TIME_FORMAT_MONTH = '%Y%m'
 NETCDF_FILE_EXTENSION = '.nc'
-TOP_ONLINE_DIRECTORY_NAME = 'ftp://ftp.cdc.noaa.gov/Datasets/NARR/pressure'
 
-TEMPERATURE_NAME_ORIG = 'air'
-HEIGHT_NAME_ORIG = 'hgt'
-VERTICAL_VELOCITY_NAME_ORIG = 'omega'
-SPECIFIC_HUMIDITY_NAME_ORIG = 'shum'
-U_WIND_EARTH_RELATIVE_NAME_ORIG = 'uwnd'
-V_WIND_EARTH_RELATIVE_NAME_ORIG = 'vwnd'
+ONLINE_SURFACE_DIR_NAME = 'ftp://ftp.cdc.noaa.gov/Datasets/NARR/monolevel'
+ONLINE_PRESSURE_LEVEL_DIR_NAME = 'ftp://ftp.cdc.noaa.gov/Datasets/NARR/pressure'
 
-FIELD_NAMES_ORIG = [
-    TEMPERATURE_NAME_ORIG, HEIGHT_NAME_ORIG, VERTICAL_VELOCITY_NAME_ORIG,
-    SPECIFIC_HUMIDITY_NAME_ORIG, U_WIND_EARTH_RELATIVE_NAME_ORIG,
-    V_WIND_EARTH_RELATIVE_NAME_ORIG]
+TEMPERATURE_NAME_NETCDF = 'air'
+HEIGHT_NAME_NETCDF = 'hgt'
+VERTICAL_VELOCITY_NAME_NETCDF = 'omega'
+SPECIFIC_HUMIDITY_NAME_NETCDF = 'shum'
+U_WIND_NAME_NETCDF = 'uwnd'
+V_WIND_NAME_NETCDF = 'vwnd'
 
-PRESSURE_LEVEL_NAME_ORIG = 'level'
-TIME_NAME_ORIG = 'time'
-X_COORD_NAME_ORIG = 'x'
-Y_COORD_NAME_ORIG = 'y'
+VALID_FIELD_NAMES_NETCDF = [
+    TEMPERATURE_NAME_NETCDF, HEIGHT_NAME_NETCDF, VERTICAL_VELOCITY_NAME_NETCDF,
+    SPECIFIC_HUMIDITY_NAME_NETCDF, U_WIND_NAME_NETCDF, V_WIND_NAME_NETCDF
+]
+
+PRESSURE_KEY = 'level'
+TIME_KEY = 'time'
 
 
-def _remove_sentinel_values(field_matrix):
+def _remove_sentinel_values(data_matrix):
     """Removes sentinel values from field.
 
-    M = number of rows (unique grid-point y-coordinates)
-    N = number of columns (unique grid-point x-coordinates)
+    M = number of rows in grid
+    N = number of columns in grid
 
-    :param field_matrix: M-by-N numpy array (may include sentinel values).
-    :return: field_matrix: Same as input, except that sentinel values have been
-        changed to NaN.
+    :param data_matrix: M-by-N numpy array of gridded values.
+    :return: data_matrix: Same but with sentinel values changed to NaN.
     """
 
-    field_matrix[field_matrix < SENTINEL_VALUE] = numpy.nan
-    return field_matrix
+    data_matrix[data_matrix < SENTINEL_VALUE] = numpy.nan
+    return data_matrix
 
 
-def _time_from_narr_to_unix(narr_time_hours):
-    """Converts time from NARR format to Unix format.
+def _narr_to_unix_time(narr_time_hours):
+    """Converts NARR time to Unix time.
 
-    NARR format = hours since 0000 UTC 1 Jan 1800
-    Unix format = seconds since 0000 UTC 1 Jan 1970
-
-    :param narr_time_hours: Time in NARR format.
-    :return: unix_time_sec: Time in Unix format.
+    :param narr_time_hours: NARR time (integer).
+    :return: unix_time_sec: Unix time (integer).
     """
 
     return NARR_ZERO_TIME_UNIX_SEC + narr_time_hours * HOURS_TO_SECONDS
 
 
-def _time_from_unix_to_narr(unix_time_sec):
-    """Converts time from Unix format to NARR format.
+def _unix_to_narr_time(unix_time_sec):
+    """Converts Unix time to NARR time.
 
-    NARR format = hours since 0000 UTC 1 Jan 1800
-    Unix format = seconds since 0000 UTC 1 Jan 1970
-
-    :param unix_time_sec: Time in Unix format.
-    :return: narr_time_hours: Time in NARR format.
+    :param unix_time_sec: Unix time (integer).
+    :return: narr_time_hours: NARR time (integer).
     """
 
     return (unix_time_sec - NARR_ZERO_TIME_UNIX_SEC) / HOURS_TO_SECONDS
 
 
-def _check_field_name_orig(field_name_orig):
-    """Ensures that name of model field is recognized.
+def _check_field_name_netcdf(field_name_netcdf):
+    """Error-checks field name.
 
-    :param field_name_orig: Field name in original NetCDF format (not
-        GewitterGefahr format).
-    :raises: ValueError: if field name is unrecognized.
+    :param field_name_netcdf: Field name in NetCDF format.
+    :raises: ValueError: if `field_name_netcdf not in VALID_FIELD_NAMES_NETCDF`.
     """
 
-    error_checking.assert_is_string(field_name_orig)
-    if field_name_orig not in FIELD_NAMES_ORIG:
+    error_checking.assert_is_string(field_name_netcdf)
+
+    if field_name_netcdf not in VALID_FIELD_NAMES_NETCDF:
         error_string = (
-            '\n\n' + str(FIELD_NAMES_ORIG) +
-            '\n\nValid field names (listed above) do not include "' +
-            field_name_orig + '".')
+            '\n{0:s}\nValid field names in NetCDF format (listed above) do not '
+            'include "{1:s}".'
+        ).format(str(VALID_FIELD_NAMES_NETCDF), field_name_netcdf)
+
         raise ValueError(error_string)
 
 
-def _field_name_orig_to_new(field_name_orig):
-    """Converts field name from orig (NetCDF) to new (GewitterGefahr) format.
+def _netcdf_to_std_field_name(field_name_netcdf):
+    """Converts field name from NetCDF to standard format.
 
-    :param field_name_orig: Field name in NetCDF format.
-    :return: field_name: Field name in GewitterGefahr format.
+    :param field_name_netcdf: Field name in NetCDF format (must be accepted by
+        `_check_field_name_netcdf`).
+    :return: field_name: Field name in standard format (accepted by
+        `processed_narr_io.check_field_name`).
     """
 
-    _check_field_name_orig(field_name_orig)
+    _check_field_name_netcdf(field_name_netcdf)
+
     return processed_narr_io.STANDARD_FIELD_NAMES[
-        FIELD_NAMES_ORIG.index(field_name_orig)]
+        VALID_FIELD_NAMES_NETCDF.index(field_name_netcdf)
+    ]
 
 
-def _get_pathless_file_name(month_string, field_name):
-    """Generates pathless name for NetCDF file.
+def _std_to_netcdf_field_name(field_name):
+    """Converts field name from standard to NetCDF format.
 
-    This file should contain a single variable at all pressure levels for one
-    month.
+    :param field_name: Field name in standard format (must be accepted by
+        `processed_narr_io.check_field_name`).
+    :return: field_name_netcdf: Field name in NetCDF format (accepted by
+        `_check_field_name_netcdf`).
+    """
 
+    processed_narr_io.check_field_name(
+        field_name=field_name, require_standard=True)
+
+    return VALID_FIELD_NAMES_NETCDF[
+        processed_narr_io.STANDARD_FIELD_NAMES.index(field_name)
+    ]
+
+
+def _get_pathless_file_name(field_name, month_string, is_surface=False):
+    """Returns pathless name for NetCDF file.
+
+    :param field_name: Field name (must be accepted by
+        `processed_narr_io.check_field_name`).
     :param month_string: Month (format "yyyymm").
-    :param field_name: Field name in GewitterGefahr format.
+    :param is_surface: Boolean flag.  If True, will assume that the file
+        contains surface data.  If False, will assume that it contains isobaric
+        data at all pressure levels.
     :return: pathless_netcdf_file_name: Pathless name for NetCDF file.
     """
 
-    return '{0:s}.{1:s}{2:s}'.format(
-        field_name_new_to_orig(field_name), month_string, NETCDF_FILE_EXTENSION)
+    if not is_surface:
+        return '{0:s}.{1:s}{2:s}'.format(
+            _std_to_netcdf_field_name(field_name), month_string,
+            NETCDF_FILE_EXTENSION)
+
+    if field_name == processed_narr_io.TEMPERATURE_NAME:
+        return 'air.2m.{0:s}{1:s}'.format(
+            month_string[:4], NETCDF_FILE_EXTENSION)
+
+    if field_name == processed_narr_io.SPECIFIC_HUMIDITY_NAME:
+        return 'shum.2m.{0:s}{1:s}'.format(
+            month_string[:4], NETCDF_FILE_EXTENSION)
+
+    # TODO(thunderhoser): This is a HACK.
+    if field_name == processed_narr_io.HEIGHT_NAME:
+        return 'pres.sfc.{0:s}{1:s}'.format(
+            month_string[:4], NETCDF_FILE_EXTENSION)
+
+    if field_name == processed_narr_io.VERTICAL_VELOCITY_NAME:
+        return 'vvel.hl1.{0:s}{1:s}'.format(
+            month_string[:4], NETCDF_FILE_EXTENSION)
+
+    if field_name == processed_narr_io.U_WIND_EARTH_RELATIVE_NAME:
+        return 'uwnd.10m.{0:s}{1:s}'.format(
+            month_string[:4], NETCDF_FILE_EXTENSION)
+
+    if field_name == processed_narr_io.V_WIND_EARTH_RELATIVE_NAME:
+        return 'vwnd.10m.{0:s}{1:s}'.format(
+            month_string[:4], NETCDF_FILE_EXTENSION)
+
+    return None
 
 
-def field_name_new_to_orig(field_name):
-    """Converts field name from new (GewitterGefahr) to orig (NetCDF) format.
-
-    :param field_name: Field name in GewitterGefahr format.
-    :return: field_name_orig: Field name in NetCDF format.
-    """
-
-    processed_narr_io.check_field_name(field_name, require_standard=True)
-    return FIELD_NAMES_ORIG[
-        processed_narr_io.STANDARD_FIELD_NAMES.index(field_name)]
-
-
-def find_file(month_string, field_name, top_directory_name,
+def find_file(top_directory_name, field_name, month_string, is_surface=False,
               raise_error_if_missing=True):
-    """Finds NetCDF file on local machine.
+    """Finds NetCDF file on the local machine.
 
-    This file should contain a single variable at all pressure levels for one
-    month.
-
-    :param month_string: Month (format "yyyymm").
-    :param field_name: Field name in GewitterGefahr format.
     :param top_directory_name: Name of top-level directory with NetCDF files
         containing NARR data.
+    :param field_name: See doc for `_get_pathless_file_name`.
+    :param month_string: Same.
+    :param is_surface: Same.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
-        raise_error_if_missing = True, this method will error out.  If file is
-        missing and raise_error_if_missing = False, this method will return the
-        *expected* path to the file.
-    :return: netcdf_file_name: Path to file.  If file is missing and
-        raise_error_if_missing = False, this is the *expected* path.
-    :raises: ValueError: if file is missing and raise_error_if_missing = True.
+        `raise_error_if_missing = True`, this method will error out.
+    :return: netcdf_file_name: Path to NetCDF file.  If file is missing and
+        `raise_error_if_missing = False`, will return the *expected* path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
-    # Error-checking.
     error_checking.assert_is_string(top_directory_name)
+    time_conversion.string_to_unix_sec(month_string, TIME_FORMAT_MONTH)
+    error_checking.assert_is_boolean(is_surface)
     error_checking.assert_is_boolean(raise_error_if_missing)
-    _ = time_conversion.string_to_unix_sec(month_string, TIME_FORMAT_MONTH)
 
-    pathless_netcdf_file_name = _get_pathless_file_name(
-        month_string=month_string, field_name=field_name)
+    pathless_file_name = _get_pathless_file_name(
+        field_name=field_name, month_string=month_string, is_surface=is_surface)
     netcdf_file_name = '{0:s}/{1:s}'.format(
-        top_directory_name, pathless_netcdf_file_name)
+        top_directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(netcdf_file_name):
-        error_string = (
-            'Cannot find file.  Expected at location: "{0:s}"'.format(
-                netcdf_file_name))
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            netcdf_file_name)
         raise ValueError(error_string)
 
     return netcdf_file_name
 
 
-def download_file(month_string, field_name, top_local_directory_name,
-                  raise_error_if_fails=True):
-    """Downloads NetCDF file to local machine.
+def download_file(
+        top_local_dir_name, field_name, month_string, is_surface=False,
+        raise_error_if_fails=False):
+    """Downloads NetCDF file to the local machine.
 
-    This file should contain a single variable at all pressure levels for one
-    month.
-
-    :param month_string: Month (format "yyyymm").
-    :param field_name: Field name in GewitterGefahr format.
-    :param top_local_directory_name: Name of top-level directory (on local
-        machine) for NARR files in NetCDF format.
+    :param top_local_dir_name: Name of top-level target directory (local
+        directory for NetCDF files with NARR data).
+    :param field_name: See doc for `_get_pathless_file_name`.
+    :param month_string: Same.
+    :param is_surface: Same.
     :param raise_error_if_fails: Boolean flag.  If download fails and
-        raise_error_if_fails = True, this method will error out.  If download
-        fails and raise_error_if_fails = False, this method will return None.
+        `raise_error_if_fails = True`, this method will error out.
     :return: local_file_name: Path to downloaded file on local machine.  If
-        download failed and raise_error_if_fails = False, this is None.
+        download failed and `raise_error_if_fails = False`, this is None.
     """
 
     local_file_name = find_file(
-        month_string=month_string, field_name=field_name,
-        top_directory_name=top_local_directory_name,
+        top_directory_name=top_local_dir_name, field_name=field_name,
+        month_string=month_string, is_surface=is_surface,
         raise_error_if_missing=False)
 
-    pathless_netcdf_file_name = _get_pathless_file_name(
-        month_string=month_string, field_name=field_name)
-    online_file_name = '{0:s}/{1:s}'.format(
-        TOP_ONLINE_DIRECTORY_NAME, pathless_netcdf_file_name)
+    pathless_file_name = _get_pathless_file_name(
+        field_name=field_name, month_string=month_string, is_surface=is_surface)
+
+    if is_surface:
+        online_dir_name = ONLINE_SURFACE_DIR_NAME + ''
+    else:
+        online_dir_name = ONLINE_PRESSURE_LEVEL_DIR_NAME + ''
+
+    online_file_name = '{0:s}/{1:s}'.format(online_dir_name, pathless_file_name)
 
     return downloads.download_files_via_http(
         online_file_names=[online_file_name],
@@ -211,61 +242,60 @@ def download_file(month_string, field_name, top_local_directory_name,
         raise_error_if_fails=raise_error_if_fails)
 
 
-def read_data_from_file(
-        netcdf_file_name, field_name, valid_time_unix_sec, pressure_level_mb,
-        raise_error_if_fails=True):
+def read_file(netcdf_file_name, field_name, valid_time_unix_sec,
+              pressure_level_mb=None):
     """Reads data from NetCDF file.
 
-    This file should contain a single variable at all pressure levels for one
-    month.
+    This method will extract one field at one pressure level (or surface) at one
+    time.
 
-    M = number of rows (unique grid-point y-coordinates)
-    N = number of columns (unique grid-point x-coordinates)
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param netcdf_file_name: Path to input file.
-    :param field_name: Field name in GewitterGefahr format.  Only this field
-        will be read.
-    :param valid_time_unix_sec: Field will be read only for this valid time.
-    :param pressure_level_mb: Field will be read only for this pressure level
-        (integer in millibars).
-    :param raise_error_if_fails: Boolean flag.  If file cannot be read and
-        raise_error_if_fails = True, this method will error out.  If file cannot
-        be read and raise_error_if_fails = False, this method will return None
-        for all output variables.
-    :return: field_matrix: M-by-N numpy array with values of `field_name`.
-    :return: grid_point_x_coords_metres: length-N numpy array with x-coordinates
-        of grid points.  grid_point_x_coords_metres[j] is the x-coordinate for
-        all points in field_matrix[:, j].
-    :return: grid_point_y_coords_metres: length-M numpy array with y-coordinates
-        of grid points.  grid_point_y_coords_metres[i] is the y-coordinate for
-        all points in field_matrix[i, :].
+    :param field_name: Field to extract (must be accepted by
+        `processed_narr_io.check_field_name`).
+    :param valid_time_unix_sec: Valid time.
+    :param pressure_level_mb: [used only if file contains isobaric data]
+        Pressure level to extract (millibars).
+    :return: data_matrix: M-by-N numpy array with values of the given field at
+        the given pressure level (or surface).
     """
 
-    field_name_orig = field_name_new_to_orig(field_name)
-    valid_time_narr_hours = _time_from_unix_to_narr(valid_time_unix_sec)
-    error_checking.assert_is_integer(pressure_level_mb)
+    field_name_orig = _std_to_netcdf_field_name(field_name)
+    valid_time_narr_hours = _unix_to_narr_time(valid_time_unix_sec)
+    if pressure_level_mb is not None:
+        error_checking.assert_is_integer(pressure_level_mb)
 
-    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
-                                           raise_error_if_fails)
-    if netcdf_dataset is None:
-        return None, None, None
+    dataset_object = netcdf_io.open_netcdf(
+        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
-    all_times_narr_hours = netcdf_dataset.variables[TIME_NAME_ORIG]
-    all_pressure_levels_mb = netcdf_dataset.variables[PRESSURE_LEVEL_NAME_ORIG]
-    all_times_narr_hours = numpy.array(
-        all_times_narr_hours).astype(int).tolist()
-    all_pressure_levels_mb = numpy.array(
-        all_pressure_levels_mb).astype(int).tolist()
+    is_surface = PRESSURE_KEY not in dataset_object.variables
 
-    time_index = all_times_narr_hours.index(valid_time_narr_hours)
-    pressure_index = all_pressure_levels_mb.index(pressure_level_mb)
-    field_matrix = numpy.array(
-        netcdf_dataset.variables[field_name_orig][
-            time_index, pressure_index, :, :])
-    field_matrix = _remove_sentinel_values(field_matrix)
+    all_times_narr_hours = numpy.round(
+        dataset_object.variables[TIME_KEY]
+    ).astype(int)
 
-    grid_point_x_coords_metres = numpy.array(
-        netcdf_dataset.variables[X_COORD_NAME_ORIG])
-    grid_point_y_coords_metres = numpy.array(
-        netcdf_dataset.variables[Y_COORD_NAME_ORIG])
-    return field_matrix, grid_point_x_coords_metres, grid_point_y_coords_metres
+    time_index = numpy.where(
+        all_times_narr_hours == valid_time_narr_hours
+    )[0][0]
+
+    if is_surface:
+        field_matrix = numpy.array(
+            dataset_object.variables[field_name_orig][time_index, ...]
+        )
+    else:
+        all_pressure_levels_mb = numpy.round(
+            dataset_object.variables[PRESSURE_KEY]
+        ).astype(int)
+
+        pressure_index = numpy.where(
+            all_pressure_levels_mb == pressure_level_mb
+        )[0][0]
+
+        field_matrix = numpy.array(
+            dataset_object.variables[field_name_orig][
+                time_index, pressure_index, ...]
+        )
+
+    return _remove_sentinel_values(field_matrix)
