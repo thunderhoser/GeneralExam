@@ -264,7 +264,13 @@ def read_file(netcdf_file_name, field_name, valid_time_unix_sec,
 
     field_name_orig = _std_to_netcdf_field_name(field_name)
     valid_time_narr_hours = _unix_to_narr_time(valid_time_unix_sec)
-    if pressure_level_mb is not None:
+
+    if pressure_level_mb is None:
+
+        # TODO(thunderhoser): This is a HACK.
+        if field_name_orig == HEIGHT_NAME_NETCDF:
+            field_name_orig = 'pres'
+    else:
         error_checking.assert_is_integer(pressure_level_mb)
 
     dataset_object = netcdf_io.open_netcdf(
