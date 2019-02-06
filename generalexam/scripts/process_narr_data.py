@@ -15,7 +15,6 @@ WGRIB_EXE_NAME = '/condo/swatwork/ralager/wgrib/wgrib'
 WGRIB2_EXE_NAME = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
-DEFAULT_TIME_FORMAT = '%Y-%m-%d-%H'
 MONTH_TIME_FORMAT = '%Y%m'
 TIME_INTERVAL_SECONDS = 10800
 LAST_GRIB_TIME_UNIX_SEC = 1412283600
@@ -304,7 +303,7 @@ def _run(top_input_dir_name, first_time_string, last_time_string,
             field_matrix=numpy.expand_dims(this_field_matrix, axis=0),
             field_name=output_field_name,
             pressure_level_pascals=output_pressure_level_mb * MB_TO_PASCALS,
-            valid_times_unix_sec=valid_times_unix_sec[[0]]
+            valid_times_unix_sec=valid_times_unix_sec[[i]]
         )
 
         if input_field_name not in WIND_FIELD_NAMES:
@@ -318,7 +317,7 @@ def _run(top_input_dir_name, first_time_string, last_time_string,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        print 'Writing processed data to: "{0:s}"...'.format(
+        print 'Writing processed data to: "{0:s}"...\n'.format(
             this_output_file_name)
 
         processed_narr_io.write_fields_to_file(
@@ -326,7 +325,7 @@ def _run(top_input_dir_name, first_time_string, last_time_string,
             field_matrix=numpy.expand_dims(this_field_matrix_other, axis=0),
             field_name=output_field_name_other,
             pressure_level_pascals=output_pressure_level_mb * MB_TO_PASCALS,
-            valid_times_unix_sec=valid_times_unix_sec[[0]]
+            valid_times_unix_sec=valid_times_unix_sec[[i]]
         )
 
 
