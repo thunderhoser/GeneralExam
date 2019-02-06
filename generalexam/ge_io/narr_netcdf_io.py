@@ -270,6 +270,8 @@ def read_file(netcdf_file_name, field_name, valid_time_unix_sec,
         # TODO(thunderhoser): This is a HACK.
         if field_name_orig == HEIGHT_NAME_NETCDF:
             field_name_orig = 'pres'
+        if field_name_orig == VERTICAL_VELOCITY_NAME_NETCDF:
+            field_name_orig = 'vvel'
     else:
         error_checking.assert_is_integer(pressure_level_mb)
 
