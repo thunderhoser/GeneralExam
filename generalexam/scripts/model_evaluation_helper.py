@@ -242,7 +242,7 @@ def run_evaluation(class_probability_matrix, observed_labels, output_dir_name):
         collectively exhaustive, so that the sum across each row is 1.0.
     :param observed_labels: length-E numpy array of observed labels.  Each label
         must be an integer from 0...(K - 1).
-    :param output_dir_name: Name of output directory.  Figures will be saved
+    :param output_dir_name: Name of output directory.  Results will be saved
         here.
     """
 

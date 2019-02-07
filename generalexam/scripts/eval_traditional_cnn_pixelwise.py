@@ -18,12 +18,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 )))
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
-FORECAST_PRECISION_FOR_THRESHOLDS = 0.001
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-DOTS_PER_INCH = 300
-FIGURE_WIDTH_INCHES = 15
-FIGURE_HEIGHT_INCHES = 15
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
