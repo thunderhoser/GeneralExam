@@ -18,16 +18,18 @@ numpy.random.seed(6695)
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 NARR_TIME_INTERVAL_SEC = 10800
-NARR_PREDICTOR_NAMES = [
+
+VALID_THERMAL_FIELD_NAMES = [
+    processed_narr_io.TEMPERATURE_NAME,
     processed_narr_io.WET_BULB_THETA_NAME,
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME
+    processed_narr_io.SPECIFIC_HUMIDITY_NAME
 ]
 
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 RANDOMIZE_TIMES_ARG_NAME = 'randomize_times'
 NUM_TIMES_ARG_NAME = 'num_times'
+THERMAL_FIELD_ARG_NAME = 'thermal_field_name'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_pixels'
 WF_PERCENTILE_ARG_NAME = 'warm_front_percentile'
 CF_PERCENTILE_ARG_NAME = 'cold_front_percentile'
@@ -52,10 +54,15 @@ NUM_TIMES_HELP_STRING = (
     '`{1:s}`...`{2:s}`).'
 ).format(RANDOMIZE_TIMES_ARG_NAME, FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
+THERMAL_FIELD_HELP_STRING = (
+    'Thermal field.  Both this field and the wind field will be used as '
+    'predictors.  Valid thermal fields are listed below.\n{0:s}'
+).format(str(VALID_THERMAL_FIELD_NAMES))
+
 SMOOTHING_RADIUS_HELP_STRING = (
     'Smoothing radius (standard deviation of Gaussian kernel).  Will be applied'
-    ' to all predictors (listed below).\n{0:s}'
-).format(str(NARR_PREDICTOR_NAMES))
+    ' to both thermal and wind fields.'
+)
 
 WF_PERCENTILE_HELP_STRING = (
     'Used to locate warm fronts.  For grid cell [i, j] to be considered part of'
@@ -77,9 +84,8 @@ NUM_CLOSING_ITERS_HELP_STRING = (
     'frontal regions.')
 
 PRESSURE_LEVEL_HELP_STRING = (
-    'Predictors (listed below) will be taken from this pressure level '
-    '(millibars).\n{0:s}'
-).format(str(NARR_PREDICTOR_NAMES))
+    'Pressure level (millibars).  Both thermal and wind fields will be taken '
+    'from this level only.')
 
 NARR_DIRECTORY_HELP_STRING = (
     'Name of top-level NARR directory (predictors will be read from here).  '
@@ -96,11 +102,13 @@ OUTPUT_DIR_HELP_STRING = (
     ' written here by `nfa.write_gridded_predictions`, to a location determined'
     ' by `nfa.find_gridded_prediction_file`.')
 
+DEFAULT_THERMAL_FIELD_NAME = processed_narr_io.WET_BULB_THETA_NAME
 DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
 DEFAULT_WARM_FRONT_PERCENTILE = 97.
 DEFAULT_COLD_FRONT_PERCENTILE = 97.
 DEFAULT_NUM_CLOSING_ITERS = 3
 DEFAULT_PRESSURE_LEVEL_MB = 850
+
 TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_NARR_MASK_FILE_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
@@ -119,6 +127,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_TIMES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + THERMAL_FIELD_ARG_NAME, type=str, required=False,
+    default=DEFAULT_THERMAL_FIELD_NAME, help=THERMAL_FIELD_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
@@ -154,9 +166,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(first_time_string, last_time_string, randomize_times, num_times,
-         smoothing_radius_pixels, warm_front_percentile, cold_front_percentile,
-         num_closing_iters, pressure_level_mb, top_narr_directory_name,
-         narr_mask_file_name, output_dir_name):
+         thermal_field_name, smoothing_radius_pixels, warm_front_percentile,
+         cold_front_percentile, num_closing_iters, pressure_level_mb,
+         top_narr_directory_name, narr_mask_file_name, output_dir_name):
     """Uses NFA (numerical frontal analysis) to predict front type at each px.
 
     This is effectively the main method.
@@ -165,6 +177,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     :param last_time_string: Same.
     :param randomize_times: Same.
     :param num_times: Same.
+    :param thermal_field_name: Same.
     :param smoothing_radius_pixels: Same.
     :param warm_front_percentile: Same.
     :param cold_front_percentile: Same.
@@ -173,7 +186,17 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     :param top_narr_directory_name: Same.
     :param narr_mask_file_name: Same.
     :param output_dir_name: Same.
+    :raises: ValueError: if
+        `thermal_field_name not in VALID_THERMAL_FIELD_NAMES`.
     """
+
+    if thermal_field_name not in VALID_THERMAL_FIELD_NAMES:
+        error_string = (
+            '\n{0:s}\nValid thermal fields (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VALID_THERMAL_FIELD_NAMES), thermal_field_name)
+
+        raise ValueError(error_string)
 
     cutoff_radius_pixels = 4 * smoothing_radius_pixels
 
@@ -206,24 +229,20 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
     num_times = len(valid_times_unix_sec)
     for i in range(num_times):
-        this_wet_bulb_theta_file_name = (
-            processed_narr_io.find_file_for_one_time(
-                top_directory_name=top_narr_directory_name,
-                field_name=processed_narr_io.WET_BULB_THETA_NAME,
-                pressure_level_mb=pressure_level_mb,
-                valid_time_unix_sec=valid_times_unix_sec[i])
-        )
+        this_thermal_file_name = processed_narr_io.find_file_for_one_time(
+            top_directory_name=top_narr_directory_name,
+            field_name=thermal_field_name, pressure_level_mb=pressure_level_mb,
+            valid_time_unix_sec=valid_times_unix_sec[i])
 
-        print 'Reading data from: "{0:s}"...'.format(
-            this_wet_bulb_theta_file_name)
-        this_wet_bulb_theta_matrix_kelvins = (
-            processed_narr_io.read_fields_from_file(
-                this_wet_bulb_theta_file_name)[0][0, ...]
-        )
-        this_wet_bulb_theta_matrix_kelvins = general_utils.fill_nans(
-            this_wet_bulb_theta_matrix_kelvins)
-        this_wet_bulb_theta_matrix_kelvins = nfa.gaussian_smooth_2d_field(
-            field_matrix=this_wet_bulb_theta_matrix_kelvins,
+        print 'Reading data from: "{0:s}"...'.format(this_thermal_file_name)
+        this_thermal_matrix_kelvins = processed_narr_io.read_fields_from_file(
+            this_thermal_file_name
+        )[0][0, ...]
+
+        this_thermal_matrix_kelvins = general_utils.fill_nans(
+            this_thermal_matrix_kelvins)
+        this_thermal_matrix_kelvins = nfa.gaussian_smooth_2d_field(
+            field_matrix=this_thermal_matrix_kelvins,
             standard_deviation_pixels=smoothing_radius_pixels,
             cutoff_radius_pixels=cutoff_radius_pixels)
 
@@ -235,7 +254,9 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
         print 'Reading data from: "{0:s}"...'.format(this_u_wind_file_name)
         this_u_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
-            this_u_wind_file_name)[0][0, ...]
+            this_u_wind_file_name
+        )[0][0, ...]
+
         this_u_wind_matrix_m_s01 = general_utils.fill_nans(
             this_u_wind_matrix_m_s01)
         this_u_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
@@ -251,7 +272,9 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
         print 'Reading data from: "{0:s}"...'.format(this_v_wind_file_name)
         this_v_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
-            this_v_wind_file_name)[0][0, ...]
+            this_v_wind_file_name
+        )[0][0, ...]
+
         this_v_wind_matrix_m_s01 = general_utils.fill_nans(
             this_v_wind_matrix_m_s01)
         this_v_wind_matrix_m_s01 = nfa.gaussian_smooth_2d_field(
@@ -260,7 +283,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             cutoff_radius_pixels=cutoff_radius_pixels)
 
         this_tfp_matrix_kelvins_m02 = nfa.get_thermal_front_param(
-            thermal_field_matrix_kelvins=this_wet_bulb_theta_matrix_kelvins,
+            thermal_field_matrix_kelvins=this_thermal_matrix_kelvins,
             x_spacing_metres=x_spacing_metres,
             y_spacing_metres=y_spacing_metres)
         this_tfp_matrix_kelvins_m02[narr_mask_matrix == 0] = 0.
@@ -268,7 +291,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         this_proj_velocity_matrix_m_s01 = nfa.project_wind_to_thermal_gradient(
             u_matrix_grid_relative_m_s01=this_u_wind_matrix_m_s01,
             v_matrix_grid_relative_m_s01=this_v_wind_matrix_m_s01,
-            thermal_field_matrix_kelvins=this_wet_bulb_theta_matrix_kelvins,
+            thermal_field_matrix_kelvins=this_thermal_matrix_kelvins,
             x_spacing_metres=x_spacing_metres,
             y_spacing_metres=y_spacing_metres)
 
@@ -317,6 +340,7 @@ if __name__ == '__main__':
         randomize_times=bool(getattr(
             INPUT_ARG_OBJECT, RANDOMIZE_TIMES_ARG_NAME)),
         num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
+        thermal_field_name=getattr(INPUT_ARG_OBJECT, THERMAL_FIELD_ARG_NAME),
         smoothing_radius_pixels=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
         warm_front_percentile=getattr(INPUT_ARG_OBJECT, WF_PERCENTILE_ARG_NAME),
