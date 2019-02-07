@@ -159,6 +159,7 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
             this_predicted_label_matrix, this_metadata_dict = (
                 nfa.read_gridded_predictions(this_prediction_file_name)
             )
+            this_predicted_label_matrix = this_predicted_label_matrix[0, ...]
 
             narr_mask_matrix = this_metadata_dict[nfa.NARR_MASK_KEY]
             unmasked_grid_rows, unmasked_grid_columns = numpy.where(
