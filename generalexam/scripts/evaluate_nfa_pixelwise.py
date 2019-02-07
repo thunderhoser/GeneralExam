@@ -208,6 +208,8 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
             this_predicted_label_matrix[these_grid_rows, these_grid_columns]
         ))
 
+        this_target_matrix = this_target_matrix[0, ...]
+
         observed_labels = numpy.concatenate((
             observed_labels,
             this_target_matrix[these_grid_rows, these_grid_columns]
