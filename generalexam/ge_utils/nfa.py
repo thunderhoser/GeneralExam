@@ -16,6 +16,8 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
+TOLERANCE = 1e-6
+
 DEFAULT_FRONT_PERCENTILE = 97.
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 
@@ -28,6 +30,15 @@ CUTOFF_RADIUS_KEY = 'cutoff_radius_pixels'
 WF_PERCENTILE_KEY = 'warm_front_percentile'
 CF_PERCENTILE_KEY = 'cold_front_percentile'
 NUM_CLOSING_ITERS_KEY = 'num_closing_iters'
+
+CLASS_PROBABILITIES_KEY = 'class_probability_matrix'
+MODEL_DIRECTORIES_KEY = 'prediction_dir_name_by_model'
+MODEL_WEIGHTS_KEY = 'model_weights'
+
+ENSEMBLE_FILE_KEYS = [
+    CLASS_PROBABILITIES_KEY, VALID_TIMES_KEY, MODEL_DIRECTORIES_KEY,
+    MODEL_WEIGHTS_KEY
+]
 
 
 def _get_2d_gradient(field_matrix, x_spacing_metres, y_spacing_metres):
@@ -279,16 +290,18 @@ def get_front_types(locating_var_matrix_m01_s01,
     return predicted_label_matrix
 
 
-def find_gridded_prediction_file(
+def find_prediction_file(
         directory_name, first_valid_time_unix_sec, last_valid_time_unix_sec,
-        raise_error_if_missing=True):
+        ensembled=False, raise_error_if_missing=True):
     """Finds Pickle file with gridded predictions.
 
-    This type of file should be written by `write_gridded_predictions`.
-
-    :param directory_name: Name of directory with prediction file.
-    :param first_valid_time_unix_sec: First target time in file.
-    :param last_valid_time_unix_sec: Last target time in file.
+    :param directory_name: Name of directory.
+    :param first_valid_time_unix_sec: First time in file.
+    :param last_valid_time_unix_sec: Last time in file.
+    :param ensembled: Boolean flag.  If True, file should contain ensembled
+        probabilistic predictions, written by `write_gridded_prediction_file`.
+        If False, should contain non-ensembled deterministic predictions,
+        written by `write_ensembled_predictions`.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :return: prediction_file_name: Path to prediction file.  If file is missing
@@ -301,10 +314,13 @@ def find_gridded_prediction_file(
     error_checking.assert_is_integer(last_valid_time_unix_sec)
     error_checking.assert_is_geq(
         last_valid_time_unix_sec, first_valid_time_unix_sec)
+
+    error_checking.assert_is_boolean(ensembled)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    prediction_file_name = '{0:s}/gridded_predictions_{1:s}-{2:s}.p'.format(
+    prediction_file_name = '{0:s}/{1:s}_predictions_{2:s}-{3:s}.p'.format(
         directory_name,
+        'ensembled' if ensembled else 'gridded',
         time_conversion.unix_sec_to_string(
             first_valid_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
         time_conversion.unix_sec_to_string(
@@ -406,3 +422,111 @@ def read_gridded_predictions(pickle_file_name):
     pickle_file_handle.close()
 
     return predicted_label_matrix, metadata_dict
+
+
+def check_ensemble_metadata(prediction_dir_name_by_model, model_weights):
+    """Checks metadata for ensemble of NFA models.
+
+    N = number of models in ensemble
+
+    :param prediction_dir_name_by_model: length-N list of paths to input
+        directories.  prediction_dir_name_by_model[j] should contain
+        deterministic predictions for [j]th model.
+    :param model_weights: length-N numpy array of model weights (must sum to
+        1.0).
+    """
+
+    error_checking.assert_is_geq_numpy_array(model_weights, 0.)
+    error_checking.assert_is_leq_numpy_array(model_weights, 1.)
+    error_checking.assert_is_geq(numpy.sum(model_weights), 1. - TOLERANCE)
+    error_checking.assert_is_leq(numpy.sum(model_weights), 1. + TOLERANCE)
+
+    num_models = len(model_weights)
+    error_checking.assert_is_geq(num_models, 2)
+
+    these_expected_dim = numpy.array([num_models], dtype=int)
+    error_checking.assert_is_numpy_array(
+        numpy.array(prediction_dir_name_by_model),
+        exact_dimensions=these_expected_dim)
+
+
+def write_ensembled_predictions(
+        pickle_file_name, class_probability_matrix, valid_times_unix_sec,
+        prediction_dir_name_by_model, model_weights):
+    """Writes ensembled predictions to Pickle file.
+
+    An "ensembled prediction" is an ensemble of gridded predictions from two or
+    more NFA models.
+
+    T = number of time steps
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of classes
+
+    :param pickle_file_name: Path to output file.
+    :param class_probability_matrix: T-by-M-by-N-by-C numpy array of class
+        probabilities.
+    :param prediction_dir_name_by_model: See doc for `check_ensemble_metadata`.
+    :param model_weights: Same.
+    """
+
+    error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
+    error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
+    error_checking.assert_is_numpy_array(
+        class_probability_matrix, num_dimensions=4)
+
+    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
+
+    num_times = class_probability_matrix.shape[0]
+    these_expected_dim = numpy.array([num_times], dtype=int)
+    error_checking.assert_is_numpy_array(
+        valid_times_unix_sec, exact_dimensions=these_expected_dim)
+
+    check_ensemble_metadata(
+        prediction_dir_name_by_model=prediction_dir_name_by_model,
+        model_weights=model_weights)
+
+    ensemble_dict = {
+        CLASS_PROBABILITIES_KEY: class_probability_matrix,
+        VALID_TIMES_KEY: valid_times_unix_sec,
+        MODEL_DIRECTORIES_KEY: prediction_dir_name_by_model,
+        MODEL_WEIGHTS_KEY: model_weights
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(ensemble_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_ensembled_predictions(pickle_file_name):
+    """Reads ensembled predictions from Pickle file.
+
+    An "ensembled prediction" is an ensemble of gridded predictions from two or
+    more NFA models.
+
+    :param pickle_file_name: Path to input file.
+    :return: ensemble_dict: Dictionary with the following keys.
+    ensemble_dict['class_probability_matrix']: See doc for
+        `write_ensembled_predictions`.
+    ensemble_dict['valid_times_unix_sec']: Same.
+    ensemble_dict['prediction_dir_name_by_model']: Same.
+    ensemble_dict['model_weights']: Same.
+
+    :raises: ValueError: if any required keys are not found in the dictionary.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    ensemble_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(set(ENSEMBLE_FILE_KEYS) - set(ensemble_dict.keys()))
+    if len(missing_keys) == 0:
+        return ensemble_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)

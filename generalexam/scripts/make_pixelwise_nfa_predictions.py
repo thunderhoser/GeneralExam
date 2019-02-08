@@ -100,7 +100,7 @@ NARR_MASK_FILE_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  For each time step, gridded predictions will be'
     ' written here by `nfa.write_gridded_predictions`, to a location determined'
-    ' by `nfa.find_gridded_prediction_file`.')
+    ' by `nfa.find_prediction_file`.')
 
 DEFAULT_THERMAL_FIELD_NAME = processed_narr_io.WET_BULB_THETA_NAME
 DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
@@ -308,11 +308,11 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             ternary_image_matrix=this_predicted_label_matrix,
             num_iterations=num_closing_iters)
 
-        this_prediction_file_name = nfa.find_gridded_prediction_file(
+        this_prediction_file_name = nfa.find_prediction_file(
             directory_name=output_dir_name,
             first_valid_time_unix_sec=valid_times_unix_sec[i],
             last_valid_time_unix_sec=valid_times_unix_sec[i],
-            raise_error_if_missing=False)
+            ensembled=False, raise_error_if_missing=False)
 
         print 'Writing gridded predictions to file: "{0:s}"...\n'.format(
             this_prediction_file_name)
