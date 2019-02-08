@@ -13,16 +13,16 @@ from generalexam.machine_learning import traditional_cnn
 from generalexam.scripts import machine_learning_helper as ml_helper
 
 TIME_FORMAT = ml_helper.TIME_FORMAT
-NARR_MASK_FILE_NAME = ml_helper.DEFAULT_NARR_MASK_FILE_NAME
-
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_CLASSES = 3
 WEIGHT_LOSS_FLAG = False
-NUM_EXAMPLES_PER_TIME = 8
 PRESSURE_LEVEL_MB = 1000
 DILATION_DISTANCE_METRES = 50000.
 CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
+NARR_MASK_FILE_NAME = ml_helper.DEFAULT_NARR_MASK_FILE_NAME
+
+NUM_EXAMPLES_PER_TIME_DUMMY = 8
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = ml_helper.add_input_args(
@@ -98,7 +98,7 @@ def _run(input_model_file_name, narr_predictor_names,
     traditional_cnn.write_model_metadata(
         pickle_file_name=model_metafile_name, num_epochs=num_epochs,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_target_time=NUM_EXAMPLES_PER_TIME,
+        num_examples_per_target_time=NUM_EXAMPLES_PER_TIME_DUMMY,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         num_rows_in_half_grid=num_half_rows,
