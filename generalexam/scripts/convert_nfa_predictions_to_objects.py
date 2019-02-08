@@ -21,19 +21,26 @@ METRES2_TO_KM2 = 1e-6
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 NARR_TIME_INTERVAL_SECONDS = 10800
 
+USE_ENSEMBLE_ARG_NAME = 'use_ensembled_predictions'
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_TIMES_ARG_NAME = 'num_times'
+BINARIZATION_THRESHOLD_ARG_NAME = 'binarization_threshold'
 MIN_AREA_ARG_NAME = 'min_object_area_metres2'
 MIN_LENGTH_ARG_NAME = 'min_endpoint_length_metres'
 FRONT_LINE_DIR_ARG_NAME = 'input_front_line_dir_name'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
+USE_ENSEMBLE_HELP_STRING = (
+    'Boolean flag.  If 1, will read ensembled probabilistic predictions (from '
+    'many NFA models).  If 0, will read deterministic predictions from a single'
+    ' NFA model.')
+
 PREDICTION_DIR_HELP_STRING = (
-    'Name of input directory, containing gridded predictions.  Files therein '
-    'will be found by `nfa.find_gridded_prediction_file` and read by '
-    '`nfa.read_gridded_predictions`.')
+    'Name of directory with gridded NFA predictions.  Files therein will be '
+    'found by `nfa.find_prediction_file` and read by '
+    '`nfa.read_gridded_predictions` or `nfa.read_ensembled_predictions`.')
 
 TIME_HELP_STRING = (
     'Input time (format "yyyymmddHH").  Times will be randomly drawn from the '
@@ -43,6 +50,11 @@ TIME_HELP_STRING = (
 NUM_TIMES_HELP_STRING = (
     'Number of input times (to be drawn randomly from `{0:s}`...`{1:s}`).'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
+
+BINARIZATION_THRESHOLD_HELP_STRING = (
+    '[used only if {0:s} = 1] Threshold for discriminating between front and no'
+    ' front.  See doc for `object_based_evaluation.determinize_probabilities`.'
+).format(USE_ENSEMBLE_ARG_NAME)
 
 MIN_AREA_HELP_STRING = (
     'Minimum area for predicted frontal region (before skeletonization).  '
@@ -68,6 +80,10 @@ TOP_FRONT_LINE_DIR_NAME_DEFAULT = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
+    '--' + USE_ENSEMBLE_ARG_NAME, type=int, required=False, default=0,
+    help=USE_ENSEMBLE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + PREDICTION_DIR_ARG_NAME, type=str, required=True,
     help=PREDICTION_DIR_HELP_STRING)
 
@@ -80,6 +96,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TIMES_ARG_NAME, type=int, required=True,
     help=NUM_TIMES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + BINARIZATION_THRESHOLD_ARG_NAME, type=float, required=False,
+    default=-1, help=BINARIZATION_THRESHOLD_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_AREA_ARG_NAME, type=float, required=False,
@@ -131,17 +151,20 @@ def _read_actual_polylines(top_input_dir_name, unix_times_sec):
         list_of_polyline_tables, axis=0, ignore_index=True)
 
 
-def _run(input_prediction_dir_name, first_time_string, last_time_string,
-         num_times, min_object_area_metres2, min_endpoint_length_metres,
+def _run(use_ensembled_predictions, input_prediction_dir_name,
+         first_time_string, last_time_string, num_times, binarization_threshold,
+         min_object_area_metres2, min_endpoint_length_metres,
          top_front_line_dir_name, output_file_name):
     """Converts gridded NFA (numerical frontal analysis) predictions to objects.
 
     This is effectively the main method.
 
-    :param input_prediction_dir_name: See documentation at top of file.
+    :param use_ensembled_predictions: See documentation at top of file.
+    :param input_prediction_dir_name: Same.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param num_times: Same.
+    :param binarization_threshold: Same.
     :param min_object_area_metres2: Same.
     :param min_endpoint_length_metres: Same.
     :param top_front_line_dir_name: Same.
@@ -149,7 +172,9 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
     """
 
     grid_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)[0]
+        model_name=nwp_model_utils.NARR_MODEL_NAME
+    )[0]
+
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
@@ -157,6 +182,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
+
     possible_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
@@ -166,17 +192,21 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
     unix_times_sec = []
     list_of_predicted_region_tables = []
+
     num_times_done = 0
+    masked_grid_rows = None
+    masked_grid_columns = None
 
     for i in range(len(possible_times_unix_sec)):
         if num_times_done == num_times:
             break
 
-        this_prediction_file_name = nfa.find_gridded_prediction_file(
+        this_prediction_file_name = nfa.find_prediction_file(
             directory_name=input_prediction_dir_name,
             first_valid_time_unix_sec=possible_times_unix_sec[i],
             last_valid_time_unix_sec=possible_times_unix_sec[i],
-            raise_error_if_missing=False)
+            ensembled=use_ensembled_predictions, raise_error_if_missing=False)
+
         if not os.path.isfile(this_prediction_file_name):
             continue
 
@@ -184,8 +214,33 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         unix_times_sec.append(possible_times_unix_sec[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
-        this_predicted_label_matrix = nfa.read_gridded_predictions(
-            this_prediction_file_name)[0]
+
+        if use_ensembled_predictions:
+            this_ensemble_dict = nfa.read_ensembled_predictions(
+                this_prediction_file_name)
+
+            this_class_probability_matrix = this_ensemble_dict.pop(
+                nfa.CLASS_PROBABILITIES_KEY)
+            this_metadata_dict = this_ensemble_dict
+
+            print 'Determinizing probabilities...'
+            this_predicted_label_matrix = object_eval.determinize_probabilities(
+                class_probability_matrix=this_class_probability_matrix,
+                binarization_threshold=binarization_threshold)
+
+        else:
+            this_predicted_label_matrix, this_metadata_dict = (
+                nfa.read_gridded_predictions(this_prediction_file_name)
+            )
+
+        if masked_grid_rows is None:
+            narr_mask_matrix = this_metadata_dict[nfa.NARR_MASK_KEY]
+            masked_grid_rows, masked_grid_columns = numpy.where(
+                narr_mask_matrix == 0)
+
+        this_predicted_label_matrix[
+            :, masked_grid_rows, masked_grid_columns
+        ] = 0
 
         print 'Converting image to frontal regions...'
         list_of_predicted_region_tables.append(
@@ -259,11 +314,15 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
+        use_ensembled_predictions=bool(getattr(
+            INPUT_ARG_OBJECT, USE_ENSEMBLE_ARG_NAME)),
         input_prediction_dir_name=getattr(
             INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
+        binarization_threshold=getattr(
+            INPUT_ARG_OBJECT, BINARIZATION_THRESHOLD_ARG_NAME),
         min_object_area_metres2=getattr(INPUT_ARG_OBJECT, MIN_AREA_ARG_NAME),
         min_endpoint_length_metres=getattr(INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME),
         top_front_line_dir_name=getattr(

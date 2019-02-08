@@ -213,8 +213,8 @@ def _run(use_ensembled_predictions, top_prediction_dir_name, first_time_string,
 
         this_target_matrix = ml_utils.front_table_to_images(
             frontal_grid_table=this_frontal_grid_table,
-            num_rows_per_image=this_predicted_label_matrix.shape[0],
-            num_columns_per_image=this_predicted_label_matrix.shape[1]
+            num_rows_per_image=this_class_probability_matrix.shape[0],
+            num_columns_per_image=this_class_probability_matrix.shape[1]
         )
 
         this_target_matrix = ml_utils.dilate_ternary_target_images(
