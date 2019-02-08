@@ -99,6 +99,8 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
 
+    narr_mask_matrix = None
+
     for this_time_unix_sec in possible_times_unix_sec:
         these_prediction_file_names = [''] * num_models
 
@@ -121,9 +123,12 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
             print 'Reading data from: "{0:s}"...'.format(
                 these_prediction_file_names[j])
 
-            this_predicted_label_matrix = nfa.read_gridded_predictions(
-                these_prediction_file_names[j]
-            )[0]
+            this_predicted_label_matrix, this_metadata_dict = (
+                nfa.read_gridded_predictions(these_prediction_file_names[j])
+            )
+
+            if narr_mask_matrix is None:
+                narr_mask_matrix = this_metadata_dict[nfa.NARR_MASK_KEY] + 0
 
             new_class_probability_matrix = to_categorical(
                 y=this_predicted_label_matrix, num_classes=NUM_CLASSES)
@@ -145,13 +150,14 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
             last_valid_time_unix_sec=this_time_unix_sec, ensembled=True,
             raise_error_if_missing=False)
 
-        print 'Writing ensmebled predictions to: "{0:s}"...\n'.format(
+        print 'Writing ensembled predictions to: "{0:s}"...\n'.format(
             this_output_file_name)
 
         nfa.write_ensembled_predictions(
             pickle_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
             valid_times_unix_sec=numpy.array([this_time_unix_sec], dtype=int),
+            narr_mask_matrix=narr_mask_matrix,
             prediction_dir_name_by_model=prediction_dir_name_by_model,
             model_weights=model_weights)
 

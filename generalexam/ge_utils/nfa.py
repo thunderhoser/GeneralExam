@@ -36,8 +36,8 @@ MODEL_DIRECTORIES_KEY = 'prediction_dir_name_by_model'
 MODEL_WEIGHTS_KEY = 'model_weights'
 
 ENSEMBLE_FILE_KEYS = [
-    CLASS_PROBABILITIES_KEY, VALID_TIMES_KEY, MODEL_DIRECTORIES_KEY,
-    MODEL_WEIGHTS_KEY
+    CLASS_PROBABILITIES_KEY, VALID_TIMES_KEY, NARR_MASK_KEY,
+    MODEL_DIRECTORIES_KEY, MODEL_WEIGHTS_KEY
 ]
 
 
@@ -452,7 +452,7 @@ def check_ensemble_metadata(prediction_dir_name_by_model, model_weights):
 
 def write_ensembled_predictions(
         pickle_file_name, class_probability_matrix, valid_times_unix_sec,
-        prediction_dir_name_by_model, model_weights):
+        narr_mask_matrix, prediction_dir_name_by_model, model_weights):
     """Writes ensembled predictions to Pickle file.
 
     An "ensembled prediction" is an ensemble of gridded predictions from two or
@@ -466,6 +466,8 @@ def write_ensembled_predictions(
     :param pickle_file_name: Path to output file.
     :param class_probability_matrix: T-by-M-by-N-by-C numpy array of class
         probabilities.
+    :param valid_times_unix_sec: length-T numpy array of time steps.
+    :param narr_mask_matrix: See doc for `write_gridded_predictions`.
     :param prediction_dir_name_by_model: See doc for `check_ensemble_metadata`.
     :param model_weights: Same.
     """
@@ -474,6 +476,13 @@ def write_ensembled_predictions(
     error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
     error_checking.assert_is_numpy_array(
         class_probability_matrix, num_dimensions=4)
+
+    ml_utils.check_narr_mask(narr_mask_matrix)
+
+    these_expected_dim = numpy.array(
+        class_probability_matrix.shape[1:3], dtype=int)
+    error_checking.assert_is_numpy_array(
+        narr_mask_matrix, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
 
@@ -489,6 +498,7 @@ def write_ensembled_predictions(
     ensemble_dict = {
         CLASS_PROBABILITIES_KEY: class_probability_matrix,
         VALID_TIMES_KEY: valid_times_unix_sec,
+        NARR_MASK_KEY: narr_mask_matrix,
         MODEL_DIRECTORIES_KEY: prediction_dir_name_by_model,
         MODEL_WEIGHTS_KEY: model_weights
     }
@@ -510,6 +520,7 @@ def read_ensembled_predictions(pickle_file_name):
     ensemble_dict['class_probability_matrix']: See doc for
         `write_ensembled_predictions`.
     ensemble_dict['valid_times_unix_sec']: Same.
+    ensemble_dict['narr_mask_matrix']: Same.
     ensemble_dict['prediction_dir_name_by_model']: Same.
     ensemble_dict['model_weights']: Same.
 
