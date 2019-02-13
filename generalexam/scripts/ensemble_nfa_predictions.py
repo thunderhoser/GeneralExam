@@ -106,7 +106,7 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
 
         for j in range(num_models):
             these_prediction_file_names[j] = nfa.find_prediction_file(
-                directory_name=prediction_dir_name_by_model[0],
+                directory_name=prediction_dir_name_by_model[j],
                 first_valid_time_unix_sec=this_time_unix_sec,
                 last_valid_time_unix_sec=this_time_unix_sec,
                 ensembled=False, raise_error_if_missing=j > 0)
@@ -131,13 +131,12 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
                 narr_mask_matrix = this_metadata_dict[nfa.NARR_MASK_KEY] + 0
 
             new_class_probability_matrix = to_categorical(
-                y=this_predicted_label_matrix, num_classes=NUM_CLASSES)
+                y=this_predicted_label_matrix, num_classes=NUM_CLASSES
+            ).astype(float)
 
             new_class_probability_matrix = (
-                model_weights[j] * new_class_probability_matrix.astype(float)
+                model_weights[j] * new_class_probability_matrix
             )
-
-            print numpy.unique(new_class_probability_matrix)
 
             if this_class_probability_matrix is None:
                 this_class_probability_matrix = (
