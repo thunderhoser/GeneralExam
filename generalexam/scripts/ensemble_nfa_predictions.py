@@ -137,8 +137,12 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
                 model_weights[j] * new_class_probability_matrix.astype(float)
             )
 
+            print numpy.unique(new_class_probability_matrix)
+
             if this_class_probability_matrix is None:
-                this_class_probability_matrix = new_class_probability_matrix + 0
+                this_class_probability_matrix = (
+                    new_class_probability_matrix + 0.
+                )
             else:
                 this_class_probability_matrix = (
                     this_class_probability_matrix + new_class_probability_matrix
