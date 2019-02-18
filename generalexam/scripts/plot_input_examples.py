@@ -292,7 +292,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             axes_object_or_list=axes_object,
             values_to_colour=this_thetaw_matrix_kelvins,
             colour_map=thetaw_colour_map_object, colour_min=this_min_value,
-            colour_max=this_max_value, orientation='horizontal',
+            colour_max=this_max_value, orientation='vertical',
             extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
 
         colour_bar_object.set_label(
