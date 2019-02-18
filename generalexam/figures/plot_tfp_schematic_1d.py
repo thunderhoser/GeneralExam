@@ -3,9 +3,9 @@
 import numpy
 import matplotlib.pyplot as pyplot
 
-NUM_GRID_POINTS = 1001
-FIRST_POINT_IN_FRONT = 400
-LAST_POINT_IN_FRONT = 600
+NUM_GRID_POINTS = 10001
+FIRST_POINT_IN_FRONT = 4000
+LAST_POINT_IN_FRONT = 6000
 MIN_TEMPERATURE_KELVINS = 0.
 DEFAULT_GRADIENT_KELVINS_PT01 = 0.1
 FRONT_GRADIENT_KELVINS_PT01 = 1.
@@ -121,7 +121,12 @@ def _run():
         linewidth=DASHED_LINE_WIDTH
     )[0]
 
-    tfp_deriv_handle = axes_object.plot(
+    this_min_index = numpy.argmin(second_derivs_unitless)
+    second_derivs_unitless[
+        (this_min_index - 10):(this_min_index + 10)
+    ] = second_derivs_unitless[this_min_index]
+
+    tfp_handle = axes_object.plot(
         -1 * second_derivs_unitless, color=TFP_COLOUR, linestyle='dashed',
         linewidth=DASHED_LINE_WIDTH
     )[0]
@@ -134,7 +139,7 @@ def _run():
 
     legend_handles = [
         temperature_handle, first_deriv_handle, second_deriv_handle,
-        tfp_deriv_handle
+        tfp_handle
     ]
 
     legend_strings = [

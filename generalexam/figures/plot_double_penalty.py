@@ -42,8 +42,9 @@ PREDICTED_FRONT_COLOUR = numpy.array([153., 153., 153.]) / 255
 
 ACTUAL_FRONT_OPACITY = 1.
 PREDICTED_FRONT_OPACITY = 0.5
-OUTPUT_RESOLUTION_DPI = 600
-OUTPUT_SIZE_PIXELS = int(1e7)
+
+FIGURE_RESOLUTION_DPI = 600
+CONCAT_SIZE_PIXELS = int(1e7)
 
 NO_DILATION_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
@@ -168,7 +169,7 @@ def _plot_fronts(
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
     imagemagick_utils.trim_whitespace(
@@ -218,8 +219,8 @@ def _run():
     _plot_fronts(
         actual_binary_matrix=actual_binary_matrix,
         predicted_binary_matrix=predicted_binary_matrix,
-        title_string='Without dilation', annotation_string='(a)',
-        output_file_name=NO_DILATION_FILE_NAME)
+        title_string='Observed and predicted front\nwithout dilation',
+        annotation_string='(c)', output_file_name=NO_DILATION_FILE_NAME)
 
     actual_binary_matrix = ml_utils.dilate_binary_target_images(
         target_matrix=actual_binary_matrix,
@@ -231,14 +232,19 @@ def _run():
     _plot_fronts(
         actual_binary_matrix=actual_binary_matrix,
         predicted_binary_matrix=predicted_binary_matrix,
-        title_string='With dilation', annotation_string='(b)',
-        output_file_name=WITH_DILATION_FILE_NAME)
+        title_string='Observed and predicted front\nwith dilation',
+        annotation_string='(d)', output_file_name=WITH_DILATION_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+
     imagemagick_utils.concatenate_images(
         input_file_names=[NO_DILATION_FILE_NAME, WITH_DILATION_FILE_NAME],
         output_file_name=CONCAT_FILE_NAME, num_panel_rows=1,
-        num_panel_columns=2, output_size_pixels=OUTPUT_SIZE_PIXELS)
+        num_panel_columns=2)
+
+    imagemagick_utils.resize_image(
+        input_file_name=CONCAT_FILE_NAME, output_file_name=CONCAT_FILE_NAME,
+        output_size_pixels=CONCAT_SIZE_PIXELS)
 
 
 if __name__ == '__main__':

@@ -21,19 +21,26 @@ FRONTAL_GRID_FILE_NAME = (
 
 DILATION_DISTANCE_METRES = 50000.
 
-MIN_LATITUDE_DEG = 25.
-MIN_LONGITUDE_DEG = 225.
-MAX_LATITUDE_DEG = 80.
-MAX_LONGITUDE_DEG = 295.
-PARALLEL_SPACING_DEG = 10.
-MERIDIAN_SPACING_DEG = 20.
+# MIN_LATITUDE_DEG = 25.
+# MIN_LONGITUDE_DEG = 225.
+# MAX_LATITUDE_DEG = 80.
+# MAX_LONGITUDE_DEG = 295.
+# PARALLEL_SPACING_DEG = 10.
+# MERIDIAN_SPACING_DEG = 20.
+
+MIN_LATITUDE_DEG = 40.
+MIN_LONGITUDE_DEG = 250.
+MAX_LATITUDE_DEG = 60.
+MAX_LONGITUDE_DEG = 290.
+PARALLEL_SPACING_DEG = 5.
+MERIDIAN_SPACING_DEG = 10.
 
 BORDER_COLOUR = numpy.full(3, 0.)
 FRONT_LINE_WIDTH = 2
 FRONT_LINE_OPACITY = 0.5
 
-OUTPUT_RESOLUTION_DPI = 600
-OUTPUT_SIZE_PIXELS = int(1e7)
+FIGURE_RESOLUTION_DPI = 600
+CONCAT_SIZE_PIXELS = int(1e7)
 
 BEFORE_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
@@ -119,7 +126,7 @@ def _plot_fronts(front_line_table, ternary_front_matrix, title_string,
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
     imagemagick_utils.trim_whitespace(
@@ -150,7 +157,7 @@ def _run():
     _plot_fronts(
         front_line_table=front_line_table,
         ternary_front_matrix=ternary_front_matrix,
-        title_string='Before dilation', annotation_string='(a)',
+        title_string='Observed fronts before dilation', annotation_string='(a)',
         output_file_name=BEFORE_FILE_NAME)
 
     ternary_front_matrix = ml_utils.dilate_ternary_target_images(
@@ -160,14 +167,19 @@ def _run():
     _plot_fronts(
         front_line_table=front_line_table,
         ternary_front_matrix=ternary_front_matrix,
-        title_string='After dilation', annotation_string='(b)',
+        title_string='Observed fronts after dilation', annotation_string='(b)',
         output_file_name=AFTER_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+
     imagemagick_utils.concatenate_images(
         input_file_names=[BEFORE_FILE_NAME, AFTER_FILE_NAME],
         output_file_name=CONCAT_FILE_NAME, num_panel_rows=1,
-        num_panel_columns=2, output_size_pixels=OUTPUT_SIZE_PIXELS)
+        num_panel_columns=2)
+
+    imagemagick_utils.resize_image(
+        input_file_name=CONCAT_FILE_NAME, output_file_name=CONCAT_FILE_NAME,
+        output_size_pixels=CONCAT_SIZE_PIXELS)
 
 
 if __name__ == '__main__':
