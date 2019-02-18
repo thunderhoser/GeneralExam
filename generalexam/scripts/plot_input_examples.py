@@ -301,7 +301,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             first_row_in_full_grid=this_first_row_index,
             first_column_in_full_grid=this_first_column_index,
             barb_length=WIND_BARB_LENGTH,
-            empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
+            empty_barb_radius=EMPTY_WIND_BARB_RADIUS, fill_empty_barb=False,
             colour_map=WIND_COLOUR_MAP_OBJECT,
             colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
             colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
