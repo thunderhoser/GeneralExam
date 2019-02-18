@@ -64,6 +64,8 @@ PLOT_EVERY_KTH_WIND_BARB = 8
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 600
+
+NUM_PANEL_ROWS = 2
 CONCAT_SIZE_PIXELS = int(1e7)
 
 FONT_SIZE = 30
@@ -256,7 +258,7 @@ def _run():
     annotation_strings = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
     panel_file_names = []
 
-    for k in range(len(VALID_TIME_STRINGS)):
+    for k in range(3):
         this_time_unix_sec = time_conversion.string_to_unix_sec(
             VALID_TIME_STRINGS[k], DEFAULT_TIME_FORMAT)
         this_title_string = time_conversion.unix_sec_to_string(
@@ -274,10 +276,13 @@ def _run():
 
     print 'Concatenating figures to: "{0:s}"...'.format(concat_file_name)
 
+    num_panels = len(panel_file_names)
+    num_panel_columns = int(numpy.ceil(float(num_panels) / 2))
+
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names,
-        output_file_name=concat_file_name, num_panel_rows=2,
-        num_panel_columns=3)
+        output_file_name=concat_file_name, num_panel_rows=NUM_PANEL_ROWS,
+        num_panel_columns=num_panel_columns)
 
     imagemagick_utils.trim_whitespace(input_file_name=concat_file_name,
                                       output_file_name=concat_file_name)
