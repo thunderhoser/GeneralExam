@@ -32,19 +32,24 @@ NARR_PREDICTOR_NAMES = [
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME
 ]
 
-WARM_FRONT_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
-COLD_FRONT_COLOUR = numpy.array([117, 112, 179], dtype=float) / 255
+WARM_FRONT_COLOUR = numpy.array([30, 120, 180], dtype=float) / 255
+COLD_FRONT_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
 
-WIND_COLOUR_MAP_OBJECT = pyplot.cm.binary
-WIND_BARB_LENGTH = 8
-EMPTY_WIND_BARB_RADIUS = 0.1
+WIND_COLOUR = numpy.full(3, 152. / 255)
 MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
+
+WIND_COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap([WIND_COLOUR])
+WIND_COLOUR_MAP_OBJECT.set_under(WIND_COLOUR)
+WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
+
+WIND_BARB_LENGTH = 8
+EMPTY_WIND_BARB_RADIUS = 0.1
 
 PARALLEL_SPACING_DEG = 2.
 MERIDIAN_SPACING_DEG = 6.
 BORDER_WIDTH = 2
-BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_example_file_name'
@@ -110,7 +115,7 @@ INPUT_ARG_PARSER.add_argument(
     default=[-1], help=EXAMPLE_INDICES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlGn',
+    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlOrRd',
     help=COLOUR_MAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -319,18 +324,19 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
                 front_utils.FRONT_TYPE_COLUMN].values[j]
 
             if this_front_type_string == front_utils.WARM_FRONT_STRING_ID:
-                this_colour = WARM_FRONT_COLOUR + 0.
+                this_colour = WARM_FRONT_COLOUR
             else:
-                this_colour = COLD_FRONT_COLOUR + 0.
+                this_colour = COLD_FRONT_COLOUR
 
-            front_plotting.plot_polyline(
-                latitudes_deg=this_polyline_table[
+            front_plotting.plot_front_with_markers(
+                line_latitudes_deg=this_polyline_table[
                     front_utils.LATITUDES_COLUMN].values[j],
-                longitudes_deg=this_polyline_table[
+                line_longitudes_deg=this_polyline_table[
                     front_utils.LONGITUDES_COLUMN].values[j],
-                basemap_object=basemap_object, axes_object=axes_object,
-                front_type=this_front_type_string, line_colour=this_colour,
-                line_width=4)
+                axes_object=axes_object, basemap_object=basemap_object,
+                front_type_string=this_polyline_table[
+                    front_utils.FRONT_TYPE_COLUMN].values[j],
+                marker_colour=this_colour)
 
         this_output_file_name = '{0:s}/example{1:06d}.jpg'.format(
             output_dir_name, i)
