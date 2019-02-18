@@ -37,7 +37,7 @@ TFP_COLOUR_MAP_OBJECT = pyplot.cm.PRGn
 LOCATING_VAR_COLOUR_MAP_OBJECT = pyplot.cm.RdBu
 MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
-COLOUR_BAR_LENGTH_FRACTION = 0.9
+COLOUR_BAR_LENGTH_FRACTION = 0.8
 
 WIND_COLOUR = numpy.full(3, 152. / 255)
 MIN_COLOUR_WIND_SPEED_KT = -1.
@@ -250,7 +250,7 @@ def _plot_narr_fields(
             wet_bulb_theta_matrix_to_plot, MIN_COLOUR_PERCENTILE),
         colour_max=numpy.nanpercentile(
             wet_bulb_theta_matrix_to_plot, MAX_COLOUR_PERCENTILE),
-        orientation='horizontal', extend_min=True, extend_max=True,
+        orientation='vertical', extend_min=True, extend_max=True,
         fraction_of_axis_length=COLOUR_BAR_LENGTH_FRACTION)
 
     nwp_plotting.plot_wind_barbs_on_subgrid(
@@ -318,7 +318,7 @@ def _plot_tfp(tfp_matrix_kelvins_m02, title_string, annotation_string,
         axes_object_or_list=axes_object,
         values_to_colour=matrix_to_plot,
         colour_map=TFP_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='horizontal', extend_min=True,
+        colour_max=max_colour_value, orientation='vertical', extend_min=True,
         extend_max=True, fraction_of_axis_length=COLOUR_BAR_LENGTH_FRACTION)
 
     pyplot.title(title_string)
@@ -375,7 +375,7 @@ def _plot_locating_variable(
         axes_object_or_list=axes_object,
         values_to_colour=matrix_to_plot,
         colour_map=LOCATING_VAR_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='horizontal', extend_min=True,
+        colour_max=max_colour_value, orientation='vertical', extend_min=True,
         extend_max=True, fraction_of_axis_length=COLOUR_BAR_LENGTH_FRACTION)
 
     pyplot.title(title_string)

@@ -2,7 +2,9 @@
 
 import numpy
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import model_eval_plotting
+from gewittergefahr.plotting import imagemagick_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
 CNN_METHOD_NAME = 'CNN'
@@ -36,12 +38,17 @@ METHOD_NAME_TO_DIRECTORY = {
     NFA_METHOD_NAME: NFA_DIRECTORY_NAME
 }
 
-FONT_SIZE = 25
+FONT_SIZE = 24
 LINE_WIDTH = 2
 ERROR_BAR_CAP_SIZE = 2
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
+FIGURE_RESOLUTION_DPI = 300
+
+OUTPUT_FILE_NAME = (
+    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
+    'performance_diagram/performance_diagram.jpg')
 
 
 def _run():
@@ -137,7 +144,14 @@ def _run():
             horizontalalignment='left',
             verticalalignment=this_vertical_alignment_string, zorder=1e6)
 
-    pyplot.show()
+    file_system_utils.mkdir_recursive_if_necessary(file_name=OUTPUT_FILE_NAME)
+
+    print 'Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME)
+    pyplot.savefig(OUTPUT_FILE_NAME, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.close()
+
+    imagemagick_utils.trim_whitespace(input_file_name=OUTPUT_FILE_NAME,
+                                      output_file_name=OUTPUT_FILE_NAME)
 
 
 if __name__ == '__main__':

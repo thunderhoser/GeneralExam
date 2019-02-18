@@ -31,10 +31,10 @@ MERIDIAN_SPACING_DEG = 20.
 BORDER_COLOUR = numpy.full(3, 0.)
 DETERMINISTIC_OPACITY = 1.
 PROBABILISTIC_OPACITY = 0.5
-AXIS_LENGTH_FRACTION_FOR_CBAR = 0.5
+AXIS_LENGTH_FRACTION_FOR_CBAR = 0.8
 
 FIGURE_RESOLUTION_DPI = 600
-FIGURE_SIZE_PIXELS = int(1e7)
+CONCAT_SIZE_PIXELS = int(1e7)
 
 BEFORE_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
@@ -62,12 +62,14 @@ def _plot_predictions(
         `machine_learning_utils.write_gridded_predictions`.
     """
 
-    (narr_row_limits, narr_column_limits
-    ) = nwp_plotting.latlng_limits_to_rowcol_limits(
-        min_latitude_deg=MIN_LATITUDE_DEG, max_latitude_deg=MAX_LATITUDE_DEG,
-        min_longitude_deg=MIN_LONGITUDE_DEG,
-        max_longitude_deg=MAX_LONGITUDE_DEG,
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+    narr_row_limits, narr_column_limits = (
+        nwp_plotting.latlng_limits_to_rowcol_limits(
+            min_latitude_deg=MIN_LATITUDE_DEG,
+            max_latitude_deg=MAX_LATITUDE_DEG,
+            min_longitude_deg=MIN_LONGITUDE_DEG,
+            max_longitude_deg=MAX_LONGITUDE_DEG,
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
@@ -99,6 +101,7 @@ def _plot_predictions(
             0, narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1)
         ]
+
         front_plotting.plot_narr_grid(
             frontal_grid_matrix=this_matrix, axes_object=axes_object,
             basemap_object=basemap_object,
@@ -111,6 +114,7 @@ def _plot_predictions(
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.WARM_FRONT_INTEGER_ID
         ]
+
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_matrix,
             front_string_id=front_utils.WARM_FRONT_STRING_ID,
@@ -124,6 +128,7 @@ def _plot_predictions(
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.COLD_FRONT_INTEGER_ID
         ]
+
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_matrix,
             front_string_id=front_utils.COLD_FRONT_STRING_ID,
@@ -132,8 +137,10 @@ def _plot_predictions(
             first_column_in_narr_grid=narr_column_limits[0],
             opacity=PROBABILISTIC_OPACITY)
 
-        (this_colour_map_object, this_colour_norm_object
-        ) = prediction_plotting.get_warm_front_colour_map()[:2]
+        this_colour_map_object, this_colour_norm_object = (
+            prediction_plotting.get_warm_front_colour_map()[:2]
+        )
+
         plotting_utils.add_colour_bar(
             axes_object_or_list=axes_object, colour_map=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
@@ -142,15 +149,16 @@ def _plot_predictions(
             orientation='vertical', extend_min=True, extend_max=False,
             fraction_of_axis_length=AXIS_LENGTH_FRACTION_FOR_CBAR)
 
-        (this_colour_map_object, this_colour_norm_object
-        ) = prediction_plotting.get_cold_front_colour_map()[:2]
+        this_colour_map_object, this_colour_norm_object = (
+            prediction_plotting.get_cold_front_colour_map()[:2]
+        )
+
         plotting_utils.add_colour_bar(
             axes_object_or_list=axes_object, colour_map=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
             values_to_colour=class_probability_matrix[
                 ..., front_utils.COLD_FRONT_INTEGER_ID],
-            orientation='vertical', extend_min=True, extend_max=False,
-            fraction_of_axis_length=AXIS_LENGTH_FRACTION_FOR_CBAR)
+            orientation='horizontal', extend_min=True, extend_max=False)
 
     pyplot.title(title_string)
     plotting_utils.annotate_axes(
@@ -186,7 +194,7 @@ def _run():
 
     _plot_predictions(
         output_file_name=BEFORE_FILE_NAME,
-        title_string='Probabilistic predictions', annotation_string='(a)',
+        title_string='Probabilities', annotation_string='(a)',
         class_probability_matrix=class_probability_matrix)
 
     predicted_label_matrix = object_eval.determinize_probabilities(
@@ -199,10 +207,15 @@ def _run():
         predicted_label_matrix=predicted_label_matrix)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    
     imagemagick_utils.concatenate_images(
         input_file_names=[BEFORE_FILE_NAME, AFTER_FILE_NAME],
         output_file_name=CONCAT_FILE_NAME, num_panel_rows=2,
-        num_panel_columns=1, output_size_pixels=FIGURE_SIZE_PIXELS)
+        num_panel_columns=1)
+    
+    imagemagick_utils.resize_image(
+        input_file_name=CONCAT_FILE_NAME, output_file_name=CONCAT_FILE_NAME,
+        output_size_pixels=CONCAT_SIZE_PIXELS)
 
 
 if __name__ == '__main__':
