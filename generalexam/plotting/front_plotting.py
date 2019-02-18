@@ -4,10 +4,10 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
-from generalexam.ge_utils import front_utils
-from generalexam.plotting import narr_plotting
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import front_utils
+from generalexam.plotting import narr_plotting
 
 DEFAULT_WARM_FRONT_COLOUR = numpy.array([228., 26., 28.]) / 255
 DEFAULT_COLD_FRONT_COLOUR = numpy.array([31., 120., 180.]) / 255
@@ -15,6 +15,12 @@ DEFAULT_LINE_WIDTH = 2.
 DEFAULT_LINE_STYLE = 'solid'
 
 DEFAULT_GRID_OPACITY = 0.5
+
+DEFAULT_WF_MARKER_TYPE = 'o'
+DEFAULT_CF_MARKER_TYPE = '>'
+DEFAULT_MARKER_SPACING_METRES = 150000.
+DEFAULT_MARKER_SIZE = 12
+DEFAULT_MARKER_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 
 
 def get_colour_map_for_grid():
@@ -45,6 +51,75 @@ def get_colour_map_for_grid():
     colour_bounds = numpy.concatenate((
         numpy.array([-100.]), main_colour_bounds, numpy.array([100.])))
     return colour_map_object, colour_norm_object, colour_bounds
+
+
+def plot_front_with_markers(
+        line_latitudes_deg, line_longitudes_deg, axes_object, basemap_object,
+        marker_spacing_metres=DEFAULT_MARKER_SPACING_METRES,
+        marker_type=None, front_type_string=None,
+        marker_colour=DEFAULT_MARKER_COLOUR, marker_size=DEFAULT_MARKER_SIZE):
+    """Plots front with markers (instead of a line).
+
+    P = number of points in line
+
+    :param line_latitudes_deg: length-P numpy array of latitudes (deg N).
+    :param line_longitudes_deg: length-P numpy array of longitudes (deg E).
+    :param axes_object: Front will be plotted on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Basemap used to convert lat-long coordinates to x-y
+        (instance of `mpl_toolkits.basemap.Basemap`).
+    :param marker_spacing_metres: Spacing between successive markers.
+    :param marker_type: Marker type (any format accepted by matplotlib).
+    :param front_type_string: [used only if `marker_type is None`]
+        Front type (determines marker type).
+    :param marker_colour: Marker colour (any format accepted by matplotlib).
+    :param marker_size: Marker size (any format accepted by matplotlib).
+    """
+
+    error_checking.assert_is_valid_lat_numpy_array(line_latitudes_deg)
+    error_checking.assert_is_numpy_array(line_latitudes_deg, num_dimensions=1)
+
+    num_points = len(line_latitudes_deg)
+    these_expected_dim = numpy.array([num_points], dtype=int)
+    error_checking.assert_is_numpy_array(
+        line_longitudes_deg, exact_dimensions=these_expected_dim)
+
+    line_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        line_longitudes_deg)
+
+    error_checking.assert_is_greater(marker_spacing_metres, 0.)
+
+    if marker_type is None:
+        front_utils.check_front_type(front_type_string)
+
+        if front_type_string == front_utils.WARM_FRONT_STRING_ID:
+            marker_type = DEFAULT_WF_MARKER_TYPE
+        else:
+            marker_type = DEFAULT_CF_MARKER_TYPE
+
+    x_coords_metres, y_coords_metres = basemap_object(
+        line_longitudes_deg, line_latitudes_deg)
+
+    for i in range(num_points - 1):
+        this_x_diff_metres = x_coords_metres[i + 1] - x_coords_metres[i]
+        this_y_diff_metres = y_coords_metres[i + 1] - y_coords_metres[i]
+        this_distance_metres = numpy.sqrt(
+            this_x_diff_metres ** 2 + this_y_diff_metres ** 2)
+
+        this_num_points = 1 + int(numpy.ceil(
+            this_distance_metres / marker_spacing_metres
+        ))
+
+        these_x_coords_metres = numpy.linspace(
+            x_coords_metres[i], x_coords_metres[i + 1], num=this_num_points)
+        these_y_coords_metres = numpy.linspace(
+            y_coords_metres[i], y_coords_metres[i + 1], num=this_num_points)
+
+        axes_object.plot(
+            these_x_coords_metres, these_y_coords_metres,
+            linestyle='None', marker=marker_type, markerfacecolor=marker_colour,
+            markeredgecolor=marker_colour, markersize=marker_size,
+            markeredgewidth=0.1)
 
 
 def plot_polyline(

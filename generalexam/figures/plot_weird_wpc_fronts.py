@@ -5,6 +5,7 @@
 """
 
 import numpy
+import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -20,7 +21,8 @@ from generalexam.plotting import front_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TIME_FORMAT = '%Y-%m-%d-%H'
+DEFAULT_TIME_FORMAT = '%Y-%m-%d-%H'
+NICE_TIME_FORMAT = '%H00 UTC %-d %b %Y'
 ZERO_CELSIUS_IN_KELVINS = 273.15
 
 PRESSURE_LEVEL_MB = 1000
@@ -40,26 +42,29 @@ MERIDIAN_SPACING_DEG = 20.
 
 FRONT_LINE_WIDTH = 8
 BORDER_COLOUR = numpy.full(3, 0.)
-WARM_FRONT_COLOUR = numpy.array([217., 95., 2.]) / 255
-COLD_FRONT_COLOUR = numpy.array([117., 112., 179.]) / 255
-# WARM_FRONT_COLOUR = numpy.array([252, 141, 98], dtype=float) / 255
-# COLD_FRONT_COLOUR = numpy.array([141, 160, 203], dtype=float) / 255
+WARM_FRONT_COLOUR = numpy.array([30, 120, 180], dtype=float) / 255
+COLD_FRONT_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
 
-THERMAL_COLOUR_MAP_OBJECT = pyplot.cm.YlGn
+THERMAL_COLOUR_MAP_OBJECT = pyplot.cm.YlOrRd
 MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
 
-WIND_COLOUR_MAP_OBJECT = pyplot.cm.binary
-WIND_BARB_LENGTH = 8
-EMPTY_WIND_BARB_RADIUS = 0.1
+WIND_COLOUR = numpy.full(3, 152. / 255)
 MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
+
+WIND_COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap([WIND_COLOUR])
+WIND_COLOUR_MAP_OBJECT.set_under(WIND_COLOUR)
+WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
+
+WIND_BARB_LENGTH = 8
+EMPTY_WIND_BARB_RADIUS = 0.1
 PLOT_EVERY_KTH_WIND_BARB = 8
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
-OUTPUT_RESOLUTION_DPI = 600
-OUTPUT_SIZE_PIXELS = int(1e7)
+FIGURE_RESOLUTION_DPI = 600
+CONCAT_SIZE_PIXELS = int(1e7)
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -77,14 +82,9 @@ OUTPUT_DIR_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
     'weird_wpc_fronts')
 
-SHORT_LINE_TIME_STRINGS = ['2017-12-06-06']
-MORPH_CHANGE_TIME_STRINGS = ['2017-12-06-12', '2017-12-06-15']
-INCONSISTENCY_TIME_STRINGS = ['2017-12-08-00', '2017-12-08-03', '2017-12-08-06']
-
-SHORT_LINE_TITLE_STRINGS = ['0600 UTC 6 Dec 2017']
-MORPH_CHANGE_TITLE_STRINGS = ['1200 UTC 6 Dec 2017', '1500 UTC 6 Dec 2017']
-INCONSISTENCY_TITLE_STRINGS = [
-    '0000 UTC 8 Dec 2017', '0300 UTC 8 Dec 2017', '0600 UTC 8 Dec 2017'
+VALID_TIME_STRINGS = [
+    '2017-12-08-00', '2017-12-08-03', '2017-12-08-06',
+    '2017-12-09-00', '2017-12-09-03', '2017-12-09-06'
 ]
 
 
@@ -98,15 +98,17 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
     :return: figure_file_name: Path to output file (where the figure was saved).
     """
 
-    (narr_row_limits, narr_column_limits
-    ) = nwp_plotting.latlng_limits_to_rowcol_limits(
-        min_latitude_deg=MIN_LATITUDE_DEG, max_latitude_deg=MAX_LATITUDE_DEG,
-        min_longitude_deg=MIN_LONGITUDE_DEG,
-        max_longitude_deg=MAX_LONGITUDE_DEG,
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+    narr_row_limits, narr_column_limits = (
+        nwp_plotting.latlng_limits_to_rowcol_limits(
+            min_latitude_deg=MIN_LATITUDE_DEG,
+            max_latitude_deg=MAX_LATITUDE_DEG,
+            min_longitude_deg=MIN_LONGITUDE_DEG,
+            max_longitude_deg=MAX_LONGITUDE_DEG,
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
-        valid_time_string, TIME_FORMAT)
+        valid_time_string, DEFAULT_TIME_FORMAT)
     front_file_name = fronts_io.find_file_for_one_time(
         top_directory_name=TOP_FRONT_DIR_NAME,
         file_type=fronts_io.POLYLINE_FILE_TYPE,
@@ -204,7 +206,7 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
         plot_every_k_rows=PLOT_EVERY_KTH_WIND_BARB,
         plot_every_k_columns=PLOT_EVERY_KTH_WIND_BARB,
         barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
-        colour_map=WIND_COLOUR_MAP_OBJECT,
+        fill_empty_barb=False, colour_map=WIND_COLOUR_MAP_OBJECT,
         colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
         colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
 
@@ -212,20 +214,21 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
     for i in range(num_fronts):
         this_front_type_string = front_line_table[
             front_utils.FRONT_TYPE_COLUMN].values[i]
+
         if this_front_type_string == front_utils.WARM_FRONT_STRING_ID:
             this_colour = WARM_FRONT_COLOUR
         else:
             this_colour = COLD_FRONT_COLOUR
 
-        front_plotting.plot_polyline(
-            latitudes_deg=front_line_table[
+        front_plotting.plot_front_with_markers(
+            line_latitudes_deg=front_line_table[
                 front_utils.LATITUDES_COLUMN].values[i],
-            longitudes_deg=front_line_table[
+            line_longitudes_deg=front_line_table[
                 front_utils.LONGITUDES_COLUMN].values[i],
-            basemap_object=basemap_object, axes_object=axes_object,
-            front_type=front_line_table[
+            axes_object=axes_object, basemap_object=basemap_object,
+            front_type_string=front_line_table[
                 front_utils.FRONT_TYPE_COLUMN].values[i],
-            line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
+            marker_colour=this_colour)
 
     pyplot.title(title_string)
     plotting_utils.annotate_axes(
@@ -237,7 +240,7 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
         OUTPUT_DIR_NAME, valid_time_string)
 
     print 'Saving figure to: "{0:s}"...'.format(figure_file_name)
-    pyplot.savefig(figure_file_name, dpi=OUTPUT_RESOLUTION_DPI)
+    pyplot.savefig(figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
     imagemagick_utils.trim_whitespace(input_file_name=figure_file_name,
@@ -250,48 +253,38 @@ def _run():
     This is effectively the main method.
     """
 
-    annotation_strings = ['(a)', '(b)', '(c)']
-    these_file_names = []
+    annotation_strings = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
+    panel_file_names = []
 
-    for k in range(len(INCONSISTENCY_TIME_STRINGS)):
-        these_file_names.append(
-            _plot_one_time(valid_time_string=INCONSISTENCY_TIME_STRINGS[k],
-                           title_string=INCONSISTENCY_TITLE_STRINGS[k],
-                           annotation_string=annotation_strings[k])
-        )
+    for k in range(len(VALID_TIME_STRINGS)):
+        this_time_unix_sec = time_conversion.string_to_unix_sec(
+            VALID_TIME_STRINGS[k], DEFAULT_TIME_FORMAT)
+        this_title_string = time_conversion.unix_sec_to_string(
+            this_time_unix_sec, NICE_TIME_FORMAT)
+
+        this_file_name = _plot_one_time(
+            valid_time_string=VALID_TIME_STRINGS[k],
+            title_string=this_title_string,
+            annotation_string=annotation_strings[k])
+
+        panel_file_names.append(this_file_name)
         print '\n'
 
-    this_concat_file_name = '{0:s}/temporal_inconsistencies.jpg'.format(
-        OUTPUT_DIR_NAME)
+    concat_file_name = '{0:s}/weird_fronts.jpg'.format(OUTPUT_DIR_NAME)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(this_concat_file_name)
+    print 'Concatenating figures to: "{0:s}"...'.format(concat_file_name)
+
     imagemagick_utils.concatenate_images(
-        input_file_names=these_file_names,
-        output_file_name=this_concat_file_name, num_panel_rows=2,
-        num_panel_columns=2, output_size_pixels=OUTPUT_SIZE_PIXELS)
+        input_file_names=panel_file_names,
+        output_file_name=concat_file_name, num_panel_rows=2,
+        num_panel_columns=3)
 
-    print SEPARATOR_STRING
+    imagemagick_utils.trim_whitespace(input_file_name=concat_file_name,
+                                      output_file_name=concat_file_name)
 
-    these_time_strings = MORPH_CHANGE_TIME_STRINGS + SHORT_LINE_TIME_STRINGS
-    these_title_strings = MORPH_CHANGE_TITLE_STRINGS + SHORT_LINE_TITLE_STRINGS
-    these_file_names = []
-
-    for k in range(len(these_time_strings)):
-        these_file_names.append(
-            _plot_one_time(valid_time_string=these_time_strings[k],
-                           title_string=these_title_strings[k],
-                           annotation_string=annotation_strings[k])
-        )
-        print '\n'
-
-    this_concat_file_name = '{0:s}/short_lines_and_morph_changes.jpg'.format(
-        OUTPUT_DIR_NAME)
-
-    print 'Concatenating figures to: "{0:s}"...'.format(this_concat_file_name)
-    imagemagick_utils.concatenate_images(
-        input_file_names=these_file_names,
-        output_file_name=this_concat_file_name, num_panel_rows=2,
-        num_panel_columns=2, output_size_pixels=OUTPUT_SIZE_PIXELS)
+    imagemagick_utils.resize_image(input_file_name=concat_file_name,
+                                   output_file_name=concat_file_name,
+                                   output_size_pixels=CONCAT_SIZE_PIXELS)
 
 
 if __name__ == '__main__':

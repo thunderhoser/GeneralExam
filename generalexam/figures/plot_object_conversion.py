@@ -35,9 +35,13 @@ PARALLEL_SPACING_DEG = 10.
 MERIDIAN_SPACING_DEG = 20.
 
 BORDER_COLOUR = numpy.full(3, 0.)
-FIGURE_RESOLUTION_DPI = 600
-FIGURE_SIZE_PIXELS = int(1e7)
 
+FIGURE_RESOLUTION_DPI = 600
+CONCAT_SIZE_PIXELS = int(1e7)
+
+PROBABILITY_FILE_NAME = (
+    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
+    'determinization/before_determinization.jpg')
 ALL_REGIONS_FILE_NAME = (
     '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
     'object_conversion/all_regions.jpg')
@@ -148,7 +152,7 @@ def _run():
 
     _plot_predictions(
         predicted_label_matrix=predicted_label_matrix,
-        title_string='All frontal regions', annotation_string='(a)',
+        title_string='All frontal regions', annotation_string='(b)',
         output_file_name=ALL_REGIONS_FILE_NAME)
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -175,7 +179,7 @@ def _run():
 
     _plot_predictions(
         predicted_label_matrix=predicted_label_matrix,
-        title_string='Large frontal regions', annotation_string='(b)',
+        title_string='Large frontal regions', annotation_string='(c)',
         output_file_name=LARGE_REGIONS_FILE_NAME)
 
     predicted_region_table = object_eval.skeletonize_frontal_regions(
@@ -187,7 +191,7 @@ def _run():
 
     _plot_predictions(
         predicted_label_matrix=predicted_label_matrix,
-        title_string='All skeleton lines', annotation_string='(c)',
+        title_string='All skeleton lines', annotation_string='(d)',
         output_file_name=ALL_SKELETONS_FILE_NAME)
 
     predicted_region_table = object_eval.find_main_skeletons(
@@ -197,21 +201,30 @@ def _run():
         x_grid_spacing_metres=grid_spacing_metres,
         y_grid_spacing_metres=grid_spacing_metres,
         min_endpoint_length_metres=MIN_ENDPOINT_LENGTH_METRES)
+
     predicted_label_matrix = object_eval.regions_to_images(
         predicted_region_table=predicted_region_table,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     _plot_predictions(
         predicted_label_matrix=predicted_label_matrix,
-        title_string='Main skeleton lines', annotation_string='(d)',
+        title_string='Main skeleton lines', annotation_string='(e)',
         output_file_name=MAIN_SKELETONS_FILE_NAME)
 
     print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+
+    panel_file_names = [
+        PROBABILITY_FILE_NAME, ALL_REGIONS_FILE_NAME, LARGE_REGIONS_FILE_NAME,
+        ALL_SKELETONS_FILE_NAME, MAIN_SKELETONS_FILE_NAME
+    ]
+
     imagemagick_utils.concatenate_images(
-        input_file_names=[ALL_REGIONS_FILE_NAME, LARGE_REGIONS_FILE_NAME,
-                          ALL_SKELETONS_FILE_NAME, MAIN_SKELETONS_FILE_NAME],
-        output_file_name=CONCAT_FILE_NAME, num_panel_rows=2,
-        num_panel_columns=2, output_size_pixels=FIGURE_SIZE_PIXELS)
+        input_file_names=panel_file_names, output_file_name=CONCAT_FILE_NAME,
+        num_panel_rows=2, num_panel_columns=3)
+
+    imagemagick_utils.resize_image(
+        input_file_name=CONCAT_FILE_NAME, output_file_name=CONCAT_FILE_NAME,
+        output_size_pixels=CONCAT_SIZE_PIXELS)
 
 
 if __name__ == '__main__':

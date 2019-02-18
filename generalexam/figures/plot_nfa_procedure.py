@@ -4,6 +4,7 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -38,17 +39,22 @@ MIN_COLOUR_PERCENTILE = 1.
 MAX_COLOUR_PERCENTILE = 99.
 COLOUR_BAR_LENGTH_FRACTION = 0.9
 
-WIND_COLOUR_MAP_OBJECT = pyplot.cm.binary
-WIND_BARB_LENGTH = 8
-EMPTY_WIND_BARB_RADIUS = 0.1
+WIND_COLOUR = numpy.full(3, 152. / 255)
 MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
+
+WIND_COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap([WIND_COLOUR])
+WIND_COLOUR_MAP_OBJECT.set_under(WIND_COLOUR)
+WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
+
+WIND_BARB_LENGTH = 8
+EMPTY_WIND_BARB_RADIUS = 0.1
 PLOT_EVERY_KTH_WIND_BARB = 8
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 FIGURE_RESOLUTION_DPI = 600
-FIGURE_SIZE_PIXELS = int(1e7)
+CONCAT_SIZE_PIXELS = int(1e7)
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 NARR_PREDICTOR_NAMES = [
@@ -257,7 +263,7 @@ def _plot_narr_fields(
         plot_every_k_rows=PLOT_EVERY_KTH_WIND_BARB,
         plot_every_k_columns=PLOT_EVERY_KTH_WIND_BARB,
         barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
-        colour_map=WIND_COLOUR_MAP_OBJECT,
+        fill_empty_barb=False, colour_map=WIND_COLOUR_MAP_OBJECT,
         colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
         colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
 
@@ -583,13 +589,21 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
 
     concat_file_name = '{0:s}/nfa_procedure.jpg'.format(output_dir_name)
     print 'Concatenating figures to: "{0:s}"...'.format(concat_file_name)
+
+    panel_file_names = [
+        unsmoothed_narr_file_name, smoothed_narr_file_name, tfp_file_name,
+        locating_var_file_name, unclosed_fronts_file_name,
+        closed_fronts_file_name
+    ]
+
     imagemagick_utils.concatenate_images(
-        input_file_names=[
-            unsmoothed_narr_file_name, smoothed_narr_file_name, tfp_file_name,
-            locating_var_file_name, unclosed_fronts_file_name,
-            closed_fronts_file_name],
+        input_file_names=panel_file_names,
         output_file_name=concat_file_name, num_panel_rows=3,
-        num_panel_columns=2, output_size_pixels=FIGURE_SIZE_PIXELS)
+        num_panel_columns=2)
+
+    imagemagick_utils.resize_image(
+        input_file_name=concat_file_name, output_file_name=concat_file_name,
+        output_size_pixels=CONCAT_SIZE_PIXELS)
 
 
 if __name__ == '__main__':
