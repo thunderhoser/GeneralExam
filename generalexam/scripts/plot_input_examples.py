@@ -32,6 +32,8 @@ NARR_PREDICTOR_NAMES = [
     processed_narr_io.V_WIND_GRID_RELATIVE_NAME
 ]
 
+FRONT_MARKER_SIZE = 20
+FRONT_SPACING_METRES = 50000.
 WARM_FRONT_COLOUR = numpy.array([30, 120, 180], dtype=float) / 255
 COLD_FRONT_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
 
@@ -336,7 +338,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
                 axes_object=axes_object, basemap_object=basemap_object,
                 front_type_string=this_polyline_table[
                     front_utils.FRONT_TYPE_COLUMN].values[j],
-                marker_colour=this_colour)
+                marker_colour=this_colour, marker_size=FRONT_MARKER_SIZE,
+                marker_spacing_metres=FRONT_SPACING_METRES)
 
         this_output_file_name = '{0:s}/example{1:06d}.jpg'.format(
             output_dir_name, i)
