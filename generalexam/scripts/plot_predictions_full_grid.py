@@ -208,21 +208,42 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
 
-    predicted_object_matrix = object_eval.regions_to_images(
-        predicted_region_table=predicted_region_table,
-        num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
+    narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
+        nwp_model_utils.get_latlng_grid_point_matrices(
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
-    this_matrix = predicted_object_matrix[
-        0,
-        narr_row_limits[0]:(narr_row_limits[1] + 1),
-        narr_column_limits[0]:(narr_column_limits[1] + 1)
-    ]
+    num_objects = len(predicted_region_table.index)
 
-    front_plotting.plot_narr_grid(
-        frontal_grid_matrix=this_matrix, axes_object=axes_object,
-        basemap_object=basemap_object,
-        first_row_in_narr_grid=narr_row_limits[0],
-        first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
+    for i in range(num_objects):
+        these_rows = predicted_region_table[
+            object_eval.ROW_INDICES_COLUMN].values[i]
+        these_columns = predicted_region_table[
+            object_eval.COLUMN_INDICES_COLUMN].values[i]
+
+        front_plotting.plot_polyline(
+            latitudes_deg=narr_latitude_matrix_deg[these_rows, these_columns],
+            longitudes_deg=narr_longitude_matrix_deg[these_rows, these_columns],
+            axes_object=axes_object, basemap_object=basemap_object,
+            front_type=predicted_region_table[
+                front_utils.FRONT_TYPE_COLUMN].values[i],
+            line_width=4)
+
+    # predicted_object_matrix = object_eval.regions_to_images(
+    #     predicted_region_table=predicted_region_table,
+    #     num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
+    #
+    # this_matrix = predicted_object_matrix[
+    #     0,
+    #     narr_row_limits[0]:(narr_row_limits[1] + 1),
+    #     narr_column_limits[0]:(narr_column_limits[1] + 1)
+    # ]
+    #
+    # front_plotting.plot_narr_grid(
+    #     frontal_grid_matrix=this_matrix, axes_object=axes_object,
+    #     basemap_object=basemap_object,
+    #     first_row_in_narr_grid=narr_row_limits[0],
+    #     first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
     pyplot.title(title_string)
 
