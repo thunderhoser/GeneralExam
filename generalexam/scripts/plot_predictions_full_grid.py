@@ -183,6 +183,7 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.WARM_FRONT_INTEGER_ID
         ]
+        this_matrix[numpy.isnan(this_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_matrix,
@@ -196,6 +197,7 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.COLD_FRONT_INTEGER_ID
         ]
+        this_matrix[numpy.isnan(this_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_matrix,
