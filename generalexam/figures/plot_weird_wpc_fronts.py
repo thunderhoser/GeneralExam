@@ -25,10 +25,9 @@ DEFAULT_TIME_FORMAT = '%Y-%m-%d-%H'
 NICE_TIME_FORMAT = '%H00 UTC %-d %b %Y'
 ZERO_CELSIUS_IN_KELVINS = 273.15
 
-PRESSURE_LEVEL_MB = 1000
 WIND_FIELD_NAMES = [
-    processed_narr_io.U_WIND_EARTH_RELATIVE_NAME,
-    processed_narr_io.V_WIND_EARTH_RELATIVE_NAME
+    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
+    processed_narr_io.V_WIND_GRID_RELATIVE_NAME
 ]
 
 NARR_FIELD_NAMES = WIND_FIELD_NAMES + [processed_narr_io.WET_BULB_THETA_NAME]
@@ -86,18 +85,29 @@ OUTPUT_DIR_NAME = (
 
 VALID_TIME_STRINGS = [
     '2017-12-08-00', '2017-12-08-03', '2017-12-08-06',
-    '2017-12-09-00', '2017-12-09-03', '2017-12-09-06'
+    '2017-12-08-00', '2017-12-08-03', '2017-12-08-06'
 ]
+PRESSURE_LEVELS_MB = numpy.array(
+    [1000, 1000, 1000, 1013, 1013, 1013], dtype=int)
 
 
-def _plot_one_time(valid_time_string, title_string, annotation_string):
+def _plot_one_time(
+        valid_time_string, pressure_level_mb, title_string, annotation_string,
+        narr_rotation_cos_matrix, narr_rotation_sin_matrix):
     """Plots WPC fronts and NARR fields at one time.
 
-    :param valid_time_string: Valid time ("yyyy-mm-dd-HH").
+    M = number of grid rows in the full NARR
+    N = number of grid columns in the full NARR
+
+    :param valid_time_string: Valid time (format "yyyy-mm-dd-HH").
+    :param pressure_level_mb: Pressure level (millibars).
     :param title_string: Title (will be placed above figure).
-    :param annotation_string: Text annotation (will be placed in top left of
+    :param annotation_string: Annotation (will be placed above and left of
         figure).
-    :return: figure_file_name: Path to output file (where the figure was saved).
+    :param narr_rotation_cos_matrix: M-by-N numpy array of cosines for wind-
+        rotation angles.
+    :param narr_rotation_sin_matrix: M-by-N numpy array of sines for wind-
+        rotation angles.
     """
 
     narr_row_limits, narr_column_limits = (
@@ -111,6 +121,7 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
 
     valid_time_unix_sec = time_conversion.string_to_unix_sec(
         valid_time_string, DEFAULT_TIME_FORMAT)
+
     front_file_name = fronts_io.find_file_for_one_time(
         top_directory_name=TOP_FRONT_DIR_NAME,
         file_type=fronts_io.POLYLINE_FILE_TYPE,
@@ -125,7 +136,7 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
     for j in range(num_narr_fields):
         this_file_name = processed_narr_io.find_file_for_one_time(
             top_directory_name=TOP_NARR_DIRECTORY_NAME,
-            field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
+            field_name=NARR_FIELD_NAMES[j], pressure_level_mb=pressure_level_mb,
             valid_time_unix_sec=valid_time_unix_sec)
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
@@ -193,10 +204,28 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
             colour_max=max_colour_value, orientation='horizontal',
             extend_min=True, extend_max=True)
 
+    this_cos_matrix = narr_rotation_cos_matrix[
+        narr_row_limits[0]:(narr_row_limits[1] + 1),
+        narr_column_limits[0]:(narr_column_limits[1] + 1)
+    ]
+
+    this_sin_matrix = narr_rotation_sin_matrix[
+        narr_row_limits[0]:(narr_row_limits[1] + 1),
+        narr_column_limits[0]:(narr_column_limits[1] + 1)
+    ]
+
     u_wind_index = NARR_FIELD_NAMES.index(
-        processed_narr_io.U_WIND_EARTH_RELATIVE_NAME)
+        processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
     v_wind_index = NARR_FIELD_NAMES.index(
-        processed_narr_io.V_WIND_EARTH_RELATIVE_NAME)
+        processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
+
+    narr_matrix_by_field[u_wind_index], narr_matrix_by_field[v_wind_index] = (
+        nwp_model_utils.rotate_winds_to_earth_relative(
+            u_winds_grid_relative_m_s01=narr_matrix_by_field[u_wind_index],
+            v_winds_grid_relative_m_s01=narr_matrix_by_field[v_wind_index],
+            rotation_angle_cosines=this_cos_matrix,
+            rotation_angle_sines=this_sin_matrix)
+    )
 
     nwp_plotting.plot_wind_barbs_on_subgrid(
         u_wind_matrix_m_s01=narr_matrix_by_field[u_wind_index],
@@ -213,6 +242,7 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
         colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
 
     num_fronts = len(front_line_table.index)
+
     for i in range(num_fronts):
         this_front_type_string = front_line_table[
             front_utils.FRONT_TYPE_COLUMN].values[i]
@@ -238,8 +268,8 @@ def _plot_one_time(valid_time_string, title_string, annotation_string):
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=OUTPUT_DIR_NAME)
-    figure_file_name = '{0:s}/fronts_{1:s}.jpg'.format(
-        OUTPUT_DIR_NAME, valid_time_string)
+    figure_file_name = '{0:s}/fronts_{1:04d}mb_{2:s}.jpg'.format(
+        OUTPUT_DIR_NAME, pressure_level_mb, valid_time_string)
 
     print 'Saving figure to: "{0:s}"...'.format(figure_file_name)
     pyplot.savefig(figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -255,21 +285,50 @@ def _run():
     This is effectively the main method.
     """
 
-    annotation_strings = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
-    panel_file_names = []
+    narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
+        nwp_model_utils.get_latlng_grid_point_matrices(
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
-    for k in range(3):
+    narr_rotation_cos_matrix, narr_rotation_sin_matrix = (
+        nwp_model_utils.get_wind_rotation_angles(
+            latitudes_deg=narr_latitude_matrix_deg,
+            longitudes_deg=narr_longitude_matrix_deg,
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
+
+    num_panels = len(VALID_TIME_STRINGS)
+    panel_file_names = [''] * num_panels
+    this_annotation_string = None
+
+    for i in range(num_panels):
         this_time_unix_sec = time_conversion.string_to_unix_sec(
-            VALID_TIME_STRINGS[k], DEFAULT_TIME_FORMAT)
+            VALID_TIME_STRINGS[i], DEFAULT_TIME_FORMAT)
         this_title_string = time_conversion.unix_sec_to_string(
             this_time_unix_sec, NICE_TIME_FORMAT)
 
-        this_file_name = _plot_one_time(
-            valid_time_string=VALID_TIME_STRINGS[k],
-            title_string=this_title_string,
-            annotation_string=annotation_strings[k])
+        if PRESSURE_LEVELS_MB[i] == 1000:
+            this_title_string += ' at 1000 mb'
+        else:
+            this_title_string += ' at surface'
 
-        panel_file_names.append(this_file_name)
+        if this_annotation_string is None:
+            this_annotation_string = '(a)'
+        else:
+            this_orig_character = this_annotation_string[1]
+            this_new_character = chr(ord(this_orig_character) + 1)
+            this_annotation_string = this_annotation_string.replace(
+                this_orig_character, this_new_character)
+
+        this_file_name = _plot_one_time(
+            valid_time_string=VALID_TIME_STRINGS[i],
+            pressure_level_mb=PRESSURE_LEVELS_MB[i],
+            title_string=this_title_string,
+            annotation_string=this_annotation_string,
+            narr_rotation_cos_matrix=narr_rotation_cos_matrix,
+            narr_rotation_sin_matrix=narr_rotation_sin_matrix)
+
+        panel_file_names[i] = this_file_name
         print '\n'
 
     concat_file_name = '{0:s}/weird_fronts.jpg'.format(OUTPUT_DIR_NAME)

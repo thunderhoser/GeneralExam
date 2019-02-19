@@ -229,7 +229,7 @@ def _plot_one_time(
             values_to_colour=predictor_matrix[..., j],
             colour_map=thermal_colour_map_object, colour_min=min_colour_value,
             colour_max=max_colour_value, orientation='horizontal',
-            extend_min=True, extend_max=True)
+            extend_min=True, extend_max=True, fraction_of_axis_length=0.9)
 
     u_wind_index = predictor_names.index(
         processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
