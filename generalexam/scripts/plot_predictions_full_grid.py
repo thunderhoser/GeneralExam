@@ -163,7 +163,27 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
     if class_probability_matrix is None:
         num_grid_rows = predicted_label_matrix.shape[0]
         num_grid_columns = predicted_label_matrix.shape[1]
+    else:
+        num_grid_rows = class_probability_matrix.shape[0]
+        num_grid_columns = class_probability_matrix.shape[1]
 
+    predicted_object_matrix = object_eval.regions_to_images(
+        predicted_region_table=predicted_region_table,
+        num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
+
+    this_matrix = predicted_object_matrix[
+        0,
+        narr_row_limits[0]:(narr_row_limits[1] + 1),
+        narr_column_limits[0]:(narr_column_limits[1] + 1)
+    ]
+
+    front_plotting.plot_narr_grid(
+        frontal_grid_matrix=this_matrix, axes_object=axes_object,
+        basemap_object=basemap_object,
+        first_row_in_narr_grid=narr_row_limits[0],
+        first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
+
+    if class_probability_matrix is None:
         this_matrix = predicted_label_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1)
@@ -175,9 +195,6 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
     else:
-        num_grid_rows = class_probability_matrix.shape[0]
-        num_grid_columns = class_probability_matrix.shape[1]
-
         this_matrix = class_probability_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
@@ -207,22 +224,6 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             axes_object=axes_object, basemap_object=basemap_object,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
-
-    predicted_object_matrix = object_eval.regions_to_images(
-        predicted_region_table=predicted_region_table,
-        num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
-
-    this_matrix = predicted_object_matrix[
-        0,
-        narr_row_limits[0]:(narr_row_limits[1] + 1),
-        narr_column_limits[0]:(narr_column_limits[1] + 1)
-    ]
-
-    # front_plotting.plot_narr_grid(
-    #     frontal_grid_matrix=this_matrix, axes_object=axes_object,
-    #     basemap_object=basemap_object,
-    #     first_row_in_narr_grid=narr_row_limits[0],
-    #     first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
     pyplot.title(title_string)
 
