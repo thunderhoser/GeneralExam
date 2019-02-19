@@ -184,6 +184,7 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             front_utils.WARM_FRONT_INTEGER_ID
         ]
         this_matrix[numpy.isnan(this_matrix)] = 0.
+        print numpy.nanmax(this_matrix)
 
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_matrix,
@@ -198,6 +199,7 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             front_utils.COLD_FRONT_INTEGER_ID
         ]
         this_matrix[numpy.isnan(this_matrix)] = 0.
+        print numpy.nanmax(this_matrix)
 
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_matrix,
@@ -216,11 +218,11 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
         narr_column_limits[0]:(narr_column_limits[1] + 1)
     ]
 
-    front_plotting.plot_narr_grid(
-        frontal_grid_matrix=this_matrix, axes_object=axes_object,
-        basemap_object=basemap_object,
-        first_row_in_narr_grid=narr_row_limits[0],
-        first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
+    # front_plotting.plot_narr_grid(
+    #     frontal_grid_matrix=this_matrix, axes_object=axes_object,
+    #     basemap_object=basemap_object,
+    #     first_row_in_narr_grid=narr_row_limits[0],
+    #     first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
     pyplot.title(title_string)
 
