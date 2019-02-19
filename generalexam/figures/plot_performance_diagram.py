@@ -130,19 +130,26 @@ def _run():
         this_label_string = '{0:s} ({1:d} km)'.format(
             METHOD_NAME_BY_DATASET[i], MATCHING_DIST_BY_DATASET_KM[i])
 
+        this_x_coord = this_mean_success_ratio + 0.01
+        this_horiz_alignment_string = 'left'
+
         if METHOD_NAME_BY_DATASET[i] == CNN_METHOD_NAME:
             this_y_coord = this_mean_pod + 0.01
-            this_vertical_alignment_string = 'bottom'
+            this_vert_alignment_string = 'bottom'
         else:
             this_y_coord = this_mean_pod - 0.01
-            this_vertical_alignment_string = 'top'
+            this_vert_alignment_string = 'top'
+
+            if MATCHING_DIST_BY_DATASET_KM[i] == 250:
+                this_x_coord = this_mean_success_ratio - 0.01
+                this_horiz_alignment_string = 'right'
 
         axes_object.text(
-            this_mean_success_ratio + 0.01, this_y_coord, this_label_string,
+            this_x_coord, this_y_coord, this_label_string,
             fontsize=FONT_SIZE, fontweight='bold',
             color=METHOD_NAME_TO_COLOUR[METHOD_NAME_BY_DATASET[i]],
-            horizontalalignment='left',
-            verticalalignment=this_vertical_alignment_string, zorder=1e6)
+            horizontalalignment=this_horiz_alignment_string,
+            verticalalignment=this_vert_alignment_string, zorder=1e6)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=OUTPUT_FILE_NAME)
 
