@@ -190,13 +190,17 @@ def plot_narr_grid(
     error_checking.assert_is_numpy_array(frontal_grid_matrix, num_dimensions=2)
 
     error_checking.assert_is_geq_numpy_array(
-        frontal_grid_matrix, front_utils.NO_FRONT_INTEGER_ID)
+        frontal_grid_matrix, numpy.min(front_utils.VALID_INTEGER_IDS)
+    )
     error_checking.assert_is_leq_numpy_array(
-        frontal_grid_matrix, max(
-            [front_utils.COLD_FRONT_INTEGER_ID,
-             front_utils.WARM_FRONT_INTEGER_ID]))
+        frontal_grid_matrix, numpy.max(front_utils.VALID_INTEGER_IDS)
+    )
 
     colour_map_object, _, colour_bounds = get_colour_map_for_grid()
+
+    frontal_grid_matrix = numpy.ma.masked_where(
+        frontal_grid_matrix == front_utils.NO_FRONT_INTEGER_ID,
+        frontal_grid_matrix)
 
     narr_plotting.plot_xy_grid(
         data_matrix=frontal_grid_matrix, axes_object=axes_object,
