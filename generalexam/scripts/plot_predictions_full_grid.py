@@ -211,6 +211,7 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     this_matrix = predicted_object_matrix[
+        0,
         narr_row_limits[0]:(narr_row_limits[1] + 1),
         narr_column_limits[0]:(narr_column_limits[1] + 1)
     ]
