@@ -71,6 +71,8 @@ PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 THERMAL_FIELD_ARG_NAME = 'thermal_field_name'
 THERMAL_CMAP_ARG_NAME = 'thermal_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_thermal_prctile_for_colours'
+FIRST_LETTER_ARG_NAME = 'first_letter_label'
+LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 NARR_DIR_HELP_STRING = (
@@ -105,6 +107,14 @@ MAX_PERCENTILE_HELP_STRING = (
     'at time t will be [q]th percentile of thermal field at time t, where '
     'q = `{0:s}`.  Minimum value will be [100 - q]th percentile.'
 ).format(MAX_PERCENTILE_ARG_NAME)
+
+FIRST_LETTER_HELP_STRING = (
+    'Letter label for first time step.  If this is "a", the label "(a)" will be'
+    ' printed at the top left of the figure.  If you do not want labels, leave '
+    'this argument alone.')
+
+LETTER_INTERVAL_HELP_STRING = (
+    'Interval between letter labels for successive time steps.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
@@ -145,6 +155,14 @@ INPUT_ARG_PARSER.add_argument(
     help=MAX_PERCENTILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_LETTER_ARG_NAME, type=str, required=False, default='',
+    help=FIRST_LETTER_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LETTER_INTERVAL_ARG_NAME, type=int, required=False, default=3,
+    help=LETTER_INTERVAL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
@@ -152,7 +170,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_time(
         predictor_matrix, predictor_names, front_polyline_table,
         thermal_colour_map_object, max_thermal_prctile_for_colours,
-        narr_row_limits, narr_column_limits, title_string, output_file_name):
+        narr_row_limits, narr_column_limits, title_string, letter_label,
+        output_file_name):
     """Plots predictors at one time.
 
     M = number of rows in grid
@@ -170,6 +189,8 @@ def _plot_one_time(
         `predictor_matrix` spans rows i...k of the full NARR grid.
     :param narr_column_limits: Same but for columns.
     :param title_string: Title (will be placed above figure).
+    :param letter_label: Letter label.  If this is "a", the label "(a)" will be
+        printed at the top left of the figure.
     :param output_file_name: Path to output file (figure will be saved here).
     """
 
@@ -272,6 +293,11 @@ def _plot_one_time(
             marker_colour=this_colour)
 
     pyplot.title(title_string)
+    if letter_label is not None:
+        plotting_utils.annotate_axes(
+            axes_object=axes_object,
+            annotation_string='({0:s})'.format(letter_label)
+        )
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -284,7 +310,7 @@ def _plot_one_time(
 def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
          last_time_string, pressure_level_mb, thermal_field_name,
          thermal_colour_map_name, max_thermal_prctile_for_colours,
-         output_dir_name):
+         first_letter_label, letter_interval, output_dir_name):
     """Plots predictors on full NARR grid.
 
     This is effectively the main method.
@@ -297,12 +323,17 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
     :param thermal_field_name: Same.
     :param thermal_colour_map_name: Same.
     :param max_thermal_prctile_for_colours: Same.
+    :param first_letter_label: Same.
+    :param letter_interval: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if
         `thermal_field_name not in VALID_THERMAL_FIELD_NAMES`.
     """
 
     # Check input args.
+    if first_letter_label in ['', 'None']:
+        first_letter_label = None
+
     if thermal_field_name not in VALID_THERMAL_FIELD_NAMES:
         error_string = (
             '\n{0:s}\nValid thermal fields (listed above) do not include '
@@ -364,6 +395,8 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
         processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
         thermal_field_name
     ]
+
+    this_letter_label = None
 
     for this_time_unix_sec in valid_times_unix_sec:
         this_file_name = fronts_io.find_file_for_one_time(
@@ -438,6 +471,14 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
         this_output_file_name = '{0:s}/predictors_{1:s}.jpg'.format(
             output_dir_name, this_default_time_string)
 
+        if first_letter_label is not None:
+            if this_letter_label is None:
+                this_letter_label = first_letter_label
+            else:
+                this_letter_label = chr(
+                    ord(this_letter_label) + letter_interval
+                )
+
         _plot_one_time(
             predictor_matrix=this_predictor_matrix,
             predictor_names=narr_field_names,
@@ -446,7 +487,7 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
             max_thermal_prctile_for_colours=max_thermal_prctile_for_colours,
             narr_row_limits=narr_row_limits,
             narr_column_limits=narr_column_limits,
-            title_string=this_title_string,
+            title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name)
 
         print '\n'
@@ -466,5 +507,7 @@ if __name__ == '__main__':
                                         THERMAL_CMAP_ARG_NAME),
         max_thermal_prctile_for_colours=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
+        letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
