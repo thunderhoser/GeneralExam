@@ -125,7 +125,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_one_time(
         predicted_region_table, title_string, letter_label, output_file_name,
-        class_probability_matrix=None, predicted_label_matrix=None):
+        class_probability_matrix=None, predicted_label_matrix=None,
+        plot_wf_colour_bar=True, plot_cf_colour_bar=True):
     """Plots predictions at one time.
 
     Either `class_probability_matrix` or `predicted_label_matrix` will be
@@ -145,6 +146,10 @@ def _plot_one_time(
         probabilities.
     :param predicted_label_matrix: M-by-N numpy array of predicted labels
         (integers in `front_utils.VALID_INTEGER_IDS`).
+    :param plot_wf_colour_bar: Boolean flag.  If True, will plot colour bar for
+        warm-front probability.
+    :param plot_cf_colour_bar: Boolean flag.  If True, will plot colour bar for
+        cold-front probability.
     """
 
     narr_row_limits, narr_column_limits = (
@@ -221,26 +226,31 @@ def _plot_one_time(
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
 
-        this_colour_map_object, this_colour_norm_object = (
-            prediction_plotting.get_warm_front_colour_map()[:2]
-        )
+        if plot_wf_colour_bar:
+            this_colour_map_object, this_colour_norm_object = (
+                prediction_plotting.get_warm_front_colour_map()[:2]
+            )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            values_to_colour=this_wf_probability_matrix, orientation='vertical',
-            extend_min=True, extend_max=False, fraction_of_axis_length=0.8)
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=axes_object,
+                colour_map=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                values_to_colour=this_wf_probability_matrix,
+                orientation='vertical', extend_min=True, extend_max=False,
+                fraction_of_axis_length=0.8)
 
-        this_colour_map_object, this_colour_norm_object = (
-            prediction_plotting.get_cold_front_colour_map()[:2]
-        )
+        if plot_cf_colour_bar:
+            this_colour_map_object, this_colour_norm_object = (
+                prediction_plotting.get_cold_front_colour_map()[:2]
+            )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
-            colour_norm_object=this_colour_norm_object,
-            values_to_colour=this_cf_probability_matrix,
-            orientation='horizontal', extend_min=True, extend_max=False,
-            fraction_of_axis_length=0.8)
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=axes_object,
+                colour_map=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                values_to_colour=this_cf_probability_matrix,
+                orientation='vertical', extend_min=True, extend_max=False,
+                fraction_of_axis_length=0.8)
 
     narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
@@ -360,6 +370,9 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
     this_label_matrix = None
     this_letter_label = None
 
+    plot_wf_colour_bar = False
+    plot_cf_colour_bar = True
+
     for this_time_unix_sec in valid_times_unix_sec:
         if method_name == CNN_METHOD_NAME:
             this_file_name = ml_utils.find_gridded_prediction_file(
@@ -412,12 +425,17 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
                     ord(this_letter_label) + letter_interval
                 )
 
+        plot_wf_colour_bar = not plot_wf_colour_bar
+        plot_cf_colour_bar = not plot_cf_colour_bar
+
         _plot_one_time(
             predicted_region_table=this_predicted_region_table,
             title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
-            predicted_label_matrix=this_label_matrix)
+            predicted_label_matrix=this_label_matrix,
+            plot_wf_colour_bar=plot_wf_colour_bar,
+            plot_cf_colour_bar=plot_cf_colour_bar)
 
         print '\n'
 
