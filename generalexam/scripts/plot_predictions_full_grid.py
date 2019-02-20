@@ -236,8 +236,8 @@ def _plot_one_time(
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 values_to_colour=this_wf_probability_matrix,
-                orientation='vertical', extend_min=True, extend_max=False,
-                fraction_of_axis_length=0.8)
+                orientation='horizontal', extend_min=True, extend_max=False,
+                fraction_of_axis_length=0.9)
 
         if plot_cf_colour_bar:
             this_colour_map_object, this_colour_norm_object = (
@@ -249,8 +249,8 @@ def _plot_one_time(
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 values_to_colour=this_cf_probability_matrix,
-                orientation='vertical', extend_min=True, extend_max=False,
-                fraction_of_axis_length=0.8)
+                orientation='horizontal', extend_min=True, extend_max=False,
+                fraction_of_axis_length=0.9)
 
     narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
