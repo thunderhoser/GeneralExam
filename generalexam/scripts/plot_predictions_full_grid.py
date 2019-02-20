@@ -408,8 +408,11 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
             this_time_unix_sec
             ]
 
-        this_title_string = time_conversion.unix_sec_to_string(
-            this_time_unix_sec, NICE_TIME_FORMAT)
+        this_title_string = '{0:s} predictions at {1:s}'.format(
+            method_name.upper(),
+            time_conversion.unix_sec_to_string(
+                this_time_unix_sec, NICE_TIME_FORMAT)
+        )
 
         this_output_file_name = '{0:s}/predictions_{1:s}.jpg'.format(
             output_dir_name,
