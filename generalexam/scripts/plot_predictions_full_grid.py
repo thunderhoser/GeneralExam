@@ -46,6 +46,8 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 METHOD_ARG_NAME = 'method_name'
 USE_ENSEMBLE_ARG_NAME = 'use_nfa_ensemble'
+FIRST_LETTER_ARG_NAME = 'first_letter_label'
+LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 GRID_DIR_HELP_STRING = (
@@ -75,6 +77,14 @@ USE_ENSEMBLE_HELP_STRING = (
     'will be deterministic labels from a single NFA method.'
 ).format(METHOD_ARG_NAME, NFA_METHOD_NAME)
 
+FIRST_LETTER_HELP_STRING = (
+    'Letter label for first time step.  If this is "a", the label "(a)" will be'
+    ' printed at the top left of the figure.  If you do not want labels, leave '
+    'this argument alone.')
+
+LETTER_INTERVAL_HELP_STRING = (
+    'Interval between letter labels for successive time steps.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
@@ -101,12 +111,21 @@ INPUT_ARG_PARSER.add_argument(
     help=USE_ENSEMBLE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_LETTER_ARG_NAME, type=str, required=False, default='',
+    help=FIRST_LETTER_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LETTER_INTERVAL_ARG_NAME, type=int, required=False, default=3,
+    help=LETTER_INTERVAL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_one_time(predicted_region_table, title_string, output_file_name,
-                   class_probability_matrix=None, predicted_label_matrix=None):
+def _plot_one_time(
+        predicted_region_table, title_string, letter_label, output_file_name,
+        class_probability_matrix=None, predicted_label_matrix=None):
     """Plots predictions at one time.
 
     Either `class_probability_matrix` or `predicted_label_matrix` will be
@@ -119,6 +138,8 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
         `object_eval.read_predictions_and_obs`, containing predicted fronts at
         only one time.
     :param title_string: Title (will be placed above figure).
+    :param letter_label: Letter label.  If this is "a", the label "(a)" will be
+        printed at the top left of the figure.
     :param output_file_name: Path to output file.
     :param class_probability_matrix: M-by-N-by-3 numpy array of class
         probabilities.
@@ -161,9 +182,6 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
         meridian_spacing_deg=MERIDIAN_SPACING_DEG)
 
     if class_probability_matrix is None:
-        num_grid_rows = predicted_label_matrix.shape[0]
-        num_grid_columns = predicted_label_matrix.shape[1]
-
         this_matrix = predicted_label_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1)
@@ -175,38 +193,53 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
     else:
-        num_grid_rows = class_probability_matrix.shape[0]
-        num_grid_columns = class_probability_matrix.shape[1]
-
-        this_matrix = class_probability_matrix[
+        this_wf_probability_matrix = class_probability_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.WARM_FRONT_INTEGER_ID
         ]
-        this_matrix[numpy.isnan(this_matrix)] = 0.
-        print numpy.nanmax(this_matrix)
+        this_wf_probability_matrix[numpy.isnan(this_wf_probability_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
-            probability_matrix=this_matrix,
+            probability_matrix=this_wf_probability_matrix,
             front_string_id=front_utils.WARM_FRONT_STRING_ID,
             axes_object=axes_object, basemap_object=basemap_object,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
 
-        this_matrix = class_probability_matrix[
+        this_cf_probability_matrix = class_probability_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.COLD_FRONT_INTEGER_ID
         ]
-        this_matrix[numpy.isnan(this_matrix)] = 0.
-        print numpy.nanmax(this_matrix)
+        this_cf_probability_matrix[numpy.isnan(this_cf_probability_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
-            probability_matrix=this_matrix,
+            probability_matrix=this_cf_probability_matrix,
             front_string_id=front_utils.COLD_FRONT_STRING_ID,
             axes_object=axes_object, basemap_object=basemap_object,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
+
+        this_colour_map_object, this_colour_norm_object = (
+            prediction_plotting.get_warm_front_colour_map()[:2]
+        )
+
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            values_to_colour=this_wf_probability_matrix, orientation='vertical',
+            extend_min=True, extend_max=False, fraction_of_axis_length=0.8)
+
+        this_colour_map_object, this_colour_norm_object = (
+            prediction_plotting.get_cold_front_colour_map()[:2]
+        )
+
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            values_to_colour=this_cf_probability_matrix, orientation='vertical',
+            extend_min=True, extend_max=False, fraction_of_axis_length=0.8)
 
     narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
@@ -246,6 +279,11 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
     #     first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
     pyplot.title(title_string)
+    if letter_label is not None:
+        plotting_utils.annotate_axes(
+            axes_object=axes_object,
+            annotation_string='({0:s})'.format(letter_label)
+        )
 
     print 'Saving figure to: "{0:s}"...'.format(output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
@@ -256,7 +294,8 @@ def _plot_one_time(predicted_region_table, title_string, output_file_name,
 
 
 def _run(input_grid_dir_name, input_object_file_name, first_time_string,
-         last_time_string, method_name, use_nfa_ensemble, output_dir_name):
+         last_time_string, method_name, use_nfa_ensemble, first_letter_label,
+         letter_interval, output_dir_name):
     """Plots predictions on full NARR grid.
 
     This is effectively the main method.
@@ -267,9 +306,14 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
     :param last_time_string: Same.
     :param method_name: Same.
     :param use_nfa_ensemble: Same.
+    :param first_letter_label: Same.
+    :param letter_interval: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if `method_name not in VALID_METHOD_NAMES`.
     """
+
+    if first_letter_label in ['', 'None']:
+        first_letter_label = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -313,6 +357,7 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
 
     this_class_probability_matrix = None
     this_label_matrix = None
+    this_letter_label = None
 
     for this_time_unix_sec in valid_times_unix_sec:
         if method_name == CNN_METHOD_NAME:
@@ -358,9 +403,17 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
                 this_time_unix_sec, DEFAULT_TIME_FORMAT)
         )
 
+        if first_letter_label is not None:
+            if this_letter_label is None:
+                this_letter_label = first_letter_label
+            else:
+                this_letter_label = chr(
+                    ord(this_letter_label) + letter_interval
+                )
+
         _plot_one_time(
             predicted_region_table=this_predicted_region_table,
-            title_string=this_title_string,
+            title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
             predicted_label_matrix=this_label_matrix)
@@ -379,5 +432,7 @@ if __name__ == '__main__':
         method_name=getattr(INPUT_ARG_OBJECT, METHOD_ARG_NAME),
         use_nfa_ensemble=bool(getattr(
             INPUT_ARG_OBJECT, USE_ENSEMBLE_ARG_NAME)),
+        first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
+        letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
