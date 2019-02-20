@@ -238,8 +238,9 @@ def _plot_one_time(
         plotting_utils.add_colour_bar(
             axes_object_or_list=axes_object, colour_map=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            values_to_colour=this_cf_probability_matrix, orientation='vertical',
-            extend_min=True, extend_max=False, fraction_of_axis_length=0.8)
+            values_to_colour=this_cf_probability_matrix,
+            orientation='horizontal', extend_min=True, extend_max=False,
+            fraction_of_axis_length=0.8)
 
     narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
