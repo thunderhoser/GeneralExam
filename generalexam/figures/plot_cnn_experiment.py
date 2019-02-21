@@ -209,6 +209,8 @@ def _run():
             '{0:s}/gerrity_score_dropout-fraction={1:.2f}.jpg'
         ).format(TOP_EXPERIMENT_DIR_NAME, UNIQUE_DROPOUT_FRACTIONS[k])
 
+        print gerrity_score_matrix[..., k]
+
         _plot_scores_as_grid(
             score_matrix=gerrity_score_matrix[..., k],
             colour_map_object=COLOUR_MAP_OBJECT,
@@ -309,7 +311,10 @@ def _run():
     imagemagick_utils.concatenate_images(
         input_file_names=numpy.ravel(panel_file_names).tolist(),
         output_file_name=concat_file_name, num_panel_rows=4,
-        num_panel_columns=num_dropout_fractions,
+        num_panel_columns=num_dropout_fractions)
+
+    imagemagick_utils.resize_image(
+        input_file_name=concat_file_name, output_file_name=concat_file_name,
         output_size_pixels=FIGURE_SIZE_PIXELS)
 
 
