@@ -5,10 +5,18 @@ import os.path
 import warnings
 import numpy
 import pandas
-from generalexam.ge_utils import front_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import front_utils
+
+SYSTEM_TYPE_COLUMN = 'system_type_string'
+LATITUDE_COLUMN = 'latitude_deg'
+LONGITUDE_COLUMN = 'longitude_deg'
+
+LOW_PRESSURE_STRING = 'lows'
+HIGH_PRESSURE_STRING = 'highs'
+VALID_SYSTEM_TYPE_STRINGS = [LOW_PRESSURE_STRING, HIGH_PRESSURE_STRING]
 
 PATHLESS_FILE_NAME_PREFIX = 'KWBCCODSUS_HIRES'
 TIME_FORMAT_IN_FILE_NAME = '%Y%m%d_%H00'
@@ -179,3 +187,68 @@ def read_fronts_from_file(text_file_name):
         front_utils.LONGITUDES_COLUMN: longitudes_2d_list_deg
     }
     return pandas.DataFrame.from_dict(front_dict)
+
+
+def read_highs_and_lows(text_file_name):
+    """Reads locations of high- and low-pressure centers.
+
+    :param text_file_name: Path to input file (text file in WPC format).
+    :return: high_low_table: pandas DataFrame with the following columns.  Each
+        row is one high- or low-pressure center.
+    high_low_table.system_type_string: Type of system (either "high" or "low").
+    high_low_table.unix_time_sec: Valid time.
+    high_low_table.latitude_deg: Latitude (deg N).
+    high_low_table.longitude_deg: Longitude (deg E).
+    """
+
+    error_checking.assert_file_exists(text_file_name)
+    valid_time_unix_sec = _file_name_to_valid_time(text_file_name)
+
+    system_type_strings = []
+    latitudes_deg = numpy.array([], dtype=float)
+    longitudes_deg = numpy.array([], dtype=float)
+
+    for this_line in open(text_file_name, 'r').readlines():
+        these_words = this_line.split()
+        if len(these_words) == 0:
+            continue
+
+        this_system_type_string = these_words[0].lower()
+        if this_system_type_string not in VALID_SYSTEM_TYPE_STRINGS:
+            continue
+
+        these_words = these_words[1:]
+        this_num_systems = len(these_words)
+        these_latitudes_deg = numpy.full(this_num_systems, numpy.nan)
+        these_longitudes_deg = numpy.full(this_num_systems, numpy.nan)
+
+        for i in range(this_num_systems):
+            if len(these_words[i]) <= 4:
+                continue
+
+            these_latitudes_deg[i], these_longitudes_deg[i] = _string_to_latlng(
+                latlng_string=these_words[i], raise_error_if_fails=True)
+
+        if numpy.any(numpy.isnan(these_latitudes_deg)):
+            continue
+
+        error_checking.assert_is_valid_lat_numpy_array(these_latitudes_deg)
+        these_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+            these_longitudes_deg, allow_nan=False)
+
+        system_type_strings += [this_system_type_string] * this_num_systems
+        latitudes_deg = numpy.concatenate((latitudes_deg, these_latitudes_deg))
+        longitudes_deg = numpy.concatenate((
+            longitudes_deg, these_longitudes_deg))
+
+    valid_times_unix_sec = numpy.full(
+        len(system_type_strings), valid_time_unix_sec, dtype=int)
+
+    high_low_dict = {
+        SYSTEM_TYPE_COLUMN: system_type_strings,
+        front_utils.TIME_COLUMN: valid_times_unix_sec,
+        LATITUDE_COLUMN: latitudes_deg,
+        LONGITUDE_COLUMN: longitudes_deg
+    }
+
+    return pandas.DataFrame.from_dict(high_low_dict)

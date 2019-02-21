@@ -15,6 +15,7 @@ from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
+from generalexam.ge_io import wpc_bulletin_io
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import utils
 from generalexam.plotting import front_plotting
@@ -61,10 +62,14 @@ WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
 PLOT_EVERY_KTH_WIND_BARB = 8
 
+PRESSURE_SYSTEM_FONT_SIZE = 50
+PRESSURE_SYSTEM_COLOUR = numpy.full(3, 0.)
+
 FIGURE_RESOLUTION_DPI = 300
 
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONT_DIR_ARG_NAME = 'input_front_line_dir_name'
+BULLETIN_DIR_ARG_NAME = 'input_wpc_bulletin_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
@@ -84,6 +89,12 @@ FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with fronts (represented as polylines).  Files'
     ' therein will be found by `fronts_io.find_file_for_one_time` and read by '
     '`fronts_io.read_polylines_from_file`.')
+
+BULLETIN_DIR_HELP_STRING = (
+    'Name of top-level directory with WPC bulletins.  Files therein will be '
+    'found by `wpc_bulletin_io.find_file` and read by '
+    '`wpc_bulletin_io.read_highs_and_lows`.  If you do not want to plot high- '
+    'and low-pressure centers, leave this argument alone.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Predictors will be plotted for all NARR times'
@@ -121,6 +132,7 @@ OUTPUT_DIR_HELP_STRING = (
 
 TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
 TOP_FRONT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts/polylines'
+# TOP_BULLETIN_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/wpc_bulletins/hires'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -130,6 +142,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + FRONT_DIR_ARG_NAME, type=str, required=False,
     default=TOP_FRONT_DIR_NAME_DEFAULT, help=FRONT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + BULLETIN_DIR_ARG_NAME, type=str, required=False, default='',
+    help=BULLETIN_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
@@ -168,7 +184,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_time(
-        predictor_matrix, predictor_names, front_polyline_table,
+        predictor_matrix, predictor_names, front_polyline_table, high_low_table,
         thermal_colour_map_object, max_thermal_prctile_for_colours,
         narr_row_limits, narr_column_limits, title_string, letter_label,
         output_file_name):
@@ -182,6 +198,8 @@ def _plot_one_time(
     :param predictor_names: length-C list of predictor names.
     :param front_polyline_table: pandas DataFrame returned by
         `fronts_io.read_polylines_from_file`.
+    :param high_low_table: pandas DataFrame returned by
+        `wpc_bulletin_io.read_highs_and_lows`.
     :param thermal_colour_map_object: See documentation at top of file.
     :param max_thermal_prctile_for_colours: Same.
     :param narr_row_limits: length-2 numpy array, indicating the first and last
@@ -271,6 +289,30 @@ def _plot_one_time(
         colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
         colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
 
+    if high_low_table is None:
+        num_pressure_systems = 0
+    else:
+        num_pressure_systems = len(high_low_table.index)
+
+    for i in range(num_pressure_systems):
+        this_system_type_string = high_low_table[
+            wpc_bulletin_io.SYSTEM_TYPE_COLUMN].values[i]
+
+        if this_system_type_string == wpc_bulletin_io.HIGH_PRESSURE_STRING:
+            this_string = 'H'
+        else:
+            this_string = 'L'
+
+        this_x_coord_metres, this_y_coord_metres = basemap_object(
+            high_low_table[wpc_bulletin_io.LONGITUDE_COLUMN].values[i],
+            high_low_table[wpc_bulletin_io.LATITUDE_COLUMN].values[i]
+        )
+
+        axes_object.text(
+            this_x_coord_metres, this_y_coord_metres, this_string,
+            fontsize=PRESSURE_SYSTEM_FONT_SIZE, color=PRESSURE_SYSTEM_COLOUR,
+            horizontalalignment='center', verticalalignment='center')
+
     num_fronts = len(front_polyline_table.index)
 
     for i in range(num_fronts):
@@ -293,6 +335,7 @@ def _plot_one_time(
             marker_colour=this_colour)
 
     pyplot.title(title_string)
+
     if letter_label is not None:
         plotting_utils.annotate_axes(
             axes_object=axes_object,
@@ -307,16 +350,18 @@ def _plot_one_time(
                                       output_file_name=output_file_name)
 
 
-def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
-         last_time_string, pressure_level_mb, thermal_field_name,
-         thermal_colour_map_name, max_thermal_prctile_for_colours,
-         first_letter_label, letter_interval, output_dir_name):
+def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
+         first_time_string, last_time_string, pressure_level_mb,
+         thermal_field_name, thermal_colour_map_name,
+         max_thermal_prctile_for_colours, first_letter_label, letter_interval,
+         output_dir_name):
     """Plots predictors on full NARR grid.
 
     This is effectively the main method.
 
     :param top_narr_dir_name: See documentation at top of file.
     :param top_front_line_dir_name: Same.
+    :param top_wpc_bulletin_dir_name: Same.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param pressure_level_mb: Same.
@@ -331,6 +376,9 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
     """
 
     # Check input args.
+    if top_wpc_bulletin_dir_name in ['', 'None']:
+        top_wpc_bulletin_dir_name = None
+
     if first_letter_label in ['', 'None']:
         first_letter_label = None
 
@@ -406,6 +454,15 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         this_polyline_table = fronts_io.read_polylines_from_file(this_file_name)
+
+        if top_wpc_bulletin_dir_name is not None:
+            this_file_name = wpc_bulletin_io.find_file(
+                top_directory_name=top_wpc_bulletin_dir_name,
+                valid_time_unix_sec=this_time_unix_sec)
+
+            print 'Reading data from: "{0:s}"...'.format(this_file_name)
+            this_high_low_table = wpc_bulletin_io.read_highs_and_lows(
+                this_file_name)
 
         this_predictor_matrix = None
 
@@ -483,6 +540,7 @@ def _run(top_narr_dir_name, top_front_line_dir_name, first_time_string,
             predictor_matrix=this_predictor_matrix,
             predictor_names=narr_field_names,
             front_polyline_table=this_polyline_table,
+            high_low_table=this_high_low_table,
             thermal_colour_map_object=thermal_colour_map_object,
             max_thermal_prctile_for_colours=max_thermal_prctile_for_colours,
             narr_row_limits=narr_row_limits,
@@ -499,6 +557,8 @@ if __name__ == '__main__':
     _run(
         top_narr_dir_name=getattr(INPUT_ARG_OBJECT, NARR_DIR_ARG_NAME),
         top_front_line_dir_name=getattr(INPUT_ARG_OBJECT, FRONT_DIR_ARG_NAME),
+        top_wpc_bulletin_dir_name=getattr(
+            INPUT_ARG_OBJECT, BULLETIN_DIR_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
