@@ -235,6 +235,9 @@ def read_highs_and_lows(text_file_name):
         these_latitudes_deg = numpy.array(these_latitudes_deg)
         these_longitudes_deg = numpy.array(these_longitudes_deg)
 
+        print len(these_latitudes_deg)
+        print len(these_longitudes_deg)
+
         if numpy.any(numpy.isnan(these_latitudes_deg)):
             continue
 
