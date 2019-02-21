@@ -225,6 +225,8 @@ def read_highs_and_lows(text_file_name):
         these_longitudes_deg = numpy.full(this_num_systems, numpy.nan)
 
         for i in range(this_num_systems):
+            print these_words[i]
+
             if len(these_words[i]) <= 4:
                 continue
 
