@@ -65,7 +65,8 @@ PLOT_EVERY_KTH_WIND_BARB = 8
 PRESSURE_SYSTEM_FONT_SIZE = 50
 PRESSURE_SYSTEM_COLOUR = numpy.full(3, 0.)
 
-FIGURE_RESOLUTION_DPI = 300
+# FIGURE_RESOLUTION_DPI = 300
+FIGURE_RESOLUTION_DPI = 600
 
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 FRONT_DIR_ARG_NAME = 'input_front_line_dir_name'
@@ -311,7 +312,8 @@ def _plot_one_time(
         axes_object.text(
             this_x_coord_metres, this_y_coord_metres, this_string,
             fontsize=PRESSURE_SYSTEM_FONT_SIZE, color=PRESSURE_SYSTEM_COLOUR,
-            horizontalalignment='center', verticalalignment='center')
+            fontweight='bold', horizontalalignment='center',
+            verticalalignment='center')
 
     num_fronts = len(front_polyline_table.index)
 
@@ -465,8 +467,6 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
             print 'Reading data from: "{0:s}"...'.format(this_file_name)
             this_high_low_table = wpc_bulletin_io.read_highs_and_lows(
                 this_file_name)
-
-        print this_high_low_table
 
         this_predictor_matrix = None
 
