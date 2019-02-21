@@ -295,8 +295,6 @@ def _plot_one_time(
         num_pressure_systems = len(high_low_table.index)
 
     for i in range(num_pressure_systems):
-        print this_system_type_string
-
         this_system_type_string = high_low_table[
             wpc_bulletin_io.SYSTEM_TYPE_COLUMN].values[i]
 
@@ -457,7 +455,7 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         this_polyline_table = fronts_io.read_polylines_from_file(this_file_name)
 
-        if top_wpc_bulletin_dir_name is not None:
+        if top_wpc_bulletin_dir_name is None:
             this_file_name = wpc_bulletin_io.find_file(
                 top_directory_name=top_wpc_bulletin_dir_name,
                 valid_time_unix_sec=this_time_unix_sec)
@@ -465,6 +463,10 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
             print 'Reading data from: "{0:s}"...'.format(this_file_name)
             this_high_low_table = wpc_bulletin_io.read_highs_and_lows(
                 this_file_name)
+        else:
+            this_high_low_table = None
+
+        print this_high_low_table
 
         this_predictor_matrix = None
 
