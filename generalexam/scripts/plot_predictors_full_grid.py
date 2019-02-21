@@ -295,6 +295,8 @@ def _plot_one_time(
         num_pressure_systems = len(high_low_table.index)
 
     for i in range(num_pressure_systems):
+        print this_system_type_string
+
         this_system_type_string = high_low_table[
             wpc_bulletin_io.SYSTEM_TYPE_COLUMN].values[i]
 
