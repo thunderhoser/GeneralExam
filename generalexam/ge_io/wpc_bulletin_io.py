@@ -217,21 +217,23 @@ def read_highs_and_lows(text_file_name):
         if this_system_type_string not in VALID_SYSTEM_TYPE_STRINGS:
             continue
 
-        print this_system_type_string
-
         these_words = these_words[1:]
         this_num_systems = len(these_words)
-        these_latitudes_deg = numpy.full(this_num_systems, numpy.nan)
-        these_longitudes_deg = numpy.full(this_num_systems, numpy.nan)
+        these_latitudes_deg = []
+        these_longitudes_deg = []
 
         for i in range(this_num_systems):
-            print these_words[i]
-
             if len(these_words[i]) <= 4:
                 continue
 
-            these_latitudes_deg[i], these_longitudes_deg[i] = _string_to_latlng(
+            this_latitude_deg, this_longitude_deg = _string_to_latlng(
                 latlng_string=these_words[i], raise_error_if_fails=True)
+
+            these_latitudes_deg.append(this_latitude_deg)
+            these_longitudes_deg.append(this_longitude_deg)
+
+        these_latitudes_deg = numpy.array(these_latitudes_deg)
+        these_longitudes_deg = numpy.array(these_longitudes_deg)
 
         if numpy.any(numpy.isnan(these_latitudes_deg)):
             continue
