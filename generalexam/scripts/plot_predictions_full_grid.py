@@ -196,7 +196,7 @@ def _plot_one_time(
             frontal_grid_matrix=this_matrix, axes_object=axes_object,
             basemap_object=basemap_object,
             first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
+            first_column_in_narr_grid=narr_column_limits[0], opacity=0.25)
     else:
         this_wf_probability_matrix = class_probability_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
