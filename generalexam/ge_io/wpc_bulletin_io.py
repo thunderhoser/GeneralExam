@@ -217,6 +217,8 @@ def read_highs_and_lows(text_file_name):
         if this_system_type_string not in VALID_SYSTEM_TYPE_STRINGS:
             continue
 
+        print this_system_type_string
+
         these_words = these_words[1:]
         this_num_systems = len(these_words)
         these_latitudes_deg = numpy.full(this_num_systems, numpy.nan)
