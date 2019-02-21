@@ -218,25 +218,21 @@ def read_highs_and_lows(text_file_name):
             continue
 
         these_words = these_words[1:]
-        this_num_systems = len(these_words)
         these_latitudes_deg = []
         these_longitudes_deg = []
 
-        for i in range(this_num_systems):
-            if len(these_words[i]) <= 4:
+        for this_word in these_words:
+            if len(this_word) < 5:
                 continue
 
             this_latitude_deg, this_longitude_deg = _string_to_latlng(
-                latlng_string=these_words[i], raise_error_if_fails=True)
+                latlng_string=this_word, raise_error_if_fails=True)
 
             these_latitudes_deg.append(this_latitude_deg)
             these_longitudes_deg.append(this_longitude_deg)
 
         these_latitudes_deg = numpy.array(these_latitudes_deg)
         these_longitudes_deg = numpy.array(these_longitudes_deg)
-
-        print len(these_latitudes_deg)
-        print len(these_longitudes_deg)
 
         if numpy.any(numpy.isnan(these_latitudes_deg)):
             continue
@@ -245,7 +241,10 @@ def read_highs_and_lows(text_file_name):
         these_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
             these_longitudes_deg, allow_nan=False)
 
-        system_type_strings += [this_system_type_string] * this_num_systems
+        system_type_strings += (
+            [this_system_type_string] * len(these_latitudes_deg)
+        )
+
         latitudes_deg = numpy.concatenate((latitudes_deg, these_latitudes_deg))
         longitudes_deg = numpy.concatenate((
             longitudes_deg, these_longitudes_deg))
