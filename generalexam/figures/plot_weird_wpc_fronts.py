@@ -202,7 +202,7 @@ def _plot_one_time(
             values_to_colour=narr_matrix_by_field[j],
             colour_map=THERMAL_COLOUR_MAP_OBJECT, colour_min=min_colour_value,
             colour_max=max_colour_value, orientation='horizontal',
-            extend_min=True, extend_max=True)
+            extend_min=True, extend_max=True, fraction_of_axis_length=0.9)
 
     this_cos_matrix = narr_rotation_cos_matrix[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
