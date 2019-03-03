@@ -15,83 +15,41 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
-TOLERANCE_DEG = 1e-3
-TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
-
+TOLERANCE = 0.001
+TIME_FORMAT = '%Y-%m-%d-%H'
 STRUCTURE_MATRIX_FOR_BINARY_CLOSING = numpy.ones((3, 3))
 
-FRONT_TYPE_COLUMN = 'front_type'
-TIME_COLUMN = 'unix_time_sec'
+ERA5_MODEL_NAME = 'era5'
+VALID_NWP_MODEL_NAMES = [ERA5_MODEL_NAME, nwp_model_utils.NARR_MODEL_NAME]
+
+FRONT_TYPE_COLUMN = 'front_type_string'
+TIME_COLUMN = 'valid_time_unix_sec'
 LATITUDES_COLUMN = 'latitudes_deg'
 LONGITUDES_COLUMN = 'longitudes_deg'
 
-WARM_FRONT_ROW_INDICES_COLUMN = 'warm_front_row_indices'
-WARM_FRONT_COLUMN_INDICES_COLUMN = 'warm_front_column_indices'
-COLD_FRONT_ROW_INDICES_COLUMN = 'cold_front_row_indices'
-COLD_FRONT_COLUMN_INDICES_COLUMN = 'cold_front_column_indices'
+COLD_FRONT_ROWS_COLUMN = 'cold_front_rows'
+COLD_FRONT_COLUMNS_COLUMN = 'cold_front_columns'
+WARM_FRONT_ROWS_COLUMN = 'warm_front_rows'
+WARM_FRONT_COLUMNS_COLUMN = 'warm_front_columns'
+DILATION_DISTANCE_COLUMN = 'dilation_distance_metres'
+MODEL_NAME_COLUMN = 'model_name'
 
-ROW_INDICES_BY_REGION_KEY = 'row_indices_by_region'
-COLUMN_INDICES_BY_REGION_KEY = 'column_indices_by_region'
-FRONT_TYPE_BY_REGION_KEY = 'front_type_by_region'
+ROWS_BY_REGION_KEY = 'row_indices_by_region'
+COLUMNS_BY_REGION_KEY = 'column_indices_by_region'
+FRONT_TYPES_KEY = 'front_type_by_region'
 
-NO_FRONT_INTEGER_ID = 0
-ANY_FRONT_INTEGER_ID = 1
-WARM_FRONT_INTEGER_ID = 1
-COLD_FRONT_INTEGER_ID = 2
-VALID_INTEGER_IDS = [
-    NO_FRONT_INTEGER_ID, ANY_FRONT_INTEGER_ID, WARM_FRONT_INTEGER_ID,
-    COLD_FRONT_INTEGER_ID]
+NO_FRONT_ENUM = 0
+ANY_FRONT_ENUM = 1
+WARM_FRONT_ENUM = 1
+COLD_FRONT_ENUM = 2
 
-WARM_FRONT_STRING_ID = 'warm'
-COLD_FRONT_STRING_ID = 'cold'
-VALID_STRING_IDS = [WARM_FRONT_STRING_ID, COLD_FRONT_STRING_ID]
+VALID_FRONT_TYPE_ENUMS = [
+    NO_FRONT_ENUM, ANY_FRONT_ENUM, WARM_FRONT_ENUM, COLD_FRONT_ENUM
+]
 
-
-def _check_polyline(x_coords_metres, y_coords_metres):
-    """Checks polyline for errors.
-
-    V = number of vertices
-
-    :param x_coords_metres: length-V numpy array of x-coordinates.
-    :param y_coords_metres: length-V numpy array of y-coordinates.
-    """
-
-    error_checking.assert_is_numpy_array_without_nan(x_coords_metres)
-    error_checking.assert_is_numpy_array(x_coords_metres, num_dimensions=1)
-    num_vertices = len(x_coords_metres)
-
-    error_checking.assert_is_numpy_array_without_nan(y_coords_metres)
-    error_checking.assert_is_numpy_array(
-        y_coords_metres, exact_dimensions=numpy.array([num_vertices]))
-
-
-def _check_frontal_image(image_matrix, assert_binary=False):
-    """Checks frontal image for errors.
-
-    M = number of grid rows (unique y-coordinates at grid points)
-    N = number of grid columns (unique x-coordinates at grid points)
-
-    :param image_matrix: M-by-N numpy array of integers.  May be either binary
-        (2-class) or ternary (3-class).  If binary, all elements must be in
-        {0, 1} and element [i, j] indicates whether or not a front intersects
-        grid cell [i, j].  If ternary, elements must be in `VALID_INTEGER_IDS`
-        and element [i, j] indicates the type of front (warm, cold, or none)
-        intersecting grid cell [i, j].
-    :param assert_binary: Boolean flag.  If True and image is non-binary, this
-        method will error out.
-    """
-
-    error_checking.assert_is_numpy_array(image_matrix, num_dimensions=2)
-    error_checking.assert_is_integer_numpy_array(image_matrix)
-    error_checking.assert_is_geq_numpy_array(
-        image_matrix, numpy.min(VALID_INTEGER_IDS))
-
-    if assert_binary:
-        error_checking.assert_is_leq_numpy_array(
-            image_matrix, ANY_FRONT_INTEGER_ID)
-    else:
-        error_checking.assert_is_leq_numpy_array(
-            image_matrix, numpy.max(VALID_INTEGER_IDS))
+WARM_FRONT_STRING = 'warm'
+COLD_FRONT_STRING = 'cold'
+VALID_FRONT_TYPE_STRINGS = [WARM_FRONT_STRING, COLD_FRONT_STRING]
 
 
 def _vertex_arrays_to_list(x_coords_metres, y_coords_metres):
@@ -101,59 +59,56 @@ def _vertex_arrays_to_list(x_coords_metres, y_coords_metres):
 
     :param x_coords_metres: length-V numpy array of x-coordinates.
     :param y_coords_metres: length-V numpy array of y-coordinates.
-    :return: vertex_list_xy_metres: length-V list, where each element is an
-        (x, y) tuple.
+    :return: list_of_xy_tuples_metres: length-V list of (x, y) tuples.
     """
 
-    _check_polyline(
-        x_coords_metres=x_coords_metres, y_coords_metres=y_coords_metres)
+    check_polyline(x_coords_metres=x_coords_metres,
+                   y_coords_metres=y_coords_metres)
 
     num_vertices = len(x_coords_metres)
-    vertex_list_xy_metres = []
-    for i in range(num_vertices):
-        vertex_list_xy_metres.append((x_coords_metres[i], y_coords_metres[i]))
+    list_of_xy_tuples_metres = []
 
-    return vertex_list_xy_metres
+    for i in range(num_vertices):
+        list_of_xy_tuples_metres.append(
+            (x_coords_metres[i], y_coords_metres[i])
+        )
+
+    return list_of_xy_tuples_metres
 
 
 def _create_linestring(x_coords_metres, y_coords_metres):
-    """Converts polyline from vertex arrays to `shapely.geometry.LineString`.
+    """Converts polyline from two arrays to `shapely.geometry.LineString`.
 
     V = number of vertices
 
     :param x_coords_metres: length-V numpy array of x-coordinates.
     :param y_coords_metres: length-V numpy array of y-coordinates.
-    :return: linestring_object_xy_metres: `shapely.geometry.LineString` object
-        with coordinates in metres.
+    :return: linestring_object_xy_metres: `shapely.geometry.LineString` object.
     """
 
-    vertex_list_xy_metres = _vertex_arrays_to_list(
+    list_of_xy_tuples_metres = _vertex_arrays_to_list(
         x_coords_metres=x_coords_metres, y_coords_metres=y_coords_metres)
 
     linestring_object_xy_metres = shapely.geometry.LineString(
-        vertex_list_xy_metres)
+        list_of_xy_tuples_metres)
+
     if not linestring_object_xy_metres.is_valid:
         raise ValueError('Resulting LineString object is invalid.')
 
     return linestring_object_xy_metres
 
 
-def _grid_cell_to_polygon(
-        grid_point_x_metres, grid_point_y_metres, x_spacing_metres,
-        y_spacing_metres):
-    """Converts grid cell from center point to polygon.
+def _grid_cell_to_polygon(grid_point_x_metres, grid_point_y_metres,
+                          x_spacing_metres, y_spacing_metres):
+    """Converts grid cell from single point to polygon.
 
-    This method assumes that the grid has uniform spacing in both x- and y-
-    directions.  In other words, the grid is regular in x-y (and not, for
-    example, lat-long) coords.
+    This method assumes that the grid is regular in x-y space.
 
-    :param grid_point_x_metres: x-coordinate of center point.
-    :param grid_point_y_metres: y-coordinate of center point.
-    :param x_spacing_metres: Spacing between adjacent points along x-axis.
-    :param y_spacing_metres: Spacing between adjacent points along y-axis.
-    :return: polygon_object_xy_metres: `shapely.geometry.Polygon` object, where
-        each vertex is a corner of the grid cell.  Coordinates are still in
-        metres.
+    :param grid_point_x_metres: x-coordinate at center of grid cell.
+    :param grid_point_y_metres: y-coordinate at center of grid cell.
+    :param x_spacing_metres: Spacing between grid points in adjacent columns.
+    :param y_spacing_metres: Spacing between grid points in adjacent rows.
+    :return: polygon_object_xy_metres: `shapely.geometry.Polygon` object.
     """
 
     x_min_metres = grid_point_x_metres - x_spacing_metres / 2
@@ -162,9 +117,11 @@ def _grid_cell_to_polygon(
     y_max_metres = grid_point_y_metres + y_spacing_metres / 2
 
     vertex_x_coords_metres = numpy.array(
-        [x_min_metres, x_max_metres, x_max_metres, x_min_metres, x_min_metres])
+        [x_min_metres, x_max_metres, x_max_metres, x_min_metres, x_min_metres]
+    )
     vertex_y_coords_metres = numpy.array(
-        [y_min_metres, y_min_metres, y_max_metres, y_max_metres, y_min_metres])
+        [y_min_metres, y_min_metres, y_max_metres, y_max_metres, y_min_metres]
+    )
 
     return polygons.vertex_arrays_to_polygon_object(
         exterior_x_coords=vertex_x_coords_metres,
@@ -174,50 +131,54 @@ def _grid_cell_to_polygon(
 def _polyline_to_grid_points(
         polyline_x_coords_metres, polyline_y_coords_metres,
         grid_point_x_coords_metres, grid_point_y_coords_metres):
-    """Finds grid cells intersected by polyline.
+    """Converts polyline from list of vertices to list of grid points.
 
-    V = number of vertices in polyline
-    M = number of grid rows (unique y-coordinates at grid points)
-    N = number of grid columns (unique x-coordinates at grid points)
+    V = number of vertices
+    M = number of rows in grid
+    N = number of columns in grid
     P = number of grid cells intersected by polyline
 
-    This method assumes that `grid_point_x_coords_metres` and
-    `grid_point_y_coords_metres` are both equally spaced and sorted in ascending
-    order.
+    This method assumes that the grid is regular in x-y space.
 
     :param polyline_x_coords_metres: length-V numpy array of x-coordinates.
     :param polyline_y_coords_metres: length-V numpy array of y-coordinates.
     :param grid_point_x_coords_metres: length-N numpy array of x-coordinates.
     :param grid_point_y_coords_metres: length-M numpy array of y-coordinates.
-    :return: rows_in_polyline: length-P numpy array with row indices (integers)
-        of grid cells intersected by polyline.
-    :return: columns_in_polyline: Same as above, except for columns.
+    :return: rows_in_polyline: length-P numpy array with row indices of grid
+        cells.
+    :return: columns_in_polyline: length-P numpy array with column indices of
+        grid cells.
     """
 
     polyline_object_xy_metres = _create_linestring(
         x_coords_metres=polyline_x_coords_metres,
         y_coords_metres=polyline_y_coords_metres)
 
-    x_spacing_metres = (
-        grid_point_x_coords_metres[1] - grid_point_x_coords_metres[0])
-    y_spacing_metres = (
-        grid_point_y_coords_metres[1] - grid_point_y_coords_metres[0])
+    x_spacing_metres = numpy.diff(grid_point_x_coords_metres[:2])[0]
+    y_spacing_metres = numpy.diff(grid_point_y_coords_metres[:2])[0]
 
-    x_min_to_consider_metres = numpy.min(
-        polyline_x_coords_metres) - x_spacing_metres
-    x_max_to_consider_metres = numpy.max(
-        polyline_x_coords_metres) + x_spacing_metres
-    y_min_to_consider_metres = numpy.min(
-        polyline_y_coords_metres) - y_spacing_metres
-    y_max_to_consider_metres = numpy.max(
-        polyline_y_coords_metres) + y_spacing_metres
+    x_min_to_consider_metres = (
+        numpy.min(polyline_x_coords_metres) - x_spacing_metres
+    )
+    x_max_to_consider_metres = (
+        numpy.max(polyline_x_coords_metres) + x_spacing_metres
+    )
+    y_min_to_consider_metres = (
+        numpy.min(polyline_y_coords_metres) - y_spacing_metres
+    )
+    y_max_to_consider_metres = (
+        numpy.max(polyline_y_coords_metres) + y_spacing_metres
+    )
 
     x_in_range_indices = numpy.where(numpy.logical_and(
         grid_point_x_coords_metres >= x_min_to_consider_metres,
-        grid_point_x_coords_metres <= x_max_to_consider_metres))[0]
+        grid_point_x_coords_metres <= x_max_to_consider_metres
+    ))[0]
+
     y_in_range_indices = numpy.where(numpy.logical_and(
         grid_point_y_coords_metres >= y_min_to_consider_metres,
-        grid_point_y_coords_metres <= y_max_to_consider_metres))[0]
+        grid_point_y_coords_metres <= y_max_to_consider_metres
+    ))[0]
 
     row_offset = numpy.min(y_in_range_indices)
     column_offset = numpy.min(x_in_range_indices)
@@ -244,450 +205,583 @@ def _polyline_to_grid_points(
                 this_grid_cell_edge_polygon_xy_metres.intersects(
                     polyline_object_xy_metres) or
                 this_grid_cell_edge_polygon_xy_metres.touches(
-                    polyline_object_xy_metres))
+                    polyline_object_xy_metres)
+            )
+
             if not this_intersection_flag:
                 continue
 
             rows_in_polyline.append(i + row_offset)
             columns_in_polyline.append(j + column_offset)
 
-    return numpy.array(rows_in_polyline), numpy.array(columns_in_polyline)
+    rows_in_polyline = numpy.array(rows_in_polyline, dtype=int)
+    columns_in_polyline = numpy.array(columns_in_polyline, dtype=int)
+    return rows_in_polyline, columns_in_polyline
 
 
-def _grid_points_to_binary_image(
-        rows_in_object, columns_in_object, num_grid_rows, num_grid_columns):
-    """Converts list of grid points to binary image.
+def _grid_points_to_boolean_matrix(
+        rows_in_front, columns_in_front, num_grid_rows, num_grid_columns):
+    """Converts list of frontal grid points to Boolean matrix.
 
-    M = number of grid rows (unique y-coordinates at grid points)
-    N = number of grid columns (unique x-coordinates at grid points)
-    P = number of grid cells intersected by object
+    M = number of rows in grid
+    N = number of columns in grid
+    P = number of grid cells in front
 
-    :param rows_in_object: length-P numpy array with row indices (integers)
-        of grid cells intersected by object.
-    :param columns_in_object: Same as above, except for columns.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :return: binary_image_matrix: M-by-N numpy array of Boolean flags.  If
-        binary_image_matrix[i, j] = True, grid cell [i, j] overlaps with the
-        object.
+    :param rows_in_front: length-P numpy array with row indices of grid cells in
+        front.
+    :param columns_in_front: length-P numpy array with column indices of grid
+        cells in front.
+    :param num_grid_rows: M in the above discussion.
+    :param num_grid_columns: N in the above discussion.
+    :return: boolean_front_matrix: M-by-N numpy array of Boolean flags,
+        indicating which grid cells are in the front.
     """
 
-    binary_image_matrix = numpy.full(
+    boolean_front_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), False, dtype=bool)
-    binary_image_matrix[rows_in_object, columns_in_object] = True
-    return binary_image_matrix
+
+    boolean_front_matrix[rows_in_front, columns_in_front] = True
+    return boolean_front_matrix
 
 
-def _binary_image_to_grid_points(binary_image_matrix):
-    """Converts binary image to list of grid points.
+def _boolean_matrix_to_grid_points(boolean_front_matrix):
+    """Converts Boolean matrix to list of frontal grid points.
 
-    This method is the inverse of `_grid_points_to_binary_image`.
+    This method is the inverse of `_grid_points_to_boolean_matrix`.
 
-    :param binary_image_matrix: See documentation for
-        `_grid_points_to_binary_image`.
-    :return: rows_in_object: Same.
-    :return: columns_in_object: Same.
+    :param boolean_front_matrix: See doc for `_grid_points_to_boolean_matrix`.
+    :return: rows_in_front: Same.
+    :return: columns_in_front: Same.
     """
 
-    return numpy.where(binary_image_matrix)
+    return numpy.where(boolean_front_matrix)
 
 
-def _is_polyline_closed(latitudes_deg, longitudes_deg):
+def _is_polyline_closed(x_coords_metres, y_coords_metres):
     """Determines whether or not polyline is closed.
 
     V = number of vertices
 
-    :param latitudes_deg: length-V numpy array of latitudes (deg N).
-    :param longitudes_deg: length-V numpy array of longitudes (deg E).
+    :param x_coords_metres: length-V numpy array of x-coordinates.
+    :param y_coords_metres: length-V numpy array of y-coordinates.
     :return: is_closed: Boolean flag.
     """
 
-    absolute_lat_diff_deg = numpy.absolute(latitudes_deg[0] - latitudes_deg[-1])
-    absolute_lng_diff_deg = numpy.absolute(
-        longitudes_deg[0] - longitudes_deg[-1])
+    x_flag = (
+        numpy.absolute(x_coords_metres[0] - x_coords_metres[-1]) < TOLERANCE
+    )
 
-    return (absolute_lat_diff_deg < TOLERANCE_DEG and
-            absolute_lng_diff_deg < TOLERANCE_DEG)
+    y_flag = (
+        numpy.absolute(y_coords_metres[0] - y_coords_metres[-1]) < TOLERANCE
+    )
+
+    return x_flag and y_flag
 
 
-def check_front_type(front_type_string):
-    """Ensures that front type is valid.
+def check_polyline(x_coords_metres, y_coords_metres):
+    """Error-checks polyline.
 
-    :param front_type_string: String ID for front type.
-    :raises: ValueError: if front type is unrecognized.
+    V = number of vertices
+
+    :param x_coords_metres: length-V numpy array of x-coordinates.
+    :param y_coords_metres: length-V numpy array of y-coordinates.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(x_coords_metres)
+    error_checking.assert_is_numpy_array(x_coords_metres, num_dimensions=1)
+
+    num_vertices = len(x_coords_metres)
+    expected_dimensions = numpy.array([num_vertices], dtype=int)
+
+    error_checking.assert_is_numpy_array_without_nan(y_coords_metres)
+    error_checking.assert_is_numpy_array(
+        y_coords_metres, exact_dimensions=expected_dimensions)
+
+
+def check_gridded_labels(label_matrix, assert_binary=False):
+    """Error-checks gridded front labels.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param label_matrix: M-by-N numpy array of integers.  May be either binary
+        (ranging from 0...1) or ternary (ranging from 0...2).  If binary,
+        label_matrix[i, j] indicates whether or not a front (of any type) passes
+        through grid cell [i, j].  If ternary, label_matrix[i, j] indicates the
+        *type* of front (warm, cold, or none) passing through grid cell [i, j].
+    :param assert_binary: Boolean flag.  If True and image is non-binary, this
+        method will error out.
+    """
+
+    error_checking.assert_is_numpy_array(label_matrix, num_dimensions=2)
+    error_checking.assert_is_integer_numpy_array(label_matrix)
+    error_checking.assert_is_geq_numpy_array(
+        label_matrix, numpy.min(VALID_FRONT_TYPE_ENUMS)
+    )
+
+    error_checking.assert_is_boolean(assert_binary)
+
+    if assert_binary:
+        error_checking.assert_is_leq_numpy_array(
+            label_matrix, ANY_FRONT_ENUM)
+    else:
+        error_checking.assert_is_leq_numpy_array(
+            label_matrix, numpy.max(VALID_FRONT_TYPE_ENUMS)
+        )
+
+
+def check_front_type_string(front_type_string):
+    """Error-checks front type.
+
+    :param front_type_string: Front type (string).
+    :raises: ValueError: if `front_type_string not in VALID_FRONT_TYPE_STRINGS`.
     """
 
     error_checking.assert_is_string(front_type_string)
-    if front_type_string not in VALID_STRING_IDS:
+
+    if front_type_string not in VALID_FRONT_TYPE_STRINGS:
         error_string = (
-            '\n\n{0:s}\nValid front types (listed above) do not include '
-            '"{1:s}".').format(VALID_STRING_IDS, front_type_string)
+            '\n{0:s}\nValid front types (listed above) do not include "{1:s}".'
+        ).format(str(VALID_FRONT_TYPE_STRINGS), front_type_string)
+
         raise ValueError(error_string)
 
 
-def string_id_to_integer(front_type_string):
+def check_front_type_enum(front_type_enum):
+    """Error-checks front type.
+
+    :param front_type_enum: Front type (integer).
+    :raises: ValueError: if `front_type_enum not in VALID_FRONT_TYPE_ENUMS`.
+    """
+
+    error_checking.assert_is_integer(front_type_enum)
+
+    if front_type_enum not in VALID_FRONT_TYPE_ENUMS:
+        error_string = (
+            '\n{0:s}\nValid front types (listed above) do not include {1:d}.'
+        ).format(str(VALID_FRONT_TYPE_ENUMS), front_type_enum)
+
+        raise ValueError(error_string)
+
+
+def check_nwp_model_name(model_name):
+    """Error-checks name of NWP (numerical weather prediction) model.
+
+    :param model_name: Model name.
+    :raises: ValueError: if `model_name not in VALID_NWP_MODEL_NAMES`.
+    """
+
+    error_checking.assert_is_string(model_name)
+
+    if model_name not in VALID_NWP_MODEL_NAMES:
+        error_string = (
+            '\n{0:s}\nValid model names (listed above) do not include "{1:s}".'
+        ).format(str(VALID_NWP_MODEL_NAMES), model_name)
+
+        raise ValueError(error_string)
+
+
+def front_type_string_to_int(front_type_string):
     """Converts front type from string to integer.
 
-    :param front_type_string: String ID for front type.
-    :return: front_type_integer: Integer ID for front type.
+    :param front_type_string: Front type (string).
+    :return: front_type_enum: Front type (integer).
     """
 
-    check_front_type(front_type_string)
-    if front_type_string == WARM_FRONT_STRING_ID:
-        return WARM_FRONT_INTEGER_ID
+    check_front_type_string(front_type_string)
 
-    return COLD_FRONT_INTEGER_ID
+    if front_type_string == WARM_FRONT_STRING:
+        return WARM_FRONT_ENUM
+
+    return COLD_FRONT_ENUM
 
 
-def close_frontal_image(ternary_image_matrix, num_iterations=1):
-    """Applies binary closing to both warm and cold fronts in image.
+def close_gridded_labels(ternary_label_matrix, num_iterations=1):
+    """Applies binary closing to gridded front labels.
 
-    :param ternary_image_matrix: See doc for `_check_frontal_image`.
-    :param num_iterations: Number of iterations of binary closing.  The more
-        iterations, the more frontal pixels will be created.
-    :return: ternary_image_matrix: Same as input, but after closing.
+    :param ternary_label_matrix: See doc for `check_gridded_labels`.
+    :param num_iterations: Number of closing iterations.
+    :return: ternary_label_matrix: Same as input but after closing.
     """
 
-    _check_frontal_image(image_matrix=ternary_image_matrix, assert_binary=False)
+    check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
     error_checking.assert_is_integer(num_iterations)
     error_checking.assert_is_greater(num_iterations, 0)
 
-    binary_warm_front_matrix = binary_closing(
-        (ternary_image_matrix == WARM_FRONT_INTEGER_ID).astype(int),
+    warm_front_flag_matrix = binary_closing(
+        (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
         structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
-        iterations=num_iterations)
-    binary_cold_front_matrix = binary_closing(
-        (ternary_image_matrix == COLD_FRONT_INTEGER_ID).astype(int),
+        iterations=num_iterations
+    )
+
+    cold_front_flag_matrix = binary_closing(
+        (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
         structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
-        iterations=num_iterations)
+        iterations=num_iterations
+    )
 
-    ternary_image_matrix[
-        numpy.where(binary_warm_front_matrix)
-    ] = WARM_FRONT_INTEGER_ID
-    ternary_image_matrix[
-        numpy.where(binary_cold_front_matrix)
-    ] = COLD_FRONT_INTEGER_ID
+    ternary_label_matrix[
+        numpy.where(warm_front_flag_matrix)
+    ] = WARM_FRONT_ENUM
+    ternary_label_matrix[
+        numpy.where(cold_front_flag_matrix)
+    ] = COLD_FRONT_ENUM
 
-    return ternary_image_matrix
+    return ternary_label_matrix
 
 
-def buffer_distance_to_narr_mask(buffer_distance_metres):
-    """Converts buffer distance to mask over NARR grid.
+def buffer_distance_to_dilation_mask(
+        buffer_distance_metres, grid_spacing_metres):
+    """Converts buffer distance to mask over model grid.
 
-    m = number of grid rows (unique y-coordinates at grid points) within buffer
-        distance
-    n = number of grid columns (unique x-coordinates at grid points) within
-        buffer distance
+    This method assumes that the grid is equidistant.
+
+    P = max number of grid cells within buffer distance
 
     :param buffer_distance_metres: Buffer distance.
-    :return: mask_matrix: m-by-n numpy array of Boolean flags.
-        mask_matrix[floor(m/2), floor(n/2)] represents the center point, around
-        which the buffer is defined.  Element [i, j] indicates whether or not
-        grid point [i, j] is in the distance buffer.
+    :param grid_spacing_metres: Spacing between adjacent grid points in model
+        grid.
+    :return: mask_matrix: P-by-P numpy array of Boolean flags.
+        mask_matrix[floor(P/2), floor(P/2)] represents the center point, around
+        which the buffer is defined.
+        mask_matrix[floor(P/2) + i, floor(P/2) + j] indicates whether or not the
+        grid point i rows down and j columns to the right is within the buffer
+        distance.
     """
 
-    error_checking.assert_is_greater(buffer_distance_metres, 0.)
+    error_checking.assert_is_greater(buffer_distance_metres, 0)
+    error_checking.assert_is_greater(grid_spacing_metres, 0)
     buffer_distance_metres = max([buffer_distance_metres, 1.])
 
-    grid_spacing_metres, _ = nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
-    max_row_or_column_offset = int(
-        numpy.floor(float(buffer_distance_metres) / grid_spacing_metres))
+    max_pixel_offset = int(numpy.floor(
+        float(buffer_distance_metres) / grid_spacing_metres
+    ))
 
-    row_or_column_offsets = numpy.linspace(
-        -max_row_or_column_offset, max_row_or_column_offset,
-        num=2*max_row_or_column_offset + 1, dtype=int)
+    pixel_offsets = numpy.linspace(
+        -max_pixel_offset, max_pixel_offset, num=2*max_pixel_offset + 1,
+        dtype=float)
 
     column_offset_matrix, row_offset_matrix = grids.xy_vectors_to_matrices(
-        x_unique_metres=row_or_column_offsets,
-        y_unique_metres=row_or_column_offsets)
-    row_offset_matrix = row_offset_matrix.astype(float)
-    column_offset_matrix = column_offset_matrix.astype(float)
+        x_unique_metres=pixel_offsets, y_unique_metres=pixel_offsets)
 
     distance_matrix_metres = grid_spacing_metres * numpy.sqrt(
         row_offset_matrix ** 2 + column_offset_matrix ** 2)
+
     return distance_matrix_metres <= buffer_distance_metres
 
 
-def dilate_binary_narr_image(binary_image_matrix, dilation_distance_metres=None,
-                             dilation_kernel_matrix=None):
-    """Dilates a binary (2-class) image over the NARR grid.
+def dilate_binary_label_matrix(
+        binary_label_matrix, dilation_mask_matrix=None,
+        dilation_distance_metres=None, grid_spacing_metres=None):
+    """Dilates gridded binary ("front or no front") labels.
 
-    m = number of rows in dilation kernel
-    n = number of columns in dilation kernel
-
-    If `dilation_kernel_matrix` is None, `dilation_distance_metres` will be
-    used.
-
-    :param binary_image_matrix: See doucmentation for `_check_frontal_image`.
-    :param dilation_distance_metres: Dilation distance.
-    :param dilation_kernel_matrix: m-by-n numpy array of integers (all 0 or 1).
-        This may be created by `buffer_distance_to_narr_mask`.
-    :return: binary_image_matrix: Same as input, except dilated.
+    :param binary_label_matrix: See doc for `check_gridded_labels`.
+    :param dilation_mask_matrix: numpy array created by
+        `buffer_distance_to_dilation_mask`.
+    :param dilation_distance_metres:
+        [used only if `dilation_mask_matrix is None`]
+        Dilation distance.
+    :param grid_spacing_metres: [used only if `dilation_mask_matrix is None`]
+        Spacing between adjacent grid points in model grid.
+    :return: binary_label_matrix: Same as input but dilated.
     """
 
-    _check_frontal_image(image_matrix=binary_image_matrix, assert_binary=True)
+    check_gridded_labels(label_matrix=binary_label_matrix, assert_binary=True)
 
-    if dilation_kernel_matrix is None:
-        dilation_kernel_matrix = buffer_distance_to_narr_mask(
-            dilation_distance_metres).astype(int)
+    if dilation_mask_matrix is None:
+        dilation_mask_matrix = buffer_distance_to_dilation_mask(
+            buffer_distance_metres=dilation_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        ).astype(int)
 
+    error_checking.assert_is_integer_numpy_array(dilation_mask_matrix)
     error_checking.assert_is_numpy_array(
-        dilation_kernel_matrix, num_dimensions=2)
-    error_checking.assert_is_integer_numpy_array(dilation_kernel_matrix)
-    error_checking.assert_is_geq_numpy_array(dilation_kernel_matrix, 0)
-    error_checking.assert_is_leq_numpy_array(dilation_kernel_matrix, 1)
-    error_checking.assert_is_geq(numpy.sum(dilation_kernel_matrix), 1)
+        dilation_mask_matrix, num_dimensions=2)
 
-    binary_image_matrix = cv2.dilate(
-        binary_image_matrix.astype(numpy.uint8),
-        dilation_kernel_matrix.astype(numpy.uint8), iterations=1)
-    return binary_image_matrix.astype(int)
+    error_checking.assert_is_geq_numpy_array(dilation_mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(dilation_mask_matrix, 1)
+    error_checking.assert_is_geq(numpy.sum(dilation_mask_matrix), 1)
+
+    binary_label_matrix = cv2.dilate(
+        binary_label_matrix.astype(numpy.uint8),
+        dilation_mask_matrix.astype(numpy.uint8), iterations=1)
+
+    return binary_label_matrix.astype(int)
 
 
-def dilate_ternary_narr_image(
-        ternary_image_matrix, dilation_distance_metres=None,
-        dilation_kernel_matrix=None):
-    """Dilates a ternary (3-class) image over the NARR grid.
+def dilate_ternary_label_matrix(
+        ternary_label_matrix, dilation_mask_matrix=None,
+        dilation_distance_metres=None, grid_spacing_metres=None):
+    """Dilates gridded ternary ("no front, warm front, or cold front") labels.
 
-    :param ternary_image_matrix: See doucmentation for `_check_frontal_image`.
-    :param dilation_distance_metres: See documentation for
-        `dilate_binary_narr_image`.
-    :param dilation_kernel_matrix: See documentation for
-        `dilate_binary_narr_image`.
-    :return: ternary_image_matrix: Same as input, except dilated.
+    :param ternary_label_matrix: See doc for `check_gridded_labels`.
+    :param dilation_mask_matrix: numpy array created by
+        `buffer_distance_to_dilation_mask`.
+    :param dilation_distance_metres:
+        [used only if `dilation_mask_matrix is None`]
+        Dilation distance.
+    :param grid_spacing_metres: [used only if `dilation_mask_matrix is None`]
+        Spacing between adjacent grid points in model grid.
+    :return: ternary_label_matrix: Same as input but dilated.
     """
 
-    _check_frontal_image(image_matrix=ternary_image_matrix, assert_binary=False)
+    check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
 
-    binary_cold_front_matrix = numpy.full(
-        ternary_image_matrix.shape, NO_FRONT_INTEGER_ID, dtype=int)
-    binary_cold_front_matrix[
-        ternary_image_matrix == COLD_FRONT_INTEGER_ID] = ANY_FRONT_INTEGER_ID
-    binary_cold_front_matrix = dilate_binary_narr_image(
-        binary_cold_front_matrix,
-        dilation_distance_metres=dilation_distance_metres,
-        dilation_kernel_matrix=dilation_kernel_matrix)
+    if dilation_mask_matrix is None:
+        dilation_mask_matrix = buffer_distance_to_dilation_mask(
+            buffer_distance_metres=dilation_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        ).astype(int)
 
-    binary_warm_front_matrix = numpy.full(
-        ternary_image_matrix.shape, NO_FRONT_INTEGER_ID, dtype=int)
-    binary_warm_front_matrix[
-        ternary_image_matrix == WARM_FRONT_INTEGER_ID] = ANY_FRONT_INTEGER_ID
-    binary_warm_front_matrix = dilate_binary_narr_image(
-        binary_warm_front_matrix,
-        dilation_distance_metres=dilation_distance_metres,
-        dilation_kernel_matrix=dilation_kernel_matrix)
+    cold_front_flag_matrix = numpy.full(
+        ternary_label_matrix.shape, NO_FRONT_ENUM, dtype=int)
+    cold_front_flag_matrix[
+        ternary_label_matrix == COLD_FRONT_ENUM
+    ] = ANY_FRONT_ENUM
+
+    cold_front_flag_matrix = dilate_binary_label_matrix(
+        binary_label_matrix=cold_front_flag_matrix,
+        dilation_mask_matrix=dilation_mask_matrix)
+
+    warm_front_flag_matrix = numpy.full(
+        ternary_label_matrix.shape, NO_FRONT_ENUM, dtype=int)
+    warm_front_flag_matrix[
+        ternary_label_matrix == WARM_FRONT_ENUM
+    ] = ANY_FRONT_ENUM
+
+    warm_front_flag_matrix = dilate_binary_label_matrix(
+        binary_label_matrix=warm_front_flag_matrix,
+        dilation_mask_matrix=dilation_mask_matrix)
 
     cold_front_row_indices, cold_front_column_indices = numpy.where(
-        ternary_image_matrix == COLD_FRONT_INTEGER_ID)
+        ternary_label_matrix == COLD_FRONT_ENUM)
     warm_front_row_indices, warm_front_column_indices = numpy.where(
-        ternary_image_matrix == WARM_FRONT_INTEGER_ID)
+        ternary_label_matrix == WARM_FRONT_ENUM)
     both_fronts_row_indices, both_fronts_column_indices = numpy.where(
-        numpy.logical_and(binary_cold_front_matrix == ANY_FRONT_INTEGER_ID,
-                          binary_warm_front_matrix == ANY_FRONT_INTEGER_ID))
+        numpy.logical_and(cold_front_flag_matrix == ANY_FRONT_ENUM,
+                          warm_front_flag_matrix == ANY_FRONT_ENUM)
+    )
 
     num_points_to_resolve = len(both_fronts_row_indices)
+
     for i in range(num_points_to_resolve):
         these_row_diffs = both_fronts_row_indices[i] - cold_front_row_indices
         these_column_diffs = (
-            both_fronts_column_indices[i] - cold_front_column_indices)
+            both_fronts_column_indices[i] - cold_front_column_indices
+        )
         this_min_cold_front_distance = numpy.min(
             these_row_diffs**2 + these_column_diffs**2)
 
         these_row_diffs = both_fronts_row_indices[i] - warm_front_row_indices
         these_column_diffs = (
-            both_fronts_column_indices[i] - warm_front_column_indices)
+            both_fronts_column_indices[i] - warm_front_column_indices
+        )
         this_min_warm_front_distance = numpy.min(
             these_row_diffs**2 + these_column_diffs**2)
 
         if this_min_cold_front_distance <= this_min_warm_front_distance:
-            binary_warm_front_matrix[
-                both_fronts_row_indices[i],
-                both_fronts_column_indices[i]] = NO_FRONT_INTEGER_ID
+            warm_front_flag_matrix[
+                both_fronts_row_indices[i], both_fronts_column_indices[i]
+            ] = NO_FRONT_ENUM
         else:
-            binary_cold_front_matrix[
-                both_fronts_row_indices[i],
-                both_fronts_column_indices[i]] = NO_FRONT_INTEGER_ID
+            cold_front_flag_matrix[
+                both_fronts_row_indices[i], both_fronts_column_indices[i]
+            ] = NO_FRONT_ENUM
 
-    ternary_image_matrix[
-        binary_cold_front_matrix == ANY_FRONT_INTEGER_ID
-    ] = COLD_FRONT_INTEGER_ID
-    ternary_image_matrix[
-        binary_warm_front_matrix == ANY_FRONT_INTEGER_ID
-        ] = WARM_FRONT_INTEGER_ID
-    return ternary_image_matrix
+    ternary_label_matrix[
+        cold_front_flag_matrix == ANY_FRONT_ENUM
+    ] = COLD_FRONT_ENUM
+
+    ternary_label_matrix[
+        warm_front_flag_matrix == ANY_FRONT_ENUM
+    ] = WARM_FRONT_ENUM
+
+    return ternary_label_matrix
 
 
-def frontal_image_to_grid_points(ternary_image_matrix):
-    """Converts frontal image to a list of grid points.
+def gridded_labels_to_points(ternary_label_matrix):
+    """Converts gridded labels to two lists: warm- and cold-frontal points.
 
-    W = number of grid cells intersected by any warm front
-    C = number of grid cells intersected by any cold front
+    C = number of pixels intersected by any cold front
+    W = number of pixels intersected by any warm front
 
-    :param ternary_image_matrix: See documentation for `_check_frontal_image`.
-    :return: frontal_grid_point_dict: Dictionary with the following keys.
-    frontal_grid_point_dict['warm_front_row_indices']: length-W numpy array
-        with row indices (integers) of grid cells intersected by a warm front.
-    frontal_grid_point_dict['warm_front_column_indices']: Same as above, except
-        for columns.
-    frontal_grid_point_dict['cold_front_row_indices']: length-C numpy array
-        with row indices (integers) of grid cells intersected by a cold front.
-    frontal_grid_point_dict['cold_front_column_indices']: Same as above, except
-        for columns.
+    :param ternary_label_matrix: See doc for `check_gridded_labels`.
+    :return: gridded_label_dict: Dictionary with the following keys.
+    gridded_label_dict['cold_front_rows']: length-C numpy array with row indices
+        of cold-frontal pixels.
+    gridded_label_dict['cold_front_columns']: length-C numpy array with column
+        indices of cold-frontal pixels.
+    gridded_label_dict['warm_front_rows']: Same but for warm fronts.
+    gridded_label_dict['warm_front_columns']: Same but for warm fronts.
     """
 
-    _check_frontal_image(image_matrix=ternary_image_matrix, assert_binary=False)
+    check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
 
     warm_front_row_indices, warm_front_column_indices = numpy.where(
-        ternary_image_matrix == WARM_FRONT_INTEGER_ID)
+        ternary_label_matrix == WARM_FRONT_ENUM)
     cold_front_row_indices, cold_front_column_indices = numpy.where(
-        ternary_image_matrix == COLD_FRONT_INTEGER_ID)
+        ternary_label_matrix == COLD_FRONT_ENUM)
 
     return {
-        WARM_FRONT_ROW_INDICES_COLUMN: warm_front_row_indices,
-        WARM_FRONT_COLUMN_INDICES_COLUMN: warm_front_column_indices,
-        COLD_FRONT_ROW_INDICES_COLUMN: cold_front_row_indices,
-        COLD_FRONT_COLUMN_INDICES_COLUMN: cold_front_column_indices
+        WARM_FRONT_ROWS_COLUMN: warm_front_row_indices,
+        WARM_FRONT_COLUMNS_COLUMN: warm_front_column_indices,
+        COLD_FRONT_ROWS_COLUMN: cold_front_row_indices,
+        COLD_FRONT_COLUMNS_COLUMN: cold_front_column_indices
     }
 
 
-def frontal_grid_points_to_image(
-        frontal_grid_point_dict, num_grid_rows, num_grid_columns):
-    """Converts list of grid points to a frontal image.
+def points_to_gridded_labels(gridded_label_dict, num_grid_rows,
+                             num_grid_columns):
+    """Converts list of warm- and cold-frontal grid points to actual grid.
 
-    :param frontal_grid_point_dict: See documentation for
-        `frontal_image_to_grid_points`.
-    :param num_grid_rows: Number of grid rows (unique y-coordinates at grid
-        points).
-    :param num_grid_columns: Number of grid columns (unique x-coordinates at
-        grid points).
-    :return: ternary_image_matrix: See documentation for `_check_frontal_image`.
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param gridded_label_dict: See doc for `gridded_labels_to_points`.
+    :param num_grid_rows: M in the above discussion.
+    :param num_grid_columns: N in the above discussion.
+    :return: ternary_label_matrix: M-by-N numpy array of integers in range
+        0...2.  ternary_label_matrix[i, j] indicates the *type* of front (warm,
+        cold, or none) passing through grid cell [i, j].
     """
 
     ternary_image_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
+        (num_grid_rows, num_grid_columns), NO_FRONT_ENUM, dtype=int)
 
     ternary_image_matrix[
-        frontal_grid_point_dict[WARM_FRONT_ROW_INDICES_COLUMN],
-        frontal_grid_point_dict[WARM_FRONT_COLUMN_INDICES_COLUMN]
-    ] = WARM_FRONT_INTEGER_ID
+        gridded_label_dict[WARM_FRONT_ROWS_COLUMN],
+        gridded_label_dict[WARM_FRONT_COLUMNS_COLUMN]
+    ] = WARM_FRONT_ENUM
+
     ternary_image_matrix[
-        frontal_grid_point_dict[COLD_FRONT_ROW_INDICES_COLUMN],
-        frontal_grid_point_dict[COLD_FRONT_COLUMN_INDICES_COLUMN]
-    ] = COLD_FRONT_INTEGER_ID
+        gridded_label_dict[COLD_FRONT_ROWS_COLUMN],
+        gridded_label_dict[COLD_FRONT_COLUMNS_COLUMN]
+    ] = COLD_FRONT_ENUM
 
     return ternary_image_matrix
 
 
-def frontal_image_to_objects(ternary_image_matrix):
-    """Converts frontal image to a list of objects (connected regions).
+def gridded_labels_to_regions(ternary_label_matrix):
+    """Converts gridded labels to list of connected regions.
 
-    R = number of regions
+    R = number of connected regions
     P_i = number of grid points in the [i]th region
 
-    :param ternary_image_matrix: See documentation for `_check_frontal_image`.
-    :return: frontal_region_dict: Dictionary with the following keys.
-    frontal_region_dict['row_indices_by_region']: length-R list, where the [i]th
-        element is a numpy array (length P_i, integers) with indices of grid
-        rows in the [i]th region.
-    frontal_region_dict['column_indices_by_region']: Same as above, except for
-        columns.
-    frontal_region_dict['front_type_by_region']: length-R list of front types
-        (either "warm" or "cold").
+    :param ternary_label_matrix: See doc for `check_gridded_labels`.
+    :return: region_dict: Dictionary with the following keys.
+    region_dict['row_array_by_region']: length-R list, where the [i]th element
+        is an integer numpy array (length P_i) of rows in the [i]th region.
+    region_dict['column_array_by_region']: Same but for columns.
+    region_dict['front_type_strings']: length-R list of front types.
     """
 
-    _check_frontal_image(image_matrix=ternary_image_matrix, assert_binary=False)
-    ternary_image_matrix = close_frontal_image(
-        ternary_image_matrix=ternary_image_matrix, num_iterations=1)
-    region_matrix = label_image(ternary_image_matrix, connectivity=2)
+    check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
 
-    num_regions = numpy.max(region_matrix)
-    row_indices_by_region = [[]] * num_regions
-    column_indices_by_region = [[]] * num_regions
-    front_type_by_region = [''] * num_regions
+    ternary_label_matrix = close_gridded_labels(
+        ternary_label_matrix=ternary_label_matrix, num_iterations=1)
+
+    region_id_matrix = label_image(ternary_label_matrix, connectivity=2)
+
+    num_regions = numpy.max(region_id_matrix)
+    row_array_by_region = [[]] * num_regions
+    column_array_by_region = [[]] * num_regions
+    front_type_strings = [''] * num_regions
 
     for i in range(num_regions):
-        row_indices_by_region[i], column_indices_by_region[i] = numpy.where(
-            region_matrix == i + 1)
-        this_integer_id = ternary_image_matrix[
-            row_indices_by_region[i][0], column_indices_by_region[i][0]]
+        row_array_by_region[i], column_array_by_region[i] = numpy.where(
+            region_id_matrix == i + 1)
+        this_integer_id = ternary_label_matrix[
+            row_array_by_region[i][0], column_array_by_region[i][0]]
 
-        if this_integer_id == WARM_FRONT_INTEGER_ID:
-            front_type_by_region[i] = WARM_FRONT_STRING_ID
-        elif this_integer_id == COLD_FRONT_INTEGER_ID:
-            front_type_by_region[i] = COLD_FRONT_STRING_ID
+        if this_integer_id == WARM_FRONT_ENUM:
+            front_type_strings[i] = WARM_FRONT_STRING
+        elif this_integer_id == COLD_FRONT_ENUM:
+            front_type_strings[i] = COLD_FRONT_STRING
 
     return {
-        ROW_INDICES_BY_REGION_KEY: row_indices_by_region,
-        COLUMN_INDICES_BY_REGION_KEY: column_indices_by_region,
-        FRONT_TYPE_BY_REGION_KEY: front_type_by_region
+        ROWS_BY_REGION_KEY: row_array_by_region,
+        COLUMNS_BY_REGION_KEY: column_array_by_region,
+        FRONT_TYPES_KEY: front_type_strings
     }
 
 
-def polyline_to_narr_grid(
-        polyline_latitudes_deg, polyline_longitudes_deg,
-        dilation_distance_metres):
-    """Converts polyline to binary image over NARR grid.
+def polyline_to_narr_grid(vertex_latitudes_deg, vertex_longitudes_deg,
+                          dilation_distance_metres):
+    """Converts polyline to gridded labels on NARR grid.
 
-    V = number of vertices in polyline
+    V = number of vertices
+    M = number of rows in NARR grid
+    N = number of columns in NARR grid
 
-    :param polyline_latitudes_deg: length-V numpy array of latitudes (deg N).
-    :param polyline_longitudes_deg: length-V numpy array of longitudes (deg E).
-    :param dilation_distance_metres: Dilation distance.  This gives fronts a
-        non-infinitesimal width, which allows them to be more than one grid cell
-        (pixel) wide.  This accounts for spatial uncertainty in the placement of
-        fronts.
-    :return: binary_image_matrix: See documentation for `_check_frontal_image`.
-        This will be a 277-by-349 matrix, to match the dimensions of the NARR
-        grid.
+    :param vertex_latitudes_deg: length-V numpy array of latitudes (deg N).
+    :param vertex_longitudes_deg: length-V numpy array of longitudes (deg E).
+    :param dilation_distance_metres: Dilation distance for gridded labels.
+    :return: binary_label_matrix: M-by-N numpy array of integers in range 0...1.
+        label_matrix[i, j] indicates whether or not a front (of any type) passes
+        through grid cell [i, j].
     """
 
-    polyline_x_coords_metres, polyline_y_coords_metres = (
+    vertex_x_coords_metres, vertex_y_coords_metres = (
         nwp_model_utils.project_latlng_to_xy(
-            latitudes_deg=polyline_latitudes_deg,
-            longitudes_deg=polyline_longitudes_deg,
-            model_name=nwp_model_utils.NARR_MODEL_NAME))
+            latitudes_deg=vertex_latitudes_deg,
+            longitudes_deg=vertex_longitudes_deg,
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
     grid_point_x_coords_metres, grid_point_y_coords_metres = (
         nwp_model_utils.get_xy_grid_points(
-            model_name=nwp_model_utils.NARR_MODEL_NAME))
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
-    rows_in_polyline, columns_in_polyline = _polyline_to_grid_points(
-        polyline_x_coords_metres=polyline_x_coords_metres,
-        polyline_y_coords_metres=polyline_y_coords_metres,
+    rows_in_front, columns_in_front = _polyline_to_grid_points(
+        polyline_x_coords_metres=vertex_x_coords_metres,
+        polyline_y_coords_metres=vertex_y_coords_metres,
         grid_point_x_coords_metres=grid_point_x_coords_metres,
         grid_point_y_coords_metres=grid_point_y_coords_metres)
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
-    binary_image_matrix = _grid_points_to_binary_image(
-        rows_in_object=rows_in_polyline, columns_in_object=columns_in_polyline,
+    binary_label_matrix = _grid_points_to_boolean_matrix(
+        rows_in_front=rows_in_front, columns_in_front=columns_in_front,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
-    return dilate_binary_narr_image(
-        binary_image_matrix=binary_image_matrix.astype(int),
-        dilation_distance_metres=dilation_distance_metres)
+    grid_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
+        model_name=nwp_model_utils.NARR_MODEL_NAME
+    )[0]
+
+    return dilate_binary_label_matrix(
+        binary_label_matrix=binary_label_matrix.astype(int),
+        dilation_distance_metres=dilation_distance_metres,
+        grid_spacing_metres=grid_spacing_metres)
 
 
 def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
-    """For each time step, converts polylines to list of NARR grid points.
+    """For each time step, converts polylines to gridded labels on NARR grid.
 
-    W = number of grid cells intersected by any warm front at a given time
-    C = number of grid cells intersected by any cold front at a given time
+    P = number of points in a given front
+    C = number of pixels intersected by cold front at a given time
+    W = number of pixels intersected by warm front at a given time
 
-    :param polyline_table: See documentation for
-        `fronts_io.write_polylines_to_file`.
-    :param dilation_distance_metres: Dilation distance.
-    :return: frontal_grid_point_table: pandas DataFrame with the following
-        columns (and one row for each valid time).
-    frontal_grid_point_table.unix_time_sec: Valid time.
-    frontal_grid_point_table.warm_front_row_indices: length-W numpy array
-        with row indices (integers) of grid cells intersected by a warm front.
-    frontal_grid_point_table.warm_front_column_indices: Same but for columns.
-    frontal_grid_point_table.cold_front_row_indices: length-C numpy array
-        with row indices (integers) of grid cells intersected by a cold front.
-    frontal_grid_point_table.cold_front_column_indices: Same but for columns.
+    :param polyline_table: pandas DataFrame with the following columns.  Each
+        row is one front.
+    polyline_table.front_type_string: Front type ("warm" or "cold").
+    polyline_table.valid_time_unix_sec: Valid time.
+    polyline_table.latitudes_deg: length-P numpy array of latitudes (deg N)
+        along front.
+    polyline_table.longitudes_deg: length-P numpy array of longitudes (deg E)
+        along front.
+
+    :param dilation_distance_metres: Dilation distance for gridded labels.
+    :return: gridded_label_table: pandas DataFrame with the following columns.
+        Each row is one valid time.
+    gridded_label_table.cold_front_rows: length-C numpy array with row indices
+        of cold-frontal pixels.
+    gridded_label_table.cold_front_columns: Same but for columns.
+    gridded_label_table.warm_front_rows: length-W numpy array with row indices
+        of warm-frontal pixels.
+    gridded_label_table.warm_front_columns: Same but for columns.
+    gridded_label_table.valid_time_unix_sec: Valid time.
     """
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
@@ -695,90 +789,98 @@ def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
 
     valid_times_unix_sec = numpy.unique(polyline_table[TIME_COLUMN].values)
     valid_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
-        for t in valid_times_unix_sec]
-    num_valid_times = len(valid_times_unix_sec)
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in valid_times_unix_sec
+    ]
 
-    warm_front_row_indices_by_time = [[]] * num_valid_times
-    warm_front_column_indices_by_time = [[]] * num_valid_times
-    cold_front_row_indices_by_time = [[]] * num_valid_times
-    cold_front_column_indices_by_time = [[]] * num_valid_times
+    num_times = len(valid_times_unix_sec)
+    warm_front_rows_by_time = [[]] * num_times
+    warm_front_columns_by_time = [[]] * num_times
+    cold_front_rows_by_time = [[]] * num_times
+    cold_front_columns_by_time = [[]] * num_times
 
-    for i in range(num_valid_times):
+    for i in range(num_times):
         print 'Converting polylines to NARR grid for {0:s}...'.format(
             valid_time_strings[i])
 
         these_polyline_indices = numpy.where(
-            polyline_table[TIME_COLUMN].values == valid_times_unix_sec[i])[0]
-        this_ternary_image_matrix = numpy.full(
-            (num_grid_rows, num_grid_columns), NO_FRONT_INTEGER_ID, dtype=int)
+            polyline_table[TIME_COLUMN].values == valid_times_unix_sec[i]
+        )[0]
+
+        this_ternary_label_matrix = numpy.full(
+            (num_grid_rows, num_grid_columns), NO_FRONT_ENUM, dtype=int)
 
         for j in these_polyline_indices:
             skip_this_front = _is_polyline_closed(
-                latitudes_deg=polyline_table[LATITUDES_COLUMN].values[j],
-                longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[j])
+                x_coords_metres=polyline_table[LONGITUDES_COLUMN].values[j],
+                y_coords_metres=polyline_table[LATITUDES_COLUMN].values[j]
+            )
 
             if skip_this_front:
                 this_num_points = len(
-                    polyline_table[LATITUDES_COLUMN].values[j])
+                    polyline_table[LATITUDES_COLUMN].values[j]
+                )
+
                 print (
                     'SKIPPING front with {0:d} points (closed polyline).'
                 ).format(this_num_points)
+
                 continue
 
-            this_binary_image_matrix = polyline_to_narr_grid(
-                polyline_latitudes_deg=
-                polyline_table[LATITUDES_COLUMN].values[j],
-                polyline_longitudes_deg=
-                polyline_table[LONGITUDES_COLUMN].values[j],
-                dilation_distance_metres=dilation_distance_metres)
-            this_binary_image_matrix = this_binary_image_matrix.astype(bool)
+            this_binary_label_matrix = polyline_to_narr_grid(
+                vertex_latitudes_deg=polyline_table[LATITUDES_COLUMN].values[j],
+                vertex_longitudes_deg=polyline_table[
+                    LONGITUDES_COLUMN].values[j],
+                dilation_distance_metres=dilation_distance_metres
+            )
 
-            if (polyline_table[FRONT_TYPE_COLUMN].values[j] ==
-                    WARM_FRONT_STRING_ID):
-                this_ternary_image_matrix[
-                    numpy.where(this_binary_image_matrix)
-                ] = WARM_FRONT_INTEGER_ID
+            this_binary_label_matrix = this_binary_label_matrix.astype(bool)
+            this_front_type_string = polyline_table[FRONT_TYPE_COLUMN].values[j]
+
+            if this_front_type_string == WARM_FRONT_STRING:
+                this_ternary_label_matrix[
+                    numpy.where(this_binary_label_matrix)
+                ] = WARM_FRONT_ENUM
             else:
-                this_ternary_image_matrix[
-                    numpy.where(this_binary_image_matrix)
-                ] = COLD_FRONT_INTEGER_ID
+                this_ternary_label_matrix[
+                    numpy.where(this_binary_label_matrix)
+                ] = COLD_FRONT_ENUM
 
-        this_grid_point_dict = frontal_image_to_grid_points(
-            this_ternary_image_matrix)
-        warm_front_row_indices_by_time[i] = this_grid_point_dict[
-            WARM_FRONT_ROW_INDICES_COLUMN]
-        warm_front_column_indices_by_time[i] = this_grid_point_dict[
-            WARM_FRONT_COLUMN_INDICES_COLUMN]
-        cold_front_row_indices_by_time[i] = this_grid_point_dict[
-            COLD_FRONT_ROW_INDICES_COLUMN]
-        cold_front_column_indices_by_time[i] = this_grid_point_dict[
-            COLD_FRONT_COLUMN_INDICES_COLUMN]
+        this_gridded_label_dict = gridded_labels_to_points(
+            this_ternary_label_matrix)
 
-    frontal_grid_dict = {
+        warm_front_rows_by_time[i] = this_gridded_label_dict[
+            WARM_FRONT_ROWS_COLUMN]
+        warm_front_columns_by_time[i] = this_gridded_label_dict[
+            WARM_FRONT_COLUMNS_COLUMN]
+        cold_front_rows_by_time[i] = this_gridded_label_dict[
+            COLD_FRONT_ROWS_COLUMN]
+        cold_front_columns_by_time[i] = this_gridded_label_dict[
+            COLD_FRONT_COLUMNS_COLUMN]
+
+    gridded_label_dict = {
         TIME_COLUMN: valid_times_unix_sec,
-        WARM_FRONT_ROW_INDICES_COLUMN: warm_front_row_indices_by_time,
-        WARM_FRONT_COLUMN_INDICES_COLUMN: warm_front_column_indices_by_time,
-        COLD_FRONT_ROW_INDICES_COLUMN: cold_front_row_indices_by_time,
-        COLD_FRONT_COLUMN_INDICES_COLUMN: cold_front_column_indices_by_time
+        WARM_FRONT_ROWS_COLUMN: warm_front_rows_by_time,
+        WARM_FRONT_COLUMNS_COLUMN: warm_front_columns_by_time,
+        COLD_FRONT_ROWS_COLUMN: cold_front_rows_by_time,
+        COLD_FRONT_COLUMNS_COLUMN: cold_front_columns_by_time
     }
-    return pandas.DataFrame.from_dict(frontal_grid_dict)
+
+    return pandas.DataFrame.from_dict(gridded_label_dict)
 
 
-def remove_polylines_in_masked_area(
+def remove_fronts_in_masked_area(
         polyline_table, narr_mask_matrix, verbose=True):
-    """Removes any polyline that touches only masked grid cells.
+    """Removes fronts in masked area (polylines that touch only masked pixels).
 
     M = number of rows in NARR grid
     N = number of columns in NARR grid
 
-    :param polyline_table: See documentation for
-        `fronts_io.write_polylines_to_file`.  Each row is one front.
-    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
-        narr_mask_matrix[i, j] = 0, grid cell [i, j] is masked.
+    :param polyline_table: See doc for `many_polylines_to_narr_grid`.
+    :param narr_mask_matrix: M-by-N numpy array of integers in range 0...1.  If
+        narr_mask_matrix[i, j] = 1, grid cell [i, j] is masked.
     :param verbose: Boolean flag.  If True, will print progress messages.
-    :return: polyline_table: Same as input, except that some rows may have been
-        removed.
+    :return: polyline_table: Same as input, but some rows may have been removed.
     """
 
     error_checking.assert_is_integer_numpy_array(narr_mask_matrix)
@@ -788,42 +890,47 @@ def remove_polylines_in_masked_area(
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
-    expected_dimensions = numpy.array(
+
+    these_expected_dim = numpy.array(
         [num_grid_rows, num_grid_columns], dtype=int)
     error_checking.assert_is_numpy_array(
-        narr_mask_matrix, exact_dimensions=expected_dimensions)
+        narr_mask_matrix, exact_dimensions=these_expected_dim)
 
     num_fronts = len(polyline_table.index)
-    indices_to_drop = []
+    bad_indices = []
 
     for i in range(num_fronts):
         if numpy.mod(i, 25) == 0 and verbose:
             print (
-                'Have checked {0:d} of {1:d} polylines; have removed {2:d} of '
-                '{0:d} because they exist only in masked area...'
-            ).format(i, num_fronts, len(indices_to_drop))
+                'Have checked {0:d} of {1:d} polylines and removed {2:d} (exist'
+                ' only in masked area)...'
+            ).format(i, num_fronts, len(bad_indices))
 
         skip_this_front = _is_polyline_closed(
-            latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
-            longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i])
+            x_coords_metres=polyline_table[LONGITUDES_COLUMN].values[i],
+            y_coords_metres=polyline_table[LATITUDES_COLUMN].values[i]
+        )
 
         if skip_this_front:
-            indices_to_drop.append(i)
+            bad_indices.append(i)
             continue
 
-        this_binary_matrix = polyline_to_narr_grid(
-            polyline_latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
-            polyline_longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i],
-            dilation_distance_metres=1.)
+        this_binary_label_matrix = polyline_to_narr_grid(
+            vertex_latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
+            vertex_longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i],
+            dilation_distance_metres=1.
+        )
 
-        if not numpy.any(
-                numpy.logical_and(
-                    this_binary_matrix == 1, narr_mask_matrix == 1)):
-            indices_to_drop.append(i)
+        found_unmasked_frontal_pixel = numpy.any(numpy.logical_and(
+            this_binary_label_matrix == 1, narr_mask_matrix == 1
+        ))
 
-    if len(indices_to_drop) == 0:
+        if not found_unmasked_frontal_pixel:
+            bad_indices.append(i)
+
+    if len(bad_indices) == 0:
         return polyline_table
 
-    indices_to_drop = numpy.array(indices_to_drop, dtype=int)
+    bad_indices = numpy.array(bad_indices, dtype=int)
     return polyline_table.drop(
-        polyline_table.index[indices_to_drop], axis=0, inplace=False)
+        polyline_table.index[bad_indices], axis=0, inplace=False)
