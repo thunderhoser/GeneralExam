@@ -339,6 +339,11 @@ def write_grid_to_file(gridded_label_table, netcdf_file_name):
         front_utils.DILATION_DISTANCE_COLUMN, dilation_distance_metres)
     dataset_object.setncattr(front_utils.MODEL_NAME_COLUMN, model_name)
 
+    if num_cold_front_pixels == num_warm_front_pixels == 0:
+        warm_front_rows = numpy.array([-1], dtype=int)
+        warm_front_columns = numpy.array([-1], dtype=int)
+        num_warm_front_pixels = len(warm_front_rows)
+
     dataset_object.createDimension(
         COLD_FRONT_PIXEL_DIM_KEY, num_cold_front_pixels)
     dataset_object.createDimension(
@@ -413,29 +418,38 @@ def read_grid_from_file(netcdf_file_name):
 
     gridded_label_table = gridded_label_table.assign(**argument_dict)
 
-    gridded_label_table[front_utils.COLD_FRONT_ROWS_COLUMN].values[
-        0
-    ] = numpy.round(numpy.array(
+    cold_front_rows = numpy.round(numpy.array(
         dataset_object.variables[front_utils.COLD_FRONT_ROWS_COLUMN][:]
     )).astype(int)
 
-    gridded_label_table[front_utils.COLD_FRONT_COLUMNS_COLUMN].values[
-        0
-    ] = numpy.round(numpy.array(
+    cold_front_columns = numpy.round(numpy.array(
         dataset_object.variables[front_utils.COLD_FRONT_COLUMNS_COLUMN][:]
     )).astype(int)
 
-    gridded_label_table[front_utils.WARM_FRONT_ROWS_COLUMN].values[
-        0
-    ] = numpy.round(numpy.array(
+    warm_front_rows = numpy.round(numpy.array(
         dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN][:]
     )).astype(int)
 
-    gridded_label_table[front_utils.WARM_FRONT_COLUMNS_COLUMN].values[
-        0
-    ] = numpy.round(numpy.array(
+    warm_front_columns = numpy.round(numpy.array(
         dataset_object.variables[front_utils.WARM_FRONT_COLUMNS_COLUMN][:]
     )).astype(int)
+
+    if len(warm_front_rows) == 1:
+        warm_front_rows = warm_front_rows[warm_front_rows >= 0]
+        warm_front_columns = warm_front_columns[warm_front_columns >= 0]
+
+    gridded_label_table[front_utils.COLD_FRONT_ROWS_COLUMN].values[0] = (
+        cold_front_rows
+    )
+    gridded_label_table[front_utils.COLD_FRONT_COLUMNS_COLUMN].values[0] = (
+        cold_front_columns
+    )
+    gridded_label_table[front_utils.WARM_FRONT_ROWS_COLUMN].values[0] = (
+        warm_front_rows
+    )
+    gridded_label_table[front_utils.WARM_FRONT_COLUMNS_COLUMN].values[0] = (
+        warm_front_columns
+    )
 
     dataset_object.close()
     return gridded_label_table

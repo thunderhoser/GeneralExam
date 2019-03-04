@@ -143,8 +143,6 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
 
             this_gridded_front_table = pandas.DataFrame.from_dict(this_dict)
 
-        print this_gridded_front_table
-
         this_gridded_front_table = this_gridded_front_table.iloc[[0]]
 
         this_argument_dict = {
