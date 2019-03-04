@@ -8,12 +8,14 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import moisture_conversions
 from generalexam.ge_io import era5_io
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 YEAR_FORMAT = '%Y'
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
-TIME_INTERVAL_SECONDS = 10800
 
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+MB_TO_PASCALS = 100.
+TIME_INTERVAL_SECONDS = 10800
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 RAW_FIELDS_ARG_NAME = 'raw_field_names'
@@ -204,18 +206,26 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                 one_time_data_matrix[0, ..., 0, j] = this_era5_dict[
                     era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
 
-        if (era5_io.DEWPOINT_NAME in raw_field_names and
-                pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB):
+        if era5_io.DEWPOINT_NAME in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
-
             dewpoint_index = raw_field_names.index(era5_io.DEWPOINT_NAME_RAW)
-            pressure_index = raw_field_names.index(era5_io.PRESSURE_NAME_RAW)
+
+            if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
+                pressure_index = raw_field_names.index(
+                    era5_io.PRESSURE_NAME_RAW)
+                this_pressure_matrix_pascals = one_time_data_matrix[
+                    ..., pressure_index]
+            else:
+                this_pressure_matrix_pascals = numpy.full(
+                    one_time_data_matrix.shape[:-1],
+                    MB_TO_PASCALS * pressure_level_mb
+                )
 
             one_time_data_matrix[..., dewpoint_index] = (
                 moisture_conversions.dewpoint_to_specific_humidity(
-                    dewpoints_kelvins=one_time_data_matrix[..., dewpoint_index],
-                    total_pressures_pascals=one_time_data_matrix[
-                        ..., pressure_index]
+                    dewpoints_kelvins=one_time_data_matrix[
+                        ..., dewpoint_index],
+                    total_pressures_pascals=this_pressure_matrix_pascals
                 )
             )
 

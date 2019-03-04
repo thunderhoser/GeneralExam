@@ -80,8 +80,10 @@ def _string_to_latlng(latlng_string, raise_error_if_fails=True):
 
     error_string = (
         'Input string ("{0:s}") does not match expected format ("{1:s}" or '
-        '"{2:s}").').format(latlng_string, LATLNG_STRING_PATTERN_7CHARS,
-                            LATLNG_STRING_PATTERN_5CHARS)
+        '"{2:s}").'
+    ).format(latlng_string, LATLNG_STRING_PATTERN_7CHARS,
+             LATLNG_STRING_PATTERN_5CHARS)
+
     if raise_error_if_fails:
         raise ValueError(error_string)
 
