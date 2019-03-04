@@ -5,15 +5,16 @@ from generalexam.ge_io import era5_io
 
 FAKE_FIELD_NAME = 'poop'
 
-# The following constants are used to test find_raw_file and
-# _raw_file_name_to_year.
+# The following constants are used to test find_raw_file,
+# _raw_file_name_to_year, _raw_file_name_to_pressure, and
+# _raw_file_name_to_field.
 TOP_RAW_DIRECTORY_NAME = 'era5_raw'
 YEAR = 4055
 FIELD_NAME_1000MB = era5_io.HEIGHT_NAME_RAW
 FIELD_NAME_SURFACE = era5_io.PRESSURE_NAME_RAW
 
-RAW_FILE_NAME_1000MB = 'era5_raw/ERA5_4055_3hrly_1000mbZ.nc'
-RAW_FILE_NAME_SURFACE = 'era5_raw/ERA5_4055_3hrly_0mp.nc'
+RAW_FILE_NAME_1000MB = 'era5_raw/ERA5_4055_3hrly_1000mb_Z.nc'
+RAW_FILE_NAME_SURFACE = 'era5_raw/ERA5_4055_3hrly_0m_p.nc'
 
 # The following constants are used to test find_processed_file.
 TOP_PROCESSED_DIR_NAME = 'era5_processed'
@@ -142,6 +143,30 @@ class Era5IoTests(unittest.TestCase):
         this_year = era5_io._raw_file_name_to_year(RAW_FILE_NAME_1000MB)
         self.assertTrue(this_year == YEAR)
 
+    def test_raw_file_name_to_pressure_1000mb(self):
+        """Ensures correct output from _raw_file_name_to_pressure.
+
+        In this case the pressure level is 1000 mb.
+        """
+
+        this_pressure_level_mb = era5_io._raw_file_name_to_pressure(
+            RAW_FILE_NAME_1000MB)
+
+        self.assertTrue(this_pressure_level_mb == 1000)
+
+    def test_raw_file_name_to_field_1000mb(self):
+        """Ensures correct output from _raw_file_name_to_field.
+
+        In this case the pressure level is 1000 mb.
+        """
+
+        this_field_name = era5_io._raw_file_name_to_field(RAW_FILE_NAME_1000MB)
+
+        self.assertTrue(
+            this_field_name ==
+            era5_io.field_name_raw_to_processed(FIELD_NAME_1000MB)
+        )
+
     def test_find_raw_file_surface(self):
         """Ensures correct output from find_raw_file.
 
@@ -164,6 +189,32 @@ class Era5IoTests(unittest.TestCase):
 
         this_year = era5_io._raw_file_name_to_year(RAW_FILE_NAME_SURFACE)
         self.assertTrue(this_year == YEAR)
+
+    def test_raw_file_name_to_pressure_surface(self):
+        """Ensures correct output from _raw_file_name_to_pressure.
+
+        In this case the "pressure level" is the surface.
+        """
+
+        this_pressure_level_mb = era5_io._raw_file_name_to_pressure(
+            RAW_FILE_NAME_SURFACE)
+
+        self.assertTrue(
+            this_pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB
+        )
+
+    def test_raw_file_name_to_field_surface(self):
+        """Ensures correct output from _raw_file_name_to_field.
+
+        In this case the "pressure level" is the surface.
+        """
+
+        this_field_name = era5_io._raw_file_name_to_field(RAW_FILE_NAME_SURFACE)
+
+        self.assertTrue(
+            this_field_name ==
+            era5_io.field_name_raw_to_processed(FIELD_NAME_SURFACE)
+        )
 
     def test_find_processed_file(self):
         """Ensures correct output from find_processed_file."""

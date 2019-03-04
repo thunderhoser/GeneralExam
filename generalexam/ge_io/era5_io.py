@@ -8,12 +8,18 @@ import copy
 import os.path
 import numpy
 import netCDF4
+from scipy.interpolate import interp2d
 from gewittergefahr.gg_io import netcdf_io
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import utils as general_utils
 
 TIME_FORMAT = '%Y%m%d%H'
+TIME_FORMAT_IN_LOG_MESSAGES = '%Y-%m-%d-%H'
+
 HOURS_TO_SECONDS = 3600
 DUMMY_SURFACE_PRESSURE_MB = 1013
 
@@ -26,6 +32,7 @@ V_WIND_EARTH_RELATIVE_NAME = 'v_wind_earth_relative_m_s01'
 WET_BULB_THETA_NAME = 'wet_bulb_potential_temperature_kelvins'
 U_WIND_GRID_RELATIVE_NAME = 'u_wind_grid_relative_m_s01'
 V_WIND_GRID_RELATIVE_NAME = 'v_wind_grid_relative_m_s01'
+DEWPOINT_NAME = 'dewpoint_kelvins'
 
 STANDARD_FIELD_NAMES = [
     TEMPERATURE_NAME, HEIGHT_NAME, PRESSURE_NAME, SPECIFIC_HUMIDITY_NAME,
@@ -33,7 +40,8 @@ STANDARD_FIELD_NAMES = [
 ]
 
 DERIVED_FIELD_NAMES = [
-    WET_BULB_THETA_NAME, U_WIND_GRID_RELATIVE_NAME, V_WIND_GRID_RELATIVE_NAME
+    WET_BULB_THETA_NAME, U_WIND_GRID_RELATIVE_NAME, V_WIND_GRID_RELATIVE_NAME,
+    DEWPOINT_NAME
 ]
 
 FIELD_NAMES = STANDARD_FIELD_NAMES + DERIVED_FIELD_NAMES
@@ -54,6 +62,7 @@ FIELD_NAME_RAW_TO_PROCESSED = {
     TEMPERATURE_NAME_RAW: TEMPERATURE_NAME,
     HEIGHT_NAME_RAW: HEIGHT_NAME,
     PRESSURE_NAME_RAW: PRESSURE_NAME,
+    DEWPOINT_NAME_RAW: DEWPOINT_NAME,
     U_WIND_NAME_RAW: U_WIND_GRID_RELATIVE_NAME,
     V_WIND_NAME_RAW: V_WIND_GRID_RELATIVE_NAME
 }
@@ -62,6 +71,7 @@ FIELD_NAME_PROCESSED_TO_RAW = {
     TEMPERATURE_NAME: TEMPERATURE_NAME_RAW,
     HEIGHT_NAME: HEIGHT_NAME_RAW,
     PRESSURE_NAME: PRESSURE_NAME_RAW,
+    DEWPOINT_NAME: DEWPOINT_NAME_RAW,
     U_WIND_GRID_RELATIVE_NAME: U_WIND_NAME_RAW,
     U_WIND_EARTH_RELATIVE_NAME: U_WIND_NAME_RAW,
     V_WIND_GRID_RELATIVE_NAME: V_WIND_NAME_RAW,
@@ -123,6 +133,107 @@ def _raw_file_name_to_year(raw_file_name):
     error_checking.assert_is_string(raw_file_name)
     pathless_file_name = os.path.split(raw_file_name)[-1]
     return int(pathless_file_name.split('_')[1])
+
+
+def _raw_file_name_to_pressure(raw_file_name):
+    """Parses pressure level from name of raw file.
+
+    :param raw_file_name: See doc for `find_raw_file`.
+    :return: pressure_level_mb: Pressure level (millibars).
+    """
+
+    error_checking.assert_is_string(raw_file_name)
+    pathless_file_name = os.path.split(raw_file_name)[-1]
+
+    pressure_level_string = pathless_file_name.split('_')[3]
+    if 'mb' in pressure_level_string:
+        return int(pressure_level_string.replace('mb', ''))
+
+    return DUMMY_SURFACE_PRESSURE_MB
+
+
+def _raw_file_name_to_field(raw_file_name):
+    """Parses field from name of raw file.
+
+    :param raw_file_name: See doc for `find_raw_file`.
+    :return: field_name: Field name in processed format.
+    """
+
+    error_checking.assert_is_string(raw_file_name)
+    pathless_file_name = os.path.split(raw_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    return field_name_raw_to_processed(
+        raw_field_name=extensionless_file_name.split('_')[4],
+        earth_relative=True
+    )
+
+
+def _check_era5_data(era5_dict):
+    """Error-checks ERA5 data.
+
+    T = number of time steps
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of channels (fields)
+    P = number of pressure levels
+
+    :param era5_dict: Dictionary with the following keys.
+    era5_dict['data_matrix']: T-by-M-by-N-by-P-by-C numpy array of data values.
+    era5_dict['valid_times_unix_sec']: length-T numpy array of valid times.
+    era5_dict['latitudes_deg']: length-M numpy array of grid-point latitudes
+        (deg N).  If data are on the NARR grid, this should be None.
+    era5_dict['longitudes_deg']: length-N numpy array of grid-point longitudes
+        (deg E).  If data are on the NARR grid, this should be None.
+    era5_dict['pressure_levels_mb']: length-P numpy array of pressure levels
+        (use 1013 mb to denote surface).
+    era5_dict['field_names']: length-C list of field names in processed format.
+    """
+
+    error_checking.assert_is_integer_numpy_array(era5_dict[VALID_TIMES_KEY])
+    error_checking.assert_is_numpy_array(
+        era5_dict[VALID_TIMES_KEY], num_dimensions=1)
+
+    on_narr_grid = (
+        era5_dict[LATITUDES_KEY] is None and era5_dict[LONGITUDES_KEY] is None
+    )
+
+    if not on_narr_grid:
+        error_checking.assert_is_valid_lat_numpy_array(era5_dict[LATITUDES_KEY])
+        error_checking.assert_is_numpy_array(
+            era5_dict[LATITUDES_KEY], num_dimensions=1)
+
+        error_checking.assert_is_valid_lng_numpy_array(
+            era5_dict[LONGITUDES_KEY], positive_in_west_flag=True)
+        error_checking.assert_is_numpy_array(
+            era5_dict[LONGITUDES_KEY], num_dimensions=1)
+
+    error_checking.assert_is_integer_numpy_array(era5_dict[PRESSURE_LEVELS_KEY])
+    error_checking.assert_is_greater_numpy_array(
+        era5_dict[PRESSURE_LEVELS_KEY], 0)
+    error_checking.assert_is_numpy_array(
+        era5_dict[PRESSURE_LEVELS_KEY], num_dimensions=1)
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(era5_dict[FIELD_NAMES_KEY]), num_dimensions=1)
+
+    num_times = era5_dict[VALID_TIMES_KEY]
+    num_grid_rows = era5_dict[LATITUDES_KEY]
+    num_grid_columns = era5_dict[LONGITUDES_KEY]
+    num_pressure_levels = era5_dict[PRESSURE_LEVELS_KEY]
+    num_fields = era5_dict[FIELD_NAMES_KEY]
+
+    for j in range(num_fields):
+        check_field_name(era5_dict[FIELD_NAMES_KEY][j])
+
+    these_expected_dim = numpy.array(
+        [num_times, num_grid_rows, num_grid_columns, num_pressure_levels,
+         num_fields],
+        dtype=int)
+
+    error_checking.assert_is_numpy_array_without_nan(era5_dict[DATA_MATRIX_KEY])
+    error_checking.assert_is_numpy_array(
+        era5_dict[DATA_MATRIX_KEY], exact_dimensions=these_expected_dim)
 
 
 def check_field_name(field_name, require_standard=False):
@@ -208,7 +319,7 @@ def find_raw_file(top_directory_name, year, raw_field_name, pressure_level_mb,
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     if pressure_level_mb == DUMMY_SURFACE_PRESSURE_MB:
-        raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:d}m{3:s}.nc'.format(
+        raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:d}m_{3:s}.nc'.format(
             top_directory_name, year,
             RAW_FIELD_NAME_TO_SURFACE_HEIGHT_M_AGL[raw_field_name],
             raw_field_name
@@ -217,7 +328,7 @@ def find_raw_file(top_directory_name, year, raw_field_name, pressure_level_mb,
         error_checking.assert_is_integer(pressure_level_mb)
         error_checking.assert_is_greater(pressure_level_mb, 0)
 
-        raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:d}mb{3:s}.nc'.format(
+        raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:d}mb_{3:s}.nc'.format(
             top_directory_name, year, pressure_level_mb, raw_field_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
@@ -231,20 +342,10 @@ def find_raw_file(top_directory_name, year, raw_field_name, pressure_level_mb,
 def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
     """Reads raw file (NetCDF with one field at one pressure level for a year).
 
-    M = number of rows (unique grid-point latitudes) in grid
-    N = number of columns (unique grid-point longitudes) in grid
-    T = number of time steps
-
     :param netcdf_file_name: Path to input file.
     :param first_time_unix_sec: First time step to read.
     :param last_time_unix_sec: Last time step to read.
-    :return: era5_dict: Dictionary with the following keys.
-    era5_dict['data_matrix']: T-by-M-by-N numpy array of data values.
-    era5_dict['latitudes_deg']: length-M numpy array of grid-point latitudes
-        (deg N).
-    era5_dict['longitudes_deg']: length-N numpy array of grid-point longitudes
-        (deg E).
-    era5_dict['valid_times_unix_sec']: length-T numpy array of valid times.
+    :return: era5_dict: See doc for `_check_era5_data`.
     """
 
     error_checking.assert_is_integer(first_time_unix_sec)
@@ -281,12 +382,125 @@ def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
         dataset_object.variables[DATA_MATRIX_KEY_RAW][good_indices, ...]
     )
 
+    data_matrix = numpy.flip(data_matrix, axis=1)
+    latitudes_deg = latitudes_deg[::-1]
+
+    data_matrix = numpy.expand_dims(data_matrix, axis=-1)
+    data_matrix = numpy.expand_dims(data_matrix, axis=-1)
+
+    pressure_levels_mb = numpy.array(
+        [_raw_file_name_to_pressure(netcdf_file_name)], dtype=int
+    )
+    field_names = [_raw_file_name_to_field(netcdf_file_name)]
+
     return {
         DATA_MATRIX_KEY: data_matrix,
+        VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: latitudes_deg,
         LONGITUDES_KEY: longitudes_deg,
-        VALID_TIMES_KEY: valid_times_unix_sec
+        PRESSURE_LEVELS_KEY: pressure_levels_mb,
+        FIELD_NAMES_KEY: field_names
     }
+
+
+def interp_to_narr_grid(era5_dict, era5_x_matrix_metres=None,
+                        era5_y_matrix_metres=None):
+    """Interpolates ERA5 data to NARR (North American Regional Reanalysis) grid.
+
+    M = number of rows in ERA5 grid
+    N = number of columns in ERA5 grid
+
+    `era5_x_matrix_metres` and `era5_y_matrix_metres` should be in the x-y space
+    defined by the NARR's Lambert conformal projection.  If either
+    `era5_x_matrix_metres is None` or `era5_y_matrix_metres is None`, these
+    matrices will be created on the fly.
+
+    :param era5_dict: See doc for `_check_era5_data`.
+    :param era5_x_matrix_metres: M-by-N numpy array with x-coordinates of ERA5
+        grid points.
+    :param era5_y_matrix_metres: Same but for y-coordinates.
+    :return: era5_dict: Same as input, with 3 exceptions.
+    era5_dict['data_matrix']: Different spatial dimensions.
+    era5_dict['latitudes_deg']: None
+    era5_dict['longitudes_deg']: None
+    """
+
+    _check_era5_data(era5_dict)
+
+    narr_x_matrix_metres, narr_y_matrix_metres = (
+        nwp_model_utils.get_xy_grid_point_matrices(
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
+
+    if era5_x_matrix_metres is None or era5_y_matrix_metres is None:
+        era5_latitude_matrix_deg, era5_longitude_matrix_deg = (
+            grids.latlng_vectors_to_matrices(
+                unique_latitudes_deg=era5_dict[LATITUDES_KEY],
+                unique_longitudes_deg=era5_dict[LONGITUDES_KEY]
+            )
+        )
+
+        era5_x_matrix_metres, era5_y_matrix_metres = (
+            nwp_model_utils.project_latlng_to_xy(
+                latitudes_deg=era5_latitude_matrix_deg,
+                longitudes_deg=era5_longitude_matrix_deg,
+                model_name=nwp_model_utils.NARR_MODEL_NAME)
+        )
+
+    num_era5_rows = len(era5_dict[LATITUDES_KEY])
+    num_era5_columns = len(era5_dict[LONGITUDES_KEY])
+    these_expected_dim = numpy.array(
+        [num_era5_rows, num_era5_columns], dtype=int)
+
+    error_checking.assert_is_numpy_array_without_nan(era5_x_matrix_metres)
+    error_checking.assert_is_numpy_array(
+        era5_x_matrix_metres, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_numpy_array_without_nan(era5_y_matrix_metres)
+    error_checking.assert_is_numpy_array(
+        era5_y_matrix_metres, exact_dimensions=these_expected_dim)
+
+    num_times = era5_dict[DATA_MATRIX_KEY].shape[0]
+    num_pressure_levels = era5_dict[DATA_MATRIX_KEY].shape[-2]
+    num_fields = era5_dict[DATA_MATRIX_KEY].shape[-1]
+
+    num_narr_rows = narr_x_matrix_metres.shape[0]
+    num_narr_columns = narr_x_matrix_metres.shape[1]
+    new_data_matrix = numpy.full(
+        (num_times, num_narr_rows, num_narr_columns, num_pressure_levels,
+         num_fields),
+        numpy.nan)
+
+    for i in range(num_times):
+        this_time_string = time_conversion.unix_sec_to_string(
+            era5_dict[VALID_TIMES_KEY][i], TIME_FORMAT_IN_LOG_MESSAGES)
+
+        for j in range(num_pressure_levels):
+            for k in range(num_fields):
+                print (
+                    'Interpolating field "{0:s}" at {1:d} mb and {2:s}...'
+                ).format(
+                    era5_dict[FIELD_NAMES_KEY][k],
+                    era5_dict[PRESSURE_LEVELS_KEY][j], this_time_string
+                )
+
+                this_interp_object = interp2d(
+                    era5_x_matrix_metres, era5_y_matrix_metres,
+                    era5_dict[DATA_MATRIX_KEY][i, ..., j, k], kind='linear',
+                    bounds_error=False, fill_value=numpy.nan)
+
+                new_data_matrix[i, ..., j, k] = this_interp_object(
+                    narr_x_matrix_metres, narr_y_matrix_metres)
+
+                new_data_matrix[i, ..., j, k] = general_utils.fill_nans(
+                    new_data_matrix[i, ..., j, k]
+                )
+
+    era5_dict[DATA_MATRIX_KEY] = new_data_matrix
+    era5_dict[LATITUDES_KEY] = None
+    era5_dict[LONGITUDES_KEY] = None
+
+    return era5_dict
 
 
 def find_processed_file(top_directory_name, valid_time_unix_sec,
@@ -323,59 +537,21 @@ def find_processed_file(top_directory_name, valid_time_unix_sec,
 def write_processed_file(netcdf_file_name, era5_dict):
     """Writes data to processed file (NetCDF with all data at one time step).
 
-    M = number of rows (unique grid-point latitudes) in grid
-    N = number of columns (unique grid-point longitudes) in grid
-    C = number of channels (fields)
-    P = number of height/pressure levels
-
     :param netcdf_file_name: Path to output file.
-    :param era5_dict: Dictionary with the following keys.
-    era5_dict['data_matrix']: M-by-N-by-H-by-C numpy array of data values.
-    era5_dict['valid_time_unix_sec']: Valid time.
-    era5_dict['latitudes_deg']: length-M numpy array of grid-point latitudes
-        (deg N).
-    era5_dict['longitudes_deg']: length-N numpy array of grid-point longitudes
-        (deg E).
-    era5_dict['pressure_levels_mb']: length-P numpy array of pressure levels
-        (use 1013 mb to denote surface).
-    era5_dict['field_names']: length-C list of field names in processed format.
+    :param era5_dict: See doc for `_check_era5_data`.
+    :raises: ValueError: if `era5_dict` contains more than one time step.
     """
 
-    error_checking.assert_is_integer(era5_dict[VALID_TIME_KEY])
+    num_times = len(era5_dict[VALID_TIMES_KEY])
+    if num_times > 1:
+        error_string = (
+            'Dictionary should contain one time step, not {0:d}.'
+        ).format(num_times)
 
-    error_checking.assert_is_valid_lat_numpy_array(era5_dict[LATITUDES_KEY])
-    error_checking.assert_is_numpy_array(
-        era5_dict[LATITUDES_KEY], num_dimensions=1)
+        raise ValueError(error_string)
 
-    error_checking.assert_is_valid_lng_numpy_array(
-        era5_dict[LONGITUDES_KEY], positive_in_west_flag=True)
-    error_checking.assert_is_numpy_array(
-        era5_dict[LONGITUDES_KEY], num_dimensions=1)
-
-    error_checking.assert_is_integer_numpy_array(era5_dict[PRESSURE_LEVELS_KEY])
-    error_checking.assert_is_greater_numpy_array(
-        era5_dict[PRESSURE_LEVELS_KEY], 0)
-    error_checking.assert_is_numpy_array(
-        era5_dict[PRESSURE_LEVELS_KEY], num_dimensions=1)
-
-    error_checking.assert_is_numpy_array(
-        numpy.array(era5_dict[FIELD_NAMES_KEY]), num_dimensions=1)
-
-    num_grid_rows = era5_dict[LATITUDES_KEY]
-    num_grid_columns = era5_dict[LONGITUDES_KEY]
-    num_pressure_levels = era5_dict[PRESSURE_LEVELS_KEY]
-    num_fields = era5_dict[FIELD_NAMES_KEY]
-
-    for m in range(num_fields):
-        check_field_name(era5_dict[FIELD_NAMES_KEY][m])
-
-    these_expected_dim = numpy.array(
-        [num_grid_rows, num_grid_columns, num_pressure_levels, num_fields],
-        dtype=int)
-
-    error_checking.assert_is_numpy_array_without_nan(era5_dict[DATA_MATRIX_KEY])
-    error_checking.assert_is_numpy_array(
-        era5_dict[DATA_MATRIX_KEY], exact_dimensions=these_expected_dim)
+    _check_era5_data(era5_dict)
+    era5_dict[DATA_MATRIX_KEY] = era5_dict[DATA_MATRIX_KEY][0, ...]
 
     # Open file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -383,17 +559,25 @@ def write_processed_file(netcdf_file_name, era5_dict):
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
     # Set global attributes.
-    dataset_object.setncattr(VALID_TIME_KEY, era5_dict[VALID_TIME_KEY])
+    dataset_object.setncattr(VALID_TIME_KEY, era5_dict[VALID_TIMES_KEY][0])
 
     # Set dimensions.
-    dataset_object.createDimension(ROW_DIMENSION_KEY, num_grid_rows)
-    dataset_object.createDimension(COLUMN_DIMENSION_KEY, num_grid_columns)
-    dataset_object.createDimension(PRESSURE_LEVEL_DIM_KEY, num_pressure_levels)
-    dataset_object.createDimension(FIELD_DIMENSION_KEY, num_fields)
-
-    num_field_name_chars = numpy.max(
-        numpy.array([len(f) for f in era5_dict[FIELD_NAMES_KEY]])
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, era5_dict[DATA_MATRIX_KEY].shape[0]
     )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, era5_dict[DATA_MATRIX_KEY].shape[1]
+    )
+    dataset_object.createDimension(
+        PRESSURE_LEVEL_DIM_KEY, era5_dict[DATA_MATRIX_KEY].shape[2]
+    )
+    dataset_object.createDimension(
+        FIELD_DIMENSION_KEY, era5_dict[DATA_MATRIX_KEY].shape[3]
+    )
+
+    num_field_name_chars = numpy.max(numpy.array(
+        [len(f) for f in era5_dict[FIELD_NAMES_KEY]]
+    ))
 
     dataset_object.createDimension(FIELD_NAME_CHAR_DIM_KEY,
                                    num_field_name_chars)
@@ -407,14 +591,17 @@ def write_processed_file(netcdf_file_name, era5_dict):
     dataset_object.variables[DATA_MATRIX_KEY][:] = era5_dict[DATA_MATRIX_KEY]
 
     # Add latitudes.
-    dataset_object.createVariable(
-        LATITUDES_KEY, datatype=numpy.float32, dimensions=ROW_DIMENSION_KEY)
-    dataset_object.variables[LATITUDES_KEY][:] = era5_dict[LATITUDES_KEY]
+    if era5_dict[LATITUDES_KEY] is not None:
+        dataset_object.createVariable(
+            LATITUDES_KEY, datatype=numpy.float32, dimensions=ROW_DIMENSION_KEY)
+        dataset_object.variables[LATITUDES_KEY][:] = era5_dict[LATITUDES_KEY]
 
     # Add longitudes.
-    dataset_object.createVariable(
-        LONGITUDES_KEY, datatype=numpy.float32, dimensions=COLUMN_DIMENSION_KEY)
-    dataset_object.variables[LONGITUDES_KEY][:] = era5_dict[LONGITUDES_KEY]
+    if era5_dict[LONGITUDES_KEY] is not None:
+        dataset_object.createVariable(
+            LONGITUDES_KEY, datatype=numpy.float32,
+            dimensions=COLUMN_DIMENSION_KEY)
+        dataset_object.variables[LONGITUDES_KEY][:] = era5_dict[LONGITUDES_KEY]
 
     # Add pressure levels.
     dataset_object.createVariable(
@@ -464,13 +651,13 @@ def read_processed_file(
     dataset_object = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
+    valid_time_unix_sec = int(numpy.round(
+        getattr(dataset_object, VALID_TIME_KEY)
+    ))
+    valid_times_unix_sec = numpy.array([valid_time_unix_sec], dtype=int)
+
     era5_dict = {
-        VALID_TIME_KEY: int(numpy.round(
-            getattr(dataset_object, VALID_TIME_KEY)
-        )),
-        LATITUDES_KEY: numpy.array(dataset_object.variables[LATITUDES_KEY][:]),
-        LONGITUDES_KEY:
-            numpy.array(dataset_object.variables[LONGITUDES_KEY][:]),
+        VALID_TIMES_KEY: valid_times_unix_sec,
         PRESSURE_LEVELS_KEY: numpy.array(
             dataset_object.variables[PRESSURE_LEVELS_KEY][:], dtype=int),
         FIELD_NAMES_KEY: [
@@ -479,12 +666,27 @@ def read_processed_file(
         ]
     }
 
+    if LATITUDES_KEY in dataset_object.variables:
+        era5_dict.update({
+            LATITUDES_KEY:
+                numpy.array(dataset_object.variables[LATITUDES_KEY][:]),
+            LONGITUDES_KEY:
+                numpy.array(dataset_object.variables[LONGITUDES_KEY][:])
+        })
+    else:
+        era5_dict.update({
+            LATITUDES_KEY: None,
+            LONGITUDES_KEY: None
+        })
+
     if metadata_only:
         return era5_dict
 
     era5_dict[DATA_MATRIX_KEY] = numpy.array(
         dataset_object.variables[DATA_MATRIX_KEY][:]
     )
+    era5_dict[DATA_MATRIX_KEY] = numpy.expand_dims(
+        era5_dict[DATA_MATRIX_KEY], axis=0)
 
     if pressure_levels_to_keep_mb is None:
         pressure_levels_to_keep_mb = era5_dict[PRESSURE_LEVELS_KEY] + 0
