@@ -223,28 +223,24 @@ def _plot_one_time(
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
-    )
+        line_colour=BORDER_COLOUR)
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
-    )
+        line_colour=BORDER_COLOUR)
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR
-    )
+        line_colour=BORDER_COLOUR)
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=PARALLEL_SPACING_DEG
-    )
+        parallel_spacing_deg=PARALLEL_SPACING_DEG)
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=MERIDIAN_SPACING_DEG
-    )
+        meridian_spacing_deg=MERIDIAN_SPACING_DEG)
 
     num_predictors = len(predictor_names)
+
     for j in range(num_predictors):
         if predictor_names[j] in WIND_FIELD_NAMES:
             continue
@@ -321,7 +317,7 @@ def _plot_one_time(
         this_front_type_string = front_polyline_table[
             front_utils.FRONT_TYPE_COLUMN].values[i]
 
-        if this_front_type_string == front_utils.WARM_FRONT_STRING_ID:
+        if this_front_type_string == front_utils.WARM_FRONT_STRING:
             this_colour = WARM_FRONT_COLOUR
         else:
             this_colour = COLD_FRONT_COLOUR

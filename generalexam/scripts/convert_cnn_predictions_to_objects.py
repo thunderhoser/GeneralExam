@@ -34,7 +34,7 @@ NUM_TIMES_ARG_NAME = 'num_times'
 BINARIZATION_THRESHOLD_ARG_NAME = 'binarization_threshold'
 MIN_AREA_ARG_NAME = 'min_object_area_metres2'
 MIN_LENGTH_ARG_NAME = 'min_endpoint_length_metres'
-FRONT_LINE_DIR_ARG_NAME = 'input_front_line_dir_name'
+POLYLINE_DIR_ARG_NAME = 'input_polyline_dir_name'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 PREDICTION_DIR_HELP_STRING = (
@@ -63,7 +63,7 @@ MIN_LENGTH_HELP_STRING = (
     'Minimum end-to-end length for skeleton line (predicted frontal polyline).'
     '  Shorter lines will be thrown out.')
 
-FRONT_LINE_DIR_HELP_STRING = (
+POLYLINE_DIR_HELP_STRING = (
     'Name of top-level directory with actual fronts (polylines).  Files therein'
     ' will be found by `fronts_io.find_polyline_file` and read by '
     '`fronts_io.read_polylines_from_file`.')
@@ -74,7 +74,7 @@ OUTPUT_FILE_HELP_STRING = (
 
 DEFAULT_MIN_AREA_METRES2 = 5e11  # 0.5 million km^2
 DEFAULT_MIN_LENGTH_METRES = 5e5  # 500 km
-TOP_FRONT_LINE_DIR_NAME_DEFAULT = (
+TOP_POLYLINE_DIR_NAME_DEFAULT = (
     '/condo/swatwork/ralager/fronts/polylines/masked')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -105,29 +105,58 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_MIN_LENGTH_METRES, help=MIN_LENGTH_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FRONT_LINE_DIR_ARG_NAME, type=str, required=False,
-    default=TOP_FRONT_LINE_DIR_NAME_DEFAULT, help=FRONT_LINE_DIR_HELP_STRING)
+    '--' + POLYLINE_DIR_ARG_NAME, type=str, required=False,
+    default=TOP_POLYLINE_DIR_NAME_DEFAULT, help=POLYLINE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _read_actual_polylines(
-        top_input_dir_name, unix_times_sec, narr_mask_matrix):
+def _fill_probabilities(class_probability_matrix):
+    """Fills missing class probabilities.
+
+    For any grid cell with missing probabilities, this method assumes that there
+    is no front.
+
+    :param class_probability_matrix: numpy array of class probabilities.  The
+        last axis should have length 3.  class_probability_matrix[..., k] should
+        contain probabilities for the [k]th class.
+    :return: class_probability_matrix: Same but with no missing values.
+    """
+
+    class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
+        numpy.isnan(
+            class_probability_matrix[..., front_utils.NO_FRONT_ENUM]
+        )
+    ] = 1.
+
+    class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
+
+    return class_probability_matrix
+
+
+def _read_actual_fronts(
+        top_polyline_dir_name, valid_times_unix_sec, narr_mask_matrix=None):
     """Reads actual fronts (polylines) for each time step.
 
-    :param top_input_dir_name: See documentation at top of file.
-    :param unix_times_sec: 1-D numpy array of valid times.
+    If `narr_mask_matrix is None`, this method will assume that fronts passing
+    only through the masked area have already been removed.  If
+    `narr_mask_matrix is not None`, this method will remove them on the fly.
+
+    :param top_polyline_dir_name: See documentation at top of file (for
+        `input_polyline_dir_name`).
+    :param valid_times_unix_sec: 1-D numpy array of valid times.
     :param narr_mask_matrix: See doc for
-        `front_utils.remove_polylines_in_masked_area`.
+        `front_utils.remove_fronts_in_masked_area`.
     :return: polyline_table: See doc for `fronts_io.write_polylines_to_file`.
     """
 
     list_of_polyline_tables = []
-    for this_time_unix_sec in unix_times_sec:
+
+    for this_time_unix_sec in valid_times_unix_sec:
         this_file_name = fronts_io.find_polyline_file(
-            top_directory_name=top_input_dir_name,
+            top_directory_name=top_polyline_dir_name,
             valid_time_unix_sec=this_time_unix_sec)
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
@@ -139,21 +168,24 @@ def _read_actual_polylines(
             continue
 
         list_of_polyline_tables[-1] = list_of_polyline_tables[-1].align(
-            list_of_polyline_tables[0], axis=1)[0]
+            list_of_polyline_tables[0], axis=1
+        )[0]
 
     polyline_table = pandas.concat(
         list_of_polyline_tables, axis=0, ignore_index=True)
 
-    # print 'Removing fronts in masked area...'
-    # return front_utils.remove_polylines_in_masked_area(
-    #     polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix)
+    if narr_mask_matrix is None:
+        return polyline_table
 
-    return polyline_table
+    print '\n'
+    return front_utils.remove_fronts_in_masked_area(
+        polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix,
+        verbose=True)
 
 
 def _run(input_prediction_dir_name, first_time_string, last_time_string,
          num_times, binarization_threshold, min_object_area_metres2,
-         min_endpoint_length_metres, top_front_line_dir_name, output_file_name):
+         min_endpoint_length_metres, top_polyline_dir_name, output_file_name):
     """Converts gridded CNN predictions to objects.
 
     This is effectively the main method.
@@ -165,12 +197,14 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
     :param binarization_threshold: Same.
     :param min_object_area_metres2: Same.
     :param min_endpoint_length_metres: Same.
-    :param top_front_line_dir_name: Same.
+    :param top_polyline_dir_name: Same.
     :param output_file_name: Same.
     """
 
     grid_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)[0]
+        model_name=nwp_model_utils.NARR_MODEL_NAME
+    )[0]
+
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
@@ -178,6 +212,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
+
     possible_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
@@ -185,7 +220,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
     numpy.random.shuffle(possible_times_unix_sec)
 
-    unix_times_sec = []
+    valid_times_unix_sec = []
     list_of_predicted_region_tables = []
     num_times_done = 0
     narr_mask_matrix = None
@@ -199,11 +234,12 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
             first_target_time_unix_sec=possible_times_unix_sec[i],
             last_target_time_unix_sec=possible_times_unix_sec[i],
             raise_error_if_missing=False)
+
         if not os.path.isfile(this_prediction_file_name):
             continue
 
         num_times_done += 1
-        unix_times_sec.append(possible_times_unix_sec[i])
+        valid_times_unix_sec.append(possible_times_unix_sec[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
         this_prediction_dict = ml_utils.read_gridded_predictions(
@@ -212,18 +248,12 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         class_probability_matrix = this_prediction_dict[
             ml_utils.PROBABILITY_MATRIX_KEY]
 
-        if narr_mask_matrix is None:
-            narr_mask_matrix = numpy.invert(numpy.isnan(
-                class_probability_matrix[0, ..., 0]
-            )).astype(int)
+        # if narr_mask_matrix is None:
+        #     narr_mask_matrix = numpy.invert(numpy.isnan(
+        #         class_probability_matrix[0, ..., 0]
+        #     )).astype(int)
 
-        # TODO(thunderhoser): This should be a separate method.
-        class_probability_matrix[..., front_utils.NO_FRONT_INTEGER_ID][
-            numpy.isnan(
-                class_probability_matrix[..., front_utils.NO_FRONT_INTEGER_ID]
-            )
-        ] = 1.
-        class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
+        class_probability_matrix = _fill_probabilities(class_probability_matrix)
 
         print 'Determinizing probabilities...'
         this_predicted_label_matrix = object_eval.determinize_probabilities(
@@ -271,21 +301,24 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
         list_of_predicted_region_tables[-1] = (
             list_of_predicted_region_tables[-1].align(
-                list_of_predicted_region_tables[0], axis=1)[0]
+                list_of_predicted_region_tables[0], axis=1
+            )[0]
         )
 
     print SEPARATOR_STRING
 
-    unix_times_sec = numpy.array(unix_times_sec, dtype=int)
+    valid_times_unix_sec = numpy.array(valid_times_unix_sec, dtype=int)
     predicted_region_table = pandas.concat(
         list_of_predicted_region_tables, axis=0, ignore_index=True)
+
     predicted_region_table = object_eval.convert_regions_rowcol_to_narr_xy(
         predicted_region_table=predicted_region_table,
         are_predictions_from_fcn=False)
 
-    actual_polyline_table = _read_actual_polylines(
-        top_input_dir_name=top_front_line_dir_name,
-        unix_times_sec=unix_times_sec, narr_mask_matrix=narr_mask_matrix)
+    actual_polyline_table = _read_actual_fronts(
+        top_polyline_dir_name=top_polyline_dir_name,
+        valid_times_unix_sec=valid_times_unix_sec,
+        narr_mask_matrix=narr_mask_matrix)
     print SEPARATOR_STRING
 
     actual_polyline_table = object_eval.project_polylines_latlng_to_narr(
@@ -311,7 +344,8 @@ if __name__ == '__main__':
         binarization_threshold=getattr(
             INPUT_ARG_OBJECT, BINARIZATION_THRESHOLD_ARG_NAME),
         min_object_area_metres2=getattr(INPUT_ARG_OBJECT, MIN_AREA_ARG_NAME),
-        min_endpoint_length_metres=getattr(INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME),
-        top_front_line_dir_name=getattr(
-            INPUT_ARG_OBJECT, FRONT_LINE_DIR_ARG_NAME),
-        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
+        min_endpoint_length_metres=getattr(
+            INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME),
+        top_polyline_dir_name=getattr(INPUT_ARG_OBJECT, POLYLINE_DIR_ARG_NAME),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+    )

@@ -89,8 +89,9 @@ def _run(input_prediction_file_name, matching_distance_metres,
         num_bootstrap_replicates = 0
 
     print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
-    (predicted_region_table, actual_polyline_table
-    ) = object_eval.read_predictions_and_obs(input_prediction_file_name)
+    predicted_region_table, actual_polyline_table = (
+        object_eval.read_predictions_and_obs(input_prediction_file_name)
+    )
 
     binary_contingency_table_as_dict = object_eval.get_binary_contingency_table(
         predicted_region_table=predicted_region_table,
@@ -153,10 +154,12 @@ def _run(input_prediction_file_name, matching_distance_metres,
     unique_times_unix_sec = numpy.unique(
         numpy.concatenate((
             predicted_region_table[front_utils.TIME_COLUMN].values,
-            actual_polyline_table[front_utils.TIME_COLUMN].values))
+            actual_polyline_table[front_utils.TIME_COLUMN].values
+        ))
     )
 
     num_unique_times = len(unique_times_unix_sec)
+
     print (
         '\nNumber of unique times between predicted and actual fronts = {0:d}'
     ).format(num_unique_times)
@@ -180,14 +183,14 @@ def _run(input_prediction_file_name, matching_distance_metres,
                 predicted_region_table.loc[
                     predicted_region_table[front_utils.TIME_COLUMN] ==
                     this_time_unix_sec
-                    ]
+                ]
             )
 
             these_actual_polyline_tables.append(
                 actual_polyline_table.loc[
                     actual_polyline_table[front_utils.TIME_COLUMN] ==
                     this_time_unix_sec
-                    ]
+                ]
             )
 
             if len(these_predicted_region_tables) == 1:
@@ -198,6 +201,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
                     these_predicted_region_tables[0], axis=1
                 )[0]
             )
+
             these_actual_polyline_tables[-1] = (
                 these_actual_polyline_tables[-1].align(
                     these_actual_polyline_tables[0], axis=1
@@ -212,16 +216,18 @@ def _run(input_prediction_file_name, matching_distance_metres,
         print (
             'Number of unique predicted fronts = {0:d} ... number of '
             'predicted fronts in bootstrap replicate {1:d} of {2:d} = {3:d}'
-        ).format(len(predicted_region_table.index),
-                 i + 1, num_bootstrap_replicates,
-                 len(this_predicted_region_table.index))
+        ).format(
+            len(predicted_region_table.index), i + 1, num_bootstrap_replicates,
+            len(this_predicted_region_table.index)
+        )
 
         print (
             'Number of unique actual fronts = {0:d} ... number of actual '
             'fronts in bootstrap replicate {1:d} of {2:d} = {3:d}'
-        ).format(len(actual_polyline_table.index),
-                 i + 1, num_bootstrap_replicates,
-                 len(this_actual_polyline_table.index))
+        ).format(
+            len(actual_polyline_table.index), i + 1, num_bootstrap_replicates,
+            len(this_actual_polyline_table.index)
+        )
 
         this_binary_ct_as_dict = object_eval.get_binary_contingency_table(
             predicted_region_table=this_predicted_region_table,
@@ -253,6 +259,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
 
     min_binary_pod = numpy.percentile(binary_pod_values, min_percentile_level)
     max_binary_pod = numpy.percentile(binary_pod_values, max_percentile_level)
+
     print (
         '{0:.2f}th and {1:.2f}th percentiles of binary POD = '
         '[{2:.4f}, {3:.4f}]'
@@ -263,6 +270,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
         binary_success_ratios, min_percentile_level)
     max_binary_success_ratio = numpy.percentile(
         binary_success_ratios, max_percentile_level)
+
     print (
         '{0:.2f}th and {1:.2f}th percentiles of binary success ratio = '
         '[{2:.4f}, {3:.4f}]'
@@ -271,6 +279,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
 
     min_binary_csi = numpy.percentile(binary_csi_values, min_percentile_level)
     max_binary_csi = numpy.percentile(binary_csi_values, max_percentile_level)
+
     print (
         '{0:.2f}th and {1:.2f}th percentiles of binary CSI = '
         '[{2:.4f}, {3:.4f}]'
@@ -281,6 +290,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
         binary_frequency_biases, min_percentile_level)
     max_binary_frequency_bias = numpy.percentile(
         binary_frequency_biases, max_percentile_level)
+
     print (
         '{0:.2f}th and {1:.2f}th percentiles of binary frequency bias = '
         '[{2:.4f}, {3:.4f}]'
@@ -336,4 +346,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, NUM_REPLICATES_ARG_NAME),
         confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_eval_file_name=getattr(
-            INPUT_ARG_OBJECT, EVALUATION_FILE_ARG_NAME))
+            INPUT_ARG_OBJECT, EVALUATION_FILE_ARG_NAME)
+    )

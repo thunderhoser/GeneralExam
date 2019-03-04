@@ -317,7 +317,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         )
 
         print time_conversion.unix_sec_to_string(
-            example_dict[trainval_io.TARGET_TIMES_KEY][i], '%Y-%m-%d-%H')
+            example_dict[trainval_io.TARGET_TIMES_KEY][i], '%Y-%m-%d-%H'
+        )
 
         this_polyline_table = fronts_io.read_polylines_from_file(
             this_front_file_name)
@@ -327,7 +328,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             this_front_type_string = this_polyline_table[
                 front_utils.FRONT_TYPE_COLUMN].values[j]
 
-            if this_front_type_string == front_utils.WARM_FRONT_STRING_ID:
+            if this_front_type_string == front_utils.WARM_FRONT_STRING:
                 this_colour = WARM_FRONT_COLOUR
             else:
                 this_colour = COLD_FRONT_COLOUR

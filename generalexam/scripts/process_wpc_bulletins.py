@@ -46,10 +46,9 @@ GRIDDED_DIR_HELP_STRING = (
     'determined by `fronts_io.find_gridded_file`.')
 
 TOP_BULLETIN_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/wpc_bulletins/hires'
-TOP_POLYLINE_DIR_NAME_DEFAULT = (
-    '/condo/swatwork/ralager/fronts/polylines/netcdf')
+TOP_POLYLINE_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts/polylines'
 TOP_GRIDDED_DIR_NAME_DEFAULT = (
-    '/condo/swatwork/ralager/fronts/narr_grids/no_dilation/netcdf')
+    '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -161,6 +160,5 @@ if __name__ == '__main__':
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         top_bulletin_dir_name=getattr(INPUT_ARG_OBJECT, BULLETIN_DIR_ARG_NAME),
         top_polyline_dir_name=getattr(INPUT_ARG_OBJECT, POLYLINE_DIR_ARG_NAME),
-        top_gridded_dir_name=getattr(
-            INPUT_ARG_OBJECT, GRIDDED_DIR_ARG_NAME)
+        top_gridded_dir_name=getattr(INPUT_ARG_OBJECT, GRIDDED_DIR_ARG_NAME)
     )

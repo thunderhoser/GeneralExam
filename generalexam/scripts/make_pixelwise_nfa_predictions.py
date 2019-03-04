@@ -104,10 +104,10 @@ OUTPUT_DIR_HELP_STRING = (
 
 DEFAULT_THERMAL_FIELD_NAME = processed_narr_io.WET_BULB_THETA_NAME
 DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
-DEFAULT_WARM_FRONT_PERCENTILE = 97.
-DEFAULT_COLD_FRONT_PERCENTILE = 97.
-DEFAULT_NUM_CLOSING_ITERS = 3
-DEFAULT_PRESSURE_LEVEL_MB = 850
+DEFAULT_WARM_FRONT_PERCENTILE = 96.
+DEFAULT_COLD_FRONT_PERCENTILE = 96.
+DEFAULT_NUM_CLOSING_ITERS = 2
+DEFAULT_PRESSURE_LEVEL_MB = 900
 
 TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
 DEFAULT_NARR_MASK_FILE_NAME = (
@@ -210,8 +210,8 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         time_interval_sec=NARR_TIME_INTERVAL_SEC, include_endpoint=True)
 
     if randomize_times:
-        error_checking.assert_is_leq(
-            num_times, len(valid_times_unix_sec))
+        error_checking.assert_is_leq(num_times, len(valid_times_unix_sec))
+
         numpy.random.shuffle(valid_times_unix_sec)
         valid_times_unix_sec = valid_times_unix_sec[:num_times]
 
@@ -228,6 +228,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
     num_times = len(valid_times_unix_sec)
+
     for i in range(num_times):
         this_thermal_file_name = processed_narr_io.find_file_for_one_time(
             top_directory_name=top_narr_directory_name,
@@ -304,8 +305,8 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             warm_front_percentile=warm_front_percentile,
             cold_front_percentile=cold_front_percentile)
 
-        this_predicted_label_matrix = front_utils.close_frontal_image(
-            ternary_image_matrix=this_predicted_label_matrix,
+        this_predicted_label_matrix = front_utils.close_gridded_labels(
+            ternary_label_matrix=this_predicted_label_matrix,
             num_iterations=num_closing_iters)
 
         this_prediction_file_name = nfa.find_prediction_file(
@@ -350,4 +351,5 @@ if __name__ == '__main__':
         top_narr_directory_name=getattr(
             INPUT_ARG_OBJECT, NARR_DIRECTORY_ARG_NAME),
         narr_mask_file_name=getattr(INPUT_ARG_OBJECT, NARR_MASK_FILE_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )

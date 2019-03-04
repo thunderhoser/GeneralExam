@@ -145,7 +145,7 @@ def _plot_one_time(
     :param class_probability_matrix: M-by-N-by-3 numpy array of class
         probabilities.
     :param predicted_label_matrix: M-by-N numpy array of predicted labels
-        (integers in `front_utils.VALID_INTEGER_IDS`).
+        (integers in `front_utils.VALID_FRONT_TYPE_ENUMS`).
     :param plot_wf_colour_bar: Boolean flag.  If True, will plot colour bar for
         warm-front probability.
     :param plot_cf_colour_bar: Boolean flag.  If True, will plot colour bar for
@@ -201,13 +201,13 @@ def _plot_one_time(
         this_wf_probability_matrix = class_probability_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
-            front_utils.WARM_FRONT_INTEGER_ID
+            front_utils.WARM_FRONT_ENUM
         ]
         this_wf_probability_matrix[numpy.isnan(this_wf_probability_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_wf_probability_matrix,
-            front_string_id=front_utils.WARM_FRONT_STRING_ID,
+            front_string_id=front_utils.WARM_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
@@ -215,13 +215,13 @@ def _plot_one_time(
         this_cf_probability_matrix = class_probability_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
-            front_utils.COLD_FRONT_INTEGER_ID
+            front_utils.COLD_FRONT_ENUM
         ]
         this_cf_probability_matrix[numpy.isnan(this_cf_probability_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
             probability_matrix=this_cf_probability_matrix,
-            front_string_id=front_utils.COLD_FRONT_STRING_ID,
+            front_string_id=front_utils.COLD_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
             first_row_in_narr_grid=narr_row_limits[0],
             first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
@@ -406,7 +406,7 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
         this_predicted_region_table = predicted_region_table.loc[
             predicted_region_table[front_utils.TIME_COLUMN] ==
             this_time_unix_sec
-            ]
+        ]
 
         this_title_string = '{0:s} predictions at {1:s}'.format(
             method_name.upper(),

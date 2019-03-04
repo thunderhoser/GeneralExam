@@ -37,16 +37,16 @@ COLD_FRONT_COLOUR_MAP_OBJECT = pyplot.cm.YlGnBu
 BOTH_FRONTS_COLOUR_MAP_OBJECT = pyplot.cm.winter
 MAX_COLOUR_PERCENTILE = 99.
 
-FRONTAL_GRID_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
+FRONT_DIR_ARG_NAME = 'input_gridded_front_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 MIN_FRONTS_ARG_NAME = 'min_num_fronts'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-FRONTAL_GRID_DIR_HELP_STRING = (
-    'Name of top-level directory with frontal grids.  Files therein will be '
-    'found by `fronts_io.find_gridded_file` and read by '
+FRONT_DIR_HELP_STRING = (
+    'Name of top-level directory with gridded front labels.  Files therein will'
+    ' be found by `fronts_io.find_gridded_file` and read by '
     '`fronts_io.read_grid_from_file`.')
 
 TIME_HELP_STRING = (
@@ -67,16 +67,15 @@ MIN_FRONTS_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Results will be saved here.')
 
-DEFAULT_TOP_FRONTAL_GRID_DIR_NAME = (
+DEFAULT_TOP_FRONT_DIR_NAME = (
     '/condo/swatwork/ralager/fronts/narr_grids/no_dilation')
 DEFAULT_DILATION_DISTANCE_METRES = 50000.
 DEFAULT_MIN_FRONTS = 100
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + FRONTAL_GRID_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_FRONTAL_GRID_DIR_NAME,
-    help=FRONTAL_GRID_DIR_HELP_STRING)
+    '--' + FRONT_DIR_ARG_NAME, type=str, required=False,
+    default=DEFAULT_TOP_FRONT_DIR_NAME, help=FRONT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
@@ -91,8 +90,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_FRONTS_ARG_NAME, type=int, required=False,
-    default=DEFAULT_MIN_FRONTS,
-    help=MIN_FRONTS_HELP_STRING)
+    default=DEFAULT_MIN_FRONTS, help=MIN_FRONTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -172,13 +170,13 @@ def _plot_front_densities(
         input_file_name=output_file_name, output_file_name=output_file_name)
 
 
-def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
+def _run(top_gridded_front_dir_name, first_time_string, last_time_string,
          dilation_distance_metres, min_num_fronts, output_dir_name):
     """Creates mask, indicating where human forecasters usually draw fronts.
 
     This is effectively the main method.
 
-    :param top_frontal_grid_dir_name: See documentation at top of file.
+    :param top_gridded_front_dir_name: See documentation at top of file.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param dilation_distance_metres: Same.
@@ -194,6 +192,7 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
+
     valid_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
@@ -208,7 +207,7 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
 
     for i in range(num_times):
         this_file_name = fronts_io.find_gridded_file(
-            top_directory_name=top_frontal_grid_dir_name,
+            top_directory_name=top_gridded_front_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
@@ -234,10 +233,10 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
         this_gridded_front_matrix = this_gridded_front_matrix[0, ...]
 
         this_num_cold_fronts_matrix = (
-            this_gridded_front_matrix == front_utils.COLD_FRONT_INTEGER_ID
+            this_gridded_front_matrix == front_utils.COLD_FRONT_ENUM
         ).astype(int)
         this_num_warm_fronts_matrix = (
-            this_gridded_front_matrix == front_utils.WARM_FRONT_INTEGER_ID
+            this_gridded_front_matrix == front_utils.WARM_FRONT_ENUM
         ).astype(int)
 
         if num_cold_fronts_matrix is None:
@@ -245,24 +244,28 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
             num_warm_fronts_matrix = this_num_warm_fronts_matrix + 0
         else:
             num_cold_fronts_matrix = (
-                num_cold_fronts_matrix + this_num_cold_fronts_matrix)
+                num_cold_fronts_matrix + this_num_cold_fronts_matrix
+            )
             num_warm_fronts_matrix = (
-                num_warm_fronts_matrix + this_num_warm_fronts_matrix)
+                num_warm_fronts_matrix + this_num_warm_fronts_matrix
+            )
 
     print SEPARATOR_STRING
-
     print 'Masking out grid cells with < {0:d} fronts...'.format(
         min_num_fronts)
+
     num_both_fronts_matrix = num_warm_fronts_matrix + num_cold_fronts_matrix
     mask_matrix = (num_both_fronts_matrix >= min_num_fronts).astype(int)
 
     pickle_file_name = '{0:s}/narr_mask.p'.format(output_dir_name)
+
     print 'Writing mask to: "{0:s}"...'.format(pickle_file_name)
     ml_utils.write_narr_mask(
         mask_matrix=mask_matrix, pickle_file_name=pickle_file_name)
 
     warm_front_map_file_name = '{0:s}/num_warm_fronts.jpg'.format(
         output_dir_name)
+
     _plot_front_densities(
         num_fronts_matrix=num_warm_fronts_matrix,
         colour_map_object=WARM_FRONT_COLOUR_MAP_OBJECT,
@@ -272,6 +275,7 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
 
     cold_front_map_file_name = '{0:s}/num_cold_fronts.jpg'.format(
         output_dir_name)
+
     _plot_front_densities(
         num_fronts_matrix=num_cold_fronts_matrix,
         colour_map_object=COLD_FRONT_COLOUR_MAP_OBJECT,
@@ -297,12 +301,12 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_frontal_grid_dir_name=getattr(
-            INPUT_ARG_OBJECT, FRONTAL_GRID_DIR_ARG_NAME),
+        top_gridded_front_dir_name=getattr(
+            INPUT_ARG_OBJECT, FRONT_DIR_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         dilation_distance_metres=getattr(
             INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME),
-        min_num_fronts=getattr(
-            INPUT_ARG_OBJECT, MIN_FRONTS_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        min_num_fronts=getattr(INPUT_ARG_OBJECT, MIN_FRONTS_ARG_NAME),
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )
