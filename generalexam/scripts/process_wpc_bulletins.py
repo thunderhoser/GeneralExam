@@ -129,6 +129,8 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             polyline_table=this_polyline_table,
             dilation_distance_metres=DILATION_DISTANCE_METRES)
 
+        print this_gridded_front_table
+
         this_gridded_front_table = this_gridded_front_table.iloc[[0]]
 
         this_argument_dict = {
