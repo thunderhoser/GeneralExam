@@ -42,14 +42,18 @@ def get_colour_map_for_grid():
     colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds = numpy.array(
-        [front_utils.WARM_FRONT_INTEGER_ID - 0.5,
-         front_utils.WARM_FRONT_INTEGER_ID + 0.5,
-         front_utils.COLD_FRONT_INTEGER_ID])
+        [front_utils.WARM_FRONT_ENUM - 0.5,
+         front_utils.WARM_FRONT_ENUM + 0.5,
+         front_utils.COLD_FRONT_ENUM]
+    )
+
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds, colour_map_object.N)
 
     colour_bounds = numpy.concatenate((
-        numpy.array([-100.]), main_colour_bounds, numpy.array([100.])))
+        numpy.array([-100.]), main_colour_bounds, numpy.array([100.])
+    ))
+
     return colour_map_object, colour_norm_object, colour_bounds
 
 
@@ -90,9 +94,9 @@ def plot_front_with_markers(
     error_checking.assert_is_greater(marker_spacing_metres, 0.)
 
     if marker_type is None:
-        front_utils.check_front_type(front_type_string)
+        front_utils.check_front_type_string(front_type_string)
 
-        if front_type_string == front_utils.WARM_FRONT_STRING_ID:
+        if front_type_string == front_utils.WARM_FRONT_STRING:
             marker_type = DEFAULT_WF_MARKER_TYPE
         else:
             marker_type = DEFAULT_CF_MARKER_TYPE
@@ -152,8 +156,9 @@ def plot_polyline(
         longitudes_deg, exact_dimensions=numpy.array([num_points]))
 
     if line_colour is None:
-        front_utils.check_front_type(front_type)
-        if front_type == front_utils.WARM_FRONT_STRING_ID:
+        front_utils.check_front_type_string(front_type)
+
+        if front_type == front_utils.WARM_FRONT_STRING:
             line_colour = DEFAULT_WARM_FRONT_COLOUR
         else:
             line_colour = DEFAULT_COLD_FRONT_COLOUR
@@ -176,7 +181,7 @@ def plot_narr_grid(
     NARR grid.
 
     :param frontal_grid_matrix: See documentation for
-        `front_utils.frontal_grid_to_points`.
+        `front_utils.gridded_labels_to_points`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     :param first_row_in_narr_grid: Row 0 in the subgrid is row
@@ -190,16 +195,16 @@ def plot_narr_grid(
     error_checking.assert_is_numpy_array(frontal_grid_matrix, num_dimensions=2)
 
     error_checking.assert_is_geq_numpy_array(
-        frontal_grid_matrix, numpy.min(front_utils.VALID_INTEGER_IDS)
+        frontal_grid_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
     )
     error_checking.assert_is_leq_numpy_array(
-        frontal_grid_matrix, numpy.max(front_utils.VALID_INTEGER_IDS)
+        frontal_grid_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
     )
 
     colour_map_object, _, colour_bounds = get_colour_map_for_grid()
 
     frontal_grid_matrix = numpy.ma.masked_where(
-        frontal_grid_matrix == front_utils.NO_FRONT_INTEGER_ID,
+        frontal_grid_matrix == front_utils.NO_FRONT_ENUM,
         frontal_grid_matrix)
 
     narr_plotting.plot_xy_grid(

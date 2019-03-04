@@ -11,7 +11,6 @@ N = number of columns in grid (unique x-coordinates at grid points)
 K = number of classes (possible target values)
 """
 
-import copy
 import pickle
 import cv2
 import numpy
@@ -97,10 +96,13 @@ def _check_prediction_images(prediction_matrix, probabilistic):
         error_checking.assert_is_integer_numpy_array(prediction_matrix)
         error_checking.assert_is_numpy_array(
             prediction_matrix, num_dimensions=3)
+
         error_checking.assert_is_geq_numpy_array(
-            prediction_matrix, numpy.min(front_utils.VALID_INTEGER_IDS))
+            prediction_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
+        )
         error_checking.assert_is_leq_numpy_array(
-            prediction_matrix, numpy.max(front_utils.VALID_INTEGER_IDS))
+            prediction_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
+        )
 
 
 def _one_region_to_binary_image(
@@ -121,6 +123,7 @@ def _one_region_to_binary_image(
 
     binary_image_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int)
+
     binary_image_matrix[row_indices_in_region, column_indices_in_region] = 1
     return binary_image_matrix
 
@@ -151,19 +154,22 @@ def _find_endpoints_of_skeleton(binary_image_matrix):
     """
 
     if numpy.sum(binary_image_matrix) == 1:
-        return copy.deepcopy(binary_image_matrix)
+        return binary_image_matrix + 0
 
     filtered_image_matrix = numpy.pad(
         binary_image_matrix, pad_width=2, mode='constant', constant_values=0)
 
     filtered_image_matrix = cv2.filter2D(
         filtered_image_matrix.astype(numpy.uint8), -1,
-        KERNEL_MATRIX_FOR_ENDPOINT_FILTER)
+        KERNEL_MATRIX_FOR_ENDPOINT_FILTER
+    )
     filtered_image_matrix = filtered_image_matrix[2:-2, 2:-2]
 
     endpoint_flag_matrix = numpy.full(binary_image_matrix.shape, 0, dtype=int)
     endpoint_flag_matrix[
-        filtered_image_matrix == FILTERED_VALUE_AT_ENDPOINT] = 1
+        filtered_image_matrix == FILTERED_VALUE_AT_ENDPOINT
+    ] = 1
+
     return endpoint_flag_matrix
 
 
@@ -182,6 +188,7 @@ def _get_skeleton_line_endpoint_length(
     x_length_metres = x_grid_spacing_metres * (
         column_indices[-1] - column_indices[0])
     y_length_metres = y_grid_spacing_metres * (row_indices[-1] - row_indices[0])
+
     return numpy.sqrt(x_length_metres ** 2 + y_length_metres ** 2)
 
 
@@ -199,7 +206,10 @@ def _get_skeleton_line_arc_length(
 
     x_lengths_metres = x_grid_spacing_metres * numpy.diff(column_indices)
     y_lengths_metres = y_grid_spacing_metres * numpy.diff(row_indices)
-    return numpy.sum(numpy.sqrt(x_lengths_metres ** 2 + y_lengths_metres ** 2))
+
+    return numpy.sum(numpy.sqrt(
+        x_lengths_metres ** 2 + y_lengths_metres ** 2
+    ))
 
 
 def _get_skeleton_line_quality(
@@ -227,6 +237,7 @@ def _get_skeleton_line_quality(
         row_indices=row_indices, column_indices=column_indices,
         x_grid_spacing_metres=x_grid_spacing_metres,
         y_grid_spacing_metres=y_grid_spacing_metres)
+
     if endpoint_length_metres < min_endpoint_length_metres:
         return NEGATIVE_SKELETON_LINE_QUALITY
 
@@ -267,7 +278,8 @@ def _get_distance_between_fronts(
     for i in range(num_points_in_first_front):
         shortest_distances_metres[i] = numpy.min(numpy.sqrt(
             (first_x_coords_metres[i] - second_x_coords_metres) ** 2 +
-            (first_y_coords_metres[i] - second_y_coords_metres) ** 2))
+            (first_y_coords_metres[i] - second_y_coords_metres) ** 2
+        ))
 
     return numpy.median(shortest_distances_metres)
 
@@ -288,11 +300,13 @@ def determinize_probabilities(class_probability_matrix, binarization_threshold):
 
     _check_prediction_images(
         prediction_matrix=class_probability_matrix, probabilistic=True)
+
     error_checking.assert_is_geq(binarization_threshold, 0.)
     error_checking.assert_is_leq(binarization_threshold, 1.)
 
     predicted_label_matrix = 1 + numpy.argmax(
-        class_probability_matrix[..., 1:], axis=-1)
+        class_probability_matrix[..., 1:], axis=-1
+    )
 
     no_front_matrix = class_probability_matrix[..., 0] >= binarization_threshold
     no_front_indices_as_tuple = numpy.where(no_front_matrix)
@@ -324,9 +338,11 @@ def images_to_regions(predicted_label_matrix, image_times_unix_sec):
         prediction_matrix=predicted_label_matrix, probabilistic=False)
 
     num_images = predicted_label_matrix.shape[0]
+    these_expected_dim = numpy.array([num_images], dtype=int)
+
     error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        image_times_unix_sec, exact_dimensions=numpy.array([num_images]))
+        image_times_unix_sec, exact_dimensions=these_expected_dim)
 
     region_times_unix_sec = []
     front_types = []
@@ -338,20 +354,23 @@ def images_to_regions(predicted_label_matrix, image_times_unix_sec):
             predicted_label_matrix[i, ...], connectivity=2)
 
         this_num_regions = numpy.max(this_region_matrix)
+
         for j in range(this_num_regions):
             these_row_indices, these_column_indices = numpy.where(
                 this_region_matrix == j + 1)
+
             row_indices_by_region.append(numpy.array(these_row_indices))
             column_indices_by_region.append(numpy.array(these_column_indices))
 
             region_times_unix_sec.append(image_times_unix_sec[i])
             this_integer_front_id = predicted_label_matrix[
-                i, these_row_indices[0], these_column_indices[0]]
+                i, these_row_indices[0], these_column_indices[0]
+            ]
 
-            if this_integer_front_id == front_utils.WARM_FRONT_INTEGER_ID:
-                front_types.append(front_utils.WARM_FRONT_STRING_ID)
+            if this_integer_front_id == front_utils.WARM_FRONT_ENUM:
+                front_types.append(front_utils.WARM_FRONT_STRING)
             else:
-                front_types.append(front_utils.COLD_FRONT_STRING_ID)
+                front_types.append(front_utils.COLD_FRONT_STRING)
 
     predicted_region_dict = {
         front_utils.TIME_COLUMN: region_times_unix_sec,
@@ -359,6 +378,7 @@ def images_to_regions(predicted_label_matrix, image_times_unix_sec):
         ROW_INDICES_COLUMN: row_indices_by_region,
         COLUMN_INDICES_COLUMN: column_indices_by_region
     }
+
     return pandas.DataFrame.from_dict(predicted_region_dict)
 
 
@@ -388,7 +408,8 @@ def regions_to_images(predicted_region_table, num_grid_rows, num_grid_columns):
     for i in range(num_image_times):
         this_time_indices = numpy.where(
             predicted_region_table[front_utils.TIME_COLUMN].values ==
-            image_times_unix_sec[i])[0]
+            image_times_unix_sec[i]
+        )[0]
 
         these_warm_front_row_indices = numpy.array([], dtype=int)
         these_warm_front_column_indices = numpy.array([], dtype=int)
@@ -399,37 +420,39 @@ def regions_to_images(predicted_region_table, num_grid_rows, num_grid_columns):
             this_front_type = predicted_region_table[
                 front_utils.FRONT_TYPE_COLUMN].values[j]
 
-            if this_front_type == front_utils.WARM_FRONT_STRING_ID:
+            if this_front_type == front_utils.WARM_FRONT_STRING:
                 these_warm_front_row_indices = numpy.concatenate((
                     these_warm_front_row_indices,
-                    predicted_region_table[ROW_INDICES_COLUMN].values[j]))
+                    predicted_region_table[ROW_INDICES_COLUMN].values[j]
+                ))
+
                 these_warm_front_column_indices = numpy.concatenate((
                     these_warm_front_column_indices,
-                    predicted_region_table[COLUMN_INDICES_COLUMN].values[j]))
-
+                    predicted_region_table[COLUMN_INDICES_COLUMN].values[j]
+                ))
             else:
                 these_cold_front_row_indices = numpy.concatenate((
                     these_cold_front_row_indices,
-                    predicted_region_table[ROW_INDICES_COLUMN].values[j]))
+                    predicted_region_table[ROW_INDICES_COLUMN].values[j]
+                ))
+
                 these_cold_front_column_indices = numpy.concatenate((
                     these_cold_front_column_indices,
-                    predicted_region_table[COLUMN_INDICES_COLUMN].values[j]))
+                    predicted_region_table[COLUMN_INDICES_COLUMN].values[j]
+                ))
 
-        this_frontal_grid_point_dict = {
-            front_utils.WARM_FRONT_ROW_INDICES_COLUMN:
-                these_warm_front_row_indices,
-            front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN:
+        this_gridded_label_dict = {
+            front_utils.WARM_FRONT_ROWS_COLUMN: these_warm_front_row_indices,
+            front_utils.WARM_FRONT_COLUMNS_COLUMN:
                 these_warm_front_column_indices,
-            front_utils.COLD_FRONT_ROW_INDICES_COLUMN:
-                these_cold_front_row_indices,
-            front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN:
+            front_utils.COLD_FRONT_ROWS_COLUMN: these_cold_front_row_indices,
+            front_utils.COLD_FRONT_COLUMNS_COLUMN:
                 these_cold_front_column_indices
         }
 
-        predicted_label_matrix[i, ...] = (
-            front_utils.frontal_grid_points_to_image(
-                frontal_grid_point_dict=this_frontal_grid_point_dict,
-                num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns))
+        predicted_label_matrix[i, ...] = front_utils.points_to_gridded_labels(
+            gridded_label_dict=this_gridded_label_dict,
+            num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     return predicted_label_matrix
 
@@ -455,14 +478,17 @@ def discard_regions_with_small_area(
 
     grid_cell_area_metres2 = x_grid_spacing_metres * y_grid_spacing_metres
     min_grid_cells_in_region = int(numpy.round(
-        min_area_metres2 / grid_cell_area_metres2))
+        min_area_metres2 / grid_cell_area_metres2
+    ))
 
     num_regions = len(predicted_region_table.index)
     rows_to_drop = []
 
     for i in range(num_regions):
         this_num_grid_cells = len(
-            predicted_region_table[ROW_INDICES_COLUMN].values[i])
+            predicted_region_table[ROW_INDICES_COLUMN].values[i]
+        )
+
         if this_num_grid_cells < min_grid_cells_in_region:
             rows_to_drop.append(i)
 
@@ -490,20 +516,21 @@ def skeletonize_frontal_regions(
     error_checking.assert_is_greater(num_grid_columns, 0)
 
     num_regions = len(predicted_region_table.index)
+
     for i in range(num_regions):
         this_binary_image_matrix = _one_region_to_binary_image(
-            row_indices_in_region=
-            predicted_region_table[ROW_INDICES_COLUMN].values[i],
-            column_indices_in_region=
-            predicted_region_table[COLUMN_INDICES_COLUMN].values[i],
+            row_indices_in_region=predicted_region_table[
+                ROW_INDICES_COLUMN].values[i],
+            column_indices_in_region=predicted_region_table[
+                COLUMN_INDICES_COLUMN].values[i],
             num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
         this_binary_image_matrix = skimage.morphology.thin(
             this_binary_image_matrix).astype(int)
 
         (predicted_region_table[ROW_INDICES_COLUMN].values[i],
-         predicted_region_table[COLUMN_INDICES_COLUMN].values[i]) = (
-             _one_binary_image_to_region(this_binary_image_matrix))
+         predicted_region_table[COLUMN_INDICES_COLUMN].values[i]
+        ) = _one_binary_image_to_region(this_binary_image_matrix)
 
     return predicted_region_table
 
@@ -547,10 +574,10 @@ def find_main_skeletons(
             i + 1, num_regions)
 
         this_binary_region_matrix = _one_region_to_binary_image(
-            row_indices_in_region=
-            predicted_region_table[ROW_INDICES_COLUMN].values[i],
-            column_indices_in_region=
-            predicted_region_table[COLUMN_INDICES_COLUMN].values[i],
+            row_indices_in_region=predicted_region_table[
+                ROW_INDICES_COLUMN].values[i],
+            column_indices_in_region=predicted_region_table[
+                COLUMN_INDICES_COLUMN].values[i],
             num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
         this_binary_endpoint_matrix = _find_endpoints_of_skeleton(
@@ -568,13 +595,14 @@ def find_main_skeletons(
                 this_grid_search_object = a_star_search.GridSearch(
                     binary_region_matrix=this_binary_region_matrix)
 
-                (this_skeleton_rows, this_skeleton_columns
-                ) = a_star_search.run_a_star(
-                    grid_search_object=this_grid_search_object,
-                    start_row=these_endpoint_rows[j],
-                    start_column=these_endpoint_columns[j],
-                    end_row=these_endpoint_rows[k],
-                    end_column=these_endpoint_columns[k])
+                this_skeleton_rows, this_skeleton_columns = (
+                    a_star_search.run_a_star(
+                        grid_search_object=this_grid_search_object,
+                        start_row=these_endpoint_rows[j],
+                        start_column=these_endpoint_columns[j],
+                        end_row=these_endpoint_rows[k],
+                        end_column=these_endpoint_columns[k])
+                )
 
                 if this_skeleton_rows is None:
                     continue
@@ -597,6 +625,7 @@ def find_main_skeletons(
             i] = this_main_skeleton_rows
         predicted_region_table[COLUMN_INDICES_COLUMN].values[
             i] = this_main_skeleton_columns
+
         if this_main_skeleton_rows is None:
             rows_to_drop.append(i)
 
@@ -636,12 +665,14 @@ def project_polylines_latlng_to_narr(polyline_table):
                     front_utils.LATITUDES_COLUMN].values[i],
                 longitudes_deg=polyline_table[
                     front_utils.LONGITUDES_COLUMN].values[i],
-                model_name=nwp_model_utils.NARR_MODEL_NAME))
+                model_name=nwp_model_utils.NARR_MODEL_NAME)
+        )
 
     argument_dict = {
         X_COORDS_COLUMN: x_coords_by_front_metres,
         Y_COORDS_COLUMN: y_coords_by_front_metres
     }
+
     return polyline_table.assign(**argument_dict)
 
 
@@ -668,6 +699,7 @@ def convert_regions_rowcol_to_narr_xy(
     """
 
     error_checking.assert_is_boolean(are_predictions_from_fcn)
+
     if are_predictions_from_fcn:
         row_offset = ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT
         column_offset = ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT
@@ -677,7 +709,8 @@ def convert_regions_rowcol_to_narr_xy(
 
     grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
         nwp_model_utils.get_xy_grid_point_matrices(
-            model_name=nwp_model_utils.NARR_MODEL_NAME))
+            model_name=nwp_model_utils.NARR_MODEL_NAME)
+    )
 
     num_regions = len(predicted_region_table.index)
     x_coords_by_region_metres = [numpy.array([], dtype=int)] * num_regions
@@ -685,9 +718,12 @@ def convert_regions_rowcol_to_narr_xy(
 
     for i in range(num_regions):
         these_row_indices = row_offset + numpy.array(
-            predicted_region_table[ROW_INDICES_COLUMN].values[i]).astype(int)
+            predicted_region_table[ROW_INDICES_COLUMN].values[i]
+        ).astype(int)
+
         these_column_indices = column_offset + numpy.array(
-            predicted_region_table[COLUMN_INDICES_COLUMN].values[i]).astype(int)
+            predicted_region_table[COLUMN_INDICES_COLUMN].values[i]
+        ).astype(int)
 
         x_coords_by_region_metres[i] = grid_point_x_matrix_metres[
             these_row_indices, these_column_indices]
@@ -698,6 +734,7 @@ def convert_regions_rowcol_to_narr_xy(
         X_COORDS_COLUMN: x_coords_by_region_metres,
         Y_COORDS_COLUMN: y_coords_by_region_metres
     }
+
     return predicted_region_table.assign(**argument_dict)
 
 
@@ -754,7 +791,8 @@ def get_binary_contingency_table(
                     second_x_coords_metres=
                     predicted_region_table[X_COORDS_COLUMN].values[j],
                     second_y_coords_metres=
-                    predicted_region_table[Y_COORDS_COLUMN].values[j])
+                    predicted_region_table[Y_COORDS_COLUMN].values[j]
+                )
             except:
                 print actual_polyline_table[X_COORDS_COLUMN].values[i]
                 print actual_polyline_table[Y_COORDS_COLUMN].values[i]
@@ -788,7 +826,8 @@ def get_binary_contingency_table(
                 first_x_coords_metres=
                 actual_polyline_table[X_COORDS_COLUMN].values[j],
                 first_y_coords_metres=
-                actual_polyline_table[Y_COORDS_COLUMN].values[j])
+                actual_polyline_table[Y_COORDS_COLUMN].values[j]
+            )
 
             # this_distance_metres = _get_distance_between_fronts(
             #     first_x_coords_metres=
@@ -845,7 +884,7 @@ def get_row_normalized_contingency_table(
     predicted_front_times_unix_sec = predicted_region_table[
         front_utils.TIME_COLUMN].values
 
-    num_classes = 1 + len(front_utils.VALID_STRING_IDS)
+    num_classes = 1 + len(front_utils.VALID_FRONT_TYPE_STRINGS)
     row_normalized_ct_as_matrix = numpy.full(
         (num_classes, num_classes), 0, dtype=int)
 
@@ -873,33 +912,39 @@ def get_row_normalized_contingency_table(
                 first_x_coords_metres=
                 actual_polyline_table[X_COORDS_COLUMN].values[j],
                 first_y_coords_metres=
-                actual_polyline_table[Y_COORDS_COLUMN].values[j])
+                actual_polyline_table[Y_COORDS_COLUMN].values[j]
+            )
 
             these_distances_to_actual_metres.append(this_distance_metres)
 
         if len(these_distances_to_actual_metres):
             these_distances_to_actual_metres = numpy.array(
                 these_distances_to_actual_metres)
+
             this_min_distance = numpy.min(these_distances_to_actual_metres)
             this_actual_front_index = these_actual_front_indices[
-                numpy.argmin(these_distances_to_actual_metres)]
+                numpy.argmin(these_distances_to_actual_metres)
+            ]
         else:
             this_min_distance = numpy.inf
 
-        this_predicted_front_type_int = front_utils.string_id_to_integer(
-            predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values[i])
+        this_predicted_type_enum = front_utils.front_type_string_to_int(
+            predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values[i]
+        )
 
         if this_min_distance > neigh_distance_metres:
             row_normalized_ct_as_matrix[
-                this_predicted_front_type_int,
-                front_utils.NO_FRONT_INTEGER_ID] += 1
+                this_predicted_type_enum, front_utils.NO_FRONT_ENUM
+            ] += 1
         else:
-            this_actual_front_type_int = front_utils.string_id_to_integer(
+            this_actual_type_enum = front_utils.front_type_string_to_int(
                 actual_polyline_table[front_utils.FRONT_TYPE_COLUMN].values[
-                    this_actual_front_index])
+                    this_actual_front_index]
+            )
 
             row_normalized_ct_as_matrix[
-                this_predicted_front_type_int, this_actual_front_type_int] += 1
+                this_predicted_type_enum, this_actual_type_enum
+            ] += 1
 
     row_normalized_ct_as_matrix = row_normalized_ct_as_matrix.astype(float)
 
@@ -909,7 +954,8 @@ def get_row_normalized_contingency_table(
         else:
             row_normalized_ct_as_matrix[k, :] = (
                 row_normalized_ct_as_matrix[k, :] /
-                numpy.sum(row_normalized_ct_as_matrix[k, :]))
+                numpy.sum(row_normalized_ct_as_matrix[k, :])
+            )
 
     return row_normalized_ct_as_matrix[1:, :]
 
@@ -940,13 +986,14 @@ def get_column_normalized_contingency_table(
     predicted_front_times_unix_sec = predicted_region_table[
         front_utils.TIME_COLUMN].values
 
-    num_classes = 1 + len(front_utils.VALID_STRING_IDS)
+    num_classes = 1 + len(front_utils.VALID_FRONT_TYPE_STRINGS)
     column_normalized_ct_as_matrix = numpy.full(
         (num_classes, num_classes), 0, dtype=int)
 
     for i in range(num_actual_fronts):
         these_predicted_front_indices = numpy.where(
-            predicted_front_times_unix_sec == actual_front_times_unix_sec[i])[0]
+            predicted_front_times_unix_sec == actual_front_times_unix_sec[i]
+        )[0]
         these_distances_to_predicted_metres = []
 
         for j in these_predicted_front_indices:
@@ -958,35 +1005,42 @@ def get_column_normalized_contingency_table(
                 second_x_coords_metres=
                 predicted_region_table[X_COORDS_COLUMN].values[j],
                 second_y_coords_metres=
-                predicted_region_table[Y_COORDS_COLUMN].values[j])
+                predicted_region_table[Y_COORDS_COLUMN].values[j]
+            )
 
             these_distances_to_predicted_metres.append(this_distance_metres)
 
         if len(these_distances_to_predicted_metres):
             these_distances_to_predicted_metres = numpy.array(
                 these_distances_to_predicted_metres)
+
             this_min_distance = numpy.min(these_distances_to_predicted_metres)
             this_predicted_front_index = these_predicted_front_indices[
-                numpy.argmin(these_distances_to_predicted_metres)]
+                numpy.argmin(these_distances_to_predicted_metres)
+            ]
         else:
             this_min_distance = numpy.inf
 
-        this_actual_front_type_int = front_utils.string_id_to_integer(
-            actual_polyline_table[front_utils.FRONT_TYPE_COLUMN].values[i])
+        this_actual_type_enum = front_utils.front_type_string_to_int(
+            actual_polyline_table[front_utils.FRONT_TYPE_COLUMN].values[i]
+        )
 
         if this_min_distance > neigh_distance_metres:
             column_normalized_ct_as_matrix[
-                front_utils.NO_FRONT_INTEGER_ID,
-                this_actual_front_type_int] += 1
+                front_utils.NO_FRONT_ENUM, this_actual_type_enum
+            ] += 1
         else:
-            this_predicted_front_type_int = front_utils.string_id_to_integer(
+            this_predicted_type_enum = front_utils.front_type_string_to_int(
                 predicted_region_table[front_utils.FRONT_TYPE_COLUMN].values[
-                    this_predicted_front_index])
+                    this_predicted_front_index]
+            )
 
             column_normalized_ct_as_matrix[
-                this_predicted_front_type_int, this_actual_front_type_int] += 1
+                this_predicted_type_enum, this_actual_type_enum
+            ] += 1
 
-    column_normalized_ct_as_matrix = column_normalized_ct_as_matrix.astype(float)
+    column_normalized_ct_as_matrix = column_normalized_ct_as_matrix.astype(
+        float)
 
     for k in range(1, num_classes):
         if numpy.sum(column_normalized_ct_as_matrix[:, k]) == 0:
@@ -994,7 +1048,8 @@ def get_column_normalized_contingency_table(
         else:
             column_normalized_ct_as_matrix[:, k] = (
                 column_normalized_ct_as_matrix[:, k] /
-                numpy.sum(column_normalized_ct_as_matrix[:, k]))
+                numpy.sum(column_normalized_ct_as_matrix[:, k])
+            )
 
     return column_normalized_ct_as_matrix[:, 1:]
 
@@ -1141,6 +1196,7 @@ def write_evaluation_results(
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(evaluation_dict, pickle_file_handle)
     pickle_file_handle.close()
@@ -1162,12 +1218,13 @@ def read_evaluation_results(pickle_file_name):
 
     expected_keys_as_set = set(EVALUATION_DICT_KEYS)
     actual_keys_as_set = set(evaluation_dict.keys())
+
     if not set(expected_keys_as_set).issubset(actual_keys_as_set):
         error_string = (
             '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
             '("{1:s}") are listed below.  Some expected keys were not found.'
-            '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
-                                evaluation_dict.keys())
+            '\n{2:s}\n'
+        ).format(EVALUATION_DICT_KEYS, pickle_file_name, evaluation_dict.keys())
 
         raise ValueError(error_string)
 
@@ -1186,6 +1243,7 @@ def write_predictions_and_obs(
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(predicted_region_table, pickle_file_handle)
     pickle.dump(actual_polyline_table, pickle_file_handle)

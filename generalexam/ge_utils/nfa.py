@@ -123,20 +123,26 @@ def get_thermal_front_param(
         x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres)
 
     grad_magnitude_matrix_kelvins_m01 = numpy.sqrt(
-        x_grad_matrix_kelvins_m01 ** 2 + y_grad_matrix_kelvins_m01 ** 2)
-    (x_grad_grad_matrix_kelvins_m02, y_grad_grad_matrix_kelvins_m02
-    ) = _get_2d_gradient(
-        field_matrix=grad_magnitude_matrix_kelvins_m01,
-        x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres)
+        x_grad_matrix_kelvins_m01 ** 2 + y_grad_matrix_kelvins_m01 ** 2
+    )
+
+    x_grad_grad_matrix_kelvins_m02, y_grad_grad_matrix_kelvins_m02 = (
+        _get_2d_gradient(
+            field_matrix=grad_magnitude_matrix_kelvins_m01,
+            x_spacing_metres=x_spacing_metres,
+            y_spacing_metres=y_spacing_metres)
+    )
 
     first_matrix = (
         -x_grad_grad_matrix_kelvins_m02 *
-        x_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01)
+        x_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01
+    )
     first_matrix[numpy.isnan(first_matrix)] = 0.
 
     second_matrix = (
         -y_grad_grad_matrix_kelvins_m02 *
-        y_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01)
+        y_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01
+    )
     second_matrix[numpy.isnan(second_matrix)] = 0.
 
     return first_matrix + second_matrix
@@ -173,7 +179,8 @@ def project_wind_to_thermal_gradient(
         v_matrix_grid_relative_m_s01)
     error_checking.assert_is_numpy_array(
         v_matrix_grid_relative_m_s01,
-        exact_dimensions=numpy.array(u_matrix_grid_relative_m_s01.shape))
+        exact_dimensions=numpy.array(u_matrix_grid_relative_m_s01.shape)
+    )
 
     error_checking.assert_is_numpy_array_without_nan(
         thermal_field_matrix_kelvins)
@@ -181,23 +188,27 @@ def project_wind_to_thermal_gradient(
         thermal_field_matrix_kelvins, 0.)
     error_checking.assert_is_numpy_array(
         thermal_field_matrix_kelvins,
-        exact_dimensions=numpy.array(u_matrix_grid_relative_m_s01.shape))
+        exact_dimensions=numpy.array(u_matrix_grid_relative_m_s01.shape)
+    )
 
     x_grad_matrix_kelvins_m01, y_grad_matrix_kelvins_m01 = _get_2d_gradient(
         field_matrix=thermal_field_matrix_kelvins,
         x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres)
-    y_grad_matrix_kelvins_m01 = y_grad_matrix_kelvins_m01
+
+    # y_grad_matrix_kelvins_m01 = y_grad_matrix_kelvins_m01
     grad_magnitude_matrix_kelvins_m01 = numpy.sqrt(
         x_grad_matrix_kelvins_m01 ** 2 + y_grad_matrix_kelvins_m01 ** 2)
 
     first_matrix = (
         u_matrix_grid_relative_m_s01 *
-        x_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01)
+        x_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01
+    )
     first_matrix[numpy.isnan(first_matrix)] = 0.
 
     second_matrix = (
         v_matrix_grid_relative_m_s01 *
-        y_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01)
+        y_grad_matrix_kelvins_m01 / grad_magnitude_matrix_kelvins_m01
+    )
     second_matrix[numpy.isnan(second_matrix)] = 0.
 
     return first_matrix + second_matrix
@@ -231,7 +242,8 @@ def get_locating_variable(
         projected_velocity_matrix_m_s01)
     error_checking.assert_is_numpy_array(
         projected_velocity_matrix_m_s01,
-        exact_dimensions=numpy.array(tfp_matrix_kelvins_m02.shape))
+        exact_dimensions=numpy.array(tfp_matrix_kelvins_m02.shape)
+    )
 
     return (
         numpy.absolute(tfp_matrix_kelvins_m02) * projected_velocity_matrix_m_s01
@@ -257,7 +269,7 @@ def get_front_types(locating_var_matrix_m01_s01,
         >= the [q]th percentile of all non-negative values in the grid, where
         q = `cold_front_percentile`.
     :return: predicted_label_matrix: M-by-N numpy array, where the value at each
-        grid cell is from the list `front_utils.VALID_INTEGER_IDS`.
+        grid cell is in `front_utils.VALID_FRONT_TYPE_ENUMS`.
     """
 
     error_checking.assert_is_numpy_array_without_nan(
@@ -272,20 +284,23 @@ def get_front_types(locating_var_matrix_m01_s01,
 
     warm_front_threshold_m01_s01 = numpy.percentile(
         locating_var_matrix_m01_s01[locating_var_matrix_m01_s01 <= 0],
-        100 - warm_front_percentile)
+        100 - warm_front_percentile
+    )
     cold_front_threshold_m01_s01 = numpy.percentile(
         locating_var_matrix_m01_s01[locating_var_matrix_m01_s01 >= 0],
-        cold_front_percentile)
+        cold_front_percentile
+    )
 
     predicted_label_matrix = numpy.full(
-        locating_var_matrix_m01_s01.shape, front_utils.NO_FRONT_INTEGER_ID,
+        locating_var_matrix_m01_s01.shape, front_utils.NO_FRONT_ENUM,
         dtype=int)
+
     predicted_label_matrix[
         locating_var_matrix_m01_s01 <= warm_front_threshold_m01_s01
-    ] = front_utils.WARM_FRONT_INTEGER_ID
+    ] = front_utils.WARM_FRONT_ENUM
     predicted_label_matrix[
         locating_var_matrix_m01_s01 >= cold_front_threshold_m01_s01
-    ] = front_utils.COLD_FRONT_INTEGER_ID
+    ] = front_utils.COLD_FRONT_ENUM
 
     return predicted_label_matrix
 
@@ -348,7 +363,7 @@ def write_gridded_predictions(
 
     :param pickle_file_name: Path to output file.
     :param predicted_label_matrix: T-by-M-by-N numpy array, where the value at
-        each grid cell is from the list `front_utils.VALID_INTEGER_IDS`.
+        each grid cell is from the list `front_utils.VALID_FRONT_TYPE_ENUMS`.
     :param valid_times_unix_sec: length-T numpy array of valid times.
     :param pressure_level_mb: Pressure level (millibars).
     :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).
@@ -359,7 +374,7 @@ def write_gridded_predictions(
     :param cutoff_radius_pixels: Same.
     :param warm_front_percentile: See doc for `get_front_types`.
     :param cold_front_percentile: Same.
-    :param num_closing_iters: See doc for `front_utils.close_frontal_image`.
+    :param num_closing_iters: See doc for `front_utils.close_gridded_labels`.
     """
 
     ml_utils.check_narr_mask(narr_mask_matrix)
@@ -369,17 +384,22 @@ def write_gridded_predictions(
         predicted_label_matrix, num_dimensions=3)
     error_checking.assert_is_numpy_array(
         predicted_label_matrix[0, ...],
-        exact_dimensions=numpy.array(narr_mask_matrix.shape))
+        exact_dimensions=numpy.array(narr_mask_matrix.shape)
+    )
 
     error_checking.assert_is_geq_numpy_array(
-        predicted_label_matrix, numpy.min(front_utils.VALID_INTEGER_IDS))
+        predicted_label_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
+    )
     error_checking.assert_is_leq_numpy_array(
-        predicted_label_matrix, numpy.max(front_utils.VALID_INTEGER_IDS))
+        predicted_label_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
+    )
 
     num_times = predicted_label_matrix.shape[0]
+    these_expected_dim = numpy.array([num_times], dtype=int)
+
     error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        valid_times_unix_sec, exact_dimensions=numpy.array([num_times]))
+        valid_times_unix_sec, exact_dimensions=these_expected_dim)
 
     metadata_dict = {
         VALID_TIMES_KEY: valid_times_unix_sec,
@@ -393,6 +413,7 @@ def write_gridded_predictions(
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(predicted_label_matrix, pickle_file_handle)
     pickle.dump(metadata_dict, pickle_file_handle)
@@ -504,6 +525,7 @@ def write_ensembled_predictions(
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(ensemble_dict, pickle_file_handle)
     pickle_file_handle.close()

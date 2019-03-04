@@ -8,10 +8,11 @@ from generalexam.plotting import narr_plotting
 
 DEFAULT_GRID_OPACITY = 0.5
 
-ANY_FRONT_STRING_ID = 'any'
+ANY_FRONT_STRING = 'any'
 VALID_STRING_IDS = [
-    ANY_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID,
-    front_utils.COLD_FRONT_STRING_ID]
+    ANY_FRONT_STRING, front_utils.WARM_FRONT_STRING,
+    front_utils.COLD_FRONT_STRING
+]
 
 
 def _check_front_type(front_string_id):
@@ -22,10 +23,12 @@ def _check_front_type(front_string_id):
     """
 
     error_checking.assert_is_string(front_string_id)
+
     if front_string_id not in VALID_STRING_IDS:
         error_string = (
-            '\n\n{0:s}\nValid front types (listed above) do not include '
-            '"{1:s}".').format(VALID_STRING_IDS, front_string_id)
+            '\n{0:s}\nValid front types (listed above) do not include "{1:s}".'
+        ).format(VALID_STRING_IDS, front_string_id)
+
         raise ValueError(error_string)
 
 
@@ -176,9 +179,9 @@ def plot_narr_grid(
 
     _check_front_type(front_string_id)
 
-    if front_string_id == ANY_FRONT_STRING_ID:
+    if front_string_id == ANY_FRONT_STRING:
         colour_map_object, _, colour_bounds = get_any_front_colour_map()
-    elif front_string_id == front_utils.WARM_FRONT_STRING_ID:
+    elif front_string_id == front_utils.WARM_FRONT_STRING:
         colour_map_object, _, colour_bounds = get_warm_front_colour_map()
     else:
         colour_map_object, _, colour_bounds = get_cold_front_colour_map()

@@ -26,6 +26,10 @@ from generalexam.ge_utils import front_utils
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 
+NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
+    model_name=nwp_model_utils.NARR_MODEL_NAME
+)[0]
+
 # Subset of NARR grid for FCN (fully convolutional net).  This gives dimensions
 # of 272 x 336, which are integer-divisible by 2 many times, which obviates the
 # need for padding and cropping layers.
@@ -72,11 +76,13 @@ def _check_full_narr_matrix(full_narr_matrix):
 
     expected_dimensions = (
         full_narr_matrix.shape[0], num_rows_in_narr, num_columns_in_narr)
+
     for i in range(3, num_dimensions):
         expected_dimensions += (full_narr_matrix.shape[i],)
 
+    expected_dimensions = numpy.array(expected_dimensions, dtype=int)
     error_checking.assert_is_numpy_array(
-        full_narr_matrix, exact_dimensions=numpy.array(expected_dimensions))
+        full_narr_matrix, exact_dimensions=expected_dimensions)
 
 
 def _check_predictor_matrix(
@@ -109,11 +115,11 @@ def _check_target_matrix(target_matrix, assert_binary=False, num_dimensions=3):
 
     :param target_matrix: numpy array of targets.  Dimensions may be E x M x N
         or just length E (one-dimensional).  If matrix is binary, there are 2
-        possible entries (both integers): `front_utils.NO_FRONT_INTEGER_ID` and
-        `front_utils.ANY_FRONT_INTEGER_ID`.  If matrix is multi-class, there are
-        3 possible entries (all integers): `front_utils.NO_FRONT_INTEGER_ID`,
-        `front_utils.COLD_FRONT_INTEGER_ID`, and
-        `front_utils.WARM_FRONT_INTEGER_ID`.
+        possible entries (both integers): `front_utils.NO_FRONT_ENUM` and
+        `front_utils.ANY_FRONT_ENUM`.  If matrix is multi-class, there are
+        3 possible entries (all integers): `front_utils.NO_FRONT_ENUM`,
+        `front_utils.COLD_FRONT_ENUM`, and
+        `front_utils.WARM_FRONT_ENUM`.
     :param assert_binary: Boolean flag.  If assert_binary = True and this method
         finds a non-binary element, it will error out.
     :param num_dimensions: Number of dimensions expected in `target_matrix`
@@ -125,16 +131,16 @@ def _check_target_matrix(target_matrix, assert_binary=False, num_dimensions=3):
         target_matrix, num_dimensions=num_dimensions)
 
     error_checking.assert_is_geq_numpy_array(
-        target_matrix, front_utils.NO_FRONT_INTEGER_ID)
+        target_matrix, front_utils.NO_FRONT_ENUM)
 
     if assert_binary:
         error_checking.assert_is_leq_numpy_array(
-            target_matrix, front_utils.ANY_FRONT_INTEGER_ID)
+            target_matrix, front_utils.ANY_FRONT_ENUM)
     else:
         error_checking.assert_is_leq_numpy_array(
             target_matrix,
-            max([front_utils.COLD_FRONT_INTEGER_ID,
-                 front_utils.WARM_FRONT_INTEGER_ID]))
+            max([front_utils.COLD_FRONT_ENUM, front_utils.WARM_FRONT_ENUM])
+        )
 
 
 def _check_predictor_and_target_matrices(
@@ -189,6 +195,7 @@ def _check_downsizing_args(
         predictor_matrix=predictor_matrix, target_matrix=target_matrix,
         allow_nan_predictors=False, assert_binary_target_matrix=False,
         num_target_dimensions=3)
+
     error_checking.assert_is_boolean(test_mode)
 
     num_rows_orig = predictor_matrix.shape[1]
@@ -293,7 +300,8 @@ def _downsize_predictor_images(
 
     pad_width_input_arg = (
         (0, 0), (num_padding_rows_at_top, num_padding_rows_at_bottom),
-        (num_padding_columns_at_left, num_padding_columns_at_right))
+        (num_padding_columns_at_left, num_padding_columns_at_right)
+    )
 
     num_dimensions = len(predictor_matrix.shape)
     for _ in range(3, num_dimensions):
@@ -319,14 +327,16 @@ def _class_fractions_to_num_points(class_fractions, num_points_total):
     num_points_by_class = numpy.full(num_classes, -1, dtype=int)
 
     for i in range(num_classes - 1):
-        num_points_by_class[i] = int(
-            numpy.round(class_fractions[i] * num_points_total))
+        num_points_by_class[i] = int(numpy.round(
+            class_fractions[i] * num_points_total
+        ))
         num_points_by_class[i] = max([num_points_by_class[i], 1])
 
         num_points_left = num_points_total - numpy.sum(num_points_by_class[:i])
         num_classes_left = (num_classes - 1) - i
         num_points_by_class[i] = min(
-            [num_points_by_class[i], num_points_left - num_classes_left])
+            [num_points_by_class[i], num_points_left - num_classes_left]
+        )
 
     num_points_by_class[-1] = num_points_total - numpy.sum(
         num_points_by_class[:-1])
@@ -343,6 +353,7 @@ def _check_normalization_type(normalization_type_string):
     """
 
     error_checking.assert_is_string(normalization_type_string)
+
     if normalization_type_string not in VALID_NORM_TYPE_STRINGS:
         error_string = (
             '\n{0:s}\nValid normalization types (listed above) do not include'
@@ -366,9 +377,12 @@ def check_narr_mask(mask_matrix):
     error_checking.assert_is_integer_numpy_array(mask_matrix)
     error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
     error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
+
+    expected_dimensions = numpy.array(
+        [num_grid_rows, num_grid_columns], dtype=int)
+
     error_checking.assert_is_numpy_array(
-        mask_matrix,
-        exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
+        mask_matrix, exact_dimensions=expected_dimensions)
 
 
 def get_class_weight_dict(class_frequencies):
@@ -391,11 +405,13 @@ def get_class_weight_dict(class_frequencies):
 
     sum_of_class_frequencies = numpy.sum(class_frequencies)
     absolute_diff = numpy.absolute(sum_of_class_frequencies - 1.)
+
     if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
         error_string = (
-            '\n\n{0:s}\nSum of class frequencies (shown above) should be 1.  '
-            'Instead, got {1:.4f}.').format(
-                str(class_frequencies), sum_of_class_frequencies)
+            '\n{0:s}\nSum of class frequencies (shown above) should be 1.  '
+            'Instead, got {1:.4f}.'
+        ).format(str(class_frequencies), sum_of_class_frequencies)
+
         raise ValueError(error_string)
 
     class_weights = 1. / class_frequencies
@@ -404,6 +420,7 @@ def get_class_weight_dict(class_frequencies):
 
     for k in range(len(class_weights)):
         class_weight_dict.update({k: class_weights[k]})
+
     return class_weight_dict
 
 
@@ -446,6 +463,7 @@ def normalize_predictors(
     _check_predictor_matrix(
         predictor_matrix, allow_nan=True, min_num_dimensions=4,
         max_num_dimensions=5)
+
     _check_normalization_type(normalization_type_string)
 
     num_examples = predictor_matrix.shape[0]
@@ -600,38 +618,43 @@ def check_downsized_examples(
 
     num_examples = predictor_matrix.shape[0]
     num_predictor_dimensions = len(predictor_matrix.shape)
+
     if num_predictor_dimensions > 3:
         num_predictor_variables = predictor_matrix.shape[-1]
     else:
         num_predictor_variables = 1
 
+    these_expected_dim = numpy.array([num_examples], dtype=int)
+
     error_checking.assert_is_integer_numpy_array(target_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        target_times_unix_sec, exact_dimensions=numpy.array([num_examples]))
+        target_times_unix_sec, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_integer_numpy_array(center_grid_rows)
     error_checking.assert_is_geq_numpy_array(center_grid_rows, 0)
     error_checking.assert_is_numpy_array(
-        center_grid_rows, exact_dimensions=numpy.array([num_examples]))
+        center_grid_rows, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_integer_numpy_array(center_grid_columns)
     error_checking.assert_is_geq_numpy_array(center_grid_columns, 0)
     error_checking.assert_is_numpy_array(
-        center_grid_columns, exact_dimensions=numpy.array([num_examples]))
+        center_grid_columns, exact_dimensions=these_expected_dim)
+
+    these_expected_dim = numpy.array([num_predictor_variables], dtype=int)
 
     error_checking.assert_is_string_list(predictor_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(predictor_names),
-        exact_dimensions=numpy.array([num_predictor_variables]))
+        numpy.array(predictor_names), exact_dimensions=these_expected_dim)
 
     if num_predictor_dimensions == 5:
         num_time_steps = predictor_matrix.shape[3]
+        these_expected_dim = numpy.array(
+            [num_examples, num_time_steps], dtype=int)
 
         error_checking.assert_is_integer_numpy_array(
             predictor_time_matrix_unix_sec)
         error_checking.assert_is_numpy_array(
-            predictor_time_matrix_unix_sec,
-            exact_dimensions=numpy.array([num_examples, num_time_steps]))
+            predictor_time_matrix_unix_sec, exact_dimensions=these_expected_dim)
 
 
 def sample_target_points(
@@ -671,11 +694,13 @@ def sample_target_points(
 
     sum_of_class_fractions = numpy.sum(class_fractions)
     absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
+
     if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
         error_string = (
-            '\n\n{0:s}\nSum of class fractions (shown above) should be 1.  '
-            'Instead, got {1:.4f}.').format(
-                str(class_fractions), sum_of_class_fractions)
+            '\n{0:s}\nSum of class fractions (shown above) should be 1.  '
+            'Instead, got {1:.4f}.'
+        ).format(str(class_fractions), sum_of_class_fractions)
+
         raise ValueError(error_string)
 
     _check_target_matrix(
@@ -691,7 +716,8 @@ def sample_target_points(
     error_checking.assert_is_leq_numpy_array(mask_matrix_2d, 1)
     error_checking.assert_is_numpy_array(
         mask_matrix_2d,
-        exact_dimensions=numpy.array(target_matrix.shape[1:], dtype=int))
+        exact_dimensions=numpy.array(target_matrix.shape[1:], dtype=int)
+    )
 
     mask_matrix = numpy.expand_dims(mask_matrix_2d, 0)
     mask_matrix = numpy.tile(mask_matrix, (target_matrix.shape[0], 1, 1))
@@ -713,6 +739,7 @@ def sample_target_points(
         this_num_examples_unmasked = numpy.sum(target_matrix == i)
         this_num_examples_masked = numpy.sum(
             numpy.logical_and(target_matrix == i, mask_matrix == 1))
+
         print (
             'Number of examples for class {0:d} before mask = {1:d} ... after '
             'mask = {2:d}'
@@ -747,6 +774,7 @@ def sample_target_points(
     if numpy.any(num_points_found_by_class < num_points_to_sample_by_class):
         fraction_of_desired_num_by_class = num_points_found_by_class.astype(
             float) / num_points_to_sample_by_class
+
         num_points_to_sample = int(numpy.floor(
             num_points_to_sample * numpy.min(fraction_of_desired_num_by_class)))
 
@@ -784,10 +812,12 @@ def sample_target_points(
 
             row_indices_by_time[i] = numpy.concatenate((
                 row_indices_by_time[i],
-                row_indices_by_class[j][this_time_indices]))
+                row_indices_by_class[j][this_time_indices]
+            ))
             column_indices_by_time[i] = numpy.concatenate((
                 column_indices_by_time[i],
-                column_indices_by_class[j][this_time_indices]))
+                column_indices_by_class[j][this_time_indices]
+            ))
 
     return {
         ROW_INDICES_BY_TIME_KEY: row_indices_by_time,
@@ -819,37 +849,42 @@ def front_table_to_images(
 
     if frontal_grid_table.empty:
         return numpy.full(
-            (1, num_rows_per_image, num_columns_per_image), 0, dtype=int)
+            (1, num_rows_per_image, num_columns_per_image), 0, dtype=int
+        )
 
     num_times = len(frontal_grid_table.index)
     frontal_grid_matrix = None
 
     for i in range(num_times):
-        this_frontal_grid_dict = {
-            front_utils.WARM_FRONT_ROW_INDICES_COLUMN: frontal_grid_table[
-                front_utils.WARM_FRONT_ROW_INDICES_COLUMN].values[i],
-            front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN: frontal_grid_table[
-                front_utils.WARM_FRONT_COLUMN_INDICES_COLUMN].values[i],
-            front_utils.COLD_FRONT_ROW_INDICES_COLUMN: frontal_grid_table[
-                front_utils.COLD_FRONT_ROW_INDICES_COLUMN].values[i],
-            front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN: frontal_grid_table[
-                front_utils.COLD_FRONT_COLUMN_INDICES_COLUMN].values[i]
+        this_gridded_front_dict = {
+            front_utils.WARM_FRONT_ROWS_COLUMN: frontal_grid_table[
+                front_utils.WARM_FRONT_ROWS_COLUMN].values[i],
+
+            front_utils.WARM_FRONT_COLUMNS_COLUMN: frontal_grid_table[
+                front_utils.WARM_FRONT_COLUMNS_COLUMN].values[i],
+
+            front_utils.COLD_FRONT_ROWS_COLUMN: frontal_grid_table[
+                front_utils.COLD_FRONT_ROWS_COLUMN].values[i],
+
+            front_utils.COLD_FRONT_COLUMNS_COLUMN: frontal_grid_table[
+                front_utils.COLD_FRONT_COLUMNS_COLUMN].values[i]
         }
 
-        this_frontal_grid_matrix = front_utils.frontal_grid_points_to_image(
-            frontal_grid_point_dict=this_frontal_grid_dict,
+        this_gridded_front_matrix = front_utils.points_to_gridded_labels(
+            gridded_label_dict=this_gridded_front_dict,
             num_grid_rows=num_rows_per_image,
             num_grid_columns=num_columns_per_image)
 
-        this_frontal_grid_matrix = numpy.reshape(
-            this_frontal_grid_matrix,
-            (1, num_rows_per_image, num_columns_per_image))
+        this_gridded_front_matrix = numpy.reshape(
+            this_gridded_front_matrix,
+            (1, num_rows_per_image, num_columns_per_image)
+        )
 
         if frontal_grid_matrix is None:
-            frontal_grid_matrix = copy.deepcopy(this_frontal_grid_matrix)
+            frontal_grid_matrix = copy.deepcopy(this_gridded_front_matrix)
         else:
             frontal_grid_matrix = numpy.concatenate(
-                (frontal_grid_matrix, this_frontal_grid_matrix), axis=0)
+                (frontal_grid_matrix, this_gridded_front_matrix), axis=0)
 
     return frontal_grid_matrix
 
@@ -871,11 +906,12 @@ def binarize_front_images(frontal_grid_matrix):
     _check_target_matrix(frontal_grid_matrix, assert_binary=False)
 
     frontal_grid_matrix[
-        frontal_grid_matrix == front_utils.WARM_FRONT_INTEGER_ID
-        ] = front_utils.ANY_FRONT_INTEGER_ID
+        frontal_grid_matrix == front_utils.WARM_FRONT_ENUM
+    ] = front_utils.ANY_FRONT_ENUM
+
     frontal_grid_matrix[
-        frontal_grid_matrix == front_utils.COLD_FRONT_INTEGER_ID
-        ] = front_utils.ANY_FRONT_INTEGER_ID
+        frontal_grid_matrix == front_utils.COLD_FRONT_ENUM
+    ] = front_utils.ANY_FRONT_ENUM
 
     return frontal_grid_matrix
 
@@ -895,18 +931,23 @@ def dilate_ternary_target_images(
     _check_target_matrix(target_matrix, assert_binary=False, num_dimensions=3)
     error_checking.assert_is_boolean(verbose)
 
-    dilation_kernel_matrix = front_utils.buffer_distance_to_narr_mask(
-        dilation_distance_metres).astype(int)
+    dilation_mask_matrix = front_utils.buffer_distance_to_dilation_mask(
+        buffer_distance_metres=dilation_distance_metres,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES
+    ).astype(int)
 
     num_times = target_matrix.shape[0]
+
     for i in range(num_times):
         if verbose:
-            print ('Dilating 3-class target image at {0:d}th of {1:d} time '
-                   'steps...').format(i + 1, num_times)
+            print (
+                'Dilating 3-class target image at {0:d}th of {1:d} time '
+                'steps...'
+            ).format(i + 1, num_times)
 
-        target_matrix[i, :, :] = front_utils.dilate_ternary_narr_image(
-            ternary_image_matrix=target_matrix[i, :, :],
-            dilation_kernel_matrix=dilation_kernel_matrix)
+        target_matrix[i, :, :] = front_utils.dilate_ternary_label_matrix(
+            ternary_label_matrix=target_matrix[i, :, :],
+            dilation_mask_matrix=dilation_mask_matrix)
 
     return target_matrix
 
@@ -926,18 +967,23 @@ def dilate_binary_target_images(
     _check_target_matrix(target_matrix, assert_binary=True, num_dimensions=3)
     error_checking.assert_is_boolean(verbose)
 
-    dilation_kernel_matrix = front_utils.buffer_distance_to_narr_mask(
-        dilation_distance_metres).astype(int)
+    dilation_mask_matrix = front_utils.buffer_distance_to_dilation_mask(
+        buffer_distance_metres=dilation_distance_metres,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES
+    ).astype(int)
 
     num_times = target_matrix.shape[0]
+
     for i in range(num_times):
         if verbose:
-            print ('Dilating 2-class target image at {0:d}th of {1:d} time '
-                   'steps...').format(i + 1, num_times)
+            print (
+                'Dilating 2-class target image at {0:d}th of {1:d} time '
+                'steps...'
+            ).format(i + 1, num_times)
 
-        target_matrix[i, :, :] = front_utils.dilate_binary_narr_image(
-            binary_image_matrix=target_matrix[i, :, :],
-            dilation_kernel_matrix=dilation_kernel_matrix)
+        target_matrix[i, :, :] = front_utils.dilate_binary_label_matrix(
+            binary_label_matrix=target_matrix[i, :, :],
+            dilation_mask_matrix=dilation_mask_matrix)
 
     return target_matrix
 
@@ -1075,10 +1121,13 @@ def downsize_grids_around_selected_points(
     num_downsized_examples = 0
     for i in range(num_full_examples):
         num_downsized_examples += len(
-            target_point_dict[ROW_INDICES_BY_TIME_KEY][i])
+            target_point_dict[ROW_INDICES_BY_TIME_KEY][i]
+        )
 
     new_dimensions = (
-        num_downsized_examples, num_downsized_rows, num_downsized_columns)
+        num_downsized_examples, num_downsized_rows, num_downsized_columns
+    )
+
     new_dimensions += predictor_matrix.shape[3:]
     new_predictor_matrix = numpy.full(new_dimensions, numpy.nan)
 
@@ -1092,7 +1141,8 @@ def downsize_grids_around_selected_points(
         if verbose:
             print (
                 'Downsizing images around selected points for {0:d}th of {1:d} '
-                'full-size examples...').format(i + 1, num_full_examples)
+                'full-size examples...'
+            ).format(i + 1, num_full_examples)
 
         these_target_point_rows = target_point_dict[ROW_INDICES_BY_TIME_KEY][i]
         these_target_point_columns = target_point_dict[
@@ -1106,14 +1156,19 @@ def downsize_grids_around_selected_points(
                     center_row=these_target_point_rows[j],
                     center_column=these_target_point_columns[j],
                     num_rows_in_half_window=num_rows_in_half_window,
-                    num_columns_in_half_window=num_columns_in_half_window))
+                    num_columns_in_half_window=num_columns_in_half_window)
+            )
 
             target_values[last_downsized_example_index + 1] = target_matrix[
-                i, these_target_point_rows[j], these_target_point_columns[j]]
+                i, these_target_point_rows[j], these_target_point_columns[j]
+            ]
+
             example_indices[last_downsized_example_index + 1] = i
 
             center_grid_rows[
-                last_downsized_example_index + 1] = these_target_point_rows[j]
+                last_downsized_example_index + 1
+            ] = these_target_point_rows[j]
+
             center_grid_columns[
                 last_downsized_example_index + 1
             ] = these_target_point_columns[j]
@@ -1132,8 +1187,8 @@ def write_narr_mask(mask_matrix, pickle_file_name):
     """
 
     check_narr_mask(mask_matrix)
-
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(mask_matrix, pickle_file_handle)
     pickle_file_handle.close()
@@ -1224,15 +1279,19 @@ def write_gridded_predictions(
             target_matrix=target_matrix, assert_binary=False, num_dimensions=3)
 
         num_classes = class_probability_matrix.shape[-1]
-        expected_dimensions = numpy.array(
-            target_matrix.shape + (num_classes,), dtype=int)
+        these_expected_dim = numpy.array(
+            target_matrix.shape + (num_classes,), dtype=int
+        )
+
         error_checking.assert_is_numpy_array(
-            class_probability_matrix, exact_dimensions=expected_dimensions)
+            class_probability_matrix, exact_dimensions=these_expected_dim)
+
+    these_expected_dim = numpy.array(
+        [class_probability_matrix.shape[0]], dtype=int)
 
     error_checking.assert_is_integer_numpy_array(target_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        target_times_unix_sec,
-        exact_dimensions=numpy.array([class_probability_matrix.shape[0]]))
+        target_times_unix_sec, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_boolean(used_isotonic_regression)
@@ -1246,6 +1305,7 @@ def write_gridded_predictions(
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(prediction_dict, pickle_file_handle)
     pickle_file_handle.close()

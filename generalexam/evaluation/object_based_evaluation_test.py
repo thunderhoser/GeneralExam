@@ -32,30 +32,35 @@ COLUMN_INDICES_ONE_REGION = numpy.array(
     [0, 1, 5, 1, 5, 6, 1, 2, 5, 6, 1, 2, 5, 2, 3, 4], dtype=int)
 
 # The following constants are used to test _find_endpoints_of_skeleton.
-BINARY_SKELETON_MATRIX = numpy.array([[1, 0, 0, 0, 0, 0, 0, 0],
-                                      [0, 1, 1, 0, 0, 0, 1, 0],
-                                      [0, 0, 1, 1, 0, 0, 1, 0],
-                                      [0, 0, 0, 1, 1, 0, 1, 0],
-                                      [0, 0, 0, 0, 1, 1, 0, 0]], dtype=int)
-BINARY_ENDPOINT_MATRIX = numpy.array([[1, 0, 0, 0, 0, 0, 0, 0],
-                                      [0, 0, 0, 0, 0, 0, 1, 0],
-                                      [0, 0, 0, 0, 0, 0, 0, 0],
-                                      [0, 0, 0, 0, 0, 0, 0, 0],
-                                      [0, 0, 0, 0, 0, 0, 0, 0]], dtype=int)
+BINARY_SKELETON_MATRIX = numpy.array(
+    [[1, 0, 0, 0, 0, 0, 0, 0],
+     [0, 1, 1, 0, 0, 0, 1, 0],
+     [0, 0, 1, 1, 0, 0, 1, 0],
+     [0, 0, 0, 1, 1, 0, 1, 0],
+     [0, 0, 0, 0, 1, 1, 0, 0]], dtype=int)
+
+BINARY_ENDPOINT_MATRIX = numpy.array(
+    [[1, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 1, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, 0, 0]], dtype=int)
 
 # The following constants are used to test _get_skeleton_line_endpoint_length,
 # _get_skeleton_line_arc_length, and _get_skeleton_line_quality.
 THIS_GRID_SEARCH_OBJECT = a_star_search.GridSearch(
     binary_region_matrix=BINARY_IMAGE_MATRIX_ONE_REGION)
 
-(ROW_INDICES_ONE_SKELETON, COLUMN_INDICES_ONE_SKELETON
-) = a_star_search.run_a_star(
-    grid_search_object=THIS_GRID_SEARCH_OBJECT, start_row=0, start_column=0,
-    end_row=1, end_column=6)
+ROW_INDICES_ONE_SKELETON, COLUMN_INDICES_ONE_SKELETON = (
+    a_star_search.run_a_star(
+        grid_search_object=THIS_GRID_SEARCH_OBJECT, start_row=0, start_column=0,
+        end_row=1, end_column=6)
+)
 
-(X_GRID_SPACING_METRES, Y_GRID_SPACING_METRES
-) = nwp_model_utils.get_xy_grid_spacing(
-    model_name=nwp_model_utils.NARR_MODEL_NAME)
+X_GRID_SPACING_METRES, Y_GRID_SPACING_METRES = (
+    nwp_model_utils.get_xy_grid_spacing(
+        model_name=nwp_model_utils.NARR_MODEL_NAME)
+)
 
 ENDPOINT_LENGTH_METRES = numpy.sqrt(37.) * X_GRID_SPACING_METRES
 MIN_ENDPOINT_LENGTH_SMALL_METRES = ENDPOINT_LENGTH_METRES - 1.
@@ -117,8 +122,8 @@ PREDICTED_LABEL_MATRIX = numpy.expand_dims(PREDICTED_LABEL_MATRIX, axis=0)
 IMAGE_TIMES_UNIX_SEC = numpy.array([0], dtype=int)
 REGION_TIMES_UNIX_SEC = numpy.array([0, 0, 0], dtype=int)
 FRONT_TYPE_STRINGS = [
-    front_utils.WARM_FRONT_STRING_ID, front_utils.COLD_FRONT_STRING_ID,
-    front_utils.WARM_FRONT_STRING_ID
+    front_utils.WARM_FRONT_STRING, front_utils.COLD_FRONT_STRING,
+    front_utils.WARM_FRONT_STRING
 ]
 
 ROW_INDICES_LARGE_WF_REGION = numpy.array(
@@ -155,12 +160,6 @@ PREDICTED_REGION_TABLE_SANS_SMALL_AREA = PREDICTED_REGION_TABLE.drop(
     PREDICTED_REGION_TABLE.index[[0, 2]], axis=0, inplace=False)
 
 # The following constants are used to test skeletonize_frontal_regions.
-# SKELETON_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 2, 2],
-#                                [0, 1, 0, 0, 0, 2, 0, 0],
-#                                [1, 0, 1, 0, 2, 0, 0, 0],
-#                                [0, 0, 1, 2, 0, 2, 0, 0],
-#                                [1, 0, 0, 1, 2, 2, 2, 2]], dtype=int)
-
 THESE_ROW_INDICES_LARGE_WF = numpy.array([1, 2, 2, 3, 4], dtype=int)
 THESE_COLUMN_INDICES_LARGE_WF = numpy.array([1, 0, 2, 2, 3], dtype=int)
 THESE_ROW_INDICES_SMALL_WF = numpy.array([4], dtype=int)
@@ -188,12 +187,6 @@ PREDICTED_SKELETON_DICT = {
 PREDICTED_SKELETON_TABLE = pandas.DataFrame.from_dict(PREDICTED_SKELETON_DICT)
 
 # The following constants are used to test find_main_skeletons.
-# MAIN_SKELETON_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 2, 2],
-#                                     [0, 1, 0, 0, 0, 2, 0, 0],
-#                                     [1, 0, 1, 0, 2, 0, 0, 0],
-#                                     [0, 0, 1, 0, 0, 2, 0, 0],
-#                                     [1, 0, 0, 1, 0, 0, 2, 2]], dtype=int)
-
 THESE_ROW_INDICES_LARGE_WF = numpy.array([2, 1, 2, 3, 4], dtype=int)
 THESE_COLUMN_INDICES_LARGE_WF = numpy.array([0, 1, 2, 2, 3], dtype=int)
 THESE_ROW_INDICES_COLD_FRONT = numpy.array([0, 0, 1, 2, 3, 4, 4], dtype=int)
@@ -209,6 +202,7 @@ PREDICTED_MAIN_SKELETON_DICT = {
     object_based_eval.COLUMN_INDICES_COLUMN:
         [THESE_COLUMN_INDICES_LARGE_WF, THESE_COLUMN_INDICES_COLD_FRONT]
 }
+
 PREDICTED_MAIN_SKELETON_TABLE = pandas.DataFrame.from_dict(
     PREDICTED_MAIN_SKELETON_DICT)
 
@@ -256,10 +250,10 @@ THESE_Y_COORDS_BY_FRONT_METRES = [
 
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1], dtype=int)
 THESE_FRONT_TYPE_STRINGS = [
-    front_utils.COLD_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID,
-    front_utils.COLD_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID,
-    front_utils.COLD_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID,
-    front_utils.COLD_FRONT_STRING_ID
+    front_utils.COLD_FRONT_STRING, front_utils.WARM_FRONT_STRING,
+    front_utils.COLD_FRONT_STRING, front_utils.WARM_FRONT_STRING,
+    front_utils.COLD_FRONT_STRING, front_utils.WARM_FRONT_STRING,
+    front_utils.COLD_FRONT_STRING
 ]
 
 THIS_DICT = {
@@ -281,9 +275,9 @@ THESE_Y_COORDS_BY_FRONT_METRES = [
 
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1], dtype=int)
 THESE_FRONT_TYPE_STRINGS = [
-    front_utils.COLD_FRONT_STRING_ID, front_utils.COLD_FRONT_STRING_ID,
-    front_utils.COLD_FRONT_STRING_ID, front_utils.WARM_FRONT_STRING_ID,
-    front_utils.COLD_FRONT_STRING_ID
+    front_utils.COLD_FRONT_STRING, front_utils.COLD_FRONT_STRING,
+    front_utils.COLD_FRONT_STRING, front_utils.WARM_FRONT_STRING,
+    front_utils.COLD_FRONT_STRING
 ]
 
 THIS_DICT = {
@@ -374,19 +368,23 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
         )
 
         self.assertTrue(numpy.array_equal(
-            this_binary_image_matrix, BINARY_IMAGE_MATRIX_ONE_REGION))
+            this_binary_image_matrix, BINARY_IMAGE_MATRIX_ONE_REGION
+        ))
 
     def test_one_binary_image_to_region(self):
         """Ensures correct output from _one_binary_image_to_region."""
 
-        (these_row_indices, these_column_indices
-        ) = object_based_eval._one_binary_image_to_region(
-            BINARY_IMAGE_MATRIX_ONE_REGION)
+        these_row_indices, these_column_indices = (
+            object_based_eval._one_binary_image_to_region(
+                BINARY_IMAGE_MATRIX_ONE_REGION)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_row_indices, ROW_INDICES_ONE_REGION))
+            these_row_indices, ROW_INDICES_ONE_REGION
+        ))
         self.assertTrue(numpy.array_equal(
-            these_column_indices, COLUMN_INDICES_ONE_REGION))
+            these_column_indices, COLUMN_INDICES_ONE_REGION
+        ))
 
     def test_find_endpoints_of_skeleton(self):
         """Ensures correct output from _find_endpoints_of_skeleton."""
@@ -395,8 +393,10 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             object_based_eval._find_endpoints_of_skeleton(
                 BINARY_SKELETON_MATRIX)
         )
+
         self.assertTrue(numpy.array_equal(
-            this_binary_endpoint_matrix, BINARY_ENDPOINT_MATRIX))
+            this_binary_endpoint_matrix, BINARY_ENDPOINT_MATRIX
+        ))
 
     def test_get_skeleton_line_endpoint_length(self):
         """Ensures correct output from _get_skeleton_line_endpoint_length."""
@@ -408,8 +408,10 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
                 x_grid_spacing_metres=X_GRID_SPACING_METRES,
                 y_grid_spacing_metres=Y_GRID_SPACING_METRES)
         )
+
         self.assertTrue(numpy.isclose(
-            this_length_metres, ENDPOINT_LENGTH_METRES, atol=TOLERANCE))
+            this_length_metres, ENDPOINT_LENGTH_METRES, atol=TOLERANCE
+        ))
 
     def test_get_skeleton_line_arc_length(self):
         """Ensures correct output from _get_skeleton_line_arc_length."""
@@ -421,8 +423,10 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
                 x_grid_spacing_metres=X_GRID_SPACING_METRES,
                 y_grid_spacing_metres=Y_GRID_SPACING_METRES)
         )
+
         self.assertTrue(numpy.isclose(
-            this_length_metres, ARC_LENGTH_METRES, atol=TOLERANCE))
+            this_length_metres, ARC_LENGTH_METRES, atol=TOLERANCE
+        ))
 
     def test_get_skeleton_line_quality_positive(self):
         """Ensures correct output from _get_skeleton_line_quality.
@@ -439,7 +443,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             min_endpoint_length_metres=MIN_ENDPOINT_LENGTH_SMALL_METRES)
 
         self.assertTrue(numpy.isclose(
-            this_quality, SKELETON_LINE_QUALITY_POSITIVE, atol=TOLERANCE))
+            this_quality, SKELETON_LINE_QUALITY_POSITIVE, atol=TOLERANCE
+        ))
 
     def test_get_skeleton_line_quality_negative(self):
         """Ensures correct output from _get_skeleton_line_quality.
@@ -456,7 +461,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             min_endpoint_length_metres=MIN_ENDPOINT_LENGTH_LARGE_METRES)
 
         self.assertTrue(numpy.isclose(
-            this_quality, SKELETON_LINE_QUALITY_NEGATIVE, atol=TOLERANCE))
+            this_quality, SKELETON_LINE_QUALITY_NEGATIVE, atol=TOLERANCE
+        ))
 
     def test_get_distance_between_fronts(self):
         """Ensures correct output from _get_distance_between_fronts."""
@@ -468,8 +474,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             second_y_coords_metres=THESE_SECOND_Y_METRES)
 
         self.assertTrue(numpy.isclose(
-            this_distance_metres, INTERFRONT_DISTANCE_METRES,
-            atol=TOLERANCE))
+            this_distance_metres, INTERFRONT_DISTANCE_METRES, atol=TOLERANCE
+        ))
 
     def test_determinize_probabilities(self):
         """Ensures correct output from determinize_probabilities."""
@@ -479,7 +485,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             binarization_threshold=BINARIZATION_THRESHOLD)
 
         self.assertTrue(numpy.array_equal(
-            this_label_matrix, PREDICTED_LABEL_MATRIX))
+            this_label_matrix, PREDICTED_LABEL_MATRIX
+        ))
 
     def test_images_to_regions(self):
         """Ensures correct output from images_to_regions."""
@@ -489,7 +496,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             image_times_unix_sec=IMAGE_TIMES_UNIX_SEC)
 
         self.assertTrue(_compare_tables(
-            this_region_table, PREDICTED_REGION_TABLE))
+            this_region_table, PREDICTED_REGION_TABLE
+        ))
 
     def test_regions_to_images(self):
         """Ensures correct output from regions_to_images."""
@@ -500,7 +508,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             num_grid_columns=PREDICTED_LABEL_MATRIX.shape[2])
 
         self.assertTrue(numpy.array_equal(
-            this_label_matrix, PREDICTED_LABEL_MATRIX))
+            this_label_matrix, PREDICTED_LABEL_MATRIX
+        ))
 
     def test_discard_regions_with_small_area(self):
         """Ensures correct output from discard_regions_with_small_area."""
@@ -512,7 +521,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             min_area_metres2=MIN_REGION_AREA_METRES2)
 
         self.assertTrue(_compare_tables(
-            this_region_table, PREDICTED_REGION_TABLE_SANS_SMALL_AREA))
+            this_region_table, PREDICTED_REGION_TABLE_SANS_SMALL_AREA
+        ))
 
     def test_skeletonize_frontal_regions(self):
         """Ensures correct output from skeletonize_frontal_regions."""
@@ -523,7 +533,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             num_grid_columns=PREDICTED_LABEL_MATRIX.shape[2])
 
         self.assertTrue(_compare_tables(
-            this_skeleton_table, PREDICTED_SKELETON_TABLE))
+            this_skeleton_table, PREDICTED_SKELETON_TABLE
+        ))
 
     def test_find_main_skeletons(self):
         """Ensures correct output from find_main_skeletons."""
@@ -537,7 +548,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             min_endpoint_length_metres=0.001)
 
         self.assertTrue(_compare_tables(
-            this_main_skeleton_table, PREDICTED_MAIN_SKELETON_TABLE))
+            this_main_skeleton_table, PREDICTED_MAIN_SKELETON_TABLE
+        ))
 
     def test_convert_regions_rowcol_to_narr_xy_fcn_false(self):
         """Ensures correct output from convert_regions_rowcol_to_narr_xy.
@@ -550,7 +562,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
             are_predictions_from_fcn=False)
 
         self.assertTrue(_compare_tables(
-            this_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS))
+            this_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS
+        ))
 
     def test_convert_regions_rowcol_to_narr_xy_fcn_true(self):
         """Ensures correct output from convert_regions_rowcol_to_narr_xy.
@@ -578,7 +591,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
         ] += ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT
 
         self.assertTrue(_compare_tables(
-            this_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS))
+            this_region_table, PREDICTED_REGION_TABLE_WITH_XY_COORDS
+        ))
 
     def test_get_binary_contingency_table(self):
         """Ensures correct output from get_binary_contingency_table."""
@@ -595,8 +609,10 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
         self.assertTrue(set(actual_keys) == set(expected_keys))
 
         for this_key in actual_keys:
-            self.assertTrue(this_contingency_table_as_dict[this_key] ==
-                            BINARY_CONTINGENCY_TABLE_AS_DICT[this_key])
+            self.assertTrue(
+                this_contingency_table_as_dict[this_key] ==
+                BINARY_CONTINGENCY_TABLE_AS_DICT[this_key]
+            )
 
     def test_get_row_normalized_contingency_table(self):
         """Ensures correct output from get_row_normalized_contingency_table."""
@@ -610,7 +626,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_row_normalized_ct_matrix, ROW_NORMALIZED_CT_AS_MATRIX,
-            atol=TOLERANCE, equal_nan=True))
+            atol=TOLERANCE, equal_nan=True
+        ))
 
     def test_get_column_normalized_contingency_table(self):
         """Ensures correctness of get_column_normalized_contingency_table."""
@@ -624,55 +641,68 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_column_normalized_ct_matrix, COLUMN_NORMALIZED_CT_AS_MATRIX,
-            atol=TOLERANCE, equal_nan=True))
+            atol=TOLERANCE, equal_nan=True
+        ))
 
     def test_get_binary_pod(self):
         """Ensures correct output from get_binary_pod."""
 
         this_binary_pod = object_based_eval.get_binary_pod(
             FAKE_BINARY_CT_AS_DICT)
+
         self.assertTrue(numpy.isclose(
-            this_binary_pod, BINARY_POD, atol=TOLERANCE))
+            this_binary_pod, BINARY_POD, atol=TOLERANCE
+        ))
 
     def test_get_binary_fom(self):
         """Ensures correct output from get_binary_fom."""
 
         this_binary_fom = object_based_eval.get_binary_fom(
             FAKE_BINARY_CT_AS_DICT)
+
         self.assertTrue(numpy.isclose(
-            this_binary_fom, BINARY_FOM, atol=TOLERANCE))
+            this_binary_fom, BINARY_FOM, atol=TOLERANCE
+        ))
 
     def test_get_binary_success_ratio(self):
         """Ensures correct output from get_binary_success_ratio."""
 
         this_binary_success_ratio = object_based_eval.get_binary_success_ratio(
             FAKE_BINARY_CT_AS_DICT)
+
         self.assertTrue(numpy.isclose(
-            this_binary_success_ratio, BINARY_SUCCESS_RATIO, atol=TOLERANCE))
+            this_binary_success_ratio, BINARY_SUCCESS_RATIO, atol=TOLERANCE
+        ))
 
     def test_get_binary_far(self):
         """Ensures correct output from get_binary_far."""
 
         this_binary_far = object_based_eval.get_binary_far(
             FAKE_BINARY_CT_AS_DICT)
+
         self.assertTrue(numpy.isclose(
-            this_binary_far, BINARY_FAR, atol=TOLERANCE))
+            this_binary_far, BINARY_FAR, atol=TOLERANCE
+        ))
 
     def test_get_binary_csi(self):
         """Ensures correct output from get_binary_csi."""
 
         this_binary_csi = object_based_eval.get_binary_csi(
             FAKE_BINARY_CT_AS_DICT)
+
         self.assertTrue(numpy.isclose(
-            this_binary_csi, BINARY_CSI, atol=TOLERANCE))
+            this_binary_csi, BINARY_CSI, atol=TOLERANCE
+        ))
 
     def test_get_binary_frequency_bias(self):
         """Ensures correct output from get_binary_frequency_bias."""
 
         this_binary_freq_bias = object_based_eval.get_binary_frequency_bias(
             FAKE_BINARY_CT_AS_DICT)
+
         self.assertTrue(numpy.isclose(
-            this_binary_freq_bias, BINARY_FREQUENCY_BIAS, atol=TOLERANCE))
+            this_binary_freq_bias, BINARY_FREQUENCY_BIAS, atol=TOLERANCE
+        ))
 
 
 if __name__ == '__main__':

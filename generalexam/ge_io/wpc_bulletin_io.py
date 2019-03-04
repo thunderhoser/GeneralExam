@@ -22,7 +22,8 @@ PATHLESS_FILE_NAME_PREFIX = 'KWBCCODSUS_HIRES'
 TIME_FORMAT_IN_FILE_NAME = '%Y%m%d_%H00'
 TIME_FORMAT_IN_FILE_ITSELF = '%H%'
 VALID_FRONT_TYPES = [
-    front_utils.WARM_FRONT_STRING_ID, front_utils.COLD_FRONT_STRING_ID]
+    front_utils.WARM_FRONT_STRING, front_utils.COLD_FRONT_STRING
+]
 
 LATLNG_STRING_PATTERN_5CHARS = '[0-9][0-9][0-1][0-9][0-9]'
 LATLNG_STRING_PATTERN_7CHARS = '[0-9][0-9][0-9][0-1][0-9][0-9][0-9]'
@@ -186,6 +187,7 @@ def read_fronts_from_file(text_file_name):
         front_utils.LATITUDES_COLUMN: latitudes_2d_list_deg,
         front_utils.LONGITUDES_COLUMN: longitudes_2d_list_deg
     }
+
     return pandas.DataFrame.from_dict(front_dict)
 
 
