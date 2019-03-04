@@ -172,7 +172,7 @@ def _decrease_example_size(predictor_matrix, num_half_rows, num_half_columns):
 
 def find_input_files_for_3d_examples(
         first_target_time_unix_sec, last_target_time_unix_sec,
-        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_narr_directory_name, top_gridded_front_dir_name,
         narr_predictor_names, pressure_level_mb):
     """Finds input files for 3-D examples.
 
@@ -189,17 +189,17 @@ def find_input_files_for_3d_examples(
         Files therein will be found by
         `processed_narr_io.find_file_for_one_time` and read by
         `processed_narr_io.read_fields_from_file`.
-    :param top_frontal_grid_dir_name: Name of top-level directory with target
-        values (grids of front labels).  Files therein will be found by
-        `fronts_io.find_file_for_one_time` and read by
-        `fronts_io.read_narr_grids_from_file`.
+    :param top_gridded_front_dir_name: Name of top-level directory with target
+        values (gridded front labels).  Files therein will be found by
+        `fronts_io.find_gridded_file` and read by
+        `fronts_io.read_grid_from_file`.
     :param narr_predictor_names: length-C list with names of predictor
         variables.  Each must be accepted by
         `processed_narr_io.check_field_name`.
     :param pressure_level_mb: Pressure level (millibars) for predictors.
     :return: narr_file_name_matrix: Q-by-C numpy array of paths to predictor
         files.
-    :return: frontal_grid_file_names: length-Q list of paths to target files.
+    :return: gridded_front_file_names: length-Q list of paths to target files.
     """
 
     target_times_unix_sec = time_periods.range_and_interval_to_list(
@@ -211,19 +211,18 @@ def find_input_files_for_3d_examples(
     num_target_times = len(target_times_unix_sec)
     num_predictors = len(narr_predictor_names)
 
-    frontal_grid_file_names = [''] * num_target_times
+    gridded_front_file_names = [''] * num_target_times
     narr_file_name_matrix = numpy.full(
         (num_target_times, num_predictors), '', dtype=numpy.object)
 
     for i in range(num_target_times):
-        frontal_grid_file_names[i] = fronts_io.find_file_for_one_time(
-            top_directory_name=top_frontal_grid_dir_name,
-            file_type=fronts_io.GRIDDED_FILE_TYPE,
+        gridded_front_file_names[i] = fronts_io.find_gridded_file(
+            top_directory_name=top_gridded_front_dir_name,
             valid_time_unix_sec=target_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        if not os.path.isfile(frontal_grid_file_names[i]):
-            frontal_grid_file_names[i] = ''
+        if not os.path.isfile(gridded_front_file_names[i]):
+            gridded_front_file_names[i] = ''
             continue
 
         for j in range(num_predictors):
@@ -237,17 +236,17 @@ def find_input_files_for_3d_examples(
             )
 
     keep_time_flags = numpy.array(
-        [f != '' for f in frontal_grid_file_names], dtype=bool)
+        [f != '' for f in gridded_front_file_names], dtype=bool)
     keep_time_indices = numpy.where(keep_time_flags)[0]
 
     return (narr_file_name_matrix[keep_time_indices, ...],
-            [frontal_grid_file_names[i] for i in keep_time_indices])
+            [gridded_front_file_names[i] for i in keep_time_indices])
 
 
 def find_input_files_for_4d_examples(
         first_target_time_unix_sec, last_target_time_unix_sec,
         num_lead_time_steps, predictor_time_step_offsets,
-        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_narr_directory_name, top_gridded_front_dir_name,
         narr_predictor_names, pressure_level_mb):
     """Finds input files for 4-D examples.
 
@@ -266,12 +265,12 @@ def find_input_files_for_4d_examples(
         lead time).
     :param top_narr_directory_name: See doc for
         `find_input_files_for_3d_examples`.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :return: narr_file_name_matrix: Q-by-T-by-C numpy array of paths to
         predictor files.
-    :return: frontal_grid_file_names: length-Q list of paths to target files.
+    :return: gridded_front_file_names: length-Q list of paths to target files.
     """
 
     error_checking.assert_is_integer_numpy_array(predictor_time_step_offsets)
@@ -292,20 +291,19 @@ def find_input_files_for_4d_examples(
     num_predictor_times_per_example = len(predictor_time_step_offsets)
     num_predictors = len(narr_predictor_names)
 
-    frontal_grid_file_names = [''] * num_target_times
+    gridded_front_file_names = [''] * num_target_times
     narr_file_name_matrix = numpy.full(
         (num_target_times, num_predictor_times_per_example, num_predictors), '',
         dtype=numpy.object)
 
     for i in range(num_target_times):
-        frontal_grid_file_names[i] = fronts_io.find_file_for_one_time(
-            top_directory_name=top_frontal_grid_dir_name,
-            file_type=fronts_io.GRIDDED_FILE_TYPE,
+        gridded_front_file_names[i] = fronts_io.find_gridded_file(
+            top_directory_name=top_gridded_front_dir_name,
             valid_time_unix_sec=target_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        if not os.path.isfile(frontal_grid_file_names[i]):
-            frontal_grid_file_names[i] = ''
+        if not os.path.isfile(gridded_front_file_names[i]):
+            gridded_front_file_names[i] = ''
             continue
 
         this_last_time_unix_sec = target_times_unix_sec[i] - (
@@ -325,17 +323,17 @@ def find_input_files_for_4d_examples(
                 )
 
     keep_time_flags = numpy.array(
-        [f != '' for f in frontal_grid_file_names], dtype=bool)
+        [f != '' for f in gridded_front_file_names], dtype=bool)
     keep_time_indices = numpy.where(keep_time_flags)[0]
 
     return (narr_file_name_matrix[keep_time_indices, ...],
-            [frontal_grid_file_names[i] for i in keep_time_indices])
+            [gridded_front_file_names[i] for i in keep_time_indices])
 
 
 def downsized_3d_example_generator(
         num_examples_per_batch, num_examples_per_target_time,
         first_target_time_unix_sec, last_target_time_unix_sec,
-        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_narr_directory_name, top_gridded_front_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_distance_metres,
         class_fractions, num_rows_in_half_grid, num_columns_in_half_grid,
         narr_mask_matrix=None):
@@ -350,7 +348,7 @@ def downsized_3d_example_generator(
     :param last_target_time_unix_sec: See above.
     :param top_narr_directory_name: See doc for
         `find_input_files_for_3d_examples`.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Dilation distance.  Will be used to dilate
@@ -385,16 +383,16 @@ def downsized_3d_example_generator(
     if narr_mask_matrix is not None:
         ml_utils.check_narr_mask(narr_mask_matrix)
 
-    (narr_file_name_matrix, frontal_grid_file_names
+    (narr_file_name_matrix, gridded_front_file_names
     ) = find_input_files_for_3d_examples(
         first_target_time_unix_sec=first_target_time_unix_sec,
         last_target_time_unix_sec=last_target_time_unix_sec,
         top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+        top_gridded_front_dir_name=top_gridded_front_dir_name,
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb)
 
-    num_times = len(frontal_grid_file_names)
+    num_times = len(gridded_front_file_names)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
@@ -429,9 +427,9 @@ def downsized_3d_example_generator(
                 tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
             print 'Reading data from: "{0:s}"...'.format(
-                frontal_grid_file_names[time_index])
-            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[time_index])
+                gridded_front_file_names[time_index])
+            this_gridded_front_table = fronts_io.read_grid_from_file(
+                gridded_front_file_names[time_index])
 
             time_index += 1
             if time_index >= num_times:
@@ -443,7 +441,7 @@ def downsized_3d_example_generator(
                 predictor_matrix=this_full_predictor_matrix)
 
             this_full_target_matrix = ml_utils.front_table_to_images(
-                frontal_grid_table=this_frontal_grid_table,
+                frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
                 num_columns_per_image=this_full_predictor_matrix.shape[2])
 
@@ -610,7 +608,7 @@ def downsized_4d_example_generator(
         num_examples_per_batch, num_examples_per_target_time,
         first_target_time_unix_sec, last_target_time_unix_sec,
         num_lead_time_steps, predictor_time_step_offsets,
-        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_narr_directory_name, top_gridded_front_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_distance_metres,
         class_fractions, num_rows_in_half_grid, num_columns_in_half_grid,
         narr_mask_matrix=None):
@@ -623,7 +621,7 @@ def downsized_4d_example_generator(
     :param num_lead_time_steps: See doc for `find_input_files_for_4d_examples`.
     :param predictor_time_step_offsets: Same.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: See doc for
@@ -650,18 +648,18 @@ def downsized_4d_example_generator(
     if narr_mask_matrix is not None:
         ml_utils.check_narr_mask(narr_mask_matrix)
 
-    (narr_file_name_matrix, frontal_grid_file_names
+    (narr_file_name_matrix, gridded_front_file_names
     ) = find_input_files_for_4d_examples(
         first_target_time_unix_sec=first_target_time_unix_sec,
         last_target_time_unix_sec=last_target_time_unix_sec,
         predictor_time_step_offsets=predictor_time_step_offsets,
         num_lead_time_steps=num_lead_time_steps,
         top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+        top_gridded_front_dir_name=top_gridded_front_dir_name,
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb)
 
-    num_target_times = len(frontal_grid_file_names)
+    num_target_times = len(gridded_front_file_names)
     num_predictor_times_per_example = len(predictor_time_step_offsets)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
@@ -706,9 +704,9 @@ def downsized_4d_example_generator(
                 )
 
             print 'Reading data from: "{0:s}"...'.format(
-                frontal_grid_file_names[target_time_index])
-            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[target_time_index])
+                gridded_front_file_names[target_time_index])
+            this_gridded_front_table = fronts_io.read_grid_from_file(
+                gridded_front_file_names[target_time_index])
 
             target_time_index += 1
             if target_time_index >= num_target_times:
@@ -720,7 +718,7 @@ def downsized_4d_example_generator(
                 predictor_matrix=this_full_predictor_matrix)
 
             this_full_target_matrix = ml_utils.front_table_to_images(
-                frontal_grid_table=this_frontal_grid_table,
+                frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
                 num_columns_per_image=this_full_predictor_matrix.shape[2])
 
@@ -788,7 +786,7 @@ def downsized_4d_example_generator(
 def full_size_3d_example_generator(
         num_examples_per_batch, first_target_time_unix_sec,
         last_target_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, num_classes):
     """Generates full-size 3-D examples from raw files.
 
@@ -797,7 +795,7 @@ def full_size_3d_example_generator(
     :param last_target_time_unix_sec: Same.
     :param top_narr_directory_name: See doc for
         `find_input_files_for_3d_examples`.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: See doc for
@@ -814,16 +812,16 @@ def full_size_3d_example_generator(
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
-    (narr_file_name_matrix, frontal_grid_file_names
+    (narr_file_name_matrix, gridded_front_file_names
     ) = find_input_files_for_3d_examples(
         first_target_time_unix_sec=first_target_time_unix_sec,
         last_target_time_unix_sec=last_target_time_unix_sec,
         top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+        top_gridded_front_dir_name=top_gridded_front_dir_name,
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb)
 
-    num_target_times = len(frontal_grid_file_names)
+    num_target_times = len(gridded_front_file_names)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
@@ -855,9 +853,9 @@ def full_size_3d_example_generator(
                 tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
             print 'Reading data from: "{0:s}"...'.format(
-                frontal_grid_file_names[target_time_index])
-            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[target_time_index])
+                gridded_front_file_names[target_time_index])
+            this_gridded_front_table = fronts_io.read_grid_from_file(
+                gridded_front_file_names[target_time_index])
 
             target_time_index += 1
             if target_time_index >= num_target_times:
@@ -869,7 +867,7 @@ def full_size_3d_example_generator(
                 predictor_matrix=this_predictor_matrix)
 
             this_frontal_grid_matrix = ml_utils.front_table_to_images(
-                frontal_grid_table=this_frontal_grid_table,
+                frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_predictor_matrix.shape[1],
                 num_columns_per_image=this_predictor_matrix.shape[2])
 
@@ -927,7 +925,7 @@ def full_size_4d_example_generator(
         num_examples_per_batch, first_target_time_unix_sec,
         last_target_time_unix_sec, num_lead_time_steps,
         predictor_time_step_offsets, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, num_classes):
     """Generates full-size 4-D examples from raw files.
 
@@ -937,7 +935,7 @@ def full_size_4d_example_generator(
     :param num_lead_time_steps: See doc for `find_input_files_for_4d_examples`.
     :param predictor_time_step_offsets: Same.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: See doc for
@@ -954,18 +952,18 @@ def full_size_4d_example_generator(
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
-    (narr_file_name_matrix, frontal_grid_file_names
+    (narr_file_name_matrix, gridded_front_file_names
     ) = find_input_files_for_4d_examples(
         first_target_time_unix_sec=first_target_time_unix_sec,
         last_target_time_unix_sec=last_target_time_unix_sec,
         num_lead_time_steps=num_lead_time_steps,
         predictor_time_step_offsets=predictor_time_step_offsets,
         top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+        top_gridded_front_dir_name=top_gridded_front_dir_name,
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb)
 
-    num_target_times = len(frontal_grid_file_names)
+    num_target_times = len(gridded_front_file_names)
     num_predictor_times_per_example = len(predictor_time_step_offsets)
     num_predictors = len(narr_predictor_names)
     batch_indices = numpy.linspace(
@@ -1010,9 +1008,9 @@ def full_size_4d_example_generator(
                 tuple_of_4d_predictor_matrices)
 
             print 'Reading data from: "{0:s}"...'.format(
-                frontal_grid_file_names[target_time_index])
-            this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-                frontal_grid_file_names[target_time_index])
+                gridded_front_file_names[target_time_index])
+            this_gridded_front_table = fronts_io.read_grid_from_file(
+                gridded_front_file_names[target_time_index])
 
             target_time_index += 1
             if target_time_index >= num_target_times:
@@ -1022,7 +1020,7 @@ def full_size_4d_example_generator(
                 predictor_matrix=this_predictor_matrix)
 
             this_frontal_grid_matrix = ml_utils.front_table_to_images(
-                frontal_grid_table=this_frontal_grid_table,
+                frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_predictor_matrix.shape[1],
                 num_columns_per_image=this_predictor_matrix.shape[2])
 
@@ -1078,7 +1076,7 @@ def full_size_4d_example_generator(
 
 def prep_downsized_3d_examples_to_write(
         target_time_unix_sec, max_num_examples, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names,
+        top_gridded_front_dir_name, narr_predictor_names,
         pressure_level_mb, dilation_distance_metres, class_fractions,
         num_rows_in_half_grid, num_columns_in_half_grid,
         normalization_type_string=ml_utils.Z_SCORE_STRING,
@@ -1089,7 +1087,7 @@ def prep_downsized_3d_examples_to_write(
     :param max_num_examples: Maximum number of examples.
     :param top_narr_directory_name: See doc for
         `find_input_files_for_3d_examples`.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: See doc for
@@ -1128,20 +1126,20 @@ def prep_downsized_3d_examples_to_write(
     if narr_mask_matrix is not None:
         ml_utils.check_narr_mask(narr_mask_matrix)
 
-    (narr_file_name_matrix, frontal_grid_file_names
+    (narr_file_name_matrix, gridded_front_file_names
     ) = find_input_files_for_3d_examples(
         first_target_time_unix_sec=target_time_unix_sec,
         last_target_time_unix_sec=target_time_unix_sec,
         top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+        top_gridded_front_dir_name=top_gridded_front_dir_name,
         narr_predictor_names=narr_predictor_names,
         pressure_level_mb=pressure_level_mb)
 
-    if len(frontal_grid_file_names) == 0:
+    if len(gridded_front_file_names) == 0:
         return None
 
     narr_file_names = narr_file_name_matrix[0, ...]
-    frontal_grid_file_name = frontal_grid_file_names[0]
+    gridded_front_file_name = gridded_front_file_names[0]
 
     tuple_of_predictor_matrices = ()
     num_predictors = len(narr_predictor_names)
@@ -1161,12 +1159,12 @@ def prep_downsized_3d_examples_to_write(
         predictor_matrix=predictor_matrix,
         normalization_type_string=normalization_type_string)
 
-    print 'Reading data from: "{0:s}"...'.format(frontal_grid_file_name)
-    frontal_grid_table = fronts_io.read_narr_grids_from_file(
-        frontal_grid_file_name)
+    print 'Reading data from: "{0:s}"...'.format(gridded_front_file_name)
+    gridded_front_table = fronts_io.read_grid_from_file(
+        gridded_front_file_name)
 
     target_matrix = ml_utils.front_table_to_images(
-        frontal_grid_table=frontal_grid_table,
+        frontal_grid_table=gridded_front_table,
         num_rows_per_image=predictor_matrix.shape[1],
         num_columns_per_image=predictor_matrix.shape[2])
 

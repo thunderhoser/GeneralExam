@@ -68,7 +68,7 @@ INPUT_FILE_HELP_STRING = (
 
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with frontal polylines.  Files therein will be'
-    ' found by `fronts_io.find_file_for_one_time` and read by '
+    ' found by `fronts_io.find_polyline_file` and read by '
     '`fronts_io.read_polylines_from_file`.')
 
 NUM_EXAMPLES_HELP_STRING = (
@@ -311,9 +311,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
             colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT)
 
-        this_front_file_name = fronts_io.find_file_for_one_time(
+        this_front_file_name = fronts_io.find_polyline_file(
             top_directory_name=top_front_line_dir_name,
-            file_type=fronts_io.POLYLINE_FILE_TYPE,
             valid_time_unix_sec=example_dict[trainval_io.TARGET_TIMES_KEY][i]
         )
 

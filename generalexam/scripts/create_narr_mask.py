@@ -46,8 +46,8 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 FRONTAL_GRID_DIR_HELP_STRING = (
     'Name of top-level directory with frontal grids.  Files therein will be '
-    'found by `fronts_io.find_file_for_one_time` and read by '
-    '`fronts_io.read_narr_grids_from_file`.')
+    'found by `fronts_io.find_gridded_file` and read by '
+    '`fronts_io.read_grid_from_file`.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Frontal grids will be read for `{0:s}`...'
@@ -207,37 +207,37 @@ def _run(top_frontal_grid_dir_name, first_time_string, last_time_string,
     num_warm_fronts_matrix = None
 
     for i in range(num_times):
-        this_file_name = fronts_io.find_file_for_one_time(
+        this_file_name = fronts_io.find_gridded_file(
             top_directory_name=top_frontal_grid_dir_name,
-            file_type=fronts_io.GRIDDED_FILE_TYPE,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
+
         if not os.path.isfile(this_file_name):
             warning_string = (
                 'POTENTIAL PROBLEM.  Cannot find file: "{0:s}"'
             ).format(this_file_name)
+
             warnings.warn(warning_string)
             continue
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
-        this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
-            this_file_name)
+        this_gridded_front_table = fronts_io.read_grid_from_file(this_file_name)
 
-        this_frontal_grid_matrix = ml_utils.front_table_to_images(
-            frontal_grid_table=this_frontal_grid_table,
+        this_gridded_front_matrix = ml_utils.front_table_to_images(
+            frontal_grid_table=this_gridded_front_table,
             num_rows_per_image=num_grid_rows,
             num_columns_per_image=num_grid_columns)
 
-        this_frontal_grid_matrix = ml_utils.dilate_ternary_target_images(
-            target_matrix=this_frontal_grid_matrix,
+        this_gridded_front_matrix = ml_utils.dilate_ternary_target_images(
+            target_matrix=this_gridded_front_matrix,
             dilation_distance_metres=dilation_distance_metres, verbose=False)
-        this_frontal_grid_matrix = this_frontal_grid_matrix[0, ...]
+        this_gridded_front_matrix = this_gridded_front_matrix[0, ...]
 
         this_num_cold_fronts_matrix = (
-            this_frontal_grid_matrix == front_utils.COLD_FRONT_INTEGER_ID
+            this_gridded_front_matrix == front_utils.COLD_FRONT_INTEGER_ID
         ).astype(int)
         this_num_warm_fronts_matrix = (
-            this_frontal_grid_matrix == front_utils.WARM_FRONT_INTEGER_ID
+            this_gridded_front_matrix == front_utils.WARM_FRONT_INTEGER_ID
         ).astype(int)
 
         if num_cold_fronts_matrix is None:

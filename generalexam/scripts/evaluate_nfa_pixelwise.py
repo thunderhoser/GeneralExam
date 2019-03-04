@@ -62,8 +62,8 @@ DILATION_DISTANCE_HELP_STRING = 'Dilation distance for labels (true fronts).'
 
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with labels (true fronts).  Files therein will'
-    ' be found by `fronts_io.find_file_for_one_time` and read by '
-    '`fronts_io.read_narr_grids_from_file`.')
+    ' be found by `fronts_io.find_gridded_file` and read by '
+    '`fronts_io.read_grid_from_file`.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be saved here.')
@@ -202,17 +202,16 @@ def _run(use_ensembled_predictions, top_prediction_dir_name, first_time_string,
             these_grid_rows = unmasked_grid_rows[these_indices]
             these_grid_columns = unmasked_grid_columns[these_indices]
 
-        this_front_file_name = fronts_io.find_file_for_one_time(
+        this_front_file_name = fronts_io.find_gridded_file(
             top_directory_name=top_frontal_grid_dir_name,
-            file_type=fronts_io.GRIDDED_FILE_TYPE,
             valid_time_unix_sec=this_time_unix_sec)
 
         print 'Reading data from: "{0:s}"...'.format(this_front_file_name)
-        this_frontal_grid_table = fronts_io.read_narr_grids_from_file(
+        this_gridded_front_table = fronts_io.read_grid_from_file(
             this_front_file_name)
 
         this_target_matrix = ml_utils.front_table_to_images(
-            frontal_grid_table=this_frontal_grid_table,
+            frontal_grid_table=this_gridded_front_table,
             num_rows_per_image=this_class_probability_matrix.shape[0],
             num_columns_per_image=this_class_probability_matrix.shape[1]
         )

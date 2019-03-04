@@ -88,7 +88,7 @@ NARR_DIR_HELP_STRING = (
 
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with fronts (represented as polylines).  Files'
-    ' therein will be found by `fronts_io.find_file_for_one_time` and read by '
+    ' therein will be found by `fronts_io.find_polyline_file` and read by '
     '`fronts_io.read_polylines_from_file`.')
 
 BULLETIN_DIR_HELP_STRING = (
@@ -449,9 +449,8 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
     this_letter_label = None
 
     for this_time_unix_sec in valid_times_unix_sec:
-        this_file_name = fronts_io.find_file_for_one_time(
+        this_file_name = fronts_io.find_polyline_file(
             top_directory_name=top_front_line_dir_name,
-            file_type=fronts_io.POLYLINE_FILE_TYPE,
             valid_time_unix_sec=this_time_unix_sec)
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)

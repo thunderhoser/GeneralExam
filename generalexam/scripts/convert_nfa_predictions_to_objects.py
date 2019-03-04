@@ -66,7 +66,7 @@ MIN_LENGTH_HELP_STRING = (
 
 FRONT_LINE_DIR_HELP_STRING = (
     'Name of top-level directory with actual fronts (polylines).  Files therein'
-    ' will be found by `fronts_io.find_file_for_one_time` and read by '
+    ' will be found by `fronts_io.find_polyline_file` and read by '
     '`fronts_io.read_polylines_from_file`.')
 
 OUTPUT_FILE_HELP_STRING = (
@@ -128,15 +128,15 @@ def _read_actual_polylines(top_input_dir_name, unix_times_sec):
 
     list_of_polyline_tables = []
     for this_time_unix_sec in unix_times_sec:
-        this_file_name = fronts_io.find_file_for_one_time(
+        this_file_name = fronts_io.find_polyline_file(
             top_directory_name=top_input_dir_name,
-            file_type=fronts_io.POLYLINE_FILE_TYPE,
             valid_time_unix_sec=this_time_unix_sec)
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         list_of_polyline_tables.append(
             fronts_io.read_polylines_from_file(this_file_name)
         )
+
         if len(list_of_polyline_tables) == 1:
             continue
 
