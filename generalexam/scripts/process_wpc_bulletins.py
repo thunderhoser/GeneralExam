@@ -129,6 +129,20 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             polyline_table=this_polyline_table,
             dilation_distance_metres=DILATION_DISTANCE_METRES)
 
+        if len(this_gridded_front_table.index) == 0:
+            empty_array_1d = numpy.full(0, 0, dtype=int)
+            empty_array_2d = numpy.full((0, 1), 0, dtype=int)
+
+            this_gridded_front_table[front_utils.TIME_COLUMN] = empty_array_1d
+            this_gridded_front_table[
+                front_utils.WARM_FRONT_ROWS_COLUMN] = empty_array_2d
+            this_gridded_front_table[
+                front_utils.WARM_FRONT_COLUMNS_COLUMN] = empty_array_2d
+            this_gridded_front_table[
+                front_utils.COLD_FRONT_ROWS_COLUMN] = empty_array_2d
+            this_gridded_front_table[
+                front_utils.COLD_FRONT_COLUMNS_COLUMN] = empty_array_2d
+
         print this_gridded_front_table
 
         this_gridded_front_table = this_gridded_front_table.iloc[[0]]
