@@ -430,4 +430,4 @@ def read_grid_from_file(netcdf_file_name):
     )).astype(int)
 
     dataset_object.close()
-    return gridded_label_dict
+    return gridded_label_table
