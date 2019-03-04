@@ -144,7 +144,7 @@ def _read_actual_fronts(
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         list_of_polyline_tables.append(
-            fronts_io.read_polylines_from_file(this_file_name)
+            fronts_io.read_polylines_from_file(this_file_name)[0]
         )
 
         if len(list_of_polyline_tables) == 1:
@@ -313,8 +313,7 @@ def _run(use_ensembled_predictions, input_prediction_dir_name,
 
     actual_polyline_table = _read_actual_fronts(
         top_polyline_dir_name=top_polyline_dir_name,
-        valid_times_unix_sec=valid_times_unix_sec,
-        narr_mask_matrix=narr_mask_matrix)
+        valid_times_unix_sec=valid_times_unix_sec, narr_mask_matrix=None)
     print SEPARATOR_STRING
 
     actual_polyline_table = object_eval.project_polylines_latlng_to_narr(

@@ -450,7 +450,9 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
             valid_time_unix_sec=this_time_unix_sec)
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
-        this_polyline_table = fronts_io.read_polylines_from_file(this_file_name)
+        this_polyline_table = fronts_io.read_polylines_from_file(
+            this_file_name
+        )[0]
 
         if top_wpc_bulletin_dir_name is None:
             this_high_low_table = None

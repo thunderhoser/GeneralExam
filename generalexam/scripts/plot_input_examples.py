@@ -321,7 +321,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         )
 
         this_polyline_table = fronts_io.read_polylines_from_file(
-            this_front_file_name)
+            this_front_file_name
+        )[0]
         this_num_fronts = len(this_polyline_table.index)
 
         for j in range(this_num_fronts):

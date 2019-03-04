@@ -47,9 +47,9 @@ GRIDDED_DIR_HELP_STRING = (
 
 TOP_BULLETIN_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/wpc_bulletins/hires'
 TOP_POLYLINE_DIR_NAME_DEFAULT = (
-    '/condo/swatwork/ralager/fronts/polylines/netcdf')
+    '/condo/swatwork/ralager/fronts_netcdf/polylines')
 TOP_GRIDDED_DIR_NAME_DEFAULT = (
-    '/condo/swatwork/ralager/fronts/narr_grids/no_dilation/netcdf')
+    '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -125,7 +125,6 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             netcdf_file_name=this_polyline_file_name)
 
-        print 'Converting polylines to NARR grids...'
         this_gridded_front_table = front_utils.many_polylines_to_narr_grid(
             polyline_table=this_polyline_table,
             dilation_distance_metres=DILATION_DISTANCE_METRES)

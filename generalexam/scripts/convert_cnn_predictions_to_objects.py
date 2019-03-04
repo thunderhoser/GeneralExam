@@ -161,7 +161,7 @@ def _read_actual_fronts(
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         list_of_polyline_tables.append(
-            fronts_io.read_polylines_from_file(this_file_name)
+            fronts_io.read_polylines_from_file(this_file_name)[0]
         )
 
         if len(list_of_polyline_tables) == 1:

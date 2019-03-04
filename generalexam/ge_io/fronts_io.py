@@ -373,16 +373,21 @@ def read_grid_from_file(netcdf_file_name):
     dataset_object = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
+    valid_time_unix_sec = int(numpy.round(
+        getattr(dataset_object, front_utils.TIME_COLUMN)
+    ))
+    dilation_distance_metres = float(
+        getattr(dataset_object, front_utils.DILATION_DISTANCE_COLUMN)
+    )
+    model_name = str(
+        getattr(dataset_object, front_utils.MODEL_NAME_COLUMN)
+    )
+
     gridded_label_dict = {
-        front_utils.TIME_COLUMN: int(numpy.round(
-            getattr(dataset_object, front_utils.TIME_COLUMN)
-        )),
-        front_utils.DILATION_DISTANCE_COLUMN: float(
-            getattr(dataset_object, front_utils.DILATION_DISTANCE_COLUMN)
-        ),
-        front_utils.MODEL_NAME_COLUMN: str(
-            getattr(dataset_object, front_utils.MODEL_NAME_COLUMN)
-        )
+        front_utils.TIME_COLUMN: numpy.array([valid_time_unix_sec], dtype=int),
+        front_utils.DILATION_DISTANCE_COLUMN:
+            numpy.array([dilation_distance_metres], dtype=float),
+        front_utils.MODEL_NAME_COLUMN: [model_name]
     }
 
     gridded_label_table = pandas.DataFrame.from_dict(gridded_label_dict)
