@@ -76,7 +76,7 @@ def write_polylines_to_file(polyline_table, valid_time_unix_sec,
     error_checking.assert_is_integer(valid_time_unix_sec)
 
     num_fronts = len(polyline_table.index)
-    max_num_vertices_in_front = 0
+    max_num_vertices_in_front = 1
 
     for i in range(num_fronts):
         front_utils.check_front_type_string(
@@ -133,6 +133,7 @@ def write_polylines_to_file(polyline_table, valid_time_unix_sec,
     num_front_type_chars = numpy.max(numpy.array(
         [len(f) for f in front_utils.VALID_FRONT_TYPE_STRINGS]
     ))
+    num_front_type_chars = max([num_front_type_chars, 1])
 
     dataset_object.createDimension(FRONT_TYPE_CHAR_DIM_KEY,
                                    num_front_type_chars)
