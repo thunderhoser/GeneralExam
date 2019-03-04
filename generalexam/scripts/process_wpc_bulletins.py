@@ -131,12 +131,14 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             dilation_distance_metres=DILATION_DISTANCE_METRES)
 
         if len(this_gridded_front_table.index) == 0:
+            empty_array = numpy.full(0, 0, dtype=int)
+
             this_dict = {
                 front_utils.TIME_COLUMN: valid_times_unix_sec[[i]],
-                front_utils.WARM_FRONT_ROWS_COLUMN: [[]],
-                front_utils.WARM_FRONT_COLUMNS_COLUMN: [[]],
-                front_utils.COLD_FRONT_ROWS_COLUMN: [[]],
-                front_utils.COLD_FRONT_COLUMNS_COLUMN: [[]]
+                front_utils.WARM_FRONT_ROWS_COLUMN: [empty_array],
+                front_utils.WARM_FRONT_COLUMNS_COLUMN: [empty_array],
+                front_utils.COLD_FRONT_ROWS_COLUMN: [empty_array],
+                front_utils.COLD_FRONT_COLUMNS_COLUMN: [empty_array]
             }
 
             this_gridded_front_table = pandas.DataFrame.from_dict(this_dict)
