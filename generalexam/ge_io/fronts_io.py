@@ -183,16 +183,23 @@ def read_polylines_from_file(netcdf_file_name):
         getattr(dataset_object, front_utils.TIME_COLUMN)
     ))
 
-    latitude_matrix_deg = numpy.array(
-        dataset_object.variables[LATITUDE_MATRIX_KEY][:]
-    )
-    longitude_matrix_deg = numpy.array(
-        dataset_object.variables[LONGITUDE_MATRIX_KEY][:]
-    )
-    front_type_strings = [
-        str(f) for f in netCDF4.chartostring(
-            dataset_object.variables[FRONT_TYPES_KEY][:])
-    ]
+    num_fronts = dataset_object.variables[FRONT_TYPES_KEY].shape[0]
+
+    if num_fronts == 0:
+        latitude_matrix_deg = numpy.full((0, 1), numpy.nan)
+        longitude_matrix_deg = latitude_matrix_deg + 0.
+        front_type_strings = []
+    else:
+        latitude_matrix_deg = numpy.array(
+            dataset_object.variables[LATITUDE_MATRIX_KEY][:]
+        )
+        longitude_matrix_deg = numpy.array(
+            dataset_object.variables[LONGITUDE_MATRIX_KEY][:]
+        )
+        front_type_strings = [
+            str(f) for f in netCDF4.chartostring(
+                dataset_object.variables[FRONT_TYPES_KEY][:])
+        ]
 
     dataset_object.close()
 
