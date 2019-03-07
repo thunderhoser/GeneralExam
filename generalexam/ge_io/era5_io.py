@@ -613,7 +613,9 @@ def write_processed_file(netcdf_file_name, era5_dict):
         raise ValueError(error_string)
 
     _check_era5_data(era5_dict)
+    print era5_dict[DATA_MATRIX_KEY].shape
     era5_dict[DATA_MATRIX_KEY] = era5_dict[DATA_MATRIX_KEY][0, ...]
+    print era5_dict[DATA_MATRIX_KEY].shape
 
     # Open file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
