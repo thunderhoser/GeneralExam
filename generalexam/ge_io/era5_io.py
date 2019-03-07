@@ -194,6 +194,19 @@ def _check_era5_data(era5_dict):
     error_checking.assert_is_numpy_array(
         era5_dict[VALID_TIMES_KEY], num_dimensions=1)
 
+    error_checking.assert_is_integer_numpy_array(era5_dict[PRESSURE_LEVELS_KEY])
+    error_checking.assert_is_greater_numpy_array(
+        era5_dict[PRESSURE_LEVELS_KEY], 0)
+    error_checking.assert_is_numpy_array(
+        era5_dict[PRESSURE_LEVELS_KEY], num_dimensions=1)
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(era5_dict[FIELD_NAMES_KEY]), num_dimensions=1)
+
+    num_fields = len(era5_dict[FIELD_NAMES_KEY])
+    for j in range(num_fields):
+        check_field_name(era5_dict[FIELD_NAMES_KEY][j])
+
     on_narr_grid = (
         era5_dict[LATITUDES_KEY] is None and era5_dict[LONGITUDES_KEY] is None
     )
@@ -208,30 +221,27 @@ def _check_era5_data(era5_dict):
         error_checking.assert_is_numpy_array(
             era5_dict[LONGITUDES_KEY], num_dimensions=1)
 
-    error_checking.assert_is_integer_numpy_array(era5_dict[PRESSURE_LEVELS_KEY])
-    error_checking.assert_is_greater_numpy_array(
-        era5_dict[PRESSURE_LEVELS_KEY], 0)
-    error_checking.assert_is_numpy_array(
-        era5_dict[PRESSURE_LEVELS_KEY], num_dimensions=1)
+    error_checking.assert_is_numpy_array_without_nan(era5_dict[DATA_MATRIX_KEY])
 
-    error_checking.assert_is_numpy_array(
-        numpy.array(era5_dict[FIELD_NAMES_KEY]), num_dimensions=1)
+    this_num_dimensions = len(era5_dict[DATA_MATRIX_KEY].shape)
+    error_checking.assert_is_geq(this_num_dimensions, 5)
+    error_checking.assert_is_leq(this_num_dimensions, 5)
 
-    num_times = era5_dict[VALID_TIMES_KEY]
-    num_grid_rows = era5_dict[LATITUDES_KEY]
-    num_grid_columns = era5_dict[LONGITUDES_KEY]
-    num_pressure_levels = era5_dict[PRESSURE_LEVELS_KEY]
-    num_fields = era5_dict[FIELD_NAMES_KEY]
+    num_times = len(era5_dict[VALID_TIMES_KEY])
+    num_pressure_levels = len(era5_dict[PRESSURE_LEVELS_KEY])
 
-    for j in range(num_fields):
-        check_field_name(era5_dict[FIELD_NAMES_KEY][j])
+    if on_narr_grid:
+        num_grid_rows = era5_dict[DATA_MATRIX_KEY].shape[1]
+        num_grid_columns = era5_dict[DATA_MATRIX_KEY].shape[2]
+    else:
+        num_grid_rows = len(era5_dict[LATITUDES_KEY])
+        num_grid_columns = len(era5_dict[LONGITUDES_KEY])
 
     these_expected_dim = numpy.array(
         [num_times, num_grid_rows, num_grid_columns, num_pressure_levels,
          num_fields],
         dtype=int)
 
-    error_checking.assert_is_numpy_array_without_nan(era5_dict[DATA_MATRIX_KEY])
     error_checking.assert_is_numpy_array(
         era5_dict[DATA_MATRIX_KEY], exact_dimensions=these_expected_dim)
 
