@@ -8,14 +8,13 @@ import copy
 import os.path
 import numpy
 import netCDF4
-from scipy.interpolate import interp2d, griddata
+from scipy.interpolate import griddata
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_utils import utils as general_utils
 
 TIME_FORMAT = '%Y%m%d%H'
 TIME_FORMAT_IN_LOG_MESSAGES = '%Y-%m-%d-%H'
@@ -221,7 +220,7 @@ def _check_era5_data(era5_dict):
         error_checking.assert_is_numpy_array(
             era5_dict[LONGITUDES_KEY], num_dimensions=1)
 
-    error_checking.assert_is_numpy_array_without_nan(era5_dict[DATA_MATRIX_KEY])
+    # error_checking.assert_is_numpy_array_without_nan(era5_dict[DATA_MATRIX_KEY])
 
     this_num_dimensions = len(era5_dict[DATA_MATRIX_KEY].shape)
     error_checking.assert_is_geq(this_num_dimensions, 5)
@@ -390,6 +389,8 @@ def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
     valid_times_unix_sec = valid_times_unix_sec[good_indices]
     data_matrix = None
 
+    # TODO(thunderhoser): All these try-except statements are a HACK.
+
     try:
         data_matrix = numpy.array(
             dataset_object.variables[DATA_MATRIX_KEY_RAW][good_indices, ...]
@@ -554,9 +555,9 @@ def interp_to_narr_grid(era5_dict, era5_x_matrix_metres=None,
                 # new_data_matrix[i, ..., j, k] = this_interp_object(
                 #     narr_x_matrix_metres, narr_y_matrix_metres)
 
-                new_data_matrix[i, ..., j, k] = general_utils.fill_nans(
-                    new_data_matrix[i, ..., j, k]
-                )
+                # new_data_matrix[i, ..., j, k] = general_utils.fill_nans(
+                #     new_data_matrix[i, ..., j, k]
+                # )
 
     era5_dict[DATA_MATRIX_KEY] = new_data_matrix
     era5_dict[LATITUDES_KEY] = None
@@ -613,9 +614,7 @@ def write_processed_file(netcdf_file_name, era5_dict):
         raise ValueError(error_string)
 
     _check_era5_data(era5_dict)
-    print era5_dict[DATA_MATRIX_KEY].shape
     era5_dict[DATA_MATRIX_KEY] = era5_dict[DATA_MATRIX_KEY][0, ...]
-    print era5_dict[DATA_MATRIX_KEY].shape
 
     # Open file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -780,7 +779,10 @@ def read_processed_file(
 
     era5_dict[PRESSURE_LEVELS_KEY] = pressure_levels_to_keep_mb
     era5_dict[FIELD_NAMES_KEY] = field_names_to_keep
-    era5_dict[DATA_MATRIX_KEY] = era5_dict[DATA_MATRIX_KEY][
-        ..., pressure_indices, field_indices]
+
+    era5_dict[DATA_MATRIX_KEY] = numpy.take(
+        era5_dict[DATA_MATRIX_KEY], indices=pressure_indices, axis=-2)
+    era5_dict[DATA_MATRIX_KEY] = numpy.take(
+        era5_dict[DATA_MATRIX_KEY], indices=field_indices, axis=-1)
 
     return era5_dict
