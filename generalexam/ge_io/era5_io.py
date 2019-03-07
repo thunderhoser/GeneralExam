@@ -378,9 +378,41 @@ def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
     ))[0]
 
     valid_times_unix_sec = valid_times_unix_sec[good_indices]
-    data_matrix = numpy.array(
-        dataset_object.variables[DATA_MATRIX_KEY_RAW][good_indices, ...]
-    )
+    data_matrix = None
+
+    try:
+        data_matrix = numpy.array(
+            dataset_object.variables[DATA_MATRIX_KEY_RAW][good_indices, ...]
+        )
+    except KeyError:
+        pass
+
+    if data_matrix is None:
+        try:
+            data_matrix = numpy.array(
+                dataset_object.variables['t2m'][good_indices, ...]
+            )
+        except KeyError:
+            pass
+
+    if data_matrix is None:
+        try:
+            data_matrix = numpy.array(
+                dataset_object.variables['d2m'][good_indices, ...]
+            )
+        except KeyError:
+            pass
+
+    if data_matrix is None:
+        try:
+            data_matrix = numpy.array(
+                dataset_object.variables['v10'][good_indices, ...]
+            )
+        except KeyError:
+            pass
+
+    if data_matrix is None:
+        print dataset_object.variables
 
     data_matrix = numpy.flip(data_matrix, axis=1)
     latitudes_deg = latitudes_deg[::-1]
