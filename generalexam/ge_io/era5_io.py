@@ -8,7 +8,7 @@ import copy
 import os.path
 import numpy
 import netCDF4
-from scipy.interpolate import interp2d
+from scipy.interpolate import interp2d, griddata
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_conversion
@@ -474,6 +474,11 @@ def interp_to_narr_grid(era5_dict, era5_x_matrix_metres=None,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
+    num_narr_grid_points = narr_x_matrix_metres.size
+    narr_xy_matrix_metres = numpy.full((num_narr_grid_points, 2), numpy.nan)
+    narr_xy_matrix_metres[:, 0] = numpy.ravel(narr_x_matrix_metres)
+    narr_xy_matrix_metres[:, 1] = numpy.ravel(narr_y_matrix_metres)
+
     if era5_x_matrix_metres is None or era5_y_matrix_metres is None:
         era5_latitude_matrix_deg, era5_longitude_matrix_deg = (
             grids.latlng_vectors_to_matrices(
@@ -488,6 +493,11 @@ def interp_to_narr_grid(era5_dict, era5_x_matrix_metres=None,
                 longitudes_deg=era5_longitude_matrix_deg,
                 model_name=nwp_model_utils.NARR_MODEL_NAME)
         )
+
+    num_era5_grid_points = era5_x_matrix_metres.size
+    era5_xy_matrix_metres = numpy.full((num_era5_grid_points, 2), numpy.nan)
+    era5_xy_matrix_metres[:, 0] = numpy.ravel(era5_x_matrix_metres)
+    era5_xy_matrix_metres[:, 1] = numpy.ravel(era5_y_matrix_metres)
 
     num_era5_rows = len(era5_dict[LATITUDES_KEY])
     num_era5_columns = len(era5_dict[LONGITUDES_KEY])
@@ -526,13 +536,23 @@ def interp_to_narr_grid(era5_dict, era5_x_matrix_metres=None,
                     era5_dict[PRESSURE_LEVELS_KEY][j], this_time_string
                 )
 
-                this_interp_object = interp2d(
-                    era5_x_matrix_metres, era5_y_matrix_metres,
-                    era5_dict[DATA_MATRIX_KEY][i, ..., j, k], kind='linear',
-                    bounds_error=False, fill_value=numpy.nan)
+                this_interp_object = griddata(
+                    era5_xy_matrix_metres,
+                    numpy.ravel(era5_dict[DATA_MATRIX_KEY][i, ..., j, k]),
+                    narr_xy_matrix_metres, method='linear',
+                    fill_value=numpy.nan)
 
-                new_data_matrix[i, ..., j, k] = this_interp_object(
-                    narr_x_matrix_metres, narr_y_matrix_metres)
+                new_data_matrix[i, ..., j, k] = numpy.reshape(
+                    this_interp_object.T, (num_narr_rows, num_narr_columns)
+                )
+
+                # this_interp_object = interp2d(
+                #     era5_x_matrix_metres, era5_y_matrix_metres,
+                #     era5_dict[DATA_MATRIX_KEY][i, ..., j, k], kind='linear',
+                #     bounds_error=False, fill_value=numpy.nan)
+                #
+                # new_data_matrix[i, ..., j, k] = this_interp_object(
+                #     narr_x_matrix_metres, narr_y_matrix_metres)
 
                 new_data_matrix[i, ..., j, k] = general_utils.fill_nans(
                     new_data_matrix[i, ..., j, k]
