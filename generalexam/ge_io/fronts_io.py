@@ -419,7 +419,8 @@ def read_grid_from_file(netcdf_file_name):
     gridded_label_table = gridded_label_table.assign(**argument_dict)
 
     print dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN]
-    print dir(dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN])
+    print dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN].shape
+    print dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN].size
 
     cold_front_rows = numpy.round(numpy.array(
         dataset_object.variables[front_utils.COLD_FRONT_ROWS_COLUMN][:]
