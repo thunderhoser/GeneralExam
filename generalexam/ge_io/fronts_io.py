@@ -418,25 +418,37 @@ def read_grid_from_file(netcdf_file_name):
 
     gridded_label_table = gridded_label_table.assign(**argument_dict)
 
-    print dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN]
-    print dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN].shape
-    print dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN].size
+    num_cold_front_pixels = dataset_object.variables[
+        front_utils.COLD_FRONT_ROWS_COLUMN
+    ].size
 
-    cold_front_rows = numpy.round(numpy.array(
-        dataset_object.variables[front_utils.COLD_FRONT_ROWS_COLUMN][:]
-    )).astype(int)
+    if num_cold_front_pixels > 0:
+        cold_front_rows = numpy.round(numpy.array(
+            dataset_object.variables[front_utils.COLD_FRONT_ROWS_COLUMN][:]
+        )).astype(int)
 
-    cold_front_columns = numpy.round(numpy.array(
-        dataset_object.variables[front_utils.COLD_FRONT_COLUMNS_COLUMN][:]
-    )).astype(int)
+        cold_front_columns = numpy.round(numpy.array(
+            dataset_object.variables[front_utils.COLD_FRONT_COLUMNS_COLUMN][:]
+        )).astype(int)
+    else:
+        cold_front_rows = numpy.array([], dtype=int)
+        cold_front_columns = numpy.array([], dtype=int)
 
-    warm_front_rows = numpy.round(numpy.array(
-        dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN][:]
-    )).astype(int)
+    num_warm_front_pixels = dataset_object.variables[
+        front_utils.WARM_FRONT_ROWS_COLUMN
+    ].size
 
-    warm_front_columns = numpy.round(numpy.array(
-        dataset_object.variables[front_utils.WARM_FRONT_COLUMNS_COLUMN][:]
-    )).astype(int)
+    if num_warm_front_pixels > 0:
+        warm_front_rows = numpy.round(numpy.array(
+            dataset_object.variables[front_utils.WARM_FRONT_ROWS_COLUMN][:]
+        )).astype(int)
+
+        warm_front_columns = numpy.round(numpy.array(
+            dataset_object.variables[front_utils.WARM_FRONT_COLUMNS_COLUMN][:]
+        )).astype(int)
+    else:
+        warm_front_rows = numpy.array([], dtype=int)
+        warm_front_columns = numpy.array([], dtype=int)
 
     if len(warm_front_rows) == 1:
         warm_front_rows = warm_front_rows[warm_front_rows >= 0]
