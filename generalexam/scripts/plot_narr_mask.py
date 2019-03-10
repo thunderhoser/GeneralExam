@@ -224,6 +224,8 @@ def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
         warm_front_file_name, cold_front_file_name, mask_file_name
     ]
 
+    print 'Concatenating panels to: "{0:s}"...'.format(concat_file_name)
+
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
         num_panel_rows=2, num_panel_columns=2)
