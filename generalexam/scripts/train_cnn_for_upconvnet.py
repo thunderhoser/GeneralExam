@@ -222,7 +222,7 @@ def _run(num_half_rows, num_half_columns, narr_predictor_names,
         last_validation_time_string, TIME_FORMAT)
 
     print 'Reading NARR mask from: "{0:s}"...'.format(NARR_MASK_FILE_NAME)
-    narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)
+    narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)[0]
 
     output_metafile_name = traditional_cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)

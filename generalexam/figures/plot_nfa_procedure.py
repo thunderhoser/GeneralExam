@@ -462,7 +462,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
             (num_grid_rows, num_grid_columns), 1, dtype=int)
     else:
         print 'Reading mask from: "{0:s}"...\n'.format(narr_mask_file_name)
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
 
     wet_bulb_theta_file_name = processed_narr_io.find_file_for_one_time(
         top_directory_name=top_narr_directory_name,

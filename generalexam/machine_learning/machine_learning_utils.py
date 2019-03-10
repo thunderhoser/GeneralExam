@@ -1179,18 +1179,39 @@ def downsize_grids_around_selected_points(
             center_grid_rows, center_grid_columns)
 
 
-def write_narr_mask(mask_matrix, pickle_file_name):
+def write_narr_mask(mask_matrix, num_warm_fronts_matrix, num_cold_fronts_matrix,
+                    pickle_file_name):
     """Writes NARR mask to Pickle file.
 
-    :param mask_matrix: See doc for `check_narr_mask`.
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param mask_matrix: M-by-N numpy array of integers in range 0...1, where 0
+        means that the grid cell is masked.
+    :param num_warm_fronts_matrix: M-by-N numpy array with number of warm fronts
+        per grid cell.
+    :param num_cold_fronts_matrix: M-by-N numpy array with number of cold fronts
+        per grid cell.
     :param pickle_file_name: Path to output file.
     """
 
     check_narr_mask(mask_matrix)
+    expected_dimensions = numpy.array(mask_matrix.shape, dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(num_warm_fronts_matrix)
+    error_checking.assert_is_numpy_array(
+        num_warm_fronts_matrix, exact_dimensions=expected_dimensions)
+
+    error_checking.assert_is_integer_numpy_array(num_cold_fronts_matrix)
+    error_checking.assert_is_numpy_array(
+        num_cold_fronts_matrix, exact_dimensions=expected_dimensions)
+
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(mask_matrix, pickle_file_handle)
+    pickle.dump(num_warm_fronts_matrix, pickle_file_handle)
+    pickle.dump(num_cold_fronts_matrix, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -1198,15 +1219,28 @@ def read_narr_mask(pickle_file_name):
     """Reads NARR mask from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: mask_matrix: See doc for `check_narr_mask`.
+    :return: mask_matrix: See doc for `write_narr_mask`.
+    :return: num_warm_fronts_matrix: See doc for `write_narr_mask`.  If the file
+        does not contain this matrix, the return value will be None.
+    :return: num_cold_fronts_matrix: Same.
     """
+
+    num_warm_fronts_matrix = None
+    num_cold_fronts_matrix = None
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     mask_matrix = pickle.load(pickle_file_handle)
+    check_narr_mask(mask_matrix)
+
+    try:
+        num_warm_fronts_matrix = pickle.load(pickle_file_handle)
+        num_cold_fronts_matrix = pickle.load(pickle_file_handle)
+    except EOFError:
+        pass
+
     pickle_file_handle.close()
 
-    check_narr_mask(mask_matrix)
-    return mask_matrix
+    return mask_matrix, num_warm_fronts_matrix, num_cold_fronts_matrix
 
 
 def find_gridded_prediction_file(

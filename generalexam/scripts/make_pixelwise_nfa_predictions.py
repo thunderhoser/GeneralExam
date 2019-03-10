@@ -222,7 +222,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             (num_grid_rows, num_grid_columns), 1, dtype=int)
     else:
         print 'Reading mask from: "{0:s}"...\n'.format(narr_mask_file_name)
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
         model_name=nwp_model_utils.NARR_MODEL_NAME)

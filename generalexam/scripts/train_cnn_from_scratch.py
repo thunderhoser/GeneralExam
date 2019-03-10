@@ -109,7 +109,7 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
 
     if narr_mask_file_name is not None:
         print 'Reading NARR mask from: "{0:s}"...'.format(narr_mask_file_name)
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)

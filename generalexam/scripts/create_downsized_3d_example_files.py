@@ -218,7 +218,7 @@ def _run(first_time_string, last_time_string, max_num_examples_per_time,
         narr_mask_matrix = None
     else:
         print 'Reading NARR mask from: "{0:s}"...'.format(narr_mask_file_name)
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)
+        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
         print SEPARATOR_STRING
 
     error_checking.assert_is_greater(num_times_per_output_file, 0)

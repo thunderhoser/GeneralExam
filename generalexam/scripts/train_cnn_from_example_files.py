@@ -90,7 +90,7 @@ def _run(input_model_file_name, narr_predictor_names,
     num_half_columns = int(numpy.round((num_grid_columns - 1) / 2))
 
     print 'Reading NARR mask from: "{0:s}"...'.format(NARR_MASK_FILE_NAME)
-    narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)
+    narr_mask_matrix = ml_utils.read_narr_mask(NARR_MASK_FILE_NAME)[0]
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
