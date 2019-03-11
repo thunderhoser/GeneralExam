@@ -417,7 +417,23 @@ def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
     if data_matrix is None:
         try:
             data_matrix = numpy.array(
+                dataset_object.variables['u10'][good_indices, ...]
+            )
+        except KeyError:
+            pass
+
+    if data_matrix is None:
+        try:
+            data_matrix = numpy.array(
                 dataset_object.variables['v10'][good_indices, ...]
+            )
+        except KeyError:
+            pass
+
+    if data_matrix is None:
+        try:
+            data_matrix = numpy.array(
+                dataset_object.variables['sp'][good_indices, ...]
             )
         except KeyError:
             pass
