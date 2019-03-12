@@ -252,13 +252,15 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
 
             print 'Rotating winds from Earth-relative to grid-relative...'
 
-            (one_time_era5_dict[era5_io.DATA_MATRIX_KEY][..., u_wind_index],
-             one_time_era5_dict[era5_io.DATA_MATRIX_KEY][..., v_wind_index]
+            (one_time_era5_dict[era5_io.DATA_MATRIX_KEY][
+                 0, ..., 0, u_wind_index],
+             one_time_era5_dict[era5_io.DATA_MATRIX_KEY][
+                 0, ..., 0, v_wind_index]
             ) = nwp_model_utils.rotate_winds_to_grid_relative(
                 u_winds_earth_relative_m_s01=one_time_era5_dict[
-                    era5_io.DATA_MATRIX_KEY][..., u_wind_index],
+                    era5_io.DATA_MATRIX_KEY][0, ..., 0, u_wind_index],
                 v_winds_earth_relative_m_s01=one_time_era5_dict[
-                    era5_io.DATA_MATRIX_KEY][..., v_wind_index],
+                    era5_io.DATA_MATRIX_KEY][0, ..., 0, v_wind_index],
                 rotation_angle_cosines=narr_rotation_cos_matrix,
                 rotation_angle_sines=narr_rotation_sin_matrix)
 
