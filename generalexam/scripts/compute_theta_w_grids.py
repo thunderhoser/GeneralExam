@@ -115,17 +115,11 @@ def _read_era5_inputs_one_time(
         top_directory_name=top_input_dir_name,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    field_names_to_keep = [
-        era5_io.TEMPERATURE_NAME, era5_io.SPECIFIC_HUMIDITY_NAME
-    ]
-    if pressure_level_mb == DUMMY_PRESSURE_LEVEL_MB:
-        field_names_to_keep.append(era5_io.PRESSURE_NAME)
-
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
     era5_dict = era5_io.read_processed_file(
         netcdf_file_name=input_file_name,
-        pressure_levels_to_keep_mb=numpy.array([pressure_level_mb]),
-        field_names_to_keep=field_names_to_keep)
+        pressure_levels_to_keep_mb=numpy.array([pressure_level_mb])
+    )
 
     num_pressures_in_file = len(era5_dict[era5_io.PRESSURE_LEVELS_KEY])
     if num_pressures_in_file > 1:
@@ -237,13 +231,9 @@ def _write_era5_output_one_time(
     theta_w_matrix_kelvins = numpy.expand_dims(theta_w_matrix_kelvins, axis=-1)
 
     era5_dict[era5_io.FIELD_NAMES_KEY].append(era5_io.WET_BULB_THETA_NAME)
-
-    print era5_dict[era5_io.DATA_MATRIX_KEY].shape
-    print theta_w_matrix_kelvins.shape
-
-    era5_dict[era5_io.DATA_MATRIX_KEY] = numpy.concatenate((
-        era5_dict[era5_io.DATA_MATRIX_KEY], theta_w_matrix_kelvins
-    ))
+    era5_dict[era5_io.DATA_MATRIX_KEY] = numpy.concatenate(
+        (era5_dict[era5_io.DATA_MATRIX_KEY], theta_w_matrix_kelvins), axis=-1
+    )
 
     output_file_name = era5_io.find_processed_file(
         top_directory_name=top_output_dir_name,
@@ -308,12 +298,6 @@ def _run(top_narr_input_dir_name, top_era5_input_dir_name, first_time_string,
             top_era5_input_dir_name if top_narr_input_dir_name is None
             else top_narr_input_dir_name
         )
-
-    field_names_to_keep = [
-        era5_io.TEMPERATURE_NAME, era5_io.SPECIFIC_HUMIDITY_NAME
-    ]
-    if pressure_level_mb == DUMMY_PRESSURE_LEVEL_MB:
-        field_names_to_keep.append(era5_io.PRESSURE_NAME)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
