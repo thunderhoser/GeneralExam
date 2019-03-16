@@ -205,7 +205,15 @@ def _read_era5_inputs_one_time(
         pressure_levels_to_keep_mb=numpy.array([pressure_level_mb]),
         field_names_to_keep=predictor_names)
 
-    return era5_dict[era5_io.DATA_MATRIX_KEY][[0], ..., 0, :]
+    predictor_matrix = era5_dict[era5_io.DATA_MATRIX_KEY][[0], ..., 0, :]
+    num_fields = predictor_matrix.shape[-1]
+
+    for k in range(num_fields):
+        predictor_matrix[..., k] = ml_utils.fill_nans_in_predictor_images(
+            predictor_matrix[..., k]
+        )
+
+    return predictor_matrix
 
 
 def _create_examples_one_time(
