@@ -221,8 +221,6 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                     MB_TO_PASCALS * pressure_level_mb
                 )
 
-            print one_time_data_matrix[0, ..., 0, dewpoint_index][:10, :10]
-
             one_time_data_matrix[..., dewpoint_index] = (
                 moisture_conversions.dewpoint_to_specific_humidity(
                     dewpoints_kelvins=one_time_data_matrix[
@@ -230,8 +228,6 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                     total_pressures_pascals=this_pressure_matrix_pascals
                 )
             )
-
-            print one_time_data_matrix[0, ..., 0, dewpoint_index][:10, :10]
 
         one_time_era5_dict = {
             era5_io.DATA_MATRIX_KEY: one_time_data_matrix,
