@@ -30,12 +30,12 @@ CNN_METHOD_NAME = 'cnn'
 NFA_METHOD_NAME = 'nfa'
 VALID_METHOD_NAMES = [CNN_METHOD_NAME, NFA_METHOD_NAME]
 
+NUM_PARALLELS = 8
+NUM_MERIDIANS = 6
 MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
 MAX_LATITUDE_DEG = 80.
 MAX_LONGITUDE_DEG = 290.
-PARALLEL_SPACING_DEG = 10.
-MERIDIAN_SPACING_DEG = 20.
 BORDER_COLOUR = numpy.full(3, 0.)
 
 FIGURE_RESOLUTION_DPI = 300
@@ -168,6 +168,13 @@ def _plot_one_time(
         first_column_in_full_grid=narr_column_limits[0],
         last_column_in_full_grid=narr_column_limits[1])
 
+    parallel_spacing_deg = numpy.round(
+        (MAX_LATITUDE_DEG - MIN_LATITUDE_DEG) / (NUM_PARALLELS - 1)
+    )
+    meridian_spacing_deg = numpy.round(
+        (MAX_LONGITUDE_DEG - MIN_LONGITUDE_DEG) / (NUM_MERIDIANS - 1)
+    )
+
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
@@ -180,11 +187,11 @@ def _plot_one_time(
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=PARALLEL_SPACING_DEG)
+        parallel_spacing_deg=parallel_spacing_deg)
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
         bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=MERIDIAN_SPACING_DEG)
+        meridian_spacing_deg=meridian_spacing_deg)
 
     if class_probability_matrix is None:
         this_matrix = predicted_label_matrix[

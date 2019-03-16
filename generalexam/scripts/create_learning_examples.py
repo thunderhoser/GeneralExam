@@ -439,7 +439,7 @@ def _run(top_era5_dir_name, first_time_string, last_time_string,
 
             print SEPARATOR_STRING
             this_example_dict = None
-            this_first_time_unix_sec = valid_times_unix_sec[0]
+            this_first_time_unix_sec = valid_times_unix_sec[i]
 
         this_new_example_dict = _create_examples_one_time(
             top_era5_dir_name=top_era5_dir_name,

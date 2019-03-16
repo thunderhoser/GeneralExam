@@ -48,8 +48,8 @@ WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
 WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
 
-PARALLEL_SPACING_DEG = 2.
-MERIDIAN_SPACING_DEG = 6.
+NUM_PARALLELS = 8
+NUM_MERIDIANS = 6
 BORDER_WIDTH = 2
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
@@ -253,6 +253,15 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             last_column_in_full_grid=this_last_column_index,
             resolution_string='i')
 
+        parallel_spacing_deg = numpy.round(
+            (basemap_object.urcrnrlat - basemap_object.llcrnrlat) /
+            (NUM_PARALLELS - 1)
+        )
+        meridian_spacing_deg = numpy.round(
+            (basemap_object.urcrnrlong - basemap_object.llcrnrlon) /
+            (NUM_MERIDIANS - 1)
+        )
+
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
@@ -265,11 +274,11 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         plotting_utils.plot_parallels(
             basemap_object=basemap_object, axes_object=axes_object,
             bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-            parallel_spacing_deg=PARALLEL_SPACING_DEG)
+            parallel_spacing_deg=parallel_spacing_deg)
         plotting_utils.plot_meridians(
             basemap_object=basemap_object, axes_object=axes_object,
             bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-            meridian_spacing_deg=MERIDIAN_SPACING_DEG)
+            meridian_spacing_deg=meridian_spacing_deg)
 
         this_thetaw_matrix_kelvins = example_dict[
             trainval_io.PREDICTOR_MATRIX_KEY][i, ..., thetaw_index]
