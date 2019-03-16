@@ -237,6 +237,10 @@ def _write_era5_output_one_time(
     theta_w_matrix_kelvins = numpy.expand_dims(theta_w_matrix_kelvins, axis=-1)
 
     era5_dict[era5_io.FIELD_NAMES_KEY].append(era5_io.WET_BULB_THETA_NAME)
+
+    print era5_dict[era5_io.DATA_MATRIX_KEY].shape
+    print theta_w_matrix_kelvins.shape
+
     era5_dict[era5_io.DATA_MATRIX_KEY] = numpy.concatenate((
         era5_dict[era5_io.DATA_MATRIX_KEY], theta_w_matrix_kelvins
     ))
