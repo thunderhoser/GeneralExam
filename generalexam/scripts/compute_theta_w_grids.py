@@ -142,6 +142,7 @@ def _read_era5_inputs_one_time(
     temperature_matrix_kelvins = era5_dict[era5_io.DATA_MATRIX_KEY][
         ..., 0, temperature_index]
 
+    print era5_dict[era5_io.FIELD_NAMES_KEY]
     humidity_index = era5_dict[era5_io.FIELD_NAMES_KEY].index(
         era5_io.SPECIFIC_HUMIDITY_NAME)
     humidity_matrix_kg_kg01 = era5_dict[era5_io.DATA_MATRIX_KEY][
