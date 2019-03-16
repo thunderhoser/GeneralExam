@@ -20,9 +20,7 @@ WGRIB2_EXE_NAME = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SECONDS = 10800
-
 MB_TO_PASCALS = 100
-DUMMY_PRESSURE_LEVEL_MB = 1013
 
 NARR_DIR_ARG_NAME = 'input_narr_dir_name'
 ERA5_DIR_ARG_NAME = 'input_era5_dir_name'
@@ -37,7 +35,7 @@ NARR_DIR_HELP_STRING = (
     'will be found by `processed_narr_io.find_file_for_one_time` and read by '
     '`processed_narr_io.read_fields_from_file`.  To use ERA5 data instead, '
     'leave this argument alone.'
-).format(PRESSURE_LEVEL_ARG_NAME, DUMMY_PRESSURE_LEVEL_MB)
+).format(PRESSURE_LEVEL_ARG_NAME, era5_io.DUMMY_SURFACE_PRESSURE_MB)
 
 ERA5_DIR_HELP_STRING = (
     'Name of top-level directory with NARR data.  Input files (containing '
@@ -45,7 +43,7 @@ ERA5_DIR_HELP_STRING = (
     'will be found by `era5_io.find_processed_file` and read by '
     '`era5_io.read_processed_file`.  To use NARR data instead, leave this '
     'argument alone.'
-).format(PRESSURE_LEVEL_ARG_NAME, DUMMY_PRESSURE_LEVEL_MB)
+).format(PRESSURE_LEVEL_ARG_NAME, era5_io.DUMMY_SURFACE_PRESSURE_MB)
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  This script will compute theta_w grids for '
@@ -84,7 +82,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
-    default=DUMMY_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
+    default=era5_io.DUMMY_SURFACE_PRESSURE_MB, help=PRESSURE_LEVEL_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=False, default='',
@@ -107,8 +105,7 @@ def _read_era5_inputs_one_time(
     :return: humidity_matrix_kg_kg01: 1-by-M-by-N numpy array of
         specific humidities (kg/kg).
     :return: pressure_matrix_pascals: 1-by-M-by-N numpy array of pressures.
-    :raises: ValueError: if the file contains multiple pressure levels or time
-        steps.
+    :raises: ValueError: if the file contains multiple time steps.
     """
 
     input_file_name = era5_io.find_processed_file(
@@ -120,14 +117,6 @@ def _read_era5_inputs_one_time(
         netcdf_file_name=input_file_name,
         pressure_levels_to_keep_mb=numpy.array([pressure_level_mb])
     )
-
-    num_pressures_in_file = len(era5_dict[era5_io.PRESSURE_LEVELS_KEY])
-    if num_pressures_in_file > 1:
-        error_string = (
-            'File ("{0:s}") should contain 1 pressure level, not {1:d}.'
-        ).format(input_file_name, num_pressures_in_file)
-
-        raise ValueError(error_string)
 
     num_times_in_file = len(era5_dict[era5_io.VALID_TIMES_KEY])
     if num_times_in_file > 1:
@@ -147,7 +136,7 @@ def _read_era5_inputs_one_time(
     humidity_matrix_kg_kg01 = era5_dict[era5_io.DATA_MATRIX_KEY][
         ..., 0, humidity_index]
 
-    if pressure_level_mb == DUMMY_PRESSURE_LEVEL_MB:
+    if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
         pressure_index = era5_dict[era5_io.FIELD_NAMES_KEY].index(
             era5_io.PRESSURE_NAME)
         pressure_matrix_pascals = era5_dict[era5_io.DATA_MATRIX_KEY][
@@ -195,7 +184,7 @@ def _read_narr_inputs_one_time(
         humidity_file_name
     )[0]
 
-    if pressure_level_mb == DUMMY_PRESSURE_LEVEL_MB:
+    if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
         pressure_file_name = processed_narr_io.find_file_for_one_time(
             top_directory_name=top_input_dir_name,
             field_name=processed_narr_io.HEIGHT_NAME,
@@ -307,7 +296,7 @@ def _run(top_narr_input_dir_name, top_era5_input_dir_name, first_time_string,
     valid_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=TIME_INTERVAL_SECONDS)
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
     num_times = len(valid_times_unix_sec)
 
