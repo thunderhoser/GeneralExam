@@ -206,8 +206,6 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             one_time_data_matrix[0, ..., 0, j] = this_era5_dict[
                 era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
 
-        print numpy.sum(numpy.isnan(one_time_data_matrix))
-
         if era5_io.DEWPOINT_NAME in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
             dewpoint_index = raw_field_names.index(era5_io.DEWPOINT_NAME_RAW)
