@@ -330,6 +330,10 @@ def _run(top_narr_input_dir_name, top_era5_input_dir_name, first_time_string,
                 valid_time_unix_sec=valid_times_unix_sec[i],
                 pressure_level_mb=pressure_level_mb)
 
+        print 'Temperatures (K):\n{0:s}\n'.format(str(this_temperature_matrix_kelvins[0, 100:110, 110:110]))
+        print 'Specific humidities (kg/kg):\n{0:s}\n'.format(str(this_humidity_matrix_kg_kg01[0, 100:110, 110:110]))
+        print 'Pressures (Pa):\n{0:s}\n'.format(str(this_pressure_matrix_pascals[0, 100:110, 110:110]))
+
         this_dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
                 specific_humidities_kg_kg01=this_humidity_matrix_kg_kg01,
