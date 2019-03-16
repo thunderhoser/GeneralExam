@@ -258,7 +258,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             (NUM_PARALLELS - 1)
         )
         meridian_spacing_deg = numpy.round(
-            (basemap_object.urcrnrlong - basemap_object.llcrnrlon) /
+            (basemap_object.urcrnrlon - basemap_object.llcrnrlon) /
             (NUM_MERIDIANS - 1)
         )
 

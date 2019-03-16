@@ -126,7 +126,7 @@ def _make_one_plot(
         (NUM_PARALLELS - 1)
     )
     meridian_spacing_deg = numpy.round(
-        (basemap_object.urcrnrlong - basemap_object.llcrnrlon) /
+        (basemap_object.urcrnrlon - basemap_object.llcrnrlon) /
         (NUM_MERIDIANS - 1)
     )
 
