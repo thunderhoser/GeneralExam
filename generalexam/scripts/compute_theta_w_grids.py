@@ -142,7 +142,6 @@ def _read_era5_inputs_one_time(
     temperature_matrix_kelvins = era5_dict[era5_io.DATA_MATRIX_KEY][
         ..., 0, temperature_index]
 
-    print era5_dict[era5_io.FIELD_NAMES_KEY]
     humidity_index = era5_dict[era5_io.FIELD_NAMES_KEY].index(
         era5_io.SPECIFIC_HUMIDITY_NAME)
     humidity_matrix_kg_kg01 = era5_dict[era5_io.DATA_MATRIX_KEY][
@@ -330,16 +329,6 @@ def _run(top_narr_input_dir_name, top_era5_input_dir_name, first_time_string,
                 top_input_dir_name=top_narr_input_dir_name,
                 valid_time_unix_sec=valid_times_unix_sec[i],
                 pressure_level_mb=pressure_level_mb)
-
-        print 'Temperatures (K):'
-        print this_temperature_matrix_kelvins.shape
-        print this_temperature_matrix_kelvins[0, ...][:10, :10]
-
-        print '\nSpecific humidities (kg/kg):'
-        print this_humidity_matrix_kg_kg01[0, ...][:10, :10]
-
-        print '\nPressures (Pa):'
-        print this_pressure_matrix_pascals[0, ...][:10, :10]
 
         this_dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
