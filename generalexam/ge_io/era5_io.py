@@ -583,7 +583,7 @@ def interp_to_narr_grid(era5_dict, era5_x_matrix_metres=None,
 
 
 def find_processed_file(top_directory_name, valid_time_unix_sec,
-                        raise_error_if_missing):
+                        raise_error_if_missing=True):
     """Finds processed file (NetCDF with all data at one time step).
 
     :param top_directory_name: Name of top-level directory with processed files.
