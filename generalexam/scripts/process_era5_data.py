@@ -192,10 +192,6 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                 first_time_unix_sec=valid_times_unix_sec[i],
                 last_time_unix_sec=valid_times_unix_sec[i])
 
-            print numpy.sum(numpy.isnan(
-                this_era5_dict[era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
-            ))
-
             if one_time_data_matrix is None:
                 num_grid_rows = this_era5_dict[
                     era5_io.DATA_MATRIX_KEY].shape[1]
@@ -207,8 +203,10 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                     numpy.nan
                 )
 
-                one_time_data_matrix[0, ..., 0, j] = this_era5_dict[
-                    era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
+            one_time_data_matrix[0, ..., 0, j] = this_era5_dict[
+                era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
+
+        print numpy.sum(numpy.isnan(one_time_data_matrix))
 
         if era5_io.DEWPOINT_NAME in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
