@@ -130,6 +130,9 @@ def _make_one_plot(
         (NUM_MERIDIANS - 1)
     )
 
+    parallel_spacing_deg = max([parallel_spacing_deg, 1.])
+    meridian_spacing_deg = max([meridian_spacing_deg, 1.])
+
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)

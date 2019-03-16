@@ -262,8 +262,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             (NUM_MERIDIANS - 1)
         )
 
-        print parallel_spacing_deg
-        print meridian_spacing_deg
+        parallel_spacing_deg = max([parallel_spacing_deg, 1.])
+        meridian_spacing_deg = max([meridian_spacing_deg, 1.])
 
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=axes_object,

@@ -175,6 +175,9 @@ def _plot_one_time(
         (MAX_LONGITUDE_DEG - MIN_LONGITUDE_DEG) / (NUM_MERIDIANS - 1)
     )
 
+    parallel_spacing_deg = max([parallel_spacing_deg, 1.])
+    meridian_spacing_deg = max([meridian_spacing_deg, 1.])
+
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
