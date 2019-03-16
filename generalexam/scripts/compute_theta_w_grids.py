@@ -331,6 +331,7 @@ def _run(top_narr_input_dir_name, top_era5_input_dir_name, first_time_string,
                 pressure_level_mb=pressure_level_mb)
 
         print 'Temperatures (K):'
+        print this_temperature_matrix_kelvins.shape
         print this_temperature_matrix_kelvins[0, ...][100:110, 110:110]
 
         print '\nSpecific humidities (kg/kg):'
