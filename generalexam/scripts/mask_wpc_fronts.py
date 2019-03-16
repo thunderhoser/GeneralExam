@@ -110,7 +110,8 @@ def _run(top_input_dir_name, mask_file_name, first_time_string,
         print 'Reading unmasked polylines from: "{0:s}"...'.format(
             this_unmasked_file_name)
         this_polyline_table = fronts_io.read_polylines_from_file(
-            this_unmasked_file_name)
+            this_unmasked_file_name
+        )[0]
 
         print MINOR_SEPARATOR_STRING
         this_polyline_table = front_utils.remove_fronts_in_masked_area(
