@@ -158,7 +158,7 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
         for f in raw_field_names
     ]
 
-    if era5_io.DEWPOINT_NAME in field_names:
+    if era5_io.DEWPOINT_NAME_RAW in field_names:
         dewpoint_index = field_names.index(era5_io.DEWPOINT_NAME)
         field_names[dewpoint_index] = era5_io.SPECIFIC_HUMIDITY_NAME
 
@@ -206,7 +206,7 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             one_time_data_matrix[0, ..., 0, j] = this_era5_dict[
                 era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
 
-        if era5_io.DEWPOINT_NAME in raw_field_names:
+        if era5_io.DEWPOINT_NAME_RAW in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
             dewpoint_index = raw_field_names.index(era5_io.DEWPOINT_NAME_RAW)
 
