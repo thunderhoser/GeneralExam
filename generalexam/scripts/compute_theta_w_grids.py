@@ -332,13 +332,13 @@ def _run(top_narr_input_dir_name, top_era5_input_dir_name, first_time_string,
 
         print 'Temperatures (K):'
         print this_temperature_matrix_kelvins.shape
-        print this_temperature_matrix_kelvins[0, ...][100:110, 110:110]
+        print this_temperature_matrix_kelvins[0, ...][:10, :10]
 
         print '\nSpecific humidities (kg/kg):'
-        print this_humidity_matrix_kg_kg01[0, ...][100:110, 110:110]
+        print this_humidity_matrix_kg_kg01[0, ...][:10, :10]
 
         print '\nPressures (Pa):'
-        print this_pressure_matrix_pascals[0, ...][100:110, 110:110]
+        print this_pressure_matrix_pascals[0, ...][:10, :10]
 
         this_dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
