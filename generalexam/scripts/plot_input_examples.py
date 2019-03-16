@@ -262,6 +262,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             (NUM_MERIDIANS - 1)
         )
 
+        print parallel_spacing_deg
+        print meridian_spacing_deg
+
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
@@ -323,10 +326,6 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         this_front_file_name = fronts_io.find_polyline_file(
             top_directory_name=top_front_line_dir_name,
             valid_time_unix_sec=example_dict[trainval_io.TARGET_TIMES_KEY][i]
-        )
-
-        print time_conversion.unix_sec_to_string(
-            example_dict[trainval_io.TARGET_TIMES_KEY][i], '%Y-%m-%d-%H'
         )
 
         this_polyline_table = fronts_io.read_polylines_from_file(
