@@ -900,12 +900,6 @@ def remove_fronts_in_masked_area(
     bad_indices = []
 
     for i in range(num_fronts):
-        if numpy.mod(i, 25) == 0 and verbose:
-            print (
-                'Have checked {0:d} of {1:d} polylines and removed {2:d} (exist'
-                ' only in masked area)...'
-            ).format(i, num_fronts, len(bad_indices))
-
         skip_this_front = _is_polyline_closed(
             x_coords_metres=polyline_table[LONGITUDES_COLUMN].values[i],
             y_coords_metres=polyline_table[LATITUDES_COLUMN].values[i]
@@ -927,6 +921,12 @@ def remove_fronts_in_masked_area(
 
         if not found_unmasked_frontal_pixel:
             bad_indices.append(i)
+
+    if verbose:
+        print (
+            'Removed {0:d} of {1:d} polylines (because they touch only masked '
+            'grid cells).'
+        ).format(len(bad_indices), num_fronts)
 
     if len(bad_indices) == 0:
         return polyline_table

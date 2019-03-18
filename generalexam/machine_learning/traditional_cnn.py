@@ -35,8 +35,8 @@ one target variable (the label at the center pixel).
 import pickle
 import os.path
 import numpy
+import keras.callbacks
 from keras.models import load_model
-from keras.callbacks import ModelCheckpoint
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -45,6 +45,9 @@ from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import keras_metrics
+
+NUM_EPOCHS_FOR_EARLY_STOPPING = 6
+MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
 
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
@@ -269,7 +272,7 @@ def train_with_3d_examples(
         model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, num_examples_per_target_time,
         training_start_time_unix_sec, training_end_time_unix_sec,
-        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_narr_directory_name, top_gridded_front_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_distance_metres,
         class_fractions, num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
@@ -289,7 +292,7 @@ def train_with_3d_examples(
     :param training_start_time_unix_sec: Same.
     :param training_end_time_unix_sec: Same.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
@@ -319,10 +322,18 @@ def train_with_3d_examples(
     else:
         class_weight_dict = None
 
+    early_stopping_object = keras.callbacks.EarlyStopping(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+    list_of_callback_objects = [early_stopping_object]
+
     if num_validation_batches_per_epoch is None:
-        checkpoint_object = ModelCheckpoint(
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
             output_file_name, monitor='loss', verbose=1, save_best_only=False,
             save_weights_only=False, mode='min', period=1)
+
+        list_of_callback_objects.append(checkpoint_object)
 
         model_object.fit_generator(
             generator=trainval_io.downsized_3d_example_generator(
@@ -331,7 +342,7 @@ def train_with_3d_examples(
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -341,15 +352,17 @@ def train_with_3d_examples(
                 narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object])
+            callbacks=list_of_callback_objects)
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
-        checkpoint_object = ModelCheckpoint(
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
             output_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        list_of_callback_objects.append(checkpoint_object)
 
         model_object.fit_generator(
             generator=trainval_io.downsized_3d_example_generator(
@@ -358,7 +371,7 @@ def train_with_3d_examples(
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -368,7 +381,7 @@ def train_with_3d_examples(
                 narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object],
+            callbacks=list_of_callback_objects,
             validation_data=
             trainval_io.downsized_3d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -376,7 +389,7 @@ def train_with_3d_examples(
                 first_target_time_unix_sec=validation_start_time_unix_sec,
                 last_target_time_unix_sec=validation_end_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -426,10 +439,18 @@ def quick_train_3d(
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
+    early_stopping_object = keras.callbacks.EarlyStopping(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+    list_of_callback_objects = [early_stopping_object]
+
     if num_validation_batches_per_epoch is None:
-        checkpoint_object = ModelCheckpoint(
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
             output_file_name, monitor='loss', verbose=1, save_best_only=False,
             save_weights_only=False, mode='min', period=1)
+
+        list_of_callback_objects.append(checkpoint_object)
 
         model_object.fit_generator(
             generator=trainval_io.quick_downsized_3d_example_gen(
@@ -442,15 +463,17 @@ def quick_train_3d(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=None, callbacks=[checkpoint_object])
+            verbose=1, class_weight=None, callbacks=list_of_callback_objects)
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
-        checkpoint_object = ModelCheckpoint(
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
             output_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        list_of_callback_objects.append(checkpoint_object)
 
         model_object.fit_generator(
             generator=trainval_io.quick_downsized_3d_example_gen(
@@ -463,7 +486,7 @@ def quick_train_3d(
                 num_rows_in_half_grid=num_rows_in_half_grid,
                 num_columns_in_half_grid=num_columns_in_half_grid),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=None, callbacks=[checkpoint_object],
+            verbose=1, class_weight=None, callbacks=list_of_callback_objects,
             validation_data=trainval_io.quick_downsized_3d_example_gen(
                 num_examples_per_batch=num_examples_per_batch,
                 first_target_time_unix_sec=validation_start_time_unix_sec,
@@ -481,7 +504,7 @@ def train_with_4d_examples(
         num_training_batches_per_epoch, num_examples_per_target_time,
         predictor_time_step_offsets, num_lead_time_steps,
         training_start_time_unix_sec, training_end_time_unix_sec,
-        top_narr_directory_name, top_frontal_grid_dir_name,
+        top_narr_directory_name, top_gridded_front_dir_name,
         narr_predictor_names, pressure_level_mb, dilation_distance_metres,
         class_fractions, num_rows_in_half_grid, num_columns_in_half_grid,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
@@ -502,7 +525,7 @@ def train_with_4d_examples(
     :param training_start_time_unix_sec: See doc for `train_with_3d_examples`.
     :param training_end_time_unix_sec: Same.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
@@ -531,10 +554,18 @@ def train_with_4d_examples(
     else:
         class_weight_dict = None
 
+    early_stopping_object = keras.callbacks.EarlyStopping(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+    list_of_callback_objects = [early_stopping_object]
+
     if num_validation_batches_per_epoch is None:
-        checkpoint_object = ModelCheckpoint(
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
             output_file_name, monitor='loss', verbose=1, save_best_only=False,
             save_weights_only=False, mode='min', period=1)
+
+        list_of_callback_objects.append(checkpoint_object)
 
         model_object.fit_generator(
             generator=trainval_io.downsized_4d_example_generator(
@@ -545,7 +576,7 @@ def train_with_4d_examples(
                 predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -555,15 +586,17 @@ def train_with_4d_examples(
                 narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object])
+            callbacks=list_of_callback_objects)
 
     else:
         error_checking.assert_is_integer(num_validation_batches_per_epoch)
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
-        checkpoint_object = ModelCheckpoint(
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
             output_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        list_of_callback_objects.append(checkpoint_object)
 
         model_object.fit_generator(
             generator=trainval_io.downsized_4d_example_generator(
@@ -574,7 +607,7 @@ def train_with_4d_examples(
                 predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -584,7 +617,7 @@ def train_with_4d_examples(
                 narr_mask_matrix=narr_mask_matrix),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object],
+            callbacks=list_of_callback_objects,
             validation_data=
             trainval_io.downsized_4d_example_generator(
                 num_examples_per_batch=num_examples_per_batch,
@@ -594,7 +627,7 @@ def train_with_4d_examples(
                 predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -607,7 +640,7 @@ def train_with_4d_examples(
 
 def apply_model_to_3d_example(
         model_object, target_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, num_rows_in_half_grid,
         num_columns_in_half_grid, num_classes,
         isotonic_model_object_by_class=None, narr_mask_matrix=None):
@@ -617,7 +650,7 @@ def apply_model_to_3d_example(
     :param target_time_unix_sec: See doc for
         `testing_io.create_downsized_3d_examples`.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
@@ -672,7 +705,7 @@ def apply_model_to_3d_example(
                 num_columns_in_half_grid=num_columns_in_half_grid,
                 target_time_unix_sec=target_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -714,7 +747,7 @@ def apply_model_to_3d_example(
 def apply_model_to_4d_example(
         model_object, target_time_unix_sec, num_lead_time_steps,
         predictor_time_step_offsets, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, num_rows_in_half_grid,
         num_columns_in_half_grid, num_classes,
         isotonic_model_object_by_class=None, narr_mask_matrix=None):
@@ -726,7 +759,7 @@ def apply_model_to_4d_example(
     :param num_lead_time_steps: Same.
     :param predictor_time_step_offsets: Same.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
@@ -774,7 +807,7 @@ def apply_model_to_4d_example(
                 predictor_time_step_offsets=predictor_time_step_offsets,
                 num_lead_time_steps=num_lead_time_steps,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
