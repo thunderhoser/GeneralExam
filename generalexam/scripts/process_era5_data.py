@@ -53,8 +53,10 @@ TOP_OUTPUT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
 
 DEFAULT_RAW_FIELD_NAMES = [
     era5_io.TEMPERATURE_NAME_RAW, era5_io.HEIGHT_NAME_RAW,
-    era5_io.DEWPOINT_NAME_RAW, era5_io.U_WIND_NAME_RAW, era5_io.V_WIND_NAME_RAW
+    era5_io.SPECIFIC_HUMIDITY_NAME_RAW, era5_io.U_WIND_NAME_RAW,
+    era5_io.V_WIND_NAME_RAW
 ]
+
 DEFAULT_PRESSURE_LEVEL_MB = 1000
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -122,6 +124,18 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
     :param top_output_dir_name: Same.
     """
 
+    if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
+        raw_field_names = [
+            era5_io.DEWPOINT_NAME_RAW if f == era5_io.SPECIFIC_HUMIDITY_NAME_RAW
+            else f for f in raw_field_names
+        ]
+    else:
+        raw_field_names = [
+            era5_io.SPECIFIC_HUMIDITY_NAME_RAW if f == era5_io.DEWPOINT_NAME_RAW
+            else f for f in raw_field_names
+        ]
+
+    raw_field_names = list(set(raw_field_names))
     raw_field_names = _add_required_fields(
         raw_field_names=raw_field_names, pressure_level_mb=pressure_level_mb)
 
