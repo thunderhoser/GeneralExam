@@ -7,11 +7,11 @@ import matplotlib.pyplot as pyplot
 import matplotlib.colors
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
-from generalexam.ge_io import processed_narr_io
+from generalexam.ge_utils import predictor_utils
 
 WIND_NAMES = [
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
 TITLE_FONT_SIZE = 20
@@ -279,7 +279,7 @@ def get_wind_indices(predictor_names):
     """Returns array indices of u-wind and v-wind.
 
     :param predictor_names: 1-D list of predictor names (must be accepted by
-        `processed_narr_io.check_field_name`).
+        `predictor_utils.check_field_name`).
     :return: u_wind_index: Array index of u-wind.
     :return: v_wind_index: Array index of v-wind.
     :raises: ValueError: if either u-wind or v-wind cannot be found.
@@ -287,23 +287,25 @@ def get_wind_indices(predictor_names):
 
     try:
         u_wind_index = predictor_names.index(
-            processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
+            predictor_utils.U_WIND_GRID_RELATIVE_NAME)
     except ValueError:
         error_string = (
             '\n{0:s}\nPredictor names (shown above) must include "{1:s}".'
-        ).format(str(predictor_names),
-                 processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
+        ).format(
+            str(predictor_names), predictor_utils.U_WIND_GRID_RELATIVE_NAME
+        )
 
         raise ValueError(error_string)
 
     try:
         v_wind_index = predictor_names.index(
-            processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
+            predictor_utils.V_WIND_GRID_RELATIVE_NAME)
     except ValueError:
         error_string = (
             '\n{0:s}\nPredictor names (shown above) must include "{1:s}".'
-        ).format(str(predictor_names),
-                 processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
+        ).format(
+            str(predictor_names), predictor_utils.V_WIND_GRID_RELATIVE_NAME
+        )
 
         raise ValueError(error_string)
 
