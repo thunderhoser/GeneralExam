@@ -6,7 +6,9 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import moisture_conversions
-from generalexam.ge_io import era5_io
+from generalexam.ge_io import era5_input
+from generalexam.ge_io import predictor_io
+from generalexam.ge_utils import predictor_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -26,17 +28,17 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of top-level input directory, containing raw files from John Allen.  '
-    'Files therein will be found by `era5_io.find_raw_file` and read by '
-    '`era5_io.read_raw_file`.')
+    'Files therein will be found by `era5_input.find_file` and read by '
+    '`era5_input.read_file`.')
 
 RAW_FIELDS_HELP_STRING = (
     'List of fields to process.  Each field name must be accepted by '
-    '`era5_io.check_raw_field_name`.')
+    '`era5_input._check_raw_field_name`.')
 
 PRESSURE_LEVEL_HELP_STRING = (
     'Will process data only at this pressure level (millibars).  Surface is '
     'denoted by {0:d}.'
-).format(era5_io.DUMMY_SURFACE_PRESSURE_MB)
+).format(predictor_utils.DUMMY_SURFACE_PRESSURE_MB)
 
 TIME_HELP_STRING = (
     'Valid time (format "yyyymmddHH").  This script will process data for all '
@@ -45,16 +47,16 @@ TIME_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Files will be written by '
-    '`era5_io.find_processed_file` to locations therein determined by '
-    '`era5_io.write_processed_file`.')
+    '`predictor_io.find_file` to locations therein determined by '
+    '`predictor_io.write_file`.')
 
 TOP_INPUT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/raw'
 TOP_OUTPUT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
 
 DEFAULT_RAW_FIELD_NAMES = [
-    era5_io.TEMPERATURE_NAME_RAW, era5_io.HEIGHT_NAME_RAW,
-    era5_io.SPECIFIC_HUMIDITY_NAME_RAW, era5_io.U_WIND_NAME_RAW,
-    era5_io.V_WIND_NAME_RAW
+    era5_input.TEMPERATURE_NAME_RAW, era5_input.HEIGHT_NAME_RAW,
+    era5_input.SPECIFIC_HUMIDITY_NAME_RAW, era5_input.U_WIND_NAME_RAW,
+    era5_input.V_WIND_NAME_RAW
 ]
 
 DEFAULT_PRESSURE_LEVEL_MB = 1000
@@ -94,18 +96,18 @@ def _add_required_fields(raw_field_names, pressure_level_mb):
     :return: raw_field_names: Same as input, except maybe longer.
     """
 
-    if (era5_io.U_WIND_NAME_RAW in raw_field_names and
-            era5_io.V_WIND_NAME_RAW not in raw_field_names):
-        raw_field_names.append(era5_io.V_WIND_NAME_RAW)
+    if (era5_input.U_WIND_NAME_RAW in raw_field_names and
+            era5_input.V_WIND_NAME_RAW not in raw_field_names):
+        raw_field_names.append(era5_input.V_WIND_NAME_RAW)
 
-    if (era5_io.V_WIND_NAME_RAW in raw_field_names and
-            era5_io.U_WIND_NAME_RAW not in raw_field_names):
-        raw_field_names.append(era5_io.U_WIND_NAME_RAW)
+    if (era5_input.V_WIND_NAME_RAW in raw_field_names and
+            era5_input.U_WIND_NAME_RAW not in raw_field_names):
+        raw_field_names.append(era5_input.U_WIND_NAME_RAW)
 
-    if (era5_io.DEWPOINT_NAME_RAW in raw_field_names and
-            era5_io.PRESSURE_NAME_RAW not in raw_field_names and
-            pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB):
-        raw_field_names.append(era5_io.PRESSURE_NAME_RAW)
+    if (era5_input.DEWPOINT_NAME_RAW in raw_field_names and
+            era5_input.PRESSURE_NAME_RAW not in raw_field_names and
+            pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB):
+        raw_field_names.append(era5_input.PRESSURE_NAME_RAW)
 
     return raw_field_names
 
@@ -124,15 +126,17 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
     :param top_output_dir_name: Same.
     """
 
-    if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
+    if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
         raw_field_names = [
-            era5_io.DEWPOINT_NAME_RAW if f == era5_io.SPECIFIC_HUMIDITY_NAME_RAW
-            else f for f in raw_field_names
+            era5_input.DEWPOINT_NAME_RAW
+            if f == era5_input.SPECIFIC_HUMIDITY_NAME_RAW else f
+            for f in raw_field_names
         ]
     else:
         raw_field_names = [
-            era5_io.SPECIFIC_HUMIDITY_NAME_RAW if f == era5_io.DEWPOINT_NAME_RAW
-            else f for f in raw_field_names
+            era5_input.SPECIFIC_HUMIDITY_NAME_RAW
+            if f == era5_input.DEWPOINT_NAME_RAW else f
+            for f in raw_field_names
         ]
 
     raw_field_names = list(set(raw_field_names))
@@ -149,8 +153,8 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS)
 
-    if (era5_io.U_WIND_NAME_RAW in raw_field_names or
-            era5_io.V_WIND_NAME_RAW in raw_field_names):
+    if (era5_input.U_WIND_NAME_RAW in raw_field_names or
+            era5_input.V_WIND_NAME_RAW in raw_field_names):
         narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
             nwp_model_utils.get_latlng_grid_point_matrices(
                 model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -167,19 +171,19 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
         narr_rotation_sin_matrix = None
 
     field_names = [
-        era5_io.field_name_raw_to_processed(
+        era5_input.field_name_raw_to_processed(
             raw_field_name=f, earth_relative=False)
         for f in raw_field_names
     ]
 
-    if era5_io.DEWPOINT_NAME in field_names:
-        dewpoint_index = field_names.index(era5_io.DEWPOINT_NAME)
-        field_names[dewpoint_index] = era5_io.SPECIFIC_HUMIDITY_NAME
+    if predictor_utils.DEWPOINT_NAME in field_names:
+        dewpoint_index = field_names.index(predictor_utils.DEWPOINT_NAME)
+        field_names[dewpoint_index] = predictor_utils.SPECIFIC_HUMIDITY_NAME
 
     num_times = len(valid_times_unix_sec)
     num_fields = len(raw_field_names)
 
-    this_era5_dict = None
+    this_predictor_dict = None
     era5_x_matrix_metres = None
     era5_y_matrix_metres = None
 
@@ -193,43 +197,43 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
         one_time_data_matrix = None
 
         for j in range(num_fields):
-            this_raw_file_name = era5_io.find_raw_file(
+            this_raw_file_name = era5_input.find_file(
                 top_directory_name=top_input_dir_name, year=this_year,
                 raw_field_name=raw_field_names[j],
-                has_surface_data=(
-                    pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB)
+                has_surface_data=(pressure_level_mb ==
+                                  predictor_utils.DUMMY_SURFACE_PRESSURE_MB)
             )
 
             print 'Reading data at {0:s} from file: "{1:s}"...'.format(
                 this_time_string, this_raw_file_name)
 
-            this_era5_dict = era5_io.read_raw_file(
+            this_predictor_dict = era5_input.read_file(
                 netcdf_file_name=this_raw_file_name,
                 first_time_unix_sec=valid_times_unix_sec[i],
                 last_time_unix_sec=valid_times_unix_sec[i],
                 pressure_level_mb=pressure_level_mb)
 
             if one_time_data_matrix is None:
-                num_grid_rows = this_era5_dict[
-                    era5_io.DATA_MATRIX_KEY].shape[1]
-                num_grid_columns = this_era5_dict[
-                    era5_io.DATA_MATRIX_KEY].shape[2]
+                num_grid_rows = this_predictor_dict[
+                    predictor_utils.DATA_MATRIX_KEY].shape[1]
+                num_grid_columns = this_predictor_dict[
+                    predictor_utils.DATA_MATRIX_KEY].shape[2]
 
                 one_time_data_matrix = numpy.full(
                     (1, num_grid_rows, num_grid_columns, 1, num_fields),
                     numpy.nan
                 )
 
-            one_time_data_matrix[0, ..., 0, j] = this_era5_dict[
-                era5_io.DATA_MATRIX_KEY][0, ..., 0, 0]
+            one_time_data_matrix[0, ..., 0, j] = this_predictor_dict[
+                predictor_utils.DATA_MATRIX_KEY][0, ..., 0, 0]
 
-        if era5_io.DEWPOINT_NAME_RAW in raw_field_names:
+        if era5_input.DEWPOINT_NAME_RAW in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
-            dewpoint_index = raw_field_names.index(era5_io.DEWPOINT_NAME_RAW)
+            dewpoint_index = raw_field_names.index(era5_input.DEWPOINT_NAME_RAW)
 
-            if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
+            if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
                 pressure_index = raw_field_names.index(
-                    era5_io.PRESSURE_NAME_RAW)
+                    era5_input.PRESSURE_NAME_RAW)
                 this_pressure_matrix_pascals = one_time_data_matrix[
                     ..., pressure_index]
             else:
@@ -246,42 +250,44 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                 )
             )
 
-        one_time_era5_dict = {
-            era5_io.DATA_MATRIX_KEY: one_time_data_matrix,
-            era5_io.VALID_TIMES_KEY: valid_times_unix_sec[[i]],
-            era5_io.LATITUDES_KEY: this_era5_dict[era5_io.LATITUDES_KEY],
-            era5_io.LONGITUDES_KEY: this_era5_dict[era5_io.LONGITUDES_KEY],
-            era5_io.PRESSURE_LEVELS_KEY:
+        one_time_predictor_dict = {
+            predictor_utils.DATA_MATRIX_KEY: one_time_data_matrix,
+            predictor_utils.VALID_TIMES_KEY: valid_times_unix_sec[[i]],
+            predictor_utils.LATITUDES_KEY:
+                this_predictor_dict[predictor_utils.LATITUDES_KEY],
+            predictor_utils.LONGITUDES_KEY:
+                this_predictor_dict[predictor_utils.LONGITUDES_KEY],
+            predictor_utils.PRESSURE_LEVELS_KEY:
                 numpy.array([pressure_level_mb], dtype=int),
-            era5_io.FIELD_NAMES_KEY: field_names
+            predictor_utils.FIELD_NAMES_KEY: field_names
         }
 
         print '\n'
-        one_time_era5_dict = era5_io.interp_to_narr_grid(
-            era5_dict=one_time_era5_dict,
+        one_time_predictor_dict = era5_input.interp_to_narr_grid(
+            predictor_dict=one_time_predictor_dict,
             era5_x_matrix_metres=era5_x_matrix_metres,
             era5_y_matrix_metres=era5_y_matrix_metres)
         print '\n'
 
-        if era5_io.U_WIND_NAME_RAW in raw_field_names:
-            u_wind_index = raw_field_names.index(era5_io.U_WIND_NAME_RAW)
-            v_wind_index = raw_field_names.index(era5_io.V_WIND_NAME_RAW)
+        if era5_input.U_WIND_NAME_RAW in raw_field_names:
+            u_wind_index = raw_field_names.index(era5_input.U_WIND_NAME_RAW)
+            v_wind_index = raw_field_names.index(era5_input.V_WIND_NAME_RAW)
 
             print 'Rotating winds from Earth-relative to grid-relative...'
 
-            (one_time_era5_dict[era5_io.DATA_MATRIX_KEY][
-                0, ..., 0, u_wind_index],
-             one_time_era5_dict[era5_io.DATA_MATRIX_KEY][
+            (one_time_predictor_dict[predictor_utils.DATA_MATRIX_KEY][
+                 0, ..., 0, u_wind_index],
+             one_time_predictor_dict[predictor_utils.DATA_MATRIX_KEY][
                  0, ..., 0, v_wind_index]
             ) = nwp_model_utils.rotate_winds_to_grid_relative(
-                u_winds_earth_relative_m_s01=one_time_era5_dict[
-                    era5_io.DATA_MATRIX_KEY][0, ..., 0, u_wind_index],
-                v_winds_earth_relative_m_s01=one_time_era5_dict[
-                    era5_io.DATA_MATRIX_KEY][0, ..., 0, v_wind_index],
+                u_winds_earth_relative_m_s01=one_time_predictor_dict[
+                    predictor_utils.DATA_MATRIX_KEY][0, ..., 0, u_wind_index],
+                v_winds_earth_relative_m_s01=one_time_predictor_dict[
+                    predictor_utils.DATA_MATRIX_KEY][0, ..., 0, v_wind_index],
                 rotation_angle_cosines=narr_rotation_cos_matrix,
                 rotation_angle_sines=narr_rotation_sin_matrix)
 
-        this_processed_file_name = era5_io.find_processed_file(
+        this_processed_file_name = predictor_io.find_file(
             top_directory_name=top_output_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
@@ -289,8 +295,8 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
         print 'Writing processed ERA5 data on NARR grid to: "{0:s}"...'.format(
             this_processed_file_name)
 
-        era5_io.write_processed_file(netcdf_file_name=this_processed_file_name,
-                                     era5_dict=one_time_era5_dict)
+        predictor_io.write_file(netcdf_file_name=this_processed_file_name,
+                                predictor_dict=one_time_predictor_dict)
 
         print SEPARATOR_STRING
 

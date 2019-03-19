@@ -18,8 +18,9 @@ from keras.utils import to_categorical
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import era5_io
 from generalexam.ge_io import fronts_io
+from generalexam.ge_io import predictor_io
+from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import training_validation_io as trainval_io
 
@@ -28,7 +29,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SECONDS = 10800
 
-ERA5_DIR_ARG_NAME = 'input_era5_dir_name'
+PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
@@ -47,10 +48,10 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 # TODO(thunderhoser): Need to keep metadata for normalization.
 # TODO(thunderhoser): May want to allow different normalization.
 
-ERA5_DIR_HELP_STRING = (
-    'Name of top-level directory with ERA5 data (predictors).  Files therein '
-    'will be found by `era5_io.find_processed_file` and read by '
-    '`era5_io.read_processed_file`.')
+PREDICTOR_DIR_HELP_STRING = (
+    'Name of top-level directory with predictors.  Input files therein '
+    'will be found by `predictor_io.find_file` and read by '
+    '`predictor_io.read_file`.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  This script will create learning examples for'
@@ -63,7 +64,7 @@ PRESSURE_LEVEL_HELP_STRING = (
 
 PREDICTOR_NAMES_HELP_STRING = (
     'Names of predictor variables.  Must be accepted by '
-    '`era5_io.check_field_name`.')
+    '`predictor_utils.check_field_name`.')
 
 NUM_HALF_ROWS_HELP_STRING = (
     'Number of rows in half-grid (on either side of center) for predictors.')
@@ -104,26 +105,26 @@ OUTPUT_DIR_HELP_STRING = (
     '`training_validation_io.write_downsized_3d_examples`, to exact locations '
     'determined by `training_validation_io.find_downsized_3d_example_file`.')
 
-TOP_ERA5_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
+TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
 TOP_FRONT_DIR_NAME_DEFAULT = (
     '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation')
 DEFAULT_MASK_FILE_NAME = '/condo/swatwork/ralager/fronts_netcdf/era5_mask.p'
 
 DEFAULT_PREDICTOR_NAMES = [
-    era5_io.U_WIND_GRID_RELATIVE_NAME,
-    era5_io.V_WIND_GRID_RELATIVE_NAME,
-    era5_io.WET_BULB_THETA_NAME,
-    era5_io.TEMPERATURE_NAME,
-    era5_io.SPECIFIC_HUMIDITY_NAME,
-    era5_io.HEIGHT_NAME
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.WET_BULB_THETA_NAME,
+    predictor_utils.TEMPERATURE_NAME,
+    predictor_utils.SPECIFIC_HUMIDITY_NAME,
+    predictor_utils.HEIGHT_NAME
 ]
 
 DEFAULT_CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + ERA5_DIR_ARG_NAME, type=str, required=False,
-    default=TOP_ERA5_DIR_NAME_DEFAULT, help=ERA5_DIR_HELP_STRING)
+    '--' + PREDICTOR_DIR_ARG_NAME, type=str, required=False,
+    default=TOP_PREDICTOR_DIR_NAME_DEFAULT, help=PREDICTOR_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
@@ -133,7 +134,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
-    default=era5_io.DUMMY_SURFACE_PRESSURE_MB, help=PRESSURE_LEVEL_HELP_STRING)
+    default=predictor_utils.DUMMY_SURFACE_PRESSURE_MB,
+    help=PRESSURE_LEVEL_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PREDICTOR_NAMES_ARG_NAME, type=str, nargs='+', required=False,
@@ -180,10 +182,10 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _read_era5_inputs_one_time(
+def _read_inputs_one_time(
         top_input_dir_name, valid_time_unix_sec, pressure_level_mb,
         predictor_names):
-    """Reads ERA5 input fields for one time.
+    """Reads input fields for one time.
 
     J = number of rows in full model grid
     K = number of columns in full model grid
@@ -195,17 +197,20 @@ def _read_era5_inputs_one_time(
     :return: predictor_matrix: 1-by-J-by-K-by-C numpy array of predictor values.
     """
 
-    input_file_name = era5_io.find_processed_file(
+    input_file_name = predictor_io.find_file(
         top_directory_name=top_input_dir_name,
         valid_time_unix_sec=valid_time_unix_sec)
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    era5_dict = era5_io.read_processed_file(
+    predictor_dict = predictor_io.read_file(
         netcdf_file_name=input_file_name,
         pressure_levels_to_keep_mb=numpy.array([pressure_level_mb]),
         field_names_to_keep=predictor_names)
 
-    predictor_matrix = era5_dict[era5_io.DATA_MATRIX_KEY][[0], ..., 0, :]
+    predictor_matrix = predictor_dict[
+        predictor_utils.DATA_MATRIX_KEY
+    ][[0], ..., 0, :]
+
     num_fields = predictor_matrix.shape[-1]
 
     for k in range(num_fields):
@@ -217,7 +222,7 @@ def _read_era5_inputs_one_time(
 
 
 def _create_examples_one_time(
-        top_era5_dir_name, valid_time_unix_sec, pressure_level_mb,
+        top_predictor_dir_name, valid_time_unix_sec, pressure_level_mb,
         predictor_names, num_half_rows, num_half_columns,
         normalization_type_string, class_fractions, top_gridded_front_dir_name,
         dilation_distance_metres, max_num_examples, mask_matrix):
@@ -226,7 +231,7 @@ def _create_examples_one_time(
     J = number of rows in full model grid
     K = number of columns in full model grid
 
-    :param top_era5_dir_name: See documentation at top of file.
+    :param top_predictor_dir_name: See documentation at top of file.
     :param valid_time_unix_sec: Valid time.
     :param pressure_level_mb: See documentation at top of file.
     :param predictor_names: Same.
@@ -264,8 +269,8 @@ def _create_examples_one_time(
     if not os.path.isfile(gridded_front_file_name):
         return None
 
-    predictor_matrix = _read_era5_inputs_one_time(
-        top_input_dir_name=top_era5_dir_name,
+    predictor_matrix = _read_inputs_one_time(
+        top_input_dir_name=top_predictor_dir_name,
         valid_time_unix_sec=valid_time_unix_sec,
         pressure_level_mb=pressure_level_mb, predictor_names=predictor_names)
 
@@ -371,7 +376,7 @@ def _write_example_file(
         narr_mask_matrix=mask_matrix)
 
 
-def _run(top_era5_dir_name, first_time_string, last_time_string,
+def _run(top_predictor_dir_name, first_time_string, last_time_string,
          pressure_level_mb, predictor_names, num_half_rows, num_half_columns,
          normalization_type_string, class_fractions, top_gridded_front_dir_name,
          dilation_distance_metres, mask_file_name, max_examples_per_time,
@@ -380,7 +385,7 @@ def _run(top_era5_dir_name, first_time_string, last_time_string,
 
     This is effectively the main method.
 
-    :param top_era5_dir_name: See documentation at top of file.
+    :param top_predictor_dir_name: See documentation at top of file.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param pressure_level_mb: Same.
@@ -402,14 +407,16 @@ def _run(top_era5_dir_name, first_time_string, last_time_string,
     if mask_file_name in ['', 'None']:
         mask_file_name = None
 
-    if pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB:
+    if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
         predictor_names = [
-            era5_io.PRESSURE_NAME if n == era5_io.HEIGHT_NAME else n
+            predictor_utils.PRESSURE_NAME
+            if n == predictor_utils.HEIGHT_NAME else n
             for n in predictor_names
         ]
     else:
         predictor_names = [
-            era5_io.HEIGHT_NAME if n == era5_io.PRESSURE_NAME else n
+            predictor_utils.HEIGHT_NAME
+            if n == predictor_utils.PRESSURE_NAME else n
             for n in predictor_names
         ]
 
@@ -450,7 +457,7 @@ def _run(top_era5_dir_name, first_time_string, last_time_string,
             this_first_time_unix_sec = valid_times_unix_sec[i]
 
         this_new_example_dict = _create_examples_one_time(
-            top_era5_dir_name=top_era5_dir_name,
+            top_predictor_dir_name=top_predictor_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             pressure_level_mb=pressure_level_mb,
             predictor_names=predictor_names,
@@ -490,7 +497,7 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_era5_dir_name=getattr(INPUT_ARG_OBJECT, ERA5_DIR_ARG_NAME),
+        top_predictor_dir_name=getattr(INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
