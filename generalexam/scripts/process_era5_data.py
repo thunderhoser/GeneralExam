@@ -182,7 +182,9 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             this_raw_file_name = era5_io.find_raw_file(
                 top_directory_name=top_input_dir_name, year=this_year,
                 raw_field_name=raw_field_names[j],
-                pressure_level_mb=pressure_level_mb)
+                has_surface_data=(
+                    pressure_level_mb == era5_io.DUMMY_SURFACE_PRESSURE_MB)
+            )
 
             print 'Reading data at {0:s} from file: "{1:s}"...'.format(
                 this_time_string, this_raw_file_name)
@@ -190,7 +192,8 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             this_era5_dict = era5_io.read_raw_file(
                 netcdf_file_name=this_raw_file_name,
                 first_time_unix_sec=valid_times_unix_sec[i],
-                last_time_unix_sec=valid_times_unix_sec[i])
+                last_time_unix_sec=valid_times_unix_sec[i],
+                pressure_level_mb=pressure_level_mb)
 
             if one_time_data_matrix is None:
                 num_grid_rows = this_era5_dict[
@@ -253,7 +256,7 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             print 'Rotating winds from Earth-relative to grid-relative...'
 
             (one_time_era5_dict[era5_io.DATA_MATRIX_KEY][
-                 0, ..., 0, u_wind_index],
+                0, ..., 0, u_wind_index],
              one_time_era5_dict[era5_io.DATA_MATRIX_KEY][
                  0, ..., 0, v_wind_index]
             ) = nwp_model_utils.rotate_winds_to_grid_relative(

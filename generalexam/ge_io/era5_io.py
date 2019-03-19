@@ -66,6 +66,28 @@ FIELD_NAME_RAW_TO_PROCESSED = {
     V_WIND_NAME_RAW: V_WIND_GRID_RELATIVE_NAME
 }
 
+SURFACE_FIELD_NAME_TO_RAW_NETCDF_KEY = {
+    TEMPERATURE_NAME: 't2m',
+    HEIGHT_NAME: None,
+    PRESSURE_NAME: 'sp',
+    DEWPOINT_NAME: 'd2m',
+    U_WIND_GRID_RELATIVE_NAME: 'u10',
+    U_WIND_EARTH_RELATIVE_NAME: 'u10',
+    V_WIND_GRID_RELATIVE_NAME: 'v10',
+    V_WIND_EARTH_RELATIVE_NAME: 'v10'
+}
+
+ISOBARIC_FIELD_NAME_TO_RAW_NETCDF_KEY = {
+    TEMPERATURE_NAME: 't',
+    HEIGHT_NAME: 'z',
+    PRESSURE_NAME: None,
+    DEWPOINT_NAME: 'd2m',
+    U_WIND_GRID_RELATIVE_NAME: 'u',
+    U_WIND_EARTH_RELATIVE_NAME: 'u',
+    V_WIND_GRID_RELATIVE_NAME: 'v',
+    V_WIND_EARTH_RELATIVE_NAME: 'v'
+}
+
 FIELD_NAME_PROCESSED_TO_RAW = {
     TEMPERATURE_NAME: TEMPERATURE_NAME_RAW,
     HEIGHT_NAME: HEIGHT_NAME_RAW,
@@ -88,7 +110,7 @@ RAW_FIELD_NAME_TO_SURFACE_HEIGHT_M_AGL = {
 LATITUDES_KEY_RAW = 'latitude'
 LONGITUDES_KEY_RAW = 'longitude'
 HOURS_INTO_YEAR_KEY_RAW = 'time'
-DATA_MATRIX_KEY_RAW = 'VAR_2D'
+PRESSURE_LEVELS_KEY_RAW = 'level'
 
 DATA_MATRIX_KEY = 'data_matrix'
 LATITUDES_KEY = 'latitudes_deg'
@@ -134,21 +156,15 @@ def _raw_file_name_to_year(raw_file_name):
     return int(pathless_file_name.split('_')[1])
 
 
-def _raw_file_name_to_pressure(raw_file_name):
-    """Parses pressure level from name of raw file.
+def _raw_file_name_to_surface_flag(raw_file_name):
+    """Determines, based on file name, whether or not it contains surface data.
 
     :param raw_file_name: See doc for `find_raw_file`.
-    :return: pressure_level_mb: Pressure level (millibars).
+    :return: has_surface_data: Boolean flag.
     """
 
-    error_checking.assert_is_string(raw_file_name)
     pathless_file_name = os.path.split(raw_file_name)[-1]
-
-    pressure_level_string = pathless_file_name.split('_')[3]
-    if 'mb' in pressure_level_string:
-        return int(pressure_level_string.replace('mb', ''))
-
-    return DUMMY_SURFACE_PRESSURE_MB
+    return len(pathless_file_name.split('_')) == 5
 
 
 def _raw_file_name_to_field(raw_file_name):
@@ -163,7 +179,7 @@ def _raw_file_name_to_field(raw_file_name):
     extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
     return field_name_raw_to_processed(
-        raw_field_name=extensionless_file_name.split('_')[4],
+        raw_field_name=extensionless_file_name.split('_')[-1],
         earth_relative=True
     )
 
@@ -306,15 +322,16 @@ def field_name_processed_to_raw(field_name):
     return FIELD_NAME_PROCESSED_TO_RAW[field_name]
 
 
-def find_raw_file(top_directory_name, year, raw_field_name, pressure_level_mb,
+def find_raw_file(top_directory_name, year, raw_field_name, has_surface_data,
                   raise_error_if_missing=True):
     """Finds raw file (NetCDF with one field at one pressure level for a year).
 
     :param top_directory_name: Name of top-level directory with raw files.
     :param year: Year (integer).
     :param raw_field_name: Field name in raw format.
-    :param pressure_level_mb: Pressure level.  If looking for surface data, make
-        this 1013.
+    :param has_surface_data: Boolean flag.  If True, looking for file with
+        surface data.  If False, looking for data at one or more pressure
+        levels.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :return: raw_file_name: Path to raw file.  If file is missing and
@@ -325,20 +342,18 @@ def find_raw_file(top_directory_name, year, raw_field_name, pressure_level_mb,
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_integer(year)
     _check_raw_field_name(raw_field_name)
+    error_checking.assert_is_boolean(has_surface_data)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    if pressure_level_mb == DUMMY_SURFACE_PRESSURE_MB:
+    if has_surface_data:
         raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:d}m_{3:s}.nc'.format(
             top_directory_name, year,
             RAW_FIELD_NAME_TO_SURFACE_HEIGHT_M_AGL[raw_field_name],
             raw_field_name
         )
     else:
-        error_checking.assert_is_integer(pressure_level_mb)
-        error_checking.assert_is_greater(pressure_level_mb, 0)
-
-        raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:d}mb_{3:s}.nc'.format(
-            top_directory_name, year, pressure_level_mb, raw_field_name)
+        raw_file_name = '{0:s}/ERA5_{1:04d}_3hrly_{2:s}.nc'.format(
+            top_directory_name, year, raw_field_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
@@ -348,21 +363,45 @@ def find_raw_file(top_directory_name, year, raw_field_name, pressure_level_mb,
     return raw_file_name
 
 
-def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
+def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
+                  pressure_level_mb=None):
     """Reads raw file (NetCDF with one field at one pressure level for a year).
 
     :param netcdf_file_name: Path to input file.
     :param first_time_unix_sec: First time step to read.
     :param last_time_unix_sec: Last time step to read.
+    :param pressure_level_mb: Pressure level (millibars) to read.  Used only if
+        file does *not* contain surface data.
     :return: era5_dict: See doc for `_check_era5_data`.
     """
 
     error_checking.assert_is_integer(first_time_unix_sec)
     error_checking.assert_is_integer(last_time_unix_sec)
     error_checking.assert_is_geq(last_time_unix_sec, first_time_unix_sec)
+    has_surface_data = _raw_file_name_to_surface_flag(netcdf_file_name)
+
+    if not has_surface_data:
+        error_checking.assert_is_integer(pressure_level_mb)
+        error_checking.assert_is_greater(pressure_level_mb, 0)
 
     dataset_object = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
+
+    field_name = _raw_file_name_to_field(netcdf_file_name)
+
+    if has_surface_data:
+        field_name_key = SURFACE_FIELD_NAME_TO_RAW_NETCDF_KEY[field_name]
+        pressure_level_mb = DUMMY_SURFACE_PRESSURE_MB
+        pressure_level_index = None
+    else:
+        field_name_key = ISOBARIC_FIELD_NAME_TO_RAW_NETCDF_KEY[field_name]
+
+        all_pressure_levels_mb = numpy.array(
+            dataset_object.variables[PRESSURE_LEVELS_KEY_RAW][:], dtype=int
+        )
+        pressure_level_index = numpy.where(
+            all_pressure_levels_mb == pressure_level_mb
+        )[0][0]
 
     latitudes_deg = numpy.array(dataset_object.variables[LATITUDES_KEY_RAW][:])
     longitudes_deg = numpy.array(
@@ -381,65 +420,22 @@ def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
         HOURS_TO_SECONDS * hours_into_year
     )
 
-    good_indices = numpy.where(numpy.logical_and(
+    time_indices = numpy.where(numpy.logical_and(
         valid_times_unix_sec >= first_time_unix_sec,
         valid_times_unix_sec <= last_time_unix_sec
     ))[0]
 
-    valid_times_unix_sec = valid_times_unix_sec[good_indices]
-    data_matrix = None
+    valid_times_unix_sec = valid_times_unix_sec[time_indices]
 
-    # TODO(thunderhoser): All these try-except statements are a HACK.
-
-    try:
+    if has_surface_data:
         data_matrix = numpy.array(
-            dataset_object.variables[DATA_MATRIX_KEY_RAW][good_indices, ...]
+            dataset_object.variables[field_name_key][time_indices, ...]
         )
-    except KeyError:
-        pass
-
-    if data_matrix is None:
-        try:
-            data_matrix = numpy.array(
-                dataset_object.variables['t2m'][good_indices, ...]
-            )
-        except KeyError:
-            pass
-
-    if data_matrix is None:
-        try:
-            data_matrix = numpy.array(
-                dataset_object.variables['d2m'][good_indices, ...]
-            )
-        except KeyError:
-            pass
-
-    if data_matrix is None:
-        try:
-            data_matrix = numpy.array(
-                dataset_object.variables['u10'][good_indices, ...]
-            )
-        except KeyError:
-            pass
-
-    if data_matrix is None:
-        try:
-            data_matrix = numpy.array(
-                dataset_object.variables['v10'][good_indices, ...]
-            )
-        except KeyError:
-            pass
-
-    if data_matrix is None:
-        try:
-            data_matrix = numpy.array(
-                dataset_object.variables['sp'][good_indices, ...]
-            )
-        except KeyError:
-            pass
-
-    if data_matrix is None:
-        print dataset_object.variables
+    else:
+        data_matrix = numpy.array(
+            dataset_object.variables[field_name_key][
+                time_indices, pressure_level_index, ...]
+        )
 
     data_matrix = numpy.flip(data_matrix, axis=1)
     latitudes_deg = latitudes_deg[::-1]
@@ -447,18 +443,13 @@ def read_raw_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec):
     data_matrix = numpy.expand_dims(data_matrix, axis=-1)
     data_matrix = numpy.expand_dims(data_matrix, axis=-1)
 
-    pressure_levels_mb = numpy.array(
-        [_raw_file_name_to_pressure(netcdf_file_name)], dtype=int
-    )
-    field_names = [_raw_file_name_to_field(netcdf_file_name)]
-
     return {
         DATA_MATRIX_KEY: data_matrix,
         VALID_TIMES_KEY: valid_times_unix_sec,
         LATITUDES_KEY: latitudes_deg,
         LONGITUDES_KEY: longitudes_deg,
-        PRESSURE_LEVELS_KEY: pressure_levels_mb,
-        FIELD_NAMES_KEY: field_names
+        PRESSURE_LEVELS_KEY: numpy.array([pressure_level_mb], dtype=int),
+        FIELD_NAMES_KEY: [field_name]
     }
 
 
