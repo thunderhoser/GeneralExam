@@ -14,7 +14,7 @@ from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
 
@@ -62,8 +62,7 @@ MAX_PERCENTILE_ARG_NAME = 'thetaw_max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by '
-    '`training_validation_io.read_downsized_3d_examples`.')
+    'Path to input file.  Will be read by `learning_examples_io.read_file`.')
 
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with frontal polylines.  Files therein will be'
@@ -162,15 +161,15 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     print 'Reading normalized examples from: "{0:s}"...'.format(
         example_file_name)
 
-    example_dict = trainval_io.read_downsized_3d_examples(
+    example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name, num_half_rows_to_keep=NUM_HALF_ROWS,
         num_half_columns_to_keep=NUM_HALF_COLUMNS,
         predictor_names_to_keep=PREDICTOR_NAMES)
 
     # TODO(thunderhoser): This is a HACK (assuming that normalization method is
     # z-score and not min-max).
-    mean_value_matrix = example_dict[trainval_io.FIRST_NORM_PARAM_KEY]
-    standard_deviation_matrix = example_dict[trainval_io.SECOND_NORM_PARAM_KEY]
+    mean_value_matrix = example_dict[examples_io.FIRST_NORM_PARAM_KEY]
+    standard_deviation_matrix = example_dict[examples_io.SECOND_NORM_PARAM_KEY]
 
     normalization_dict = {
         ml_utils.MIN_VALUE_MATRIX_KEY: None,
@@ -179,9 +178,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         ml_utils.STDEV_MATRIX_KEY: standard_deviation_matrix
     }
 
-    example_dict[trainval_io.PREDICTOR_MATRIX_KEY] = (
+    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
         ml_utils.denormalize_predictors(
-            predictor_matrix=example_dict[trainval_io.PREDICTOR_MATRIX_KEY],
+            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
             normalization_dict=normalization_dict)
     )
 
@@ -197,7 +196,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    num_examples_total = len(example_dict[trainval_io.TARGET_TIMES_KEY])
+    num_examples_total = len(example_dict[examples_io.VALID_TIMES_KEY])
     example_indices = numpy.linspace(
         0, num_examples_total - 1, num=num_examples_total, dtype=int)
 
@@ -213,19 +212,19 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         predictor_utils.V_WIND_GRID_RELATIVE_NAME)
 
     for i in example_indices:
-        this_center_row_index = example_dict[trainval_io.ROW_INDICES_KEY][i]
+        this_center_row_index = example_dict[examples_io.ROW_INDICES_KEY][i]
         this_first_row_index = this_center_row_index - NUM_HALF_ROWS
         this_last_row_index = this_center_row_index + NUM_HALF_ROWS
 
         this_center_column_index = example_dict[
-            trainval_io.COLUMN_INDICES_KEY][i]
+            examples_io.COLUMN_INDICES_KEY][i]
         this_first_column_index = this_center_column_index - NUM_HALF_COLUMNS
         this_last_column_index = this_center_column_index + NUM_HALF_COLUMNS
 
         this_u_wind_matrix_m_s01 = example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY][i, ..., u_wind_index]
+            examples_io.PREDICTOR_MATRIX_KEY][i, ..., u_wind_index]
         this_v_wind_matrix_m_s01 = example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY][i, ..., v_wind_index]
+            examples_io.PREDICTOR_MATRIX_KEY][i, ..., v_wind_index]
         this_cos_matrix = rotation_cosine_matrix[
             this_first_row_index:(this_last_row_index + 1),
             this_first_column_index:(this_last_column_index + 1)
@@ -282,7 +281,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             meridian_spacing_deg=meridian_spacing_deg)
 
         this_thetaw_matrix_kelvins = example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY][i, ..., thetaw_index]
+            examples_io.PREDICTOR_MATRIX_KEY][i, ..., thetaw_index]
 
         this_min_value = numpy.percentile(
             this_thetaw_matrix_kelvins, 100. - thetaw_max_colour_percentile)
@@ -323,7 +322,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
 
         this_front_file_name = fronts_io.find_polyline_file(
             top_directory_name=top_front_line_dir_name,
-            valid_time_unix_sec=example_dict[trainval_io.TARGET_TIMES_KEY][i]
+            valid_time_unix_sec=example_dict[examples_io.VALID_TIMES_KEY][i]
         )
 
         this_polyline_table = fronts_io.read_polylines_from_file(

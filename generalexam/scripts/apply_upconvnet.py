@@ -21,7 +21,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import upconvnet
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.plotting import example_plotting
 
 random.seed(6695)
@@ -48,7 +48,7 @@ UPCONVNET_FILE_HELP_STRING = (
 
 EXAMPLE_FILE_HELP_STRING = (
     'Path to file with input data (images).  Will be read by '
-    '`training_validation_io.read_downsized_3d_examples`.')
+    '`learning_examples_io.read_file`.')
 
 NUM_EXAMPLES_HELP_STRING = (
     'Number of examples to draw randomly from `{0:s}`.  If you want to select '
@@ -103,7 +103,8 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
 
     print 'Reading input examples (images) from: "{0:s}"...'.format(
         example_file_name)
-    example_dict = trainval_io.read_downsized_3d_examples(
+
+    example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=cnn_metadata_dict[
             traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
@@ -113,7 +114,7 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
             traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY]
     )
 
-    actual_image_matrix = example_dict[trainval_io.PREDICTOR_MATRIX_KEY]
+    actual_image_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
 
     if num_examples is not None:
         num_examples_total = actual_image_matrix.shape[0]

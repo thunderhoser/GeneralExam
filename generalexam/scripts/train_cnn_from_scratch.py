@@ -2,7 +2,7 @@
 
 "From scratch" means that the net is trained with examples created on the fly
 from raw NARR data and gridded front labels, rather than pre-processed files
-readable by `training_validation_io.read_downsized_3d_examples`.
+readable by `learning_examples_io.read_file`.
 """
 
 import argparse

@@ -8,7 +8,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.deep_learning import model_interpretation
 from generalexam.machine_learning import traditional_cnn
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 random.seed(6695)
 numpy.random.seed(6695)
@@ -44,7 +44,7 @@ MODEL_FILE_HELP_STRING = (
 
 EXAMPLE_FILE_HELP_STRING = (
     'Path to example file, containing input examples for the CNN.  Will be read'
-    ' by `training_validation_io.read_downsized_3d_examples`.')
+    ' by `learning_examples_io.read_file`.')
 
 NUM_EXAMPLES_HELP_STRING = (
     'Number of examples to draw randomly from `{0:s}`.  Each example will be '
@@ -195,16 +195,17 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
     print 'Reading normalized examples from: "{0:s}"...'.format(
         example_file_name)
-    example_dict = trainval_io.read_downsized_3d_examples(
+    example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[
             traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
         num_half_rows_to_keep=model_metadata_dict[
             traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
         num_half_columns_to_keep=model_metadata_dict[
-            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY])
+            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY]
+    )
 
-    predictor_matrix = example_dict[trainval_io.PREDICTOR_MATRIX_KEY]
+    predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
 
     if num_examples is None:
         error_checking.assert_is_geq_numpy_array(example_indices, 0)

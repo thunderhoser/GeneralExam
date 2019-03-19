@@ -6,7 +6,7 @@ import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -21,8 +21,8 @@ NUM_EXAMPLES_PER_OUT_FILE_ARG_NAME = 'num_examples_per_out_file'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
-    '`training_validation_io.find_downsized_3d_example_file` and read by '
-    '`training_validation_io.read_downsized_3d_examples`.')
+    '`learning_examples_io.find_many_files` and read by '
+    '`learning_examples_io.read_file`.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Examples will be shuffled for all times from '
@@ -37,8 +37,8 @@ NUM_EXAMPLES_PER_CHUNK_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Files will be written by '
-    '`training_validation_io.write_downsized_3d_examples` to locations therein,'
-    ' determined by `training_validation_io.find_downsized_3d_example_file`.')
+    '`learning_examples_io.write_file` to locations therein, determined by '
+    '`learning_examples_io.find_file`.')
 
 FIRST_BATCH_NUM_HELP_STRING = (
     'Batch number for first output file.  This is used only to create the file '
@@ -90,23 +90,23 @@ def _find_input_files(input_dir_name, first_time_unix_sec, last_time_unix_sec):
     :return: num_examples_total: Number of examples among all input files.
     """
 
-    input_file_names = trainval_io.find_downsized_3d_example_files(
+    input_file_names = examples_io.find_many_files(
         top_directory_name=input_dir_name, shuffled=False,
-        first_target_time_unix_sec=first_time_unix_sec,
-        last_target_time_unix_sec=last_time_unix_sec)
+        first_valid_time_unix_sec=first_time_unix_sec,
+        last_valid_time_unix_sec=last_time_unix_sec)
 
     num_input_files = len(input_file_names)
     num_examples_total = 0
 
     for i in range(num_input_files):
         print 'Reading data from: "{0:s}"...'.format(input_file_names[i])
-        this_example_dict = trainval_io.read_downsized_3d_examples(
+        this_example_dict = examples_io.read_file(
             netcdf_file_name=input_file_names[i],
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec, metadata_only=True)
 
         num_examples_total += len(
-            this_example_dict[trainval_io.TARGET_TIMES_KEY]
+            this_example_dict[examples_io.VALID_TIMES_KEY]
         )
 
     return input_file_names, num_examples_total
@@ -134,7 +134,7 @@ def _set_output_locations(
     ).format(num_examples_total, num_examples_per_out_file, num_output_files)
 
     output_file_names = [
-        trainval_io.find_downsized_3d_example_file(
+        examples_io.find_file(
             top_directory_name=top_output_dir_name, shuffled=True,
             batch_number=first_batch_number + i, raise_error_if_missing=False
         ) for i in range(num_output_files)
@@ -162,17 +162,17 @@ def _shuffle_one_input_file(
     """
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    example_dict = trainval_io.read_downsized_3d_examples(
+    example_dict = examples_io.read_file(
         netcdf_file_name=input_file_name,
         first_time_to_keep_unix_sec=first_time_unix_sec,
         last_time_to_keep_unix_sec=last_time_unix_sec)
 
-    num_examples = len(example_dict[trainval_io.TARGET_TIMES_KEY])
+    num_examples = len(example_dict[examples_io.VALID_TIMES_KEY])
     example_indices = numpy.linspace(
         0, num_examples - 1, num=num_examples, dtype=int)
     numpy.random.shuffle(example_indices)
 
-    for this_key in trainval_io.MAIN_KEYS:
+    for this_key in examples_io.MAIN_KEYS:
         example_dict[this_key] = example_dict[this_key][example_indices, ...]
 
     num_output_files = len(output_file_names)
@@ -189,7 +189,7 @@ def _shuffle_one_input_file(
             num=this_last_index - this_first_index + 1, dtype=int)
 
         this_example_dict = {}
-        for this_key in trainval_io.MAIN_KEYS:
+        for this_key in examples_io.MAIN_KEYS:
             this_example_dict.update({
                 this_key: example_dict[this_key][these_example_indices, ...]
             })
@@ -198,15 +198,11 @@ def _shuffle_one_input_file(
         print 'Writing shuffled examples to: "{0:s}"...'.format(
             this_output_file_name)
 
-        trainval_io.write_downsized_3d_examples(
+        examples_io.write_file(
             netcdf_file_name=this_output_file_name,
             example_dict=this_example_dict,
-            narr_predictor_names=example_dict[trainval_io.PREDICTOR_NAMES_KEY],
-            pressure_level_mb=example_dict[trainval_io.PRESSURE_LEVEL_KEY],
-            dilation_distance_metres=example_dict[
-                trainval_io.DILATION_DISTANCE_KEY],
-            narr_mask_matrix=example_dict[trainval_io.NARR_MASK_KEY],
-            append_to_file=os.path.isfile(this_output_file_name))
+            append_to_file=os.path.isfile(this_output_file_name)
+        )
 
 
 def _run(input_dir_name, first_time_string, last_time_string,

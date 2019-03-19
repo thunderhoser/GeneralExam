@@ -1,7 +1,7 @@
 """Counts number of training examples."""
 
 import argparse
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 TOP_EXAMPLE_DIR_NAME = (
     '/condo/swatwork/ralager/narr_data/downsized_3d_examples/shuffled/training')
@@ -33,7 +33,7 @@ def _run(first_batch_number, last_batch_number):
     :param last_batch_number: Same.
     """
 
-    example_file_names = trainval_io.find_downsized_3d_example_files(
+    example_file_names = examples_io.find_many_files(
         top_directory_name=TOP_EXAMPLE_DIR_NAME, shuffled=True,
         first_batch_number=first_batch_number,
         last_batch_number=last_batch_number)
@@ -43,10 +43,10 @@ def _run(first_batch_number, last_batch_number):
     for this_file_name in example_file_names:
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
 
-        this_example_dict = trainval_io.read_downsized_3d_examples(
+        this_example_dict = examples_io.read_file(
             netcdf_file_name=this_file_name, metadata_only=True)
 
-        this_num_examples = len(this_example_dict[trainval_io.TARGET_TIMES_KEY])
+        this_num_examples = len(this_example_dict[examples_io.VALID_TIMES_KEY])
         num_examples += this_num_examples
 
         print 'Number of examples so far = {0:d}\n'.format(num_examples)

@@ -60,8 +60,8 @@ SMOOTHING_RADIUS_HELP_STRING = (
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training data.  Files therein (containing'
     ' downsized 3-D examples, with 2 spatial dimensions) will be found by '
-    '`training_validation_io.find_downsized_3d_example_file` (with shuffled = '
-    'True) and read by `training_validation_io.read_downsized_3d_examples`.')
+    '`learning_examples_io.find_file` (with shuffled = True) and read by '
+    '`learning_examples_io.read_file`.')
 
 TRAINING_TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Only examples from the period '

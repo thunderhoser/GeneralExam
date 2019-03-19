@@ -95,8 +95,8 @@ MASK_FILE_HELP_STRING = (
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training data.  Files therein (containing'
     ' downsized 3-D examples, with 2 spatial dimensions) will be found by '
-    '`training_validation_io.find_downsized_3d_example_file` (with shuffled = '
-    'True) and read by `training_validation_io.read_downsized_3d_examples`.')
+    '`learning_examples_io.find_file` (with shuffled = True) and read by '
+    '`learning_examples_io.read_file`.')
 
 VALIDATION_DIR_HELP_STRING = (
     'Same as `{0:s}` but for on-the-fly validation.'
@@ -161,9 +161,9 @@ def add_input_args(argument_parser, use_downsized_files):
         contain some input args).
     :param use_downsized_files: Boolean flag.  If True, the net will be trained
         with pre-processed files that contain downsized examples, readable by
-        `training_validation_io.read_downsized_3d_examples`.  If False, the net
-        will be trained with examples created on the fly from raw predictors
-        and gridded front labels.
+        `learning_examples_io.read_file`.  If False, the net will be trained
+        with examples created on the fly from raw predictors and gridded front
+        labels.
     :return: argument_parser: Same as input but with new args added.
     """
 

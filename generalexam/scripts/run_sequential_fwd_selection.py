@@ -19,7 +19,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import sequential_selection
 from generalexam.machine_learning import traditional_cnn
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 random.seed(6695)
 numpy.random.seed(6695)
@@ -58,8 +58,8 @@ ORIG_MODEL_FILE_HELP_STRING = (
 
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training examples.  Files therein will be'
-    ' found by `training_validation_io.find_downsized_3d_example_files` and '
-    'read by `training_validation_io.read_downsized_3d_examples`.')
+    ' found by `learning_examples_io.find_many_files` and read by '
+    '`learning_examples_io.read_file`.')
 
 TRAINING_TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Training times will be randomly drawn from '
@@ -296,7 +296,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
 
-    example_file_names = trainval_io.find_downsized_3d_example_files(
+    example_file_names = examples_io.find_many_files(
         top_directory_name=top_example_dir_name, shuffled=True,
         first_batch_number=0, last_batch_number=LARGE_INTEGER)
     random.shuffle(example_file_names)
@@ -307,7 +307,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
     for this_example_file_name in example_file_names:
         print 'Reading data from: "{0:s}"...'.format(this_example_file_name)
 
-        this_example_dict = trainval_io.read_downsized_3d_examples(
+        this_example_dict = examples_io.read_file(
             netcdf_file_name=this_example_file_name,
             predictor_names_to_keep=model_metadata_dict[
                 traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
@@ -319,9 +319,9 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
         this_predictor_matrix = this_example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY]
+            examples_io.PREDICTOR_MATRIX_KEY]
         this_target_matrix = this_example_dict[
-            trainval_io.TARGET_MATRIX_KEY]
+            examples_io.TARGET_MATRIX_KEY]
 
         if predictor_matrix is None:
             predictor_matrix = this_predictor_matrix + 0.

@@ -11,18 +11,15 @@ C = number of predictor variables
 """
 
 import copy
-import os.path
 import argparse
 import numpy
-from keras.utils import to_categorical
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import fronts_io
 from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -102,8 +99,8 @@ NUM_TIMES_PER_FILE_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Learning examples will be written here by '
-    '`training_validation_io.write_downsized_3d_examples`, to exact locations '
-    'determined by `training_validation_io.find_downsized_3d_example_file`.')
+    '`learning_examples_io.write_file`, to exact locations determined by '
+    '`learning_examples_io.find_file`.')
 
 TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
 TOP_FRONT_DIR_NAME_DEFAULT = (
@@ -221,159 +218,30 @@ def _read_inputs_one_time(
     return predictor_matrix
 
 
-def _create_examples_one_time(
-        top_predictor_dir_name, valid_time_unix_sec, pressure_level_mb,
-        predictor_names, num_half_rows, num_half_columns,
-        normalization_type_string, class_fractions, top_gridded_front_dir_name,
-        dilation_distance_metres, max_num_examples, mask_matrix):
-    """Creates learning examples for one time.
-
-    J = number of rows in full model grid
-    K = number of columns in full model grid
-
-    :param top_predictor_dir_name: See documentation at top of file.
-    :param valid_time_unix_sec: Valid time.
-    :param pressure_level_mb: See documentation at top of file.
-    :param predictor_names: Same.
-    :param num_half_rows: Same.
-    :param num_half_columns: Same.
-    :param normalization_type_string: Same.
-    :param class_fractions: Same.
-    :param top_gridded_front_dir_name: Same.
-    :param dilation_distance_metres: Same.
-    :param max_num_examples: Maximum number of examples to create.
-    :param mask_matrix: J-by-K numpy array of Boolean flags.  If
-        mask_matrix[i, j] = 1, grid cell [i, j] can be used as the center of a
-        learning example.
-    :return: example_dict: Dictionary with the following keys.
-    example_dict['predictor_matrix']: E-by-M-by-N-by-C numpy array of predictor
-        values.
-    example_dict['target_matrix']: E-by-3 numpy array of class labels (all
-        0 or 1, but the array type is "float64").
-    example_dict['target_times_unix_sec']: length-E numpy array of target times
-        (all the same).
-    example_dict['row_indices']: length-E numpy array, where row_indices[i] is
-        the row index, in the full model grid, at the center of the [i]th
-        example.
-    example_dict['column_indices']: Same but for columns.
-    example_dict['first_normalization_param_matrix']: E-by-C numpy array with
-        values of first normalization param (either minimum or mean).
-    example_dict['second_normalization_param_matrix']: E-by-C numpy array with
-        values of second normalization param (either max or stdev).
-    """
-
-    gridded_front_file_name = fronts_io.find_gridded_file(
-        top_directory_name=top_gridded_front_dir_name,
-        valid_time_unix_sec=valid_time_unix_sec, raise_error_if_missing=False)
-
-    if not os.path.isfile(gridded_front_file_name):
-        return None
-
-    predictor_matrix = _read_inputs_one_time(
-        top_input_dir_name=top_predictor_dir_name,
-        valid_time_unix_sec=valid_time_unix_sec,
-        pressure_level_mb=pressure_level_mb, predictor_names=predictor_names)
-
-    predictor_matrix, normalization_dict = ml_utils.normalize_predictors(
-        predictor_matrix=predictor_matrix,
-        normalization_type_string=normalization_type_string)
-
-    print 'Reading data from: "{0:s}"...'.format(gridded_front_file_name)
-    gridded_front_table = fronts_io.read_grid_from_file(gridded_front_file_name)
-
-    target_matrix = ml_utils.front_table_to_images(
-        frontal_grid_table=gridded_front_table,
-        num_rows_per_image=predictor_matrix.shape[1],
-        num_columns_per_image=predictor_matrix.shape[2]
-    )
-
-    target_matrix = ml_utils.dilate_ternary_target_images(
-        target_matrix=target_matrix,
-        dilation_distance_metres=dilation_distance_metres, verbose=False)
-
-    sampled_target_point_dict = ml_utils.sample_target_points(
-        target_matrix=target_matrix, class_fractions=class_fractions,
-        num_points_to_sample=max_num_examples, mask_matrix=mask_matrix)
-
-    if sampled_target_point_dict is None:
-        return None
-
-    (predictor_matrix, target_values, time_indices, row_indices, column_indices
-    ) = ml_utils.downsize_grids_around_selected_points(
-        predictor_matrix=predictor_matrix, target_matrix=target_matrix,
-        num_rows_in_half_window=num_half_rows,
-        num_columns_in_half_window=num_half_columns,
-        target_point_dict=sampled_target_point_dict, verbose=False)
-
-    target_matrix = to_categorical(target_values, 3)
-    actual_class_fractions = numpy.sum(target_matrix, axis=0)
-    print 'Actual class fractions = {0:s}'.format(str(actual_class_fractions))
-
-    example_dict = {
-        trainval_io.PREDICTOR_MATRIX_KEY: predictor_matrix,
-        trainval_io.TARGET_MATRIX_KEY: target_matrix,
-        trainval_io.TARGET_TIMES_KEY:
-            numpy.full(target_matrix.shape[0], valid_time_unix_sec, dtype=int),
-        trainval_io.ROW_INDICES_KEY: row_indices,
-        trainval_io.COLUMN_INDICES_KEY: column_indices
-    }
-
-    if normalization_type_string == ml_utils.MINMAX_STRING:
-        first_normalization_param_matrix = normalization_dict[
-            ml_utils.MIN_VALUE_MATRIX_KEY
-        ][time_indices, ...]
-        second_normalization_param_matrix = normalization_dict[
-            ml_utils.MAX_VALUE_MATRIX_KEY
-        ][time_indices, ...]
-    else:
-        first_normalization_param_matrix = normalization_dict[
-            ml_utils.MEAN_VALUE_MATRIX_KEY
-        ][time_indices, ...]
-        second_normalization_param_matrix = normalization_dict[
-            ml_utils.STDEV_MATRIX_KEY
-        ][time_indices, ...]
-
-    example_dict.update({
-        trainval_io.FIRST_NORM_PARAM_KEY: first_normalization_param_matrix,
-        trainval_io.SECOND_NORM_PARAM_KEY: second_normalization_param_matrix
-    })
-
-    return example_dict
-
-
 def _write_example_file(
         top_output_dir_name, example_dict, first_time_unix_sec,
-        last_time_unix_sec, predictor_names, pressure_level_mb,
-        dilation_distance_metres, mask_matrix):
+        last_time_unix_sec):
     """Writes one set of learning examples to file.
 
     :param top_output_dir_name: See documentation at top of file.
     :param example_dict: Dictionary with keys documented in
-        `_create_examples_one_time`.
+        `learning_examples_io.create_examples`.
     :param first_time_unix_sec: First time in set.
     :param last_time_unix_sec: Last time in set.
-    :param predictor_names: See documentation at top of file.
-    :param pressure_level_mb: Same.
-    :param dilation_distance_metres: Same.
-    :param mask_matrix: Same.
     """
 
     if example_dict is None:
         return
 
-    output_file_name = trainval_io.find_downsized_3d_example_file(
+    output_file_name = examples_io.find_file(
         top_directory_name=top_output_dir_name,
-        first_target_time_unix_sec=first_time_unix_sec,
-        last_target_time_unix_sec=last_time_unix_sec,
+        first_valid_time_unix_sec=first_time_unix_sec,
+        last_valid_time_unix_sec=last_time_unix_sec,
         raise_error_if_missing=False)
 
     print 'Writing examples to file: "{0:s}"...'.format(output_file_name)
-    trainval_io.write_downsized_3d_examples(
-        netcdf_file_name=output_file_name, example_dict=example_dict,
-        narr_predictor_names=predictor_names,
-        pressure_level_mb=pressure_level_mb,
-        dilation_distance_metres=dilation_distance_metres,
-        narr_mask_matrix=mask_matrix)
+    examples_io.write_file(netcdf_file_name=output_file_name,
+                           example_dict=example_dict)
 
 
 def _run(top_predictor_dir_name, first_time_string, last_time_string,
@@ -446,27 +314,25 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
                 top_output_dir_name=top_output_dir_name,
                 example_dict=this_example_dict,
                 first_time_unix_sec=this_first_time_unix_sec,
-                last_time_unix_sec=valid_times_unix_sec[i - 1],
-                predictor_names=predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                mask_matrix=mask_matrix)
+                last_time_unix_sec=valid_times_unix_sec[i - 1]
+            )
 
             print SEPARATOR_STRING
             this_example_dict = None
             this_first_time_unix_sec = valid_times_unix_sec[i]
 
-        this_new_example_dict = _create_examples_one_time(
+        this_new_example_dict = examples_io.create_examples(
             top_predictor_dir_name=top_predictor_dir_name,
-            valid_time_unix_sec=valid_times_unix_sec[i],
-            pressure_level_mb=pressure_level_mb,
-            predictor_names=predictor_names,
-            num_half_rows=num_half_rows, num_half_columns=num_half_columns,
-            normalization_type_string=normalization_type_string,
-            class_fractions=class_fractions,
             top_gridded_front_dir_name=top_gridded_front_dir_name,
+            valid_time_unix_sec=valid_times_unix_sec[i],
+            predictor_names=predictor_names,
+            pressure_level_mb=pressure_level_mb,
+            num_half_rows=num_half_rows, num_half_columns=num_half_columns,
             dilation_distance_metres=dilation_distance_metres,
-            max_num_examples=max_examples_per_time, mask_matrix=mask_matrix)
+            class_fractions=class_fractions,
+            max_num_examples=max_examples_per_time,
+            normalization_type_string=normalization_type_string,
+            narr_mask_matrix=mask_matrix)
 
         print '\n'
         if this_new_example_dict is None:
@@ -476,7 +342,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
             this_example_dict = copy.deepcopy(this_new_example_dict)
             continue
 
-        for this_key in trainval_io.MAIN_KEYS:
+        for this_key in examples_io.MAIN_KEYS:
             this_example_dict[this_key] = numpy.concatenate(
                 (this_example_dict[this_key], this_new_example_dict[this_key]),
                 axis=0
@@ -486,11 +352,8 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
         top_output_dir_name=top_output_dir_name,
         example_dict=this_example_dict,
         first_time_unix_sec=this_first_time_unix_sec,
-        last_time_unix_sec=valid_times_unix_sec[-1],
-        predictor_names=predictor_names,
-        pressure_level_mb=pressure_level_mb,
-        dilation_distance_metres=dilation_distance_metres,
-        mask_matrix=mask_matrix)
+        last_time_unix_sec=valid_times_unix_sec[-1]
+    )
 
 
 if __name__ == '__main__':

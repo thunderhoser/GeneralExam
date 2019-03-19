@@ -1,7 +1,7 @@
 """Trains CNN with example files.
 
 "Example files" are pre-processed files that contain downsized examples,
-readable by `training_validation_io.read_downsized_3d_examples`.
+readable by `learning_examples_io.read_file`.
 """
 
 import argparse

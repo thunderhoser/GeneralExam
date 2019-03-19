@@ -23,7 +23,7 @@ from gewittergefahr.deep_learning import novelty_detection
 from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import upconvnet
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.plotting import example_plotting
 
 # TODO(thunderhoser): Allow different criteria for test set.  The current
@@ -57,8 +57,8 @@ UPCONVNET_FILE_HELP_STRING = (
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input data.  Files therein (containing'
     ' downsized 3-D examples, with 2 spatial dimensions) will be found by '
-    '`training_validation_io.find_downsized_3d_example_file` (with shuffled = '
-    'False) and read by `training_validation_io.read_downsized_3d_examples`.')
+    '`learning_examples_io.find_file` (with shuffled = False) and read by '
+    '`learning_examples_io.read_file`.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Only examples in the period `{0:s}`...`{1:s}`'
@@ -201,10 +201,10 @@ def _find_baseline_and_test_examples(
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, TIME_FORMAT)
 
-    example_file_names = trainval_io.find_downsized_3d_example_files(
+    example_file_names = examples_io.find_many_files(
         top_directory_name=top_example_dir_name, shuffled=False,
-        first_target_time_unix_sec=first_time_unix_sec,
-        last_target_time_unix_sec=last_time_unix_sec)
+        first_valid_time_unix_sec=first_time_unix_sec,
+        last_valid_time_unix_sec=last_time_unix_sec)
 
     file_indices = numpy.array([], dtype=int)
     file_position_indices = numpy.array([], dtype=int)
@@ -212,7 +212,7 @@ def _find_baseline_and_test_examples(
 
     for k in range(len(example_file_names)):
         print 'Reading data from: "{0:s}"...'.format(example_file_names[k])
-        this_example_dict = trainval_io.read_downsized_3d_examples(
+        this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[k], metadata_only=False,
             predictor_names_to_keep=cnn_metadata_dict[
                 traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
@@ -223,7 +223,7 @@ def _find_baseline_and_test_examples(
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
-        this_num_examples = len(this_example_dict[trainval_io.TARGET_TIMES_KEY])
+        this_num_examples = len(this_example_dict[examples_io.VALID_TIMES_KEY])
         if this_num_examples == 0:
             continue
 
@@ -234,7 +234,7 @@ def _find_baseline_and_test_examples(
         these_cold_front_probs = _get_cnn_predictions(
             cnn_model_object=cnn_model_object,
             predictor_matrix=this_example_dict[
-                trainval_io.PREDICTOR_MATRIX_KEY],
+                examples_io.PREDICTOR_MATRIX_KEY],
             target_class=front_utils.COLD_FRONT_ENUM, verbose=True)
         print '\n'
 
@@ -290,7 +290,7 @@ def _find_baseline_and_test_examples(
             continue
 
         print 'Reading data from: "{0:s}"...'.format(example_file_names[k])
-        this_example_dict = trainval_io.read_downsized_3d_examples(
+        this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[k], metadata_only=False,
             predictor_names_to_keep=cnn_metadata_dict[
                 traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
@@ -302,7 +302,7 @@ def _find_baseline_and_test_examples(
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
         this_predictor_matrix = this_example_dict[
-            trainval_io.PREDICTOR_MATRIX_KEY]
+            examples_io.PREDICTOR_MATRIX_KEY]
 
         if baseline_image_matrix is None:
             baseline_image_matrix = numpy.full(
