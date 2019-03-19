@@ -7,9 +7,10 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import processed_narr_io
+from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import nfa
 from generalexam.ge_utils import front_utils
+from generalexam.ge_utils import predictor_utils
 from generalexam.ge_utils import utils as general_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
@@ -17,12 +18,12 @@ random.seed(6695)
 numpy.random.seed(6695)
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
-NARR_TIME_INTERVAL_SEC = 10800
+TIME_INTERVAL_SECONDS = 10800
 
 VALID_THERMAL_FIELD_NAMES = [
-    processed_narr_io.TEMPERATURE_NAME,
-    processed_narr_io.WET_BULB_THETA_NAME,
-    processed_narr_io.SPECIFIC_HUMIDITY_NAME
+    predictor_utils.TEMPERATURE_NAME,
+    predictor_utils.WET_BULB_THETA_NAME,
+    predictor_utils.SPECIFIC_HUMIDITY_NAME
 ]
 
 FIRST_TIME_ARG_NAME = 'first_time_string'
@@ -35,8 +36,8 @@ WF_PERCENTILE_ARG_NAME = 'warm_front_percentile'
 CF_PERCENTILE_ARG_NAME = 'cold_front_percentile'
 NUM_CLOSING_ITERS_ARG_NAME = 'num_closing_iters'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
-NARR_DIRECTORY_ARG_NAME = 'input_narr_dir_name'
-NARR_MASK_FILE_ARG_NAME = 'input_narr_mask_file_name'
+PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
+MASK_FILE_ARG_NAME = 'input_mask_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_prediction_dir_name'
 
 TIME_HELP_STRING = (
@@ -87,31 +88,30 @@ PRESSURE_LEVEL_HELP_STRING = (
     'Pressure level (millibars).  Both thermal and wind fields will be taken '
     'from this level only.')
 
-NARR_DIRECTORY_HELP_STRING = (
-    'Name of top-level NARR directory (predictors will be read from here).  '
-    'Files therein will be found by `processed_narr_io.find_file_for_one_time` '
-    'and read by `processed_narr_io.read_fields_from_file`.')
+PREDICTOR_DIR_HELP_STRING = (
+    'Name of top-level directory with predictors.  Input files therein '
+    'will be found by `predictor_io.find_file` and read by '
+    '`predictor_io.read_file`.')
 
-NARR_MASK_FILE_HELP_STRING = (
-    'Pickle file with NARR mask (will be read by `machine_learning_utils.'
-    'read_narr_mask`).  Predictions will not be made for masked grid cells.  If'
-    ' you do not want a mask, make this the empty string ("").')
+MASK_FILE_HELP_STRING = (
+    'Path to mask file (predictions will not be made for masked grid cells).  '
+    'Will be read by `machine_learning_utils.read_narr_mask`.  If you do not '
+    'want a mask, leave this empty.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  For each time step, gridded predictions will be'
     ' written here by `nfa.write_gridded_predictions`, to a location determined'
     ' by `nfa.find_prediction_file`.')
 
-DEFAULT_THERMAL_FIELD_NAME = processed_narr_io.WET_BULB_THETA_NAME
+DEFAULT_THERMAL_FIELD_NAME = predictor_utils.WET_BULB_THETA_NAME
 DEFAULT_SMOOTHING_RADIUS_PIXELS = 1.
 DEFAULT_WARM_FRONT_PERCENTILE = 96.
 DEFAULT_COLD_FRONT_PERCENTILE = 96.
 DEFAULT_NUM_CLOSING_ITERS = 2
 DEFAULT_PRESSURE_LEVEL_MB = 900
 
-TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
-DEFAULT_NARR_MASK_FILE_NAME = (
-    '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p')
+TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
+DEFAULT_MASK_FILE_NAME = '/condo/swatwork/ralager/fronts_netcdf/era5_mask.p'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -153,12 +153,12 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NARR_DIRECTORY_ARG_NAME, type=str, required=False,
-    default=TOP_NARR_DIR_NAME_DEFAULT, help=NARR_DIRECTORY_HELP_STRING)
+    '--' + PREDICTOR_DIR_ARG_NAME, type=str, required=False,
+    default=TOP_PREDICTOR_DIR_NAME_DEFAULT, help=PREDICTOR_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NARR_MASK_FILE_ARG_NAME, type=str, required=False,
-    default=DEFAULT_NARR_MASK_FILE_NAME, help=NARR_MASK_FILE_HELP_STRING)
+    '--' + MASK_FILE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_MASK_FILE_NAME, help=MASK_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -168,7 +168,7 @@ INPUT_ARG_PARSER.add_argument(
 def _run(first_time_string, last_time_string, randomize_times, num_times,
          thermal_field_name, smoothing_radius_pixels, warm_front_percentile,
          cold_front_percentile, num_closing_iters, pressure_level_mb,
-         top_narr_directory_name, narr_mask_file_name, output_dir_name):
+         top_predictor_dir_name, mask_file_name, output_dir_name):
     """Uses NFA (numerical frontal analysis) to predict front type at each px.
 
     This is effectively the main method.
@@ -183,12 +183,16 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     :param cold_front_percentile: Same.
     :param num_closing_iters: Same.
     :param pressure_level_mb: Same.
-    :param top_narr_directory_name: Same.
-    :param narr_mask_file_name: Same.
+    :param top_predictor_dir_name: Same.
+    :param mask_file_name: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if
         `thermal_field_name not in VALID_THERMAL_FIELD_NAMES`.
     """
+
+    cutoff_radius_pixels = 4 * smoothing_radius_pixels
+    if mask_file_name in ['', 'None']:
+        mask_file_name = None
 
     if thermal_field_name not in VALID_THERMAL_FIELD_NAMES:
         error_string = (
@@ -198,16 +202,20 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
         raise ValueError(error_string)
 
-    cutoff_radius_pixels = 4 * smoothing_radius_pixels
+    field_names_to_read = [
+        thermal_field_name, predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME
+    ]
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
+
     valid_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=NARR_TIME_INTERVAL_SEC, include_endpoint=True)
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
     if randomize_times:
         error_checking.assert_is_leq(num_times, len(valid_times_unix_sec))
@@ -215,14 +223,14 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         numpy.random.shuffle(valid_times_unix_sec)
         valid_times_unix_sec = valid_times_unix_sec[:num_times]
 
-    if narr_mask_file_name == '':
+    if mask_file_name is None:
         num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
             model_name=nwp_model_utils.NARR_MODEL_NAME)
-        narr_mask_matrix = numpy.full(
+        mask_matrix = numpy.full(
             (num_grid_rows, num_grid_columns), 1, dtype=int)
     else:
-        print 'Reading mask from: "{0:s}"...\n'.format(narr_mask_file_name)
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
+        print 'Reading mask from: "{0:s}"...\n'.format(mask_file_name)
+        mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
@@ -230,15 +238,20 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
-        this_thermal_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=top_narr_directory_name,
-            field_name=thermal_field_name, pressure_level_mb=pressure_level_mb,
+        this_file_name = predictor_io.find_file(
+            top_directory_name=top_predictor_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i])
 
-        print 'Reading data from: "{0:s}"...'.format(this_thermal_file_name)
-        this_thermal_matrix_kelvins = processed_narr_io.read_fields_from_file(
-            this_thermal_file_name
-        )[0][0, ...]
+        print 'Reading predictors from: "{0:s}"...'.format(this_file_name)
+        this_predictor_dict = predictor_io.read_file(
+            netcdf_file_name=this_file_name,
+            pressure_levels_to_keep_mb=numpy.array(
+                [pressure_level_mb], dtype=int),
+            field_names_to_keep=field_names_to_read)
+
+        this_thermal_matrix_kelvins = this_predictor_dict[
+            predictor_utils.DATA_MATRIX_KEY
+        ][0, ..., 0, 0]
 
         this_thermal_matrix_kelvins = general_utils.fill_nans(
             this_thermal_matrix_kelvins)
@@ -247,16 +260,9 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             standard_deviation_pixels=smoothing_radius_pixels,
             cutoff_radius_pixels=cutoff_radius_pixels)
 
-        this_u_wind_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=top_narr_directory_name,
-            field_name=processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-            pressure_level_mb=pressure_level_mb,
-            valid_time_unix_sec=valid_times_unix_sec[i])
-
-        print 'Reading data from: "{0:s}"...'.format(this_u_wind_file_name)
-        this_u_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
-            this_u_wind_file_name
-        )[0][0, ...]
+        this_u_wind_matrix_m_s01 = this_predictor_dict[
+            predictor_utils.DATA_MATRIX_KEY
+        ][0, ..., 0, 1]
 
         this_u_wind_matrix_m_s01 = general_utils.fill_nans(
             this_u_wind_matrix_m_s01)
@@ -265,16 +271,9 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             standard_deviation_pixels=smoothing_radius_pixels,
             cutoff_radius_pixels=cutoff_radius_pixels)
 
-        this_v_wind_file_name = processed_narr_io.find_file_for_one_time(
-            top_directory_name=top_narr_directory_name,
-            field_name=processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-            pressure_level_mb=pressure_level_mb,
-            valid_time_unix_sec=valid_times_unix_sec[i])
-
-        print 'Reading data from: "{0:s}"...'.format(this_v_wind_file_name)
-        this_v_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
-            this_v_wind_file_name
-        )[0][0, ...]
+        this_v_wind_matrix_m_s01 = this_predictor_dict[
+            predictor_utils.DATA_MATRIX_KEY
+        ][0, ..., 0, 2]
 
         this_v_wind_matrix_m_s01 = general_utils.fill_nans(
             this_v_wind_matrix_m_s01)
@@ -287,7 +286,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             thermal_field_matrix_kelvins=this_thermal_matrix_kelvins,
             x_spacing_metres=x_spacing_metres,
             y_spacing_metres=y_spacing_metres)
-        this_tfp_matrix_kelvins_m02[narr_mask_matrix == 0] = 0.
+        this_tfp_matrix_kelvins_m02[mask_matrix == 0] = 0.
 
         this_proj_velocity_matrix_m_s01 = nfa.project_wind_to_thermal_gradient(
             u_matrix_grid_relative_m_s01=this_u_wind_matrix_m_s01,
@@ -323,7 +322,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             predicted_label_matrix=numpy.expand_dims(
                 this_predicted_label_matrix, axis=0),
             valid_times_unix_sec=valid_times_unix_sec[[i]],
-            narr_mask_matrix=narr_mask_matrix,
+            narr_mask_matrix=mask_matrix,
             pressure_level_mb=pressure_level_mb,
             smoothing_radius_pixels=smoothing_radius_pixels,
             cutoff_radius_pixels=cutoff_radius_pixels,
@@ -348,8 +347,8 @@ if __name__ == '__main__':
         cold_front_percentile=getattr(INPUT_ARG_OBJECT, CF_PERCENTILE_ARG_NAME),
         num_closing_iters=getattr(INPUT_ARG_OBJECT, NUM_CLOSING_ITERS_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
-        top_narr_directory_name=getattr(
-            INPUT_ARG_OBJECT, NARR_DIRECTORY_ARG_NAME),
-        narr_mask_file_name=getattr(INPUT_ARG_OBJECT, NARR_MASK_FILE_ARG_NAME),
+        top_predictor_dir_name=getattr(
+            INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME),
+        mask_file_name=getattr(INPUT_ARG_OBJECT, MASK_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

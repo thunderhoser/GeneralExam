@@ -21,11 +21,11 @@ INPUT_ARG_PARSER = ml_helper.add_input_args(
     argument_parser=INPUT_ARG_PARSER, use_downsized_files=False)
 
 
-def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
+def _run(input_model_file_name, predictor_names, pressure_level_mb,
          dilation_distance_metres, num_lead_time_steps,
          predictor_time_step_offsets, num_examples_per_time,
-         weight_loss_function, class_fractions, top_narr_directory_name,
-         top_frontal_grid_dir_name, narr_mask_file_name,
+         weight_loss_function, class_fractions, top_predictor_dir_name,
+         top_gridded_front_dir_name, mask_file_name,
          first_training_time_string, last_training_time_string,
          first_validation_time_string, last_validation_time_string,
          num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
@@ -35,7 +35,7 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
     This is effectively the main method.
 
     :param input_model_file_name: See documentation at top of file.
-    :param narr_predictor_names: Same.
+    :param predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
     :param num_lead_time_steps: Same.
@@ -43,9 +43,9 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
     :param num_examples_per_time: Same.
     :param weight_loss_function: Same.
     :param class_fractions: Same.
-    :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
-    :param narr_mask_file_name: Same.
+    :param top_predictor_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
+    :param mask_file_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
     :param first_validation_time_string: Same.
@@ -69,9 +69,9 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
         last_validation_time_string, TIME_FORMAT)
 
-    if narr_mask_file_name == '':
-        narr_mask_file_name = None
-        narr_mask_matrix = None
+    if mask_file_name in ['', 'None']:
+        mask_file_name = None
+        mask_matrix = None
 
     if num_lead_time_steps <= 1:
         num_lead_time_steps = None
@@ -107,9 +107,11 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
     num_half_rows = int(numpy.round((num_grid_rows - 1) / 2))
     num_half_columns = int(numpy.round((num_grid_columns - 1) / 2))
 
-    if narr_mask_file_name is not None:
-        print 'Reading NARR mask from: "{0:s}"...'.format(narr_mask_file_name)
-        narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
+    if mask_file_name is None:
+        mask_matrix = None
+    else:
+        print 'Reading mask from: "{0:s}"...'.format(mask_file_name)
+        mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
     model_metafile_name = traditional_cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
@@ -126,7 +128,7 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
         weight_loss_function=weight_loss_function,
-        narr_predictor_names=narr_predictor_names,
+        narr_predictor_names=predictor_names,
         pressure_level_mb=pressure_level_mb,
         training_start_time_unix_sec=first_training_time_unix_sec,
         training_end_time_unix_sec=last_training_time_unix_sec,
@@ -134,7 +136,7 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
         validation_end_time_unix_sec=last_validation_time_unix_sec,
         num_lead_time_steps=num_lead_time_steps,
         predictor_time_step_offsets=predictor_time_step_offsets,
-        narr_mask_matrix=narr_mask_matrix)
+        narr_mask_matrix=mask_matrix)
 
     print SEPARATOR_STRING
 
@@ -145,9 +147,9 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
         num_examples_per_target_time=num_examples_per_time,
         training_start_time_unix_sec=first_training_time_unix_sec,
         training_end_time_unix_sec=last_training_time_unix_sec,
-        top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        narr_predictor_names=narr_predictor_names,
+        top_narr_directory_name=top_predictor_dir_name,
+        top_gridded_front_dir_name=top_gridded_front_dir_name,
+        narr_predictor_names=predictor_names,
         pressure_level_mb=pressure_level_mb,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
@@ -157,7 +159,7 @@ def _run(input_model_file_name, narr_predictor_names, pressure_level_mb,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_start_time_unix_sec=first_validation_time_unix_sec,
         validation_end_time_unix_sec=last_validation_time_unix_sec,
-        narr_mask_matrix=narr_mask_matrix)
+        narr_mask_matrix=mask_matrix)
 
 
 if __name__ == '__main__':
@@ -166,7 +168,7 @@ if __name__ == '__main__':
     _run(
         input_model_file_name=getattr(
             INPUT_ARG_OBJECT, ml_helper.INPUT_MODEL_FILE_ARG_NAME),
-        narr_predictor_names=getattr(
+        predictor_names=getattr(
             INPUT_ARG_OBJECT, ml_helper.PREDICTOR_NAMES_ARG_NAME),
         pressure_level_mb=getattr(
             INPUT_ARG_OBJECT, ml_helper.PRESSURE_LEVEL_ARG_NAME),
@@ -184,12 +186,11 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT,
                     ml_helper.DOWNSAMPLING_FRACTIONS_ARG_NAME),
             dtype=float),
-        top_narr_directory_name=getattr(
-            INPUT_ARG_OBJECT, ml_helper.NARR_DIR_ARG_NAME),
-        top_frontal_grid_dir_name=getattr(
+        top_predictor_dir_name=getattr(
+            INPUT_ARG_OBJECT, ml_helper.PREDICTOR_DIR_ARG_NAME),
+        top_gridded_front_dir_name=getattr(
             INPUT_ARG_OBJECT, ml_helper.FRONT_DIR_ARG_NAME),
-        narr_mask_file_name=getattr(
-            INPUT_ARG_OBJECT, ml_helper.NARR_MASK_FILE_ARG_NAME),
+        mask_file_name=getattr(INPUT_ARG_OBJECT, ml_helper.MASK_FILE_ARG_NAME),
         first_training_time_string=getattr(
             INPUT_ARG_OBJECT, ml_helper.FIRST_TRAINING_TIME_ARG_NAME),
         last_training_time_string=getattr(

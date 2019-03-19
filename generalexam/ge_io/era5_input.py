@@ -290,17 +290,16 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
         data_matrix = numpy.array(
             dataset_object.variables[field_name_key][time_indices, ...]
         )
-        data_matrix = numpy.expand_dims(data_matrix, axis=-1)
     else:
         data_matrix = numpy.array(
             dataset_object.variables[field_name_key][
                 time_indices, pressure_level_index, ...]
         )
 
-        data_matrix = numpy.swapaxes(data_matrix, 1, 3)
-
     data_matrix = numpy.flip(data_matrix, axis=1)
     latitudes_deg = latitudes_deg[::-1]
+
+    data_matrix = numpy.expand_dims(data_matrix, axis=-1)
     data_matrix = numpy.expand_dims(data_matrix, axis=-1)
 
     return {

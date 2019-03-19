@@ -7,14 +7,13 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
-from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
+from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import training_validation_io as trainval_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
@@ -26,10 +25,10 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_HALF_ROWS = 16
 NUM_HALF_COLUMNS = 16
-NARR_PREDICTOR_NAMES = [
-    processed_narr_io.WET_BULB_THETA_NAME,
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME
+PREDICTOR_NAMES = [
+    predictor_utils.WET_BULB_THETA_NAME,
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
 FRONT_MARKER_SIZE = 20
@@ -166,7 +165,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     example_dict = trainval_io.read_downsized_3d_examples(
         netcdf_file_name=example_file_name, num_half_rows_to_keep=NUM_HALF_ROWS,
         num_half_columns_to_keep=NUM_HALF_COLUMNS,
-        predictor_names_to_keep=NARR_PREDICTOR_NAMES)
+        predictor_names_to_keep=PREDICTOR_NAMES)
 
     # TODO(thunderhoser): This is a HACK (assuming that normalization method is
     # z-score and not min-max).
@@ -186,15 +185,15 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             normalization_dict=normalization_dict)
     )
 
-    narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
+    latitude_matrix_deg, longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    narr_rotation_cos_matrix, narr_rotation_sin_matrix = (
+    rotation_cosine_matrix, rotation_sine_matrix = (
         nwp_model_utils.get_wind_rotation_angles(
-            latitudes_deg=narr_latitude_matrix_deg,
-            longitudes_deg=narr_longitude_matrix_deg,
+            latitudes_deg=latitude_matrix_deg,
+            longitudes_deg=longitude_matrix_deg,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
@@ -207,12 +206,11 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         example_indices = numpy.random.choice(
             example_indices, size=num_examples, replace=False)
 
-    thetaw_index = NARR_PREDICTOR_NAMES.index(
-        processed_narr_io.WET_BULB_THETA_NAME)
-    u_wind_index = NARR_PREDICTOR_NAMES.index(
-        processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
-    v_wind_index = NARR_PREDICTOR_NAMES.index(
-        processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
+    thetaw_index = PREDICTOR_NAMES.index(predictor_utils.WET_BULB_THETA_NAME)
+    u_wind_index = PREDICTOR_NAMES.index(
+        predictor_utils.U_WIND_GRID_RELATIVE_NAME)
+    v_wind_index = PREDICTOR_NAMES.index(
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME)
 
     for i in example_indices:
         this_center_row_index = example_dict[trainval_io.ROW_INDICES_KEY][i]
@@ -228,11 +226,11 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             trainval_io.PREDICTOR_MATRIX_KEY][i, ..., u_wind_index]
         this_v_wind_matrix_m_s01 = example_dict[
             trainval_io.PREDICTOR_MATRIX_KEY][i, ..., v_wind_index]
-        this_cos_matrix = narr_rotation_cos_matrix[
+        this_cos_matrix = rotation_cosine_matrix[
             this_first_row_index:(this_last_row_index + 1),
             this_first_column_index:(this_last_column_index + 1)
         ]
-        this_sin_matrix = narr_rotation_sin_matrix[
+        this_sin_matrix = rotation_sine_matrix[
             this_first_row_index:(this_last_row_index + 1),
             this_first_column_index:(this_last_column_index + 1)
         ]

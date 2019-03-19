@@ -2,12 +2,12 @@
 
 import numpy
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import processed_narr_io
+from generalexam.ge_utils import predictor_utils
 
 TIME_FORMAT = '%Y%m%d%H'
 
 INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
-PREDICTOR_NAMES_ARG_NAME = 'narr_predictor_names'
+PREDICTOR_NAMES_ARG_NAME = 'predictor_names'
 
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
@@ -16,9 +16,9 @@ PREDICTOR_TIMES_ARG_NAME = 'predictor_time_step_offsets'
 NUM_EX_PER_TIME_ARG_NAME = 'num_examples_per_time'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
 DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
-NARR_DIR_ARG_NAME = 'input_narr_dir_name'
-FRONT_DIR_ARG_NAME = 'input_frontal_grid_dir_name'
-NARR_MASK_FILE_ARG_NAME = 'input_narr_mask_file_name'
+PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
+FRONT_DIR_ARG_NAME = 'input_gridded_front_dir_name'
+MASK_FILE_ARG_NAME = 'input_mask_file_name'
 
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 VALIDATION_DIR_ARG_NAME = 'input_validation_dir_name'
@@ -40,7 +40,7 @@ INPUT_MODEL_FILE_HELP_STRING = (
 
 PREDICTOR_NAMES_HELP_STRING = (
     'List of predictor variables (channels).  Each must be accepted by '
-    '`processed_narr_io.check_field_name`.')
+    '`predictor_utils.check_field_name`.')
 
 PRESSURE_LEVEL_HELP_STRING = (
     'Pressure level (millibars) for predictors in list `{0:s}`.'
@@ -76,21 +76,21 @@ DOWNSAMPLING_FRACTIONS_HELP_STRING = (
     '[k]th class.  Fractions must add up to 1.0.  If you do not want '
     'downsampling, make this a one-item list.')
 
-NARR_DIR_HELP_STRING = (
-    'Name of top-level directory with NARR data (predictors).  Files therein '
-    'will be found by `processed_narr_io.find_file_for_one_time` and read by '
-    '`processed_narr_io.read_fields_from_file`.')
+PREDICTOR_DIR_HELP_STRING = (
+    'Name of top-level directory with predictors.  Input files therein '
+    'will be found by `predictor_io.find_file` and read by '
+    '`predictor_io.read_file`.')
 
 FRONT_DIR_HELP_STRING = (
-    'Name of top-level directory with gridded front labels (targets).  Files '
-    'therein will be found by `fronts_io.find_file_for_one_time` and read by '
-    '`fronts_io.read_narr_grids_from_file`.')
+    'Name of top-level directory with gridded front labels.  Files therein will'
+    ' be found by `fronts_io.find_gridded_file` and read by '
+    '`fronts_io.read_grid_from_file`.')
 
-NARR_MASK_FILE_HELP_STRING = (
-    'Path to file with NARR mask (will be read by '
-    '`machine_learning_utils.read_narr_mask`).  Masked grid cells cannot be '
-    'used as the center of a training example.  If you do not want masking, '
-    'make this empty ("").')
+MASK_FILE_HELP_STRING = (
+    'Path to mask file (determines which grid cells can be used as center of '
+    'learning example).  Will be read by '
+    '`machine_learning_utils.read_narr_mask`.  If you do not want a mask, leave'
+    ' this empty.')
 
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training data.  Files therein (containing'
@@ -126,11 +126,11 @@ OUTPUT_FILE_HELP_STRING = (
     'Path to output file (HDF5 format).  The trained CNN model will be saved '
     'here.')
 
-DEFAULT_NARR_PREDICTOR_NAMES = [
-    processed_narr_io.TEMPERATURE_NAME,
-    processed_narr_io.SPECIFIC_HUMIDITY_NAME,
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME
+DEFAULT_PREDICTOR_NAMES = [
+    predictor_utils.TEMPERATURE_NAME,
+    predictor_utils.SPECIFIC_HUMIDITY_NAME,
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
 DEFAULT_PRESSURE_LEVEL_MB = 1000
@@ -138,22 +138,10 @@ DEFAULT_DILATION_DISTANCE_METRES = 50000
 DEFAULT_NUM_EXAMPLES_PER_TIME = 8
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
-DEFAULT_TOP_NARR_DIR_NAME = '/condo/swatwork/ralager/narr_data/processed'
-DEFAULT_TOP_FRONT_DIR_NAME = (
-    '/condo/swatwork/ralager/fronts/narr_grids/no_dilation'
-)
-DEFAULT_NARR_MASK_FILE_NAME = (
-    '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p'
-)
-
-DEFAULT_TOP_TRAINING_DIR_NAME = (
-    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/z_normalized/'
-    'shuffled/training'
-)
-DEFAULT_TOP_VALIDATION_DIR_NAME = (
-    '/condo/swatwork/ralager/narr_data/downsized_3d_examples/z_normalized/'
-    'shuffled/validation'
-)
+TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
+TOP_FRONT_DIR_NAME_DEFAULT = (
+    '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation')
+DEFAULT_MASK_FILE_NAME = '/condo/swatwork/ralager/fronts_netcdf/era5_mask.p'
 
 DEFAULT_FIRST_TRAINING_TIME_STRING = '2008110515'
 DEFAULT_LAST_TRAINING_TIME_STRING = '2014122421'
@@ -174,8 +162,8 @@ def add_input_args(argument_parser, use_downsized_files):
     :param use_downsized_files: Boolean flag.  If True, the net will be trained
         with pre-processed files that contain downsized examples, readable by
         `training_validation_io.read_downsized_3d_examples`.  If False, the net
-        will be trained with examples created on the fly from raw NARR data and
-        gridded front labels.
+        will be trained with examples created on the fly from raw predictors
+        and gridded front labels.
     :return: argument_parser: Same as input but with new args added.
     """
 
@@ -187,17 +175,15 @@ def add_input_args(argument_parser, use_downsized_files):
 
     argument_parser.add_argument(
         '--' + PREDICTOR_NAMES_ARG_NAME, type=str, nargs='+', required=False,
-        default=DEFAULT_NARR_PREDICTOR_NAMES, help=PREDICTOR_NAMES_HELP_STRING)
+        default=DEFAULT_PREDICTOR_NAMES, help=PREDICTOR_NAMES_HELP_STRING)
 
     if use_downsized_files:
         argument_parser.add_argument(
-            '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,
-            default=DEFAULT_TOP_TRAINING_DIR_NAME,
+            '--' + TRAINING_DIR_ARG_NAME, type=str, required=True,
             help=TRAINING_DIR_HELP_STRING)
 
         argument_parser.add_argument(
-            '--' + VALIDATION_DIR_ARG_NAME, type=str, required=False,
-            default=DEFAULT_TOP_VALIDATION_DIR_NAME,
+            '--' + VALIDATION_DIR_ARG_NAME, type=str, required=True,
             help=VALIDATION_DIR_HELP_STRING)
     else:
         argument_parser.add_argument(
@@ -232,17 +218,18 @@ def add_input_args(argument_parser, use_downsized_files):
             help=DOWNSAMPLING_FRACTIONS_HELP_STRING)
 
         argument_parser.add_argument(
-            '--' + NARR_DIR_ARG_NAME, type=str, required=False,
-            default=DEFAULT_TOP_NARR_DIR_NAME, help=NARR_DIR_HELP_STRING)
+            '--' + PREDICTOR_DIR_ARG_NAME, type=str, required=False,
+            default=TOP_PREDICTOR_DIR_NAME_DEFAULT,
+            help=PREDICTOR_DIR_HELP_STRING)
 
         argument_parser.add_argument(
             '--' + FRONT_DIR_ARG_NAME, type=str, required=False,
-            default=DEFAULT_TOP_FRONT_DIR_NAME, help=FRONT_DIR_HELP_STRING)
+            default=TOP_FRONT_DIR_NAME_DEFAULT, help=FRONT_DIR_HELP_STRING)
 
         argument_parser.add_argument(
-            '--' + NARR_MASK_FILE_ARG_NAME, type=str, required=False,
-            default=DEFAULT_NARR_MASK_FILE_NAME,
-            help=NARR_MASK_FILE_HELP_STRING)
+            '--' + MASK_FILE_ARG_NAME, type=str, required=False,
+            default=DEFAULT_MASK_FILE_NAME,
+            help=MASK_FILE_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=False,

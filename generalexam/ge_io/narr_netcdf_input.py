@@ -336,7 +336,6 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
         data_matrix = numpy.array(
             dataset_object.variables[raw_field_name][time_indices, ...]
         )
-        data_matrix = numpy.expand_dims(data_matrix, axis=-1)
     else:
         all_pressure_levels_mb = numpy.round(
             dataset_object.variables[NETCDF_PRESSURE_LEVEL_KEY]
@@ -351,9 +350,8 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
                 time_indices, pressure_index, ...]
         )
 
-        data_matrix = numpy.swapaxes(data_matrix, 1, 3)
-
     data_matrix = _remove_sentinel_values(data_matrix)
+    data_matrix = numpy.expand_dims(data_matrix, axis=-1)
     data_matrix = numpy.expand_dims(data_matrix, axis=-1)
 
     return {

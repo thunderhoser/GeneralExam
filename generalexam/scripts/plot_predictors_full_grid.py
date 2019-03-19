@@ -13,29 +13,30 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
-from generalexam.ge_io import processed_narr_io
 from generalexam.ge_io import fronts_io
 from generalexam.ge_io import wpc_bulletin_io
-from generalexam.ge_utils import front_utils
+from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import utils
+from generalexam.ge_utils import front_utils
+from generalexam.ge_utils import predictor_utils
 from generalexam.plotting import front_plotting
 
 DEFAULT_TIME_FORMAT = '%Y%m%d%H'
 NICE_TIME_FORMAT = '%H00 UTC %-d %b %Y'
-NARR_TIME_INTERVAL_SEC = 10800
+TIME_INTERVAL_SECONDS = 10800
 
 KG_TO_GRAMS = 1000.
 ZERO_CELSIUS_IN_KELVINS = 273.15
 
 VALID_THERMAL_FIELD_NAMES = [
-    processed_narr_io.TEMPERATURE_NAME,
-    processed_narr_io.SPECIFIC_HUMIDITY_NAME,
-    processed_narr_io.WET_BULB_THETA_NAME
+    predictor_utils.TEMPERATURE_NAME,
+    predictor_utils.SPECIFIC_HUMIDITY_NAME,
+    predictor_utils.WET_BULB_THETA_NAME
 ]
 
 WIND_FIELD_NAMES = [
-    processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-    processed_narr_io.V_WIND_GRID_RELATIVE_NAME
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
 NUM_PARALLELS = 8
@@ -68,7 +69,7 @@ PRESSURE_SYSTEM_COLOUR = numpy.full(3, 0.)
 # FIGURE_RESOLUTION_DPI = 300
 FIGURE_RESOLUTION_DPI = 600
 
-NARR_DIR_ARG_NAME = 'input_narr_dir_name'
+PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 FRONT_DIR_ARG_NAME = 'input_front_line_dir_name'
 BULLETIN_DIR_ARG_NAME = 'input_wpc_bulletin_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
@@ -81,10 +82,10 @@ FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-NARR_DIR_HELP_STRING = (
-    'Name of top-level directory with NARR files (containing predictors).  '
-    'Files therein will be found by `processed_narr_io.find_file_for_one_time` '
-    'and read by `processed_narr_io.read_fields_from_file`.')
+PREDICTOR_DIR_HELP_STRING = (
+    'Name of top-level directory with predictors.  Input files therein '
+    'will be found by `predictor_io.find_file` and read by '
+    '`predictor_io.read_file`.')
 
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with fronts (represented as polylines).  Files'
@@ -98,11 +99,11 @@ BULLETIN_DIR_HELP_STRING = (
     'and low-pressure centers, leave this argument alone.')
 
 TIME_HELP_STRING = (
-    'Time (format "yyyymmddHH").  Predictors will be plotted for all NARR times'
-    ' in the period `{0:s}`...`{1:s}`.'
+    'Time (format "yyyymmddHH").  Predictors will be plotted for all times in '
+    'the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-PRESSURE_LEVEL_HELP_STRING = 'Pressure level (millibars) for NARR predictors.'
+PRESSURE_LEVEL_HELP_STRING = 'Pressure level (millibars) for predictors.'
 
 THERMAL_FIELD_HELP_STRING = (
     'Name of thermal field (to be plotted with fronts and wind barbs).  Valid '
@@ -131,14 +132,15 @@ LETTER_INTERVAL_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
-TOP_NARR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/narr_data/processed'
-TOP_FRONT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts/polylines'
+TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
+TOP_FRONT_DIR_NAME_DEFAULT = (
+    '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation')
 # TOP_BULLETIN_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/wpc_bulletins/hires'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + NARR_DIR_ARG_NAME, type=str, required=False,
-    default=TOP_NARR_DIR_NAME_DEFAULT, help=NARR_DIR_HELP_STRING)
+    '--' + PREDICTOR_DIR_ARG_NAME, type=str, required=False,
+    default=TOP_PREDICTOR_DIR_NAME_DEFAULT, help=PREDICTOR_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FRONT_DIR_ARG_NAME, type=str, required=False,
@@ -160,8 +162,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + THERMAL_FIELD_ARG_NAME, type=str, required=False,
-    default=processed_narr_io.WET_BULB_THETA_NAME,
-    help=THERMAL_FIELD_HELP_STRING)
+    default=predictor_utils.WET_BULB_THETA_NAME, help=THERMAL_FIELD_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + THERMAL_CMAP_ARG_NAME, type=str, required=False, default='YlOrRd',
@@ -278,9 +279,9 @@ def _plot_one_time(
             extend_min=True, extend_max=True, fraction_of_axis_length=0.9)
 
     u_wind_index = predictor_names.index(
-        processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
+        predictor_utils.U_WIND_GRID_RELATIVE_NAME)
     v_wind_index = predictor_names.index(
-        processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME)
 
     nwp_plotting.plot_wind_barbs_on_subgrid(
         u_wind_matrix_m_s01=predictor_matrix[..., u_wind_index],
@@ -358,16 +359,16 @@ def _plot_one_time(
                                       output_file_name=output_file_name)
 
 
-def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
-         first_time_string, last_time_string, pressure_level_mb,
-         thermal_field_name, thermal_colour_map_name,
+def _run(top_predictor_dir_name, top_front_line_dir_name,
+         top_wpc_bulletin_dir_name, first_time_string, last_time_string,
+         pressure_level_mb, thermal_field_name, thermal_colour_map_name,
          max_thermal_prctile_for_colours, first_letter_label, letter_interval,
          output_dir_name):
     """Plots predictors on full NARR grid.
 
     This is effectively the main method.
 
-    :param top_narr_dir_name: See documentation at top of file.
+    :param top_predictor_dir_name: See documentation at top of file.
     :param top_front_line_dir_name: Same.
     :param top_wpc_bulletin_dir_name: Same.
     :param first_time_string: Same.
@@ -411,18 +412,18 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
     valid_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=NARR_TIME_INTERVAL_SEC, include_endpoint=True)
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
     # Read metadata for NARR grid.
-    narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
+    latitude_matrix_deg, longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    narr_rotation_cos_matrix, narr_rotation_sin_matrix = (
+    rotation_cosine_matrix, rotation_sine_matrix = (
         nwp_model_utils.get_wind_rotation_angles(
-            latitudes_deg=narr_latitude_matrix_deg,
-            longitudes_deg=narr_longitude_matrix_deg,
+            latitudes_deg=latitude_matrix_deg,
+            longitudes_deg=longitude_matrix_deg,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
@@ -435,21 +436,20 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    narr_rotation_cos_matrix = narr_rotation_cos_matrix[
+    rotation_cosine_matrix = rotation_cosine_matrix[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
         narr_column_limits[0]:(narr_column_limits[1] + 1)
     ]
 
-    narr_rotation_sin_matrix = narr_rotation_sin_matrix[
+    rotation_sine_matrix = rotation_sine_matrix[
         narr_row_limits[0]:(narr_row_limits[1] + 1),
         narr_column_limits[0]:(narr_column_limits[1] + 1)
     ]
 
     # Do plotting.
-    narr_field_names = [
-        processed_narr_io.U_WIND_GRID_RELATIVE_NAME,
-        processed_narr_io.V_WIND_GRID_RELATIVE_NAME,
-        thermal_field_name
+    predictor_names = [
+        thermal_field_name, predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME
     ]
 
     this_letter_label = None
@@ -475,60 +475,55 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
             this_high_low_table = wpc_bulletin_io.read_highs_and_lows(
                 this_file_name)
 
-        this_predictor_matrix = None
+        this_file_name = predictor_io.find_file(
+            top_directory_name=top_predictor_dir_name,
+            valid_time_unix_sec=this_time_unix_sec)
 
-        for this_field_name in narr_field_names:
-            this_file_name = processed_narr_io.find_file_for_one_time(
-                top_directory_name=top_narr_dir_name,
-                field_name=this_field_name,
-                pressure_level_mb=pressure_level_mb,
-                valid_time_unix_sec=this_time_unix_sec)
+        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        this_predictor_dict = predictor_io.read_file(
+            netcdf_file_name=this_file_name,
+            pressure_levels_to_keep_mb=numpy.array(
+                [pressure_level_mb], dtype=int),
+            field_names_to_keep=predictor_names)
 
-            print 'Reading data from: "{0:s}"...'.format(this_file_name)
-            this_field_matrix = processed_narr_io.read_fields_from_file(
-                this_file_name
-            )[0][0, ...]
+        this_predictor_matrix = this_predictor_dict[
+            predictor_utils.DATA_MATRIX_KEY
+        ][0, ..., 0, :]
 
-            this_field_matrix = utils.fill_nans(this_field_matrix)
-            this_field_matrix = this_field_matrix[
-                narr_row_limits[0]:(narr_row_limits[1] + 1),
-                narr_column_limits[0]:(narr_column_limits[1] + 1)
-            ]
+        for j in range(len(predictor_names)):
+            this_predictor_matrix[..., j] = utils.fill_nans(
+                this_predictor_matrix[..., j]
+            )
 
-            if this_field_name in [processed_narr_io.TEMPERATURE_NAME,
-                                   processed_narr_io.WET_BULB_THETA_NAME]:
-                this_field_matrix -= ZERO_CELSIUS_IN_KELVINS
+        this_predictor_matrix = this_predictor_matrix[
+            narr_row_limits[0]:(narr_row_limits[1] + 1),
+            narr_column_limits[0]:(narr_column_limits[1] + 1),
+            ...
+        ]
 
-            if this_field_name == processed_narr_io.SPECIFIC_HUMIDITY_NAME:
-                this_field_matrix = this_field_matrix * KG_TO_GRAMS
+        if thermal_field_name in [predictor_utils.TEMPERATURE_NAME,
+                                  predictor_utils.WET_BULB_THETA_NAME]:
+            this_predictor_matrix[..., 0] = (
+                this_predictor_matrix[..., 0] - ZERO_CELSIUS_IN_KELVINS
+            )
 
-            this_field_matrix = numpy.expand_dims(this_field_matrix, axis=-1)
+        if thermal_field_name == predictor_utils.SPECIFIC_HUMIDITY_NAME:
+            this_predictor_matrix[..., 0] = (
+                this_predictor_matrix[..., 0] * KG_TO_GRAMS
+            )
 
-            if this_predictor_matrix is None:
-                this_predictor_matrix = this_field_matrix + 0.
-            else:
-                this_predictor_matrix = numpy.concatenate(
-                    (this_predictor_matrix, this_field_matrix), axis=-1)
-
-        u_wind_index = narr_field_names.index(
-            processed_narr_io.U_WIND_GRID_RELATIVE_NAME)
-        v_wind_index = narr_field_names.index(
-            processed_narr_io.V_WIND_GRID_RELATIVE_NAME)
-
-        (this_predictor_matrix[..., u_wind_index],
-         this_predictor_matrix[..., v_wind_index]
-        ) = nwp_model_utils.rotate_winds_to_earth_relative(
-            u_winds_grid_relative_m_s01=this_predictor_matrix[
-                ..., u_wind_index],
-            v_winds_grid_relative_m_s01=this_predictor_matrix[
-                ..., v_wind_index],
-            rotation_angle_cosines=narr_rotation_cos_matrix,
-            rotation_angle_sines=narr_rotation_sin_matrix)
+        this_predictor_matrix[..., 1], this_predictor_matrix[..., 2] = (
+            nwp_model_utils.rotate_winds_to_earth_relative(
+                u_winds_grid_relative_m_s01=this_predictor_matrix[..., 1],
+                v_winds_grid_relative_m_s01=this_predictor_matrix[..., 2],
+                rotation_angle_cosines=rotation_cosine_matrix,
+                rotation_angle_sines=rotation_sine_matrix)
+        )
 
         this_title_string = time_conversion.unix_sec_to_string(
             this_time_unix_sec, NICE_TIME_FORMAT)
 
-        if pressure_level_mb == 1013:
+        if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string += ' at surface'
         else:
             this_title_string += ' at {0:d} mb'.format(pressure_level_mb)
@@ -549,7 +544,7 @@ def _run(top_narr_dir_name, top_front_line_dir_name, top_wpc_bulletin_dir_name,
 
         _plot_one_time(
             predictor_matrix=this_predictor_matrix,
-            predictor_names=narr_field_names,
+            predictor_names=predictor_names,
             front_polyline_table=this_polyline_table,
             high_low_table=this_high_low_table,
             thermal_colour_map_object=thermal_colour_map_object,
@@ -566,7 +561,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_narr_dir_name=getattr(INPUT_ARG_OBJECT, NARR_DIR_ARG_NAME),
+        top_predictor_dir_name=getattr(
+            INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME),
         top_front_line_dir_name=getattr(INPUT_ARG_OBJECT, FRONT_DIR_ARG_NAME),
         top_wpc_bulletin_dir_name=getattr(
             INPUT_ARG_OBJECT, BULLETIN_DIR_ARG_NAME),
@@ -574,8 +570,8 @@ if __name__ == '__main__':
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         thermal_field_name=getattr(INPUT_ARG_OBJECT, THERMAL_FIELD_ARG_NAME),
-        thermal_colour_map_name=getattr(INPUT_ARG_OBJECT,
-                                        THERMAL_CMAP_ARG_NAME),
+        thermal_colour_map_name=getattr(
+            INPUT_ARG_OBJECT, THERMAL_CMAP_ARG_NAME),
         max_thermal_prctile_for_colours=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
