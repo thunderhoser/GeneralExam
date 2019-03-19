@@ -8,7 +8,7 @@ import pandas
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
-from generalexam.ge_io import wpc_bulletin_io
+from generalexam.ge_io import wpc_bulletin_input
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
 
@@ -33,8 +33,8 @@ TIME_HELP_STRING = (
 
 BULLETIN_DIR_HELP_STRING = (
     'Name of top-level input directory with WPC bulletins.  Files therein will '
-    'be found by `wpc_bulletin_io.find_file` and read by '
-    '`wpc_bulletin_io.read_fronts_from_file`.')
+    'be found by `wpc_bulletin_input.find_file` and read by '
+    '`wpc_bulletin_input.read_fronts_from_file`.')
 
 POLYLINE_DIR_HELP_STRING = (
     'Name of top-level output directory for polylines.  Files will be written '
@@ -98,7 +98,7 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
-        this_bulletin_file_name = wpc_bulletin_io.find_file(
+        this_bulletin_file_name = wpc_bulletin_input.find_file(
             valid_time_unix_sec=valid_times_unix_sec[i],
             top_directory_name=top_bulletin_dir_name,
             raise_error_if_missing=False)
@@ -111,7 +111,7 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             continue
 
         print 'Reading data from: "{0:s}"...'.format(this_bulletin_file_name)
-        this_polyline_table = wpc_bulletin_io.read_fronts_from_file(
+        this_polyline_table = wpc_bulletin_input.read_fronts_from_file(
             this_bulletin_file_name)
 
         this_polyline_file_name = fronts_io.find_polyline_file(

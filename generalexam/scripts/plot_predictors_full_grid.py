@@ -14,8 +14,8 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import fronts_io
-from generalexam.ge_io import wpc_bulletin_io
 from generalexam.ge_io import predictor_io
+from generalexam.ge_io import wpc_bulletin_input
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
@@ -94,9 +94,9 @@ FRONT_DIR_HELP_STRING = (
 
 BULLETIN_DIR_HELP_STRING = (
     'Name of top-level directory with WPC bulletins.  Files therein will be '
-    'found by `wpc_bulletin_io.find_file` and read by '
-    '`wpc_bulletin_io.read_highs_and_lows`.  If you do not want to plot high- '
-    'and low-pressure centers, leave this argument alone.')
+    'found by `wpc_bulletin_input.find_file` and read by '
+    '`wpc_bulletin_input.read_highs_and_lows`.  If you do not want to plot '
+    'high- and low-pressure centers, leave this argument alone.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Predictors will be plotted for all times in '
@@ -201,7 +201,7 @@ def _plot_one_time(
     :param front_polyline_table: pandas DataFrame returned by
         `fronts_io.read_polylines_from_file`.
     :param high_low_table: pandas DataFrame returned by
-        `wpc_bulletin_io.read_highs_and_lows`.
+        `wpc_bulletin_input.read_highs_and_lows`.
     :param thermal_colour_map_object: See documentation at top of file.
     :param max_thermal_prctile_for_colours: Same.
     :param narr_row_limits: length-2 numpy array, indicating the first and last
@@ -304,16 +304,16 @@ def _plot_one_time(
 
     for i in range(num_pressure_systems):
         this_system_type_string = high_low_table[
-            wpc_bulletin_io.SYSTEM_TYPE_COLUMN].values[i]
+            wpc_bulletin_input.SYSTEM_TYPE_COLUMN].values[i]
 
-        if this_system_type_string == wpc_bulletin_io.HIGH_PRESSURE_STRING:
+        if this_system_type_string == wpc_bulletin_input.HIGH_PRESSURE_STRING:
             this_string = 'H'
         else:
             this_string = 'L'
 
         this_x_coord_metres, this_y_coord_metres = basemap_object(
-            high_low_table[wpc_bulletin_io.LONGITUDE_COLUMN].values[i],
-            high_low_table[wpc_bulletin_io.LATITUDE_COLUMN].values[i]
+            high_low_table[wpc_bulletin_input.LONGITUDE_COLUMN].values[i],
+            high_low_table[wpc_bulletin_input.LATITUDE_COLUMN].values[i]
         )
 
         axes_object.text(
@@ -467,12 +467,12 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         if top_wpc_bulletin_dir_name is None:
             this_high_low_table = None
         else:
-            this_file_name = wpc_bulletin_io.find_file(
+            this_file_name = wpc_bulletin_input.find_file(
                 top_directory_name=top_wpc_bulletin_dir_name,
                 valid_time_unix_sec=this_time_unix_sec)
 
             print 'Reading data from: "{0:s}"...'.format(this_file_name)
-            this_high_low_table = wpc_bulletin_io.read_highs_and_lows(
+            this_high_low_table = wpc_bulletin_input.read_highs_and_lows(
                 this_file_name)
 
         this_file_name = predictor_io.find_file(
