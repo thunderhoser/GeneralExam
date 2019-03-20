@@ -250,6 +250,11 @@ def create_examples(
         predictor_utils.DATA_MATRIX_KEY
     ][[0], ..., 0, :]
 
+    for j in range(len(predictor_names)):
+        predictor_matrix[..., j] = ml_utils.fill_nans_in_predictor_images(
+            predictor_matrix[..., j]
+        )
+
     if narr_mask_matrix is None:
         narr_mask_matrix = numpy.full(predictor_matrix.shape[1:3], 1, dtype=int)
 

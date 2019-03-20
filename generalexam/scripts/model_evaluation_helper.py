@@ -15,7 +15,7 @@ from generalexam.machine_learning import evaluation_utils as ge_evaluation
 
 SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
+FORECAST_PRECISION_FOR_THRESHOLDS = 1e-3
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
