@@ -254,9 +254,9 @@ def _plot_one_time(
         if predictor_names[j] in WIND_FIELD_NAMES:
             continue
 
-        min_colour_value = numpy.percentile(
+        min_colour_value = numpy.nanpercentile(
             predictor_matrix[..., j], 100. - max_thermal_prctile_for_colours)
-        max_colour_value = numpy.percentile(
+        max_colour_value = numpy.nanpercentile(
             predictor_matrix[..., j], max_thermal_prctile_for_colours)
 
         nwp_plotting.plot_subgrid(
