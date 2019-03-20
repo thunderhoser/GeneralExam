@@ -118,7 +118,8 @@ def _get_num_true_labels_in_class(contingency_table_as_matrix, class_index):
 
 
 def _get_random_sample_points(
-        num_points, for_downsized_examples, narr_mask_matrix=None):
+        num_points, for_downsized_examples, narr_mask_matrix=None,
+        random_seed=None):
     """Samples random points from NARR grid.
 
     M = number of rows in NARR grid
@@ -132,6 +133,7 @@ def _get_random_sample_points(
     :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
         narr_mask_matrix[i, j] = 0, cell [i, j] in the full grid will never be
         sampled.  If `narr_mask_matrix is None`, any grid cell can be sampled.
+    :param random_seed: Seed (input to `numpy.random.seed`).
     :return: row_indices: length-P numpy array with row indices of sampled
         points.
     :return: column_indices: length-P numpy array with column indices of sampled
@@ -160,17 +162,25 @@ def _get_random_sample_points(
         error_checking.assert_is_integer_numpy_array(narr_mask_matrix)
         error_checking.assert_is_geq_numpy_array(narr_mask_matrix, 0)
         error_checking.assert_is_leq_numpy_array(narr_mask_matrix, 1)
+
+        these_expected_dim = numpy.array(
+            [num_grid_rows, num_grid_columns], dtype=int)
         error_checking.assert_is_numpy_array(
-            narr_mask_matrix,
-            exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
+            narr_mask_matrix, exact_dimensions=these_expected_dim)
 
         possible_linear_indices = numpy.where(
-            numpy.ravel(narr_mask_matrix) == 1)[0]
+            numpy.ravel(narr_mask_matrix) == 1
+        )[0]
+
+    if random_seed is not None:
+        numpy.random.seed(random_seed)
 
     linear_indices = numpy.random.choice(
         possible_linear_indices, size=num_points, replace=False)
+
     return numpy.unravel_index(
-        linear_indices, (num_grid_rows, num_grid_columns))
+        linear_indices, (num_grid_rows, num_grid_columns)
+    )
 
 
 def _get_a_for_gerrity_score(contingency_table_as_matrix):
@@ -264,7 +274,8 @@ def create_eval_pairs_for_cnn(
         first_time_unix_sec, last_time_unix_sec, num_times,
         num_examples_per_time, pressure_level_mb, predictor_names,
         normalization_type_string, dilation_distance_metres,
-        isotonic_model_object_by_class=None, mask_matrix=None):
+        isotonic_model_object_by_class=None, mask_matrix=None,
+        random_seed=None):
     """Creates evaluation pairs for a CNN (convolutional neural net).
 
     An "evaluation pair" is a forecast-observation pair.  Keep in mind that a
@@ -291,6 +302,7 @@ def create_eval_pairs_for_cnn(
     :param isotonic_model_object_by_class: See doc for
         `cnn.apply_model_to_full_grid`.
     :param mask_matrix: Same.
+    :param random_seed: Seed (input to `numpy.random.seed`).
     :return: class_probability_matrix: See documentation for
         `check_evaluation_pairs`.
     :return: observed_labels: Same.
@@ -305,6 +317,9 @@ def create_eval_pairs_for_cnn(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
+
+    if random_seed is not None:
+        numpy.random.seed(random_seed)
 
     numpy.random.shuffle(valid_times_unix_sec)
     valid_times_unix_sec = valid_times_unix_sec[:num_times]
@@ -324,13 +339,16 @@ def create_eval_pairs_for_cnn(
         (num_times, num_examples_per_time), -1, dtype=int
     )
 
+    this_random_seed = random_seed + 0
+
     for i in range(num_times):
         print 'Creating {0:d} evaluation pairs for {1:s}...'.format(
             num_examples_per_time, valid_time_strings[i])
 
+        this_random_seed += 1
         these_row_indices, these_column_indices = _get_random_sample_points(
             num_points=num_examples_per_time, for_downsized_examples=True,
-            narr_mask_matrix=mask_matrix)
+            narr_mask_matrix=mask_matrix, random_seed=this_random_seed)
 
         this_dict = testing_io.create_downsized_examples(
             center_row_indices=these_row_indices,

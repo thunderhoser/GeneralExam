@@ -1,6 +1,5 @@
 """Runs pixelwise evaluation for NFA (numerical frontal analysis)."""
 
-import random
 import os.path
 import argparse
 import numpy
@@ -13,8 +12,7 @@ from generalexam.ge_utils import nfa
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.scripts import model_evaluation_helper as model_eval_helper
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -141,6 +139,7 @@ def _run(use_ensembled_predictions, top_prediction_dir_name, first_time_string,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
 
+    numpy.random.seed(RANDOM_SEED)
     numpy.random.shuffle(possible_times_unix_sec)
 
     observed_labels = numpy.array([], dtype=int)
@@ -150,7 +149,11 @@ def _run(use_ensembled_predictions, top_prediction_dir_name, first_time_string,
     unmasked_grid_rows = None
     unmasked_grid_columns = None
 
+    this_random_seed = RANDOM_SEED + 0
+
     for this_time_unix_sec in possible_times_unix_sec:
+        this_random_seed += 1
+
         if num_times_read == num_times:
             break
 
@@ -196,6 +199,7 @@ def _run(use_ensembled_predictions, top_prediction_dir_name, first_time_string,
                 0, len(unmasked_grid_rows) - 1, num=len(unmasked_grid_rows),
                 dtype=int)
 
+            numpy.random.seed(this_random_seed)
             these_indices = numpy.random.choice(
                 these_indices, size=num_pixels_per_time, replace=False)
 

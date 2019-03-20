@@ -10,7 +10,6 @@ N = number of columns in each grid
 C = number of channels (predictor variables)
 """
 
-import random
 import argparse
 import numpy
 import matplotlib
@@ -24,8 +23,7 @@ from generalexam.machine_learning import upconvnet
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.plotting import example_plotting
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
@@ -117,6 +115,8 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
             0, num_examples_total - 1, num=num_examples_total, dtype=int)
 
         num_examples = min([num_examples, num_examples_total])
+
+        numpy.random.seed(RANDOM_SEED)
         example_indices = numpy.random.choice(
             example_indices, size=num_examples, replace=False)
 

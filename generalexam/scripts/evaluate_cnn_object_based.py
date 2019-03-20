@@ -4,7 +4,6 @@ In this case, evaluation is done in an object-based setting.  If you want to do
 pixelwise evaluation, use eval_traditional_cnn_pixelwise.py.
 """
 
-import random
 import os.path
 import argparse
 import numpy
@@ -12,8 +11,7 @@ import pandas
 from generalexam.ge_utils import front_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 METRES_TO_KM = 1e-3
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -170,7 +168,12 @@ def _run(input_prediction_file_name, matching_distance_metres,
     binary_csi_values = numpy.full(num_bootstrap_replicates, numpy.nan)
     binary_frequency_biases = numpy.full(num_bootstrap_replicates, numpy.nan)
 
+    this_random_seed = RANDOM_SEED + 0
+
     for i in range(num_bootstrap_replicates):
+        this_random_seed += 1
+        numpy.random.seed(this_random_seed)
+
         these_times_unix_sec = numpy.random.choice(
             unique_times_unix_sec, size=len(unique_times_unix_sec),
             replace=True)

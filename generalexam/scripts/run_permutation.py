@@ -11,7 +11,6 @@ C = number of channels (predictors)
 K = number of target classes
 """
 
-import random
 import argparse
 import numpy
 from keras import backend as K
@@ -21,8 +20,7 @@ from gewittergefahr.deep_learning import permutation
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
@@ -152,12 +150,16 @@ def _read_examples(
         first_valid_time_unix_sec=first_time_unix_sec,
         last_valid_time_unix_sec=last_time_unix_sec)
 
+    example_file_names = numpy.array(example_file_names)
+    numpy.random.seed(RANDOM_SEED)
+    numpy.random.shuffle(example_file_names)
+
     num_times = min([num_times, len(example_file_names)])
-    random.shuffle(example_file_names)
-    example_file_names = example_file_names[:num_times]
+    example_file_names = example_file_names[:num_times].tolist()
 
     predictor_matrix = None
     target_matrix = None
+    this_random_seed = RANDOM_SEED + 0
 
     for i in range(num_times):
         print 'Reading data from: "{0:s}"...'.format(example_file_names[i])
@@ -180,6 +182,9 @@ def _read_examples(
         these_example_indices = numpy.linspace(
             0, this_num_examples_total - 1, num=this_num_examples_total,
             dtype=int)
+
+        this_random_seed += 1
+        numpy.random.seed(this_random_seed)
         these_example_indices = numpy.random.choice(
             these_example_indices, size=this_num_examples_to_keep,
             replace=False)

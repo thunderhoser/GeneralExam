@@ -1,6 +1,5 @@
 """Converts gridded NFA (numerical frontal analysis) predictions to objects."""
 
-import random
 import os.path
 import argparse
 import numpy
@@ -13,8 +12,7 @@ from generalexam.ge_utils import nfa
 from generalexam.ge_utils import front_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -203,6 +201,7 @@ def _run(use_ensembled_predictions, input_prediction_dir_name,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
 
+    numpy.random.seed(RANDOM_SEED)
     numpy.random.shuffle(possible_times_unix_sec)
 
     valid_times_unix_sec = []

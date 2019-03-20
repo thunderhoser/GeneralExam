@@ -4,9 +4,7 @@ In this case, evaluation is done in an pixelwise setting.  If you want to do
 object-based evaluation, use evaluate_cnn_object_based.py.
 """
 
-import random
 import argparse
-import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.machine_learning import cnn
@@ -14,8 +12,7 @@ from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import evaluation_utils as eval_utils
 from generalexam.scripts import model_evaluation_helper as model_eval_helper
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
@@ -169,7 +166,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
     class_probability_matrix, observed_labels = (
         eval_utils.create_eval_pairs_for_cnn(
-            model_object=model_object,
+            model_object=model_object, random_seed=RANDOM_SEED,
             top_predictor_dir_name=top_predictor_dir_name,
             top_gridded_front_dir_name=top_gridded_front_dir_name,
             first_time_unix_sec=first_time_unix_sec,

@@ -1,6 +1,5 @@
 """Plots one or more input examples."""
 
-import random
 import argparse
 import numpy
 import matplotlib
@@ -18,8 +17,7 @@ from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -202,6 +200,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
 
     if num_examples is not None:
         num_examples = min([num_examples, num_examples_total])
+
+        numpy.random.seed(RANDOM_SEED)
         example_indices = numpy.random.choice(
             example_indices, size=num_examples, replace=False)
 

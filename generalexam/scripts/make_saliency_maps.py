@@ -1,6 +1,5 @@
 """Creates saliency map for each example, based on the same CNN."""
 
-import random
 import argparse
 import numpy
 from keras import backend as K
@@ -11,8 +10,7 @@ from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import saliency_maps as ge_saliency_maps
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
@@ -189,6 +187,8 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             0, num_examples_total - 1, num=num_examples_total, dtype=int)
 
         num_examples = min([num_examples, num_examples_total])
+
+        numpy.random.seed(RANDOM_SEED)
         example_indices = numpy.random.choice(
             example_indices, size=num_examples, replace=False)
 

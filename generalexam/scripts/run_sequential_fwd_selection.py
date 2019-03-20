@@ -10,7 +10,6 @@ N = number of columns in grid
 C = number of channels (predictors)
 """
 
-import random
 import argparse
 import numpy
 from keras import backend as K
@@ -21,8 +20,7 @@ from gewittergefahr.deep_learning import sequential_selection
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 
-random.seed(6695)
-numpy.random.seed(6695)
+RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
@@ -301,7 +299,11 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
     example_file_names = examples_io.find_many_files(
         top_directory_name=top_example_dir_name, shuffled=True,
         first_batch_number=0, last_batch_number=LARGE_INTEGER)
-    random.shuffle(example_file_names)
+
+    example_file_names = numpy.array(example_file_names)
+    numpy.random.seed(RANDOM_SEED)
+    numpy.random.shuffle(example_file_names)
+    example_file_names = example_file_names.tolist()
 
     predictor_matrix = None
     target_matrix = None
