@@ -256,12 +256,20 @@ def _plot_one_time(
                 prediction_plotting.get_cold_front_colour_map()[:2]
             )
 
+            # plotting_utils.add_colour_bar(
+            #     axes_object_or_list=axes_object,
+            #     colour_map=this_colour_map_object,
+            #     colour_norm_object=this_colour_norm_object,
+            #     values_to_colour=this_cf_probability_matrix,
+            #     orientation='horizontal', extend_min=True, extend_max=False,
+            #     fraction_of_axis_length=0.9)
+
             plotting_utils.add_colour_bar(
                 axes_object_or_list=axes_object,
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 values_to_colour=this_cf_probability_matrix,
-                orientation='horizontal', extend_min=True, extend_max=False,
+                orientation='vertical', extend_min=True, extend_max=False,
                 fraction_of_axis_length=0.9)
 
     narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
@@ -433,14 +441,22 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
         plot_wf_colour_bar = not plot_wf_colour_bar
         plot_cf_colour_bar = not plot_cf_colour_bar
 
+        # _plot_one_time(
+        #     predicted_region_table=this_predicted_region_table,
+        #     title_string=this_title_string, letter_label=this_letter_label,
+        #     output_file_name=this_output_file_name,
+        #     class_probability_matrix=this_class_probability_matrix,
+        #     predicted_label_matrix=this_label_matrix,
+        #     plot_wf_colour_bar=plot_wf_colour_bar,
+        #     plot_cf_colour_bar=plot_cf_colour_bar)
+
         _plot_one_time(
             predicted_region_table=this_predicted_region_table,
             title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
             predicted_label_matrix=this_label_matrix,
-            plot_wf_colour_bar=plot_wf_colour_bar,
-            plot_cf_colour_bar=plot_cf_colour_bar)
+            plot_wf_colour_bar=True, plot_cf_colour_bar=True)
 
         print '\n'
 
