@@ -3,6 +3,7 @@
 import os.path
 import warnings
 import numpy
+from keras.utils import to_categorical
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import fronts_io
 from generalexam.ge_io import predictor_io
@@ -171,6 +172,14 @@ def create_downsized_examples(
 
     predictor_matrix = predictor_matrix.astype('float32')
 
+    num_examples_by_class = numpy.array(
+        [numpy.sum(target_values == k) for k in range(num_classes)], dtype=int
+    )
+
+    print 'Number of examples in each class: {0:s}'.format(
+        str(num_examples_by_class)
+    )
+
     return {
         PREDICTOR_MATRIX_KEY: predictor_matrix,
         TARGET_VALUES_KEY: target_values,
@@ -188,6 +197,7 @@ def create_full_size_example(
     M = number of rows in full grid
     N = number of columns in full grid
     C = number of channels (predictors)
+    K = number of classes (either 2 or 3)
 
     :param top_predictor_dir_name: See doc for `create_downsized_examples`.
     :param top_gridded_front_dir_name: Same.
@@ -198,13 +208,12 @@ def create_full_size_example(
     :param dilation_distance_metres: Same.
     :param num_classes: Same.
     :return: predictor_matrix: 1-by-M-by-N-by-C numpy array of predictor values.
-    :return:_target_matrix: 1-by-M-by-N numpy array of target values.  All
-        values must be in 0...(num_classes - 1).  If target_matrix[0, i, j] = k,
-        grid cell [i, j] belongs to class k.
+    :return: target_matrix: 1-by-M-by-N-by-K numpy array of zeros and ones (but
+        type is "float64").  If target_matrix[0, i, j, k] = 1, grid cell [i, j]
+        belongs to the [k]th class.
     """
 
-    # TODO(thunderhoser): I don't know if Keras will play nice with these
-    # dimensions for `target_matrix`.
+    # TODO(thunderhoser): Probably need to use mask here as well.
 
     error_checking.assert_is_integer(pressure_level_mb)
     error_checking.assert_is_greater(pressure_level_mb, 0)
@@ -243,11 +252,15 @@ def create_full_size_example(
         predictor_utils.DATA_MATRIX_KEY
     ][[0], ..., 0, :]
 
+    for j in range(len(predictor_names)):
+        predictor_matrix[..., j] = ml_utils.fill_nans_in_predictor_images(
+            predictor_matrix[..., j]
+        )
+
+    predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
     predictor_matrix, _ = ml_utils.normalize_predictors(
         predictor_matrix=predictor_matrix,
         normalization_type_string=normalization_type_string)
-
-    predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
 
     print 'Reading data from: "{0:s}"...'.format(gridded_front_file_name)
     gridded_front_table = fronts_io.read_grid_from_file(
@@ -258,12 +271,10 @@ def create_full_size_example(
         num_rows_per_image=predictor_matrix.shape[1],
         num_columns_per_image=predictor_matrix.shape[2])
 
-    if num_classes == 2:
-        target_matrix = ml_utils.binarize_front_images(target_matrix)
-
     target_matrix = ml_utils.subset_narr_grid_for_fcn_input(target_matrix)
 
     if num_classes == 2:
+        target_matrix = ml_utils.binarize_front_images(target_matrix)
         target_matrix = ml_utils.dilate_binary_target_images(
             target_matrix=target_matrix,
             dilation_distance_metres=dilation_distance_metres, verbose=False)
@@ -273,8 +284,15 @@ def create_full_size_example(
             dilation_distance_metres=dilation_distance_metres, verbose=False)
 
     predictor_matrix = predictor_matrix.astype('float32')
-    print 'Fraction of grid cells with a front = {0:.4f}'.format(
-        numpy.mean(target_matrix > 0)
+    target_matrix = to_categorical(target_matrix, num_classes)
+
+    num_instances_by_class = numpy.array(
+        [numpy.sum(target_matrix[..., k]) for k in range(num_classes)],
+        dtype=int
+    )
+
+    print 'Number of instances of each class: {0:s}'.format(
+        str(num_instances_by_class)
     )
 
     return predictor_matrix, target_matrix

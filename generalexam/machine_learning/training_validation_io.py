@@ -1,128 +1,147 @@
 """IO methods for training and on-the-fly validation (during training)."""
 
-import copy
-from random import shuffle
+import random
+import os.path
+import warnings
 import numpy
-import keras
+from keras.utils import to_categorical
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import fronts_io
+from generalexam.ge_io import predictor_io
+from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 LARGE_INTEGER = int(1e10)
-PREDICTOR_MATRIX_KEY = 'predictor_matrix'
-TARGET_MATRIX_KEY = 'target_matrix'
-TARGET_TIMES_KEY = 'target_times_unix_sec'
+TIME_INTERVAL_SECONDS = 10800
 
 
-def downsized_3d_example_generator(
-        num_examples_per_batch, num_examples_per_target_time,
-        first_target_time_unix_sec, last_target_time_unix_sec,
-        top_narr_directory_name, top_gridded_front_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_distance_metres,
-        class_fractions, num_rows_in_half_grid, num_columns_in_half_grid,
+def downsized_generator_from_scratch(
+        top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
+        last_time_unix_sec, predictor_names, pressure_level_mb, num_half_rows,
+        num_half_columns, normalization_type_string, dilation_distance_metres,
+        class_fractions, num_examples_per_batch, num_examples_per_time,
         narr_mask_matrix=None):
-    """Generates downsized 3-D examples from raw files.
+    """Generates downsized examples (for patch classification) from scratch.
 
+    E = number of examples
+    M = number of rows in each downsized predictor grid
+    N = number of columns in each downsized predictor grid
+    C = number of channels (predictors)
+    K = number of classes (either 2 or 3)
+
+    :param top_predictor_dir_name: Name of top-level directory with predictors.
+        Files therein will be found by `predictor_io.find_file` and read by
+        `predictor_io.read_file`.
+    :param top_gridded_front_dir_name: Name of top-level directory with gridded
+        front labels.  Files therein will be found by
+        `fronts_io.find_gridded_file` and read by
+        `fronts_io.read_grid_from_file`.
+    :param first_time_unix_sec: First valid time in desired period.
+    :param last_time_unix_sec: Last valid time in desired period.
+    :param predictor_names: 1-D list of predictor names (each must be accepted
+        by `predictor_utils.check_field_name`).
+    :param pressure_level_mb: Pressure level (millibars) for predictors.
+    :param num_half_rows: Number of half-rows in predictor grid.  M (defined in
+        the above discussion) will be `2 * num_half_rows + 1`.
+    :param num_half_columns: Same but for columns.
+    :param normalization_type_string: Normalization method for predictors (see
+        doc for `machine_learning_utils.normalize_predictors`).
+    :param dilation_distance_metres: Dilation distance for gridded warm-front
+        and cold-front labels.
+    :param class_fractions: length-K numpy array with sampling fraction for each
+        class (no front, warm front, cold front).  This will be achieved by
+        downsampling.
     :param num_examples_per_batch: Number of examples per batch.
-    :param num_examples_per_target_time: Number of examples (target pixels) per
-        target time.
-    :param first_target_time_unix_sec: First target time.  Examples will be
-        randomly drawn from the period `first_target_time_unix_sec`...
-        `last_target_time_unix_sec`.
-    :param last_target_time_unix_sec: See above.
-    :param top_narr_directory_name: See doc for
-        `find_input_files_for_3d_examples`.
-    :param top_gridded_front_dir_name: Same.
-    :param narr_predictor_names: Same.
-    :param pressure_level_mb: Same.
-    :param dilation_distance_metres: Dilation distance.  Will be used to dilate
-        WF and CF labels, which effectively creates a distance buffer around
-        each front, thus accounting for spatial uncertainty in front placement.
-    :param class_fractions: List of downsampling fractions.  Must have length 3,
-        where the elements are (NF, WF, CF).  The sum of all fractions must be
-        1.0.
-    :param num_rows_in_half_grid: Number of rows in half-grid for each example.
-        Actual number of rows will be 2 * `num_rows_in_half_grid` + 1.
-    :param num_columns_in_half_grid: Same but for columns.
+    :param num_examples_per_time: Average number of examples per valid time.
     :param narr_mask_matrix: See doc for
-        `machine_learning_utils.check_narr_mask`.  If narr_mask_matrix[i, j]
-        = 0, cell [i, j] in the full NARR grid will never be used as the center
-        of a downsized example.  If you do not want masking, leave this alone.
+        `machine_learning_utils.check_narr_mask`.  Masked grid cells will not be
+        used as the center of an example.  If this is None, no grid cells will
+        be masked.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
-    :return: target_matrix: E-by-K numpy array of target values.  All values are
-        0 or 1, but the array type is "float64".  Columns are mutually exclusive
-        and collectively exhaustive, so the sum across each row is 1.
+    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1).
+        If target_matrix[i, k] = 1, the [i]th example is in the [k]th class.
+        Although the matrix contains only integers, the type is "float64".
     """
-
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 10)
-    error_checking.assert_is_integer(num_examples_per_target_time)
-    error_checking.assert_is_geq(num_examples_per_target_time, 2)
 
     error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
     num_classes = len(class_fractions)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 16)
+    error_checking.assert_is_integer(num_examples_per_time)
+    error_checking.assert_is_geq(num_examples_per_time, 2)
+
     if narr_mask_matrix is not None:
         ml_utils.check_narr_mask(narr_mask_matrix)
 
-    (narr_file_name_matrix, gridded_front_file_names
-    ) = find_input_files_for_3d_examples(
-        first_target_time_unix_sec=first_target_time_unix_sec,
-        last_target_time_unix_sec=last_target_time_unix_sec,
-        top_narr_directory_name=top_narr_directory_name,
-        top_gridded_front_dir_name=top_gridded_front_dir_name,
-        narr_predictor_names=narr_predictor_names,
-        pressure_level_mb=pressure_level_mb)
+    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_time_unix_sec,
+        end_time_unix_sec=last_time_unix_sec,
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+    numpy.random.shuffle(valid_times_unix_sec)
 
-    num_times = len(gridded_front_file_names)
-    num_predictors = len(narr_predictor_names)
-    batch_indices = numpy.linspace(
-        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
-
+    num_times = len(valid_times_unix_sec)
     time_index = 0
     num_times_in_memory = 0
     num_times_needed_in_memory = int(
-        numpy.ceil(float(num_examples_per_batch) / num_examples_per_target_time)
+        numpy.ceil(float(num_examples_per_batch) / num_examples_per_time)
     )
 
-    full_predictor_matrix = None
-    full_target_matrix = None
+    batch_indices = numpy.linspace(
+        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
+
+    full_size_predictor_matrix = None
+    full_size_target_matrix = None
 
     while True:
         while num_times_in_memory < num_times_needed_in_memory:
-            print '\n'
-            tuple_of_predictor_matrices = ()
+            this_front_file_name = fronts_io.find_gridded_file(
+                top_directory_name=top_gridded_front_dir_name,
+                valid_time_unix_sec=valid_times_unix_sec[time_index],
+                raise_error_if_missing=False)
 
-            for j in range(num_predictors):
-                print 'Reading data from: "{0:s}"...'.format(
-                    narr_file_name_matrix[time_index, j])
+            if not os.path.isfile(this_front_file_name):
+                warning_string = (
+                    'POTENTIAL PROBLEM.  Cannot find file expected at: "{0:s}"'
+                ).format(this_front_file_name)
 
-                this_field_predictor_matrix = (
-                    processed_narr_io.read_fields_from_file(
-                        narr_file_name_matrix[time_index, j])
-                )[0]
-                this_field_predictor_matrix = (
-                    ml_utils.fill_nans_in_predictor_images(
-                        this_field_predictor_matrix)
-                )
+                warnings.warn(warning_string)
 
-                tuple_of_predictor_matrices += (this_field_predictor_matrix,)
+                time_index = time_index + 1 if time_index + 1 < num_times else 0
+                continue
+
+            this_predictor_file_name = predictor_io.find_file(
+                top_directory_name=top_predictor_dir_name,
+                valid_time_unix_sec=valid_times_unix_sec[time_index],
+                raise_error_if_missing=True)
+
+            time_index = time_index + 1 if time_index + 1 < num_times else 0
 
             print 'Reading data from: "{0:s}"...'.format(
-                gridded_front_file_names[time_index])
-            this_gridded_front_table = fronts_io.read_grid_from_file(
-                gridded_front_file_names[time_index])
+                this_predictor_file_name)
 
-            time_index += 1
-            if time_index >= num_times:
-                time_index = 0
+            this_predictor_dict = predictor_io.read_file(
+                netcdf_file_name=this_predictor_file_name,
+                pressure_levels_to_keep_mb=numpy.array(
+                    [pressure_level_mb], dtype=int
+                ),
+                field_names_to_keep=predictor_names)
 
-            this_full_predictor_matrix = ml_utils.stack_predictor_variables(
-                tuple_of_predictor_matrices)
+            this_full_predictor_matrix = this_predictor_dict[
+                predictor_utils.DATA_MATRIX_KEY
+            ][[0], ..., 0, :]
+
             this_full_predictor_matrix, _ = ml_utils.normalize_predictors(
-                predictor_matrix=this_full_predictor_matrix)
+                predictor_matrix=this_full_predictor_matrix,
+                normalization_type_string=normalization_type_string)
+
+            print 'Reading data from: "{0:s}"...'.format(this_front_file_name)
+            this_gridded_front_table = fronts_io.read_grid_from_file(
+                this_front_file_name)
 
             this_full_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_gridded_front_table,
@@ -133,294 +152,344 @@ def downsized_3d_example_generator(
                 this_full_target_matrix = ml_utils.binarize_front_images(
                     this_full_target_matrix)
 
-            if num_classes == 2:
                 this_full_target_matrix = ml_utils.dilate_binary_target_images(
                     target_matrix=this_full_target_matrix,
                     dilation_distance_metres=dilation_distance_metres,
                     verbose=False)
             else:
-                this_full_target_matrix = (
-                    ml_utils.dilate_ternary_target_images(
-                        target_matrix=this_full_target_matrix,
-                        dilation_distance_metres=dilation_distance_metres,
-                        verbose=False)
+                this_full_target_matrix = ml_utils.dilate_ternary_target_images(
+                    target_matrix=this_full_target_matrix,
+                    dilation_distance_metres=dilation_distance_metres,
+                    verbose=False)
+
+            if (full_size_target_matrix is None
+                    or full_size_target_matrix.size == 0):
+                full_size_predictor_matrix = this_full_predictor_matrix + 0.
+                full_size_target_matrix = this_full_target_matrix + 0
+            else:
+                full_size_predictor_matrix = numpy.concatenate(
+                    (full_size_predictor_matrix, this_full_predictor_matrix),
+                    axis=0
+                )
+                full_size_target_matrix = numpy.concatenate(
+                    (full_size_target_matrix, this_full_target_matrix), axis=0
                 )
 
-            if full_target_matrix is None or full_target_matrix.size == 0:
-                full_predictor_matrix = copy.deepcopy(
-                    this_full_predictor_matrix)
-                full_target_matrix = copy.deepcopy(this_full_target_matrix)
-            else:
-                full_predictor_matrix = numpy.concatenate(
-                    (full_predictor_matrix, this_full_predictor_matrix), axis=0)
-                full_target_matrix = numpy.concatenate(
-                    (full_target_matrix, this_full_target_matrix), axis=0)
+            num_times_in_memory = full_size_target_matrix.shape[0]
 
-            num_times_in_memory = full_target_matrix.shape[0]
+        print 'Creating {0:d} downsized examples...'.format(
+            num_examples_per_batch)
 
-        print 'Creating downsized 3-D examples...'
         sampled_target_point_dict = ml_utils.sample_target_points(
-            target_matrix=full_target_matrix, class_fractions=class_fractions,
+            target_matrix=full_size_target_matrix,
+            class_fractions=class_fractions,
             num_points_to_sample=num_examples_per_batch,
             mask_matrix=narr_mask_matrix)
 
-        (downsized_predictor_matrix, target_values
-        ) = ml_utils.downsize_grids_around_selected_points(
-            predictor_matrix=full_predictor_matrix,
-            target_matrix=full_target_matrix,
-            num_rows_in_half_window=num_rows_in_half_grid,
-            num_columns_in_half_window=num_columns_in_half_grid,
-            target_point_dict=sampled_target_point_dict,
-            verbose=False)[:2]
+        predictor_matrix, target_values = (
+            ml_utils.downsize_grids_around_selected_points(
+                predictor_matrix=full_size_predictor_matrix,
+                target_matrix=full_size_target_matrix,
+                num_rows_in_half_window=num_half_rows,
+                num_columns_in_half_window=num_half_columns,
+                target_point_dict=sampled_target_point_dict,
+                verbose=False
+            )[:2]
+        )
 
         numpy.random.shuffle(batch_indices)
-        downsized_predictor_matrix = downsized_predictor_matrix[
-            batch_indices, ...].astype('float32')
-        target_values = target_values[batch_indices]
-
-        target_matrix = keras.utils.to_categorical(target_values, num_classes)
-        actual_class_fractions = numpy.sum(target_matrix, axis=0)
-        print 'Fraction of examples in each class: {0:s}'.format(
-            str(actual_class_fractions))
-
-        full_predictor_matrix = None
-        full_target_matrix = None
-        num_times_in_memory = 0
-
-        yield (downsized_predictor_matrix, target_matrix)
-
-
-def quick_downsized_3d_example_gen(
-        num_examples_per_batch, first_target_time_unix_sec,
-        last_target_time_unix_sec, top_input_dir_name, narr_predictor_names,
-        num_classes, num_rows_in_half_grid, num_columns_in_half_grid):
-    """Generates downsized 3-D examples from processed files.
-
-    These "processed files" are created by `write_downsized_3d_examples`.
-
-    :param num_examples_per_batch: See doc for `downsized_3d_example_generator`.
-    :param first_target_time_unix_sec: Same.
-    :param last_target_time_unix_sec: Same.
-    :param top_input_dir_name: Name of top-level directory for files with
-        downsized 3-D examples.  Files therein will be found by
-        `find_downsized_3d_example_file` (with `shuffled == True`) and read by
-        `read_downsized_3d_examples`.
-    :param narr_predictor_names: See doc for `downsized_3d_example_generator`.
-    :param num_classes: Number of target classes (2 or 3).
-    :param num_rows_in_half_grid: See doc for `downsized_3d_example_generator`.
-    :param num_columns_in_half_grid: Same.
-    :return: predictor_matrix: See doc for `downsized_3d_example_generator`.
-    :return: target_matrix: Same.
-    """
-
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 10)
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-    error_checking.assert_is_leq(num_classes, 3)
-
-    example_file_names = find_downsized_3d_example_files(
-        top_directory_name=top_input_dir_name, shuffled=True,
-        first_batch_number=0, last_batch_number=LARGE_INTEGER)
-    shuffle(example_file_names)
-
-    num_files = len(example_file_names)
-    file_index = 0
-    batch_indices = numpy.linspace(
-        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
-
-    num_examples_in_memory = 0
-    full_predictor_matrix = None
-    full_target_matrix = None
-
-    while True:
-        while num_examples_in_memory < num_examples_per_batch:
-            print 'Reading data from: "{0:s}"...'.format(
-                example_file_names[file_index])
-            this_example_dict = read_downsized_3d_examples(
-                netcdf_file_name=example_file_names[file_index],
-                predictor_names_to_keep=narr_predictor_names,
-                num_half_rows_to_keep=num_rows_in_half_grid,
-                num_half_columns_to_keep=num_columns_in_half_grid,
-                first_time_to_keep_unix_sec=first_target_time_unix_sec,
-                last_time_to_keep_unix_sec=last_target_time_unix_sec)
-
-            file_index += 1
-            if file_index >= num_files:
-                file_index = 0
-
-            this_num_examples = len(this_example_dict[TARGET_TIMES_KEY])
-            if this_num_examples == 0:
-                continue
-
-            if full_target_matrix is None or full_target_matrix.size == 0:
-                full_predictor_matrix = this_example_dict[
-                    PREDICTOR_MATRIX_KEY] + 0.
-                full_target_matrix = this_example_dict[TARGET_MATRIX_KEY] + 0
-            else:
-                full_predictor_matrix = numpy.concatenate(
-                    (full_predictor_matrix,
-                     this_example_dict[PREDICTOR_MATRIX_KEY]),
-                    axis=0)
-                full_target_matrix = numpy.concatenate(
-                    (full_target_matrix, this_example_dict[TARGET_MATRIX_KEY]),
-                    axis=0)
-
-            num_examples_in_memory = full_target_matrix.shape[0]
-
-        predictor_matrix = full_predictor_matrix[batch_indices, ...].astype(
+        predictor_matrix = predictor_matrix[batch_indices, ...].astype(
             'float32')
-        target_matrix = full_target_matrix[batch_indices, ...].astype('float64')
+        target_matrix = to_categorical(
+            target_values[batch_indices], num_classes)
 
-        if num_classes == 2:
-            target_values = numpy.argmax(target_matrix, axis=1)
-            target_matrix = keras.utils.to_categorical(
-                target_values, num_classes)
-
-        actual_class_fractions = numpy.sum(target_matrix, axis=0)
+        num_examples_by_class = numpy.sum(target_matrix, axis=0)
         print 'Number of examples in each class: {0:s}'.format(
-            str(actual_class_fractions))
+            str(num_examples_by_class)
+        )
 
-        num_examples_in_memory = 0
-        full_predictor_matrix = None
-        full_target_matrix = None
+        full_size_predictor_matrix = None
+        full_size_target_matrix = None
+        num_times_in_memory = 0
 
         yield (predictor_matrix, target_matrix)
 
 
-def full_size_3d_example_generator(
-        num_examples_per_batch, first_target_time_unix_sec,
-        last_target_time_unix_sec, top_narr_directory_name,
-        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_metres, num_classes):
-    """Generates full-size 3-D examples from raw files.
+def downsized_generator_from_example_files(
+        top_input_dir_name, first_time_unix_sec, last_time_unix_sec,
+        predictor_names, num_half_rows, num_half_columns, num_classes,
+        num_examples_per_batch):
+    """Generates downsized examples (for patch classifn) from example files.
 
-    :param num_examples_per_batch: See doc for `downsized_3d_example_generator`.
-    :param first_target_time_unix_sec: Same.
-    :param last_target_time_unix_sec: Same.
-    :param top_narr_directory_name: See doc for
-        `find_input_files_for_3d_examples`.
-    :param top_gridded_front_dir_name: Same.
-    :param narr_predictor_names: Same.
-    :param pressure_level_mb: Same.
-    :param dilation_distance_metres: See doc for
-        `downsized_3d_example_generator`.
-    :param num_classes: Same.
-    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
-    :return: target_matrix: E-by-M-by-N numpy array of target values.  Each
-        value is an integer from the list `front_utils.VALID_INTEGER_IDS`.
+    E = number of examples
+    M = number of rows in each downsized predictor grid
+    N = number of columns in each downsized predictor grid
+    C = number of channels (predictors)
+    K = number of classes (either 2 or 3)
+
+    :param top_input_dir_name: Name of top-level directory with temporally
+        shuffled example files.  Files therein will be found by
+        `learning_examples_io.find_many_files` and read by
+        `learning_examples_io.read_file`.
+    :param first_time_unix_sec: See doc for `downsized_generator_from_scratch`.
+    :param last_time_unix_sec: Same.
+    :param predictor_names: Same.
+    :param num_half_rows: Same.
+    :param num_half_columns: Same.
+    :param num_classes: Number of classes.  If `num_classes == 3`, the problem
+        will remain multiclass (no front, warm front, or cold front).  If
+        `num_classes == 2`, the problem will be simplified to binary (front or
+        no front).
+    :param num_examples_per_batch: Number of examples per batch.
+    :return: predictor_matrix: See doc for `downsized_generator_from_scratch`.
+    :return: target_matrix: Same.
     """
 
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 1)
-    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_integer_numpy_array(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
-    (narr_file_name_matrix, gridded_front_file_names
-    ) = find_input_files_for_3d_examples(
-        first_target_time_unix_sec=first_target_time_unix_sec,
-        last_target_time_unix_sec=last_target_time_unix_sec,
-        top_narr_directory_name=top_narr_directory_name,
-        top_gridded_front_dir_name=top_gridded_front_dir_name,
-        narr_predictor_names=narr_predictor_names,
-        pressure_level_mb=pressure_level_mb)
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 16)
 
-    num_target_times = len(gridded_front_file_names)
-    num_predictors = len(narr_predictor_names)
+    example_file_names = examples_io.find_many_files(
+        top_directory_name=top_input_dir_name, shuffled=True,
+        first_batch_number=0, last_batch_number=LARGE_INTEGER)
+    random.shuffle(example_file_names)
+
+    num_files = len(example_file_names)
+    file_index = 0
+    num_examples_in_memory = 0
+
     batch_indices = numpy.linspace(
         0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
 
-    target_time_index = 0
-    num_examples_in_memory = 0
-
-    predictor_matrix = None
-    target_matrix = None
-
     while True:
+        predictor_matrix = None
+        target_matrix = None
+
         while num_examples_in_memory < num_examples_per_batch:
-            print '\n'
-            tuple_of_predictor_matrices = ()
+            print 'Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index]
+            )
 
-            for j in range(num_predictors):
-                print 'Reading data from: "{0:s}"...'.format(
-                    narr_file_name_matrix[target_time_index, j])
+            this_example_dict = examples_io.read_file(
+                netcdf_file_name=example_file_names[file_index],
+                predictor_names_to_keep=predictor_names,
+                num_half_rows_to_keep=num_half_rows,
+                num_half_columns_to_keep=num_half_columns,
+                first_time_to_keep_unix_sec=first_time_unix_sec,
+                last_time_to_keep_unix_sec=last_time_unix_sec)
 
-                this_field_predictor_matrix = (
-                    processed_narr_io.read_fields_from_file(
-                        narr_file_name_matrix[target_time_index, j])
-                )[0]
-                this_field_predictor_matrix = (
-                    ml_utils.fill_nans_in_predictor_images(
-                        this_field_predictor_matrix)
+            file_index = file_index + 1 if file_index + 1 < num_files else 0
+
+            this_num_examples = len(
+                this_example_dict[examples_io.VALID_TIMES_KEY]
+            )
+            if this_num_examples == 0:
+                continue
+
+            if target_matrix is None or target_matrix.size == 0:
+                predictor_matrix = (
+                    this_example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.
+                )
+                target_matrix = (
+                    this_example_dict[examples_io.TARGET_MATRIX_KEY] + 0
+                )
+            else:
+                predictor_matrix = numpy.concatenate(
+                    (predictor_matrix,
+                     this_example_dict[examples_io.PREDICTOR_MATRIX_KEY]),
+                    axis=0
+                )
+                target_matrix = numpy.concatenate(
+                    (target_matrix,
+                     this_example_dict[examples_io.TARGET_MATRIX_KEY]),
+                    axis=0
                 )
 
-                tuple_of_predictor_matrices += (this_field_predictor_matrix,)
+            num_examples_in_memory = target_matrix.shape[0]
+
+        numpy.random.shuffle(batch_indices)
+        predictor_matrix = predictor_matrix[batch_indices, ...].astype(
+            'float32')
+        target_matrix = target_matrix[batch_indices, ...].astype('float64')
+
+        if num_classes == 2:
+            target_values = numpy.argmax(target_matrix, axis=1)
+            target_values[target_values > 1] = 1
+            target_matrix = to_categorical(target_values, num_classes)
+
+        num_examples_by_class = numpy.sum(target_matrix, axis=0)
+        print 'Number of examples in each class: {0:s}'.format(
+            str(num_examples_by_class)
+        )
+
+        num_examples_in_memory = 0
+        yield (predictor_matrix, target_matrix)
+
+
+def full_size_generator_from_scratch(
+        top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
+        last_time_unix_sec, predictor_names, pressure_level_mb,
+        normalization_type_string, dilation_distance_metres, num_classes,
+        num_times_per_batch):
+    """Generates full-size examples (for semantic segmentation) from scratch.
+
+    E = number of examples
+    M = number of rows in full grid
+    N = number of columns in full grid
+    C = number of channels (predictors)
+    K = number of classes (either 2 or 3)
+
+    :param top_predictor_dir_name: See doc for
+        `downsize_generator_from_scratch`.
+    :param top_gridded_front_dir_name: Same.
+    :param first_time_unix_sec: Same.
+    :param last_time_unix_sec: Same.
+    :param predictor_names: Same.
+    :param pressure_level_mb: Same.
+    :param normalization_type_string: Same.
+    :param dilation_distance_metres: Same.
+    :param num_classes: Number of classes.  If `num_classes == 3`, the problem
+        will remain multiclass (no front, warm front, or cold front).  If
+        `num_classes == 2`, the problem will be simplified to binary (front or
+        no front).
+    :param num_times_per_batch: Number of times (full-size examples) per batch.
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
+    :return: target_matrix: E-by-M-by-N-by-K numpy array of zeros and ones (but
+        type is "float64").  If target_matrix[i, m, n, k] = 1, grid cell [m, n]
+        in the [i]th example belongs to the [k]th class.
+    """
+
+    # TODO(thunderhoser): Probably need to use mask here as well.
+
+    error_checking.assert_is_integer_numpy_array(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_leq(num_classes, 3)
+
+    error_checking.assert_is_integer(num_times_per_batch)
+    error_checking.assert_is_geq(num_times_per_batch, 4)
+
+    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_time_unix_sec,
+        end_time_unix_sec=last_time_unix_sec,
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+    numpy.random.shuffle(valid_times_unix_sec)
+
+    num_times = len(valid_times_unix_sec)
+    time_index = 0
+    num_times_in_memory = 0
+
+    batch_indices = numpy.linspace(
+        0, num_times_per_batch - 1, num=num_times_per_batch, dtype=int)
+
+    while True:
+        predictor_matrix = None
+        target_matrix = None
+
+        while num_times_in_memory < num_times_per_batch:
+            this_front_file_name = fronts_io.find_gridded_file(
+                top_directory_name=top_gridded_front_dir_name,
+                valid_time_unix_sec=valid_times_unix_sec[time_index],
+                raise_error_if_missing=False)
+
+            if not os.path.isfile(this_front_file_name):
+                warning_string = (
+                    'POTENTIAL PROBLEM.  Cannot find file expected at: "{0:s}"'
+                ).format(this_front_file_name)
+
+                warnings.warn(warning_string)
+
+                time_index = time_index + 1 if time_index + 1 < num_times else 0
+                continue
+
+            this_predictor_file_name = predictor_io.find_file(
+                top_directory_name=top_predictor_dir_name,
+                valid_time_unix_sec=valid_times_unix_sec[time_index],
+                raise_error_if_missing=True)
+
+            time_index = time_index + 1 if time_index + 1 < num_times else 0
 
             print 'Reading data from: "{0:s}"...'.format(
-                gridded_front_file_names[target_time_index])
-            this_gridded_front_table = fronts_io.read_grid_from_file(
-                gridded_front_file_names[target_time_index])
+                this_predictor_file_name)
 
-            target_time_index += 1
-            if target_time_index >= num_target_times:
-                target_time_index = 0
+            this_predictor_dict = predictor_io.read_file(
+                netcdf_file_name=this_predictor_file_name,
+                pressure_levels_to_keep_mb=numpy.array(
+                    [pressure_level_mb], dtype=int
+                ),
+                field_names_to_keep=predictor_names)
 
-            this_predictor_matrix = ml_utils.stack_predictor_variables(
-                tuple_of_predictor_matrices)
+            this_predictor_matrix = this_predictor_dict[
+                predictor_utils.DATA_MATRIX_KEY
+            ][[0], ..., 0, :]
+
+            for j in range(len(predictor_names)):
+                this_predictor_matrix[..., j] = (
+                    ml_utils.fill_nans_in_predictor_images(
+                        this_predictor_matrix[..., j])
+                )
+
+            this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
+                this_predictor_matrix)
             this_predictor_matrix, _ = ml_utils.normalize_predictors(
-                predictor_matrix=this_predictor_matrix)
+                predictor_matrix=this_predictor_matrix,
+                normalization_type_string=normalization_type_string)
 
-            this_frontal_grid_matrix = ml_utils.front_table_to_images(
+            print 'Reading data from: "{0:s}"...'.format(this_front_file_name)
+            this_gridded_front_table = fronts_io.read_grid_from_file(
+                this_front_file_name)
+
+            this_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_predictor_matrix.shape[1],
                 num_columns_per_image=this_predictor_matrix.shape[2])
 
-            if num_classes == 2:
-                this_frontal_grid_matrix = ml_utils.binarize_front_images(
-                    this_frontal_grid_matrix)
-
-            this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
-                this_predictor_matrix)
-            this_frontal_grid_matrix = ml_utils.subset_narr_grid_for_fcn_input(
-                this_frontal_grid_matrix)
+            this_target_matrix = ml_utils.subset_narr_grid_for_fcn_input(
+                this_target_matrix)
 
             if num_classes == 2:
-                this_frontal_grid_matrix = ml_utils.dilate_binary_target_images(
-                    target_matrix=this_frontal_grid_matrix,
+                this_target_matrix = ml_utils.binarize_front_images(
+                    this_target_matrix)
+
+                this_target_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=this_target_matrix,
                     dilation_distance_metres=dilation_distance_metres,
                     verbose=False)
             else:
-                this_frontal_grid_matrix = (
-                    ml_utils.dilate_ternary_target_images(
-                        target_matrix=this_frontal_grid_matrix,
-                        dilation_distance_metres=dilation_distance_metres,
-                        verbose=False)
-                )
+                this_target_matrix = ml_utils.dilate_ternary_target_images(
+                    target_matrix=this_target_matrix,
+                    dilation_distance_metres=dilation_distance_metres,
+                    verbose=False)
 
             if target_matrix is None or target_matrix.size == 0:
-                predictor_matrix = copy.deepcopy(this_predictor_matrix)
-                target_matrix = copy.deepcopy(this_frontal_grid_matrix)
+                predictor_matrix = this_predictor_matrix + 0.
+                target_matrix = this_target_matrix + 0
             else:
                 predictor_matrix = numpy.concatenate(
-                    (predictor_matrix, this_predictor_matrix), axis=0)
+                    (predictor_matrix, this_predictor_matrix), axis=0
+                )
                 target_matrix = numpy.concatenate(
-                    (target_matrix, this_frontal_grid_matrix), axis=0)
+                    (target_matrix, this_target_matrix), axis=0
+                )
 
-            num_examples_in_memory = target_matrix.shape[0]
+            num_times_in_memory = target_matrix.shape[0]
 
-        predictor_matrix_to_return = predictor_matrix[
-            batch_indices, ...].astype('float32')
-        print 'Fraction of examples with a front = {0:.4f}'.format(
-            numpy.mean(target_matrix[batch_indices, ...] > 0))
-
-        target_matrix_to_return = keras.utils.to_categorical(
+        numpy.random.shuffle(batch_indices)
+        predictor_matrix = predictor_matrix[batch_indices, ...].astype(
+            'float32')
+        target_matrix = to_categorical(
             target_matrix[batch_indices, ...], num_classes)
-        target_matrix_to_return = numpy.reshape(
-            target_matrix_to_return, target_matrix.shape + (num_classes,))
 
-        predictor_matrix = numpy.delete(predictor_matrix, batch_indices, axis=0)
-        target_matrix = numpy.delete(target_matrix, batch_indices, axis=0)
-        num_examples_in_memory = target_matrix.shape[0]
+        num_instances_by_class = numpy.array(
+            [numpy.sum(target_matrix[..., k]) for k in range(num_classes)],
+            dtype=int
+        )
 
-        yield (predictor_matrix_to_return, target_matrix_to_return)
+        print 'Number of instances of each class: {0:s}'.format(
+            str(num_instances_by_class)
+        )
+
+        num_times_in_memory = 0
+        yield (predictor_matrix, target_matrix)

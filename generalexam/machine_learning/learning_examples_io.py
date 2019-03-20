@@ -168,8 +168,7 @@ def create_examples(
         top_predictor_dir_name, top_gridded_front_dir_name, valid_time_unix_sec,
         predictor_names, pressure_level_mb, num_half_rows, num_half_columns,
         dilation_distance_metres, class_fractions, max_num_examples,
-        normalization_type_string=ml_utils.Z_SCORE_STRING,
-        narr_mask_matrix=None):
+        normalization_type_string, narr_mask_matrix=None):
     """Creates examples.
 
     :param top_predictor_dir_name: Name of top-level directory with predictors.
