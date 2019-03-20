@@ -19,7 +19,7 @@ from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import cnn_architecture
-from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import training_validation_io as trainval_io
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
@@ -29,11 +29,9 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_EXAMPLES_PER_TIME = 8
-DILATION_DISTANCE_METRES = 50000.
-CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
 WEIGHT_LOSS_FUNCTION = False
-PRESSURE_LEVEL_MB = 1000
+NUM_EXAMPLES_PER_TIME_DUMMY = 8
+CLASS_FRACTIONS_DUMMY = numpy.array([0.5, 0.25, 0.25])
 
 NUM_HALF_ROWS_ARG_NAME = 'num_half_rows'
 NUM_HALF_COLUMNS_ARG_NAME = 'num_half_columns'
@@ -48,7 +46,6 @@ NUM_EX_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
-MASK_FILE_ARG_NAME = 'input_mask_file_name'
 OUTPUT_FILE_ARG_NAME = 'output_model_file_name'
 
 NUM_HALF_ROWS_HELP_STRING = (
@@ -95,12 +92,6 @@ NUM_TRAINING_BATCHES_HELP_STRING = 'Number of training batches in each epoch.'
 NUM_VALIDATION_BATCHES_HELP_STRING = (
     'Number of validation batches in each epoch.')
 
-MASK_FILE_HELP_STRING = (
-    'Path to mask file (determines which grid cells can be used as center of '
-    'learning example).  Will be read by '
-    '`machine_learning_utils.read_narr_mask`.  If you do not want a mask, leave'
-    ' this empty.')
-
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (HDF5 format).  The trained CNN model will be saved '
     'here.')
@@ -130,7 +121,6 @@ DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
 DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_TRAINING_BATCHES_PER_EPOCH = 32
 DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH = 16
-DEFAULT_MASK_FILE_NAME = '/condo/swatwork/ralager/fronts/narr_grids/narr_mask.p'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -188,10 +178,6 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_VALIDATION_BATCHES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MASK_FILE_ARG_NAME, type=str, required=False,
-    default=DEFAULT_MASK_FILE_NAME, help=MASK_FILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
@@ -201,8 +187,7 @@ def _run(num_half_rows, num_half_columns, predictor_names,
          last_training_time_string, top_validation_dir_name,
          first_validation_time_string, last_validation_time_string,
          num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
-         num_validation_batches_per_epoch, mask_file_name,
-         output_model_file_name):
+         num_validation_batches_per_epoch, output_model_file_name):
     """Trains CNN for use with upconvnet.
 
     This is effectively the main method.
@@ -220,7 +205,6 @@ def _run(num_half_rows, num_half_columns, predictor_names,
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param mask_file_name: Same.
     :param output_model_file_name: Same.
     """
 
@@ -234,15 +218,24 @@ def _run(num_half_rows, num_half_columns, predictor_names,
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
         last_validation_time_string, TIME_FORMAT)
 
-    if mask_file_name in ['', 'None']:
-        mask_file_name = None
+    # Read metadata from one training file.
+    training_file_names = examples_io.find_many_files(
+        top_directory_name=top_training_dir_name, shuffled=True,
+        first_batch_number=0, last_batch_number=int(1e11)
+    )
 
-    if mask_file_name is not None:
-        print 'Reading mask from: "{0:s}"...'.format(mask_file_name)
-        mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
-    else:
-        mask_matrix = None
+    print 'Reading metadata from: "{0:s}"...'.format(training_file_names[0])
+    this_example_dict = examples_io.read_file(
+        netcdf_file_name=training_file_names[0], metadata_only=True)
 
+    pressure_level_mb = this_example_dict[examples_io.PRESSURE_LEVEL_KEY]
+    normalization_type_string = this_example_dict[
+        examples_io.NORMALIZATION_TYPE_KEY]
+    dilation_distance_metres = this_example_dict[
+        examples_io.DILATION_DISTANCE_KEY]
+    mask_matrix = this_example_dict[examples_io.MASK_MATRIX_KEY]
+
+    # Write metadata for CNN.
     output_metafile_name = cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
     print 'Writing metadata to: "{0:s}"...'.format(output_metafile_name)
@@ -250,13 +243,14 @@ def _run(num_half_rows, num_half_columns, predictor_names,
     cnn.write_metadata(
         pickle_file_name=output_metafile_name, num_epochs=num_epochs,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_time=NUM_EXAMPLES_PER_TIME,
+        num_examples_per_time=NUM_EXAMPLES_PER_TIME_DUMMY,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        predictor_names=predictor_names, pressure_level_mb=PRESSURE_LEVEL_MB,
+        predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
-        dilation_distance_metres=DILATION_DISTANCE_METRES,
-        class_fractions=CLASS_FRACTIONS,
+        normalization_type_string=normalization_type_string,
+        dilation_distance_metres=dilation_distance_metres,
+        class_fractions=CLASS_FRACTIONS_DUMMY,
         weight_loss_function=WEIGHT_LOSS_FUNCTION,
         first_training_time_unix_sec=first_training_time_unix_sec,
         last_training_time_unix_sec=last_training_time_unix_sec,
@@ -276,7 +270,8 @@ def _run(num_half_rows, num_half_columns, predictor_names,
         first_time_unix_sec=first_training_time_unix_sec,
         last_time_unix_sec=last_training_time_unix_sec,
         predictor_names=predictor_names, num_half_rows=num_half_rows,
-        num_half_columns=num_half_columns, num_classes=len(CLASS_FRACTIONS),
+        num_half_columns=num_half_columns,
+        num_classes=len(CLASS_FRACTIONS_DUMMY),
         num_examples_per_batch=num_examples_per_batch)
 
     validation_generator = trainval_io.downsized_generator_from_example_files(
@@ -284,7 +279,8 @@ def _run(num_half_rows, num_half_columns, predictor_names,
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
         predictor_names=predictor_names, num_half_rows=num_half_rows,
-        num_half_columns=num_half_columns, num_classes=len(CLASS_FRACTIONS),
+        num_half_columns=num_half_columns,
+        num_classes=len(CLASS_FRACTIONS_DUMMY),
         num_examples_per_batch=num_examples_per_batch)
 
     cnn.train_cnn(
@@ -295,7 +291,7 @@ def _run(num_half_rows, num_half_columns, predictor_names,
         training_generator=training_generator,
         validation_generator=validation_generator,
         weight_loss_function=WEIGHT_LOSS_FUNCTION,
-        class_fractions=CLASS_FRACTIONS)
+        class_fractions=CLASS_FRACTIONS_DUMMY)
 
 
 if __name__ == '__main__':
@@ -324,6 +320,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, NUM_TRAINING_BATCHES_ARG_NAME),
         num_validation_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, NUM_VALIDATION_BATCHES_ARG_NAME),
-        mask_file_name=getattr(INPUT_ARG_OBJECT, MASK_FILE_ARG_NAME),
         output_model_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

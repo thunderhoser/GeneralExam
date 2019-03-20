@@ -86,6 +86,8 @@ def _run(input_model_file_name, predictor_names, top_training_dir_name,
         netcdf_file_name=training_file_names[0], metadata_only=True)
 
     pressure_level_mb = this_example_dict[examples_io.PRESSURE_LEVEL_KEY]
+    normalization_type_string = this_example_dict[
+        examples_io.NORMALIZATION_TYPE_KEY]
     dilation_distance_metres = this_example_dict[
         examples_io.DILATION_DISTANCE_KEY]
     mask_matrix = this_example_dict[examples_io.MASK_MATRIX_KEY]
@@ -105,6 +107,7 @@ def _run(input_model_file_name, predictor_names, top_training_dir_name,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+        normalization_type_string=normalization_type_string,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=CLASS_FRACTIONS_DUMMY,
         weight_loss_function=WEIGHT_LOSS_FUNCTION,

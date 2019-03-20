@@ -35,6 +35,7 @@ PREDICTOR_NAMES_KEY = 'narr_predictor_names'
 PRESSURE_LEVEL_KEY = 'pressure_level_mb'
 NUM_HALF_ROWS_KEY = 'num_rows_in_half_grid'
 NUM_HALF_COLUMNS_KEY = 'num_columns_in_half_grid'
+NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 FIRST_TRAINING_TIME_KEY = 'training_start_time_unix_sec'
 LAST_TRAINING_TIME_KEY = 'training_end_time_unix_sec'
 FIRST_VALIDATION_TIME_KEY = 'validation_start_time_unix_sec'
@@ -46,6 +47,7 @@ METADATA_KEYS = [
     NUM_EXAMPLES_PER_TIME_KEY, NUM_TRAINING_BATCHES_KEY,
     NUM_VALIDATION_BATCHES_KEY, DILATION_DISTANCE_KEY, CLASS_FRACTIONS_KEY,
     WEIGHT_LOSS_KEY, PREDICTOR_NAMES_KEY, PRESSURE_LEVEL_KEY,
+    NUM_HALF_ROWS_KEY, NUM_HALF_COLUMNS_KEY, NORMALIZATION_TYPE_KEY,
     FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, MASK_MATRIX_KEY
 ]
@@ -161,10 +163,11 @@ def write_metadata(
         pickle_file_name, num_epochs, num_examples_per_batch,
         num_examples_per_time, num_training_batches_per_epoch,
         num_validation_batches_per_epoch, predictor_names, pressure_level_mb,
-        num_half_rows, num_half_columns, dilation_distance_metres,
-        class_fractions, weight_loss_function, first_training_time_unix_sec,
-        last_training_time_unix_sec, first_validation_time_unix_sec,
-        last_validation_time_unix_sec, mask_matrix=None):
+        num_half_rows, num_half_columns, normalization_type_string,
+        dilation_distance_metres, class_fractions, weight_loss_function,
+        first_training_time_unix_sec, last_training_time_unix_sec,
+        first_validation_time_unix_sec, last_validation_time_unix_sec,
+        mask_matrix=None):
     """Writes CNN metadata to Pickle file.
 
     In this context "validation" means on-the-fly validation (monitoring during
@@ -185,6 +188,8 @@ def write_metadata(
     :param num_half_rows: Number of rows in half-grid (on either side of center)
         for predictors.
     :param num_half_columns: Same but for columns.
+    :param normalization_type_string: Normalization method (see doc for
+        `machine_learning_utils.normalize_predictors`).
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param class_fractions: 1-D numpy array with sampling fraction used for each
@@ -213,6 +218,7 @@ def write_metadata(
         PRESSURE_LEVEL_KEY: pressure_level_mb,
         NUM_HALF_ROWS_KEY: num_half_rows,
         NUM_HALF_COLUMNS_KEY: num_half_columns,
+        NORMALIZATION_TYPE_KEY: normalization_type_string,
         DILATION_DISTANCE_KEY: dilation_distance_metres,
         CLASS_FRACTIONS_KEY: class_fractions,
         WEIGHT_LOSS_KEY: weight_loss_function,
@@ -234,24 +240,8 @@ def read_metadata(pickle_file_name):
     """Reads CNN metadata from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['num_epochs']: See doc for `write_metadata`.
-    metadata_dict['num_examples_per_batch']: Same.
-    metadata_dict['num_examples_per_target_time']: Same.
-    metadata_dict['num_training_batches_per_epoch']: Same.
-    metadata_dict['num_validation_batches_per_epoch']: Same.
-    metadata_dict['dilation_distance_for_target_metres']: Same.
-    metadata_dict['class_fractions']: Same.
-    metadata_dict['weight_loss_function']: Same.
-    metadata_dict['narr_predictor_names']: Same.
-    metadata_dict['pressure_level_mb']: Same.
-    metadata_dict['num_rows_in_half_grid']: Same.
-    metadata_dict['num_columns_in_half_grid']: Same.
-    metadata_dict['training_start_time_unix_sec']: Same.
-    metadata_dict['training_end_time_unix_sec']: Same.
-    metadata_dict['validation_start_time_unix_sec']: Same.
-    metadata_dict['validation_end_time_unix_sec']: Same.
-    metadata_dict['narr_mask_matrix']: Same.
+    :return: metadata_dict: Dictionary with keys listed in `write_metadata`.
+    :raises: ValueError: if any of these keys are missing from the dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
@@ -260,6 +250,8 @@ def read_metadata(pickle_file_name):
 
     if MASK_MATRIX_KEY not in metadata_dict:
         metadata_dict.update({MASK_MATRIX_KEY: None})
+    if NORMALIZATION_TYPE_KEY not in metadata_dict:
+        metadata_dict.update({NORMALIZATION_TYPE_KEY: ml_utils.Z_SCORE_STRING})
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:

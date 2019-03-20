@@ -1,29 +1,4 @@
-"""Methods for evaluating a machine-learning model.
-
---- NOTATION ---
-
-Throughout this module, the following letters will be used to denote matrix
-dimensions.
-
-E = number of examples.  Each example is one image or a time sequence of images.
-M = number of pixel rows in each image
-N = number of pixel columns in each image
-T = number of predictor times per example (images per sequence)
-C = number of channels (predictor variables) in each image
-
---- DEFINITIONS ---
-
-"Evaluation pair" = forecast-prediction pair
-
-A "downsized" example covers only a portion of the NARR grid (as opposed to
-a full-size example, which covers the entire NARR grid).
-
-For a 3-D example, the dimensions are M x N x C (M rows, N columns, C predictor
-variables).
-
-For a 4-D example, the dimensions are M x N x T x C (M rows, N columns, T time
-steps, C predictor variables).
-"""
+"""Methods for evaluating probabilistic binary or multiclass classification."""
 
 import pickle
 import numpy
@@ -35,16 +10,12 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
-from generalexam.machine_learning import fcn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import isotonic_regression
-
-# TODO(thunderhoser): This file contains a lot of duplicated code.  Should
-# combine downsized 3-D and 4-D into one method, full-size 3-D and 4-D into one
-# method.
 
 NARR_TIME_INTERVAL_SECONDS = 10800
 DEFAULT_FORECAST_PRECISION = 1e-3
-TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H'
+LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
 
 MIN_OPTIMIZATION_DIRECTION = 'min'
 MAX_OPTIMIZATION_DIRECTION = 'max'
@@ -72,7 +43,7 @@ AUPD_BY_CLASS_KEY = 'aupd_by_class'
 RELIABILITY_BY_CLASS_KEY = 'reliability_by_class'
 BSS_BY_CLASS_KEY = 'bss_by_class'
 
-EVALUATION_DICT_KEYS = [
+REQUIRED_KEYS = [
     CLASS_PROBABILITY_MATRIX_KEY, OBSERVED_LABELS_KEY,
     BINARIZATION_THRESHOLD_KEY, ACCURACY_KEY, PEIRCE_SCORE_KEY,
     HEIDKE_SCORE_KEY, GERRITY_SCORE_KEY, BINARY_POD_KEY, BINARY_POFD_KEY,
@@ -288,266 +259,111 @@ def check_evaluation_pairs(class_probability_matrix, observed_labels):
     error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
 
 
-def downsized_examples_to_eval_pairs(
-        model_object, first_target_time_unix_sec, last_target_time_unix_sec,
-        num_target_times_to_sample, num_examples_per_time,
-        top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_distance_metres,
-        num_rows_in_half_grid, num_columns_in_half_grid, num_classes,
-        predictor_time_step_offsets=None, num_lead_time_steps=None,
-        isotonic_model_object_by_class=None, narr_mask_matrix=None):
-    """Creates evaluation pairs from downsized 3-D or 4-D examples.
+def create_eval_pairs_for_cnn(
+        model_object, top_predictor_dir_name, top_gridded_front_dir_name,
+        first_time_unix_sec, last_time_unix_sec, num_times,
+        num_examples_per_time, pressure_level_mb, predictor_names,
+        normalization_type_string, dilation_distance_metres,
+        isotonic_model_object_by_class=None, mask_matrix=None):
+    """Creates evaluation pairs for a CNN (convolutional neural net).
 
-    M = number of pixel rows in full NARR grid
-    N = number of pixel columns in full NARR grid
+    An "evaluation pair" is a forecast-observation pair.  Keep in mind that a
+    CNN does patch classification (as opposed to an FCN, which does semantic
+    segmentation), so a CNN works on downsized examples.
 
-    m = number of pixel rows in each downsized grid
-      = 2 * num_rows_in_half_grid + 1
-    n = number of pixel columns in each downsized grid
-      = 2 * num_columns_in_half_grid + 1
-
-    P = number of evaluation pairs created by this method
-    K = number of classes
-
-    :param model_object: Instance of `keras.models.Model`.  This will be applied
-        to each downsized example, creating the prediction for said example.
-    :param first_target_time_unix_sec: Target time.  Downsized examples will be
-        randomly chosen from the period `first_target_time_unix_sec`...
-        `last_target_time_unix_sec`.
-    :param last_target_time_unix_sec: See above.
-    :param num_target_times_to_sample: Number of target times to sample (from
-        the period `first_target_time_unix_sec`...`last_target_time_unix_sec`).
-    :param num_examples_per_time: Number of downsized examples per target time.
-        Downsized examples will be randomly drawn from each target time.
-    :param top_narr_directory_name: Name of top-level directory with NARR data
-        (one file for each variable, pressure level, and time step).
-    :param top_frontal_grid_dir_name: Name of top-level directory with frontal
-        grids (one file per time step).
-    :param narr_predictor_names: 1-D list of NARR fields to use as predictors.
-    :param pressure_level_mb: Pressure level (millibars).
-    :param dilation_distance_metres: Dilation distance for both warm and cold
-        fronts.
-    :param num_rows_in_half_grid: See general discussion above.
-    :param num_columns_in_half_grid: See general discussion above.
-    :param num_classes: Number of classes.
-    :param predictor_time_step_offsets: [needed only if examples are 4-D]
-        length-T numpy array of offsets between predictor times and
-        (target time - lead time).
-    :param num_lead_time_steps: [needed only if examples are 4-D]
-        Number of time steps between latest predictor time (last image in the
-        sequence) and target time.
-    :param isotonic_model_object_by_class: length-K list with trained instances
-        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
-        regression.
-    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
-        narr_mask_matrix[i, j] = 0, cell [i, j] in the full grid will never be
-        used to create an evaluation pair -- i.e., will never be used as the
-        center of a downsized grid.  If `narr_mask_matrix is None`, any cell in
-        the full grid can be used to create an evaluation pair.
+    :param model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param top_predictor_dir_name: See doc for
+        `testing_io.create_downsized_examples`.
+    :param top_gridded_front_dir_name: Same.
+    :param first_time_unix_sec: First time in period.  Evaluation pairs will be
+        drawn randomly from the period
+        `first_time_unix_sec`...`last_time_unix_sec`.
+    :param last_time_unix_sec: See above.
+    :param num_times: Number of times to draw randomly from the period.
+    :param num_examples_per_time: Number of examples (grid cells) to draw
+        randomly from each time.
+    :param pressure_level_mb: See doc for
+        `testing_io.create_downsized_examples`.
+    :param predictor_names: Same.
+    :param normalization_type_string: Same.
+    :param dilation_distance_metres: Same.
+    :param isotonic_model_object_by_class: See doc for
+        `cnn.apply_model_to_full_grid`.
+    :param mask_matrix: Same.
     :return: class_probability_matrix: See documentation for
         `check_evaluation_pairs`.
-    :return: observed_labels: See doc for `check_evaluation_pairs`.
+    :return: observed_labels: Same.
     """
 
-    error_checking.assert_is_integer(num_target_times_to_sample)
-    error_checking.assert_is_greater(num_target_times_to_sample, 0)
+    error_checking.assert_is_integer(num_times)
+    error_checking.assert_is_greater(num_times, 0)
     error_checking.assert_is_integer(num_examples_per_time)
     error_checking.assert_is_greater(num_examples_per_time, 0)
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
 
-    if predictor_time_step_offsets is None:
-        num_dimensions_per_example = 3
-    else:
-        num_dimensions_per_example = 4
-
-    target_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_target_time_unix_sec,
-        end_time_unix_sec=last_target_time_unix_sec,
+    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_time_unix_sec,
+        end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
 
-    numpy.random.shuffle(target_times_unix_sec)
-    target_times_unix_sec = target_times_unix_sec[:num_target_times_to_sample]
-    target_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
-        for t in target_times_unix_sec
+    numpy.random.shuffle(valid_times_unix_sec)
+    valid_times_unix_sec = valid_times_unix_sec[:num_times]
+
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, LOG_MESSAGE_TIME_FORMAT)
+        for t in valid_times_unix_sec
     ]
 
+    num_classes = cnn.model_to_num_classes(model_object)
+    num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
+
     class_probability_matrix = numpy.full(
-        (num_target_times_to_sample, num_examples_per_time, num_classes),
-        numpy.nan)
-    observed_labels = numpy.full(
-        (num_target_times_to_sample, num_examples_per_time), -1, dtype=int)
-
-    for i in range(num_target_times_to_sample):
-        print 'Drawing evaluation pairs from {0:s}...'.format(
-            target_time_strings[i])
-
-        (these_center_row_indices, these_center_column_indices
-        ) = _get_random_sample_points(
-            num_points=num_examples_per_time, for_downsized_examples=True,
-            narr_mask_matrix=narr_mask_matrix)
-
-        if num_dimensions_per_example == 3:
-            (this_downsized_predictor_matrix, observed_labels[i, :], _, _
-            ) = testing_io.create_downsized_3d_examples(
-                center_row_indices=these_center_row_indices,
-                center_column_indices=these_center_column_indices,
-                num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid,
-                target_time_unix_sec=target_times_unix_sec[i],
-                top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                num_classes=num_classes)
-
-        else:
-            (this_downsized_predictor_matrix, observed_labels[i, :], _, _
-            ) = testing_io.create_downsized_4d_examples(
-                center_row_indices=these_center_row_indices,
-                center_column_indices=these_center_column_indices,
-                num_rows_in_half_grid=num_rows_in_half_grid,
-                num_columns_in_half_grid=num_columns_in_half_grid,
-                target_time_unix_sec=target_times_unix_sec[i],
-                predictor_time_step_offsets=predictor_time_step_offsets,
-                num_lead_time_steps=num_lead_time_steps,
-                top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                num_classes=num_classes)
-
-        class_probability_matrix[i, ...] = model_object.predict(
-            this_downsized_predictor_matrix, batch_size=num_examples_per_time)
-
-    new_dimensions = (
-        num_target_times_to_sample * num_examples_per_time, num_classes
+        (num_times, num_examples_per_time, num_classes), numpy.nan
     )
+    observed_label_matrix = numpy.full(
+        (num_times, num_examples_per_time), -1, dtype=int
+    )
+
+    for i in range(num_times):
+        print 'Creating {0:d} evaluation pairs for {1:s}...'.format(
+            num_examples_per_time, valid_time_strings[i])
+
+        these_row_indices, these_column_indices = _get_random_sample_points(
+            num_points=num_examples_per_time, for_downsized_examples=True,
+            narr_mask_matrix=mask_matrix)
+
+        this_dict = testing_io.create_downsized_examples(
+            center_row_indices=these_row_indices,
+            center_column_indices=these_column_indices,
+            num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+            top_predictor_dir_name=top_predictor_dir_name,
+            top_gridded_front_dir_name=top_gridded_front_dir_name,
+            valid_time_unix_sec=valid_times_unix_sec[i],
+            pressure_level_mb=pressure_level_mb,
+            predictor_names=predictor_names,
+            normalization_type_string=normalization_type_string,
+            dilation_distance_metres=dilation_distance_metres,
+            num_classes=num_classes)
+
+        this_predictor_matrix = this_dict[testing_io.PREDICTOR_MATRIX_KEY]
+        observed_label_matrix[i, :] = this_dict[testing_io.TARGET_VALUES_KEY]
+        class_probability_matrix[i, ...] = model_object.predict(
+            this_predictor_matrix, batch_size=num_examples_per_time)
+
     class_probability_matrix = numpy.reshape(
-        class_probability_matrix, new_dimensions)
-    observed_labels = numpy.reshape(observed_labels, observed_labels.size)
+        class_probability_matrix,
+        (num_times * num_examples_per_time, num_classes)
+    )
+    observed_labels = numpy.reshape(
+        observed_label_matrix, observed_label_matrix.size)
 
     if isotonic_model_object_by_class is not None:
         class_probability_matrix = (
             isotonic_regression.apply_model_for_each_class(
                 orig_class_probability_matrix=class_probability_matrix,
                 observed_labels=observed_labels,
-                model_object_by_class=isotonic_model_object_by_class))
-
-    return class_probability_matrix, observed_labels
-
-
-def full_size_examples_to_eval_pairs(
-        model_object, first_target_time_unix_sec, last_target_time_unix_sec,
-        num_target_times_to_sample, num_points_per_time,
-        top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_distance_metres,
-        num_classes, predictor_time_step_offsets=None, num_lead_time_steps=None,
-        isotonic_model_object_by_class=None):
-    """Creates evaluation pairs from full-size 3-D or 4-D examples.
-
-    P = number of evaluation pairs created by this method
-    K = number of classes
-
-    :param model_object: See documentation for
-        `downsized_examples_to_eval_pairs`.
-    :param first_target_time_unix_sec: Same.
-    :param last_target_time_unix_sec: Same.
-    :param num_target_times_to_sample: Same.
-    :param num_points_per_time: Same.
-    :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
-    :param narr_predictor_names: Same.
-    :param pressure_level_mb: Same.
-    :param dilation_distance_metres: Same.
-    :param num_classes: Same.
-    :param predictor_time_step_offsets: Same.
-    :param num_lead_time_steps: Same.
-    :param isotonic_model_object_by_class: Same.
-    :return: class_probability_matrix: Same.
-    :return: observed_labels: Same.
-    """
-
-    error_checking.assert_is_integer(num_target_times_to_sample)
-    error_checking.assert_is_greater(num_target_times_to_sample, 0)
-    error_checking.assert_is_integer(num_points_per_time)
-    error_checking.assert_is_greater(num_points_per_time, 0)
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-
-    if predictor_time_step_offsets is None:
-        num_dimensions_per_example = 3
-    else:
-        num_dimensions_per_example = 4
-
-    target_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_target_time_unix_sec,
-        end_time_unix_sec=last_target_time_unix_sec,
-        time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
-
-    numpy.random.shuffle(target_times_unix_sec)
-    target_times_unix_sec = target_times_unix_sec[:num_target_times_to_sample]
-    target_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
-        for t in target_times_unix_sec]
-
-    class_probability_matrix = numpy.full(
-        (num_target_times_to_sample, num_points_per_time, num_classes),
-        numpy.nan)
-    observed_labels = numpy.full(
-        (num_target_times_to_sample, num_points_per_time), -1, dtype=int)
-
-    for i in range(num_target_times_to_sample):
-        print 'Drawing evaluation pairs from {0:s}...'.format(
-            target_time_strings[i])
-
-        if num_dimensions_per_example == 3:
-            this_class_probability_matrix, this_actual_target_matrix = (
-                fcn.apply_model_to_3d_example(
-                    model_object=model_object,
-                    target_time_unix_sec=target_times_unix_sec[i],
-                    top_narr_directory_name=top_narr_directory_name,
-                    top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                    narr_predictor_names=narr_predictor_names,
-                    pressure_level_mb=pressure_level_mb,
-                    dilation_distance_metres=dilation_distance_metres,
-                    num_classes=num_classes,
-                    isotonic_model_object_by_class=
-                    isotonic_model_object_by_class))
-        else:
-            this_class_probability_matrix, this_actual_target_matrix = (
-                fcn.apply_model_to_4d_example(
-                    model_object=model_object,
-                    target_time_unix_sec=target_times_unix_sec[i],
-                    num_predictor_time_steps=predictor_time_step_offsets,
-                    num_lead_time_steps=num_lead_time_steps,
-                    top_narr_directory_name=top_narr_directory_name,
-                    top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                    narr_predictor_names=narr_predictor_names,
-                    pressure_level_mb=pressure_level_mb,
-                    dilation_distance_metres=dilation_distance_metres,
-                    num_classes=num_classes,
-                    isotonic_model_object_by_class=
-                    isotonic_model_object_by_class))
-
-        these_row_indices, these_column_indices = _get_random_sample_points(
-            num_points=num_points_per_time, for_downsized_examples=False)
-
-        class_probability_matrix[i, ...] = this_class_probability_matrix[
-            0, these_row_indices, these_column_indices, ...]
-        this_actual_target_matrix = this_actual_target_matrix[
-            0, these_row_indices, these_column_indices]
-        observed_labels[i, :] = numpy.reshape(
-            this_actual_target_matrix, this_actual_target_matrix.size)
-
-    new_dimensions = (
-        num_target_times_to_sample * num_points_per_time, num_classes)
-    class_probability_matrix = numpy.reshape(
-        class_probability_matrix, new_dimensions)
-    observed_labels = numpy.reshape(observed_labels, observed_labels.size)
+                model_object_by_class=isotonic_model_object_by_class)
+        )
 
     return class_probability_matrix, observed_labels
 
@@ -834,51 +650,45 @@ def get_gerrity_score(contingency_table_as_matrix):
         contingency_table_as_matrix * s_matrix) / num_evaluation_pairs
 
 
-def write_evaluation_results(
+def write_file(
         class_probability_matrix, observed_labels, binarization_threshold,
         accuracy, peirce_score, heidke_score, gerrity_score, binary_pod,
         binary_pofd, binary_success_ratio, binary_focn, binary_accuracy,
         binary_csi, binary_frequency_bias, auc_by_class,
         scikit_learn_auc_by_class, aupd_by_class, reliability_by_class,
         bss_by_class, pickle_file_name):
-    """Writes evaluation results to Pickle file.
+    """Writes results to Pickle file.
 
-    P = number of evaluation pairs
+    P = number of evaluation pairs (forecast-observation pairs)
     K = number of classes
 
-    :param class_probability_matrix: P-by-K numpy array of floats.
-        class_probability_matrix[i, k] is the predicted probability that the
-        [i]th example belongs to the [k]th class.
-    :param observed_labels: length-P numpy array of integers.  If
-        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
-        class.
-    :param binarization_threshold: Best threshold for discriminating between
-        front and no front.  For details, see
-        `find_best_binarization_threshold`.
+    :param class_probability_matrix: P-by-K numpy array of class probabilities.
+    :param observed_labels: length-P numpy array of class labels (integers in
+        0...[K - 1]).
+    :param binarization_threshold: Probability threshold (on no-front
+        probability) used to discriminate between front and no front.
     :param accuracy: Accuracy.
     :param peirce_score: Peirce score.
     :param heidke_score: Heidke score.
     :param gerrity_score: Gerrity score.
-    :param binary_pod: Binary (front vs. no front) probability of detection.
+    :param binary_pod: Binary probability of detection.
     :param binary_pofd: Binary probability of false detection.
     :param binary_success_ratio: Binary success ratio.
     :param binary_focn: Binary frequency of correct nulls.
     :param binary_accuracy: Binary accuracy.
-    :param binary_csi: Binary critical success index.
+    :param binary_csi: Binary CSI.
     :param binary_frequency_bias: Binary frequency bias.
-    :param auc_by_class: length-K numpy array with area under one-versus-all ROC
-        curve for each class (calculated by GewitterGefahr).
-    :param scikit_learn_auc_by_class: Same but calculated by scikit-learn.
-    :param aupd_by_class: length-K numpy array with area under one-versus-all
-        performance diagram for each class.
-    :param reliability_by_class: length-K numpy array with reliability for each
-        class.
-    :param bss_by_class: length-K numpy array with Brier skill score for each
-        class.
+    :param auc_by_class: length-K numpy array with AUC (area under ROC curve)
+        for each class.
+    :param scikit_learn_auc_by_class: Same but according to scikit-learn.
+    :param aupd_by_class: length-K numpy array with AUPD (area under performance
+        diagram) for each class.
+    :param reliability_by_class: length-K numpy array of reliabilities.
+    :param bss_by_class: length-K numpy array of Brier skill scores.
     :param pickle_file_name: Path to output file.
     """
 
-    evaluation_dict = {
+    result_dict = {
         CLASS_PROBABILITY_MATRIX_KEY: class_probability_matrix,
         OBSERVED_LABELS_KEY: observed_labels,
         BINARIZATION_THRESHOLD_KEY: binarization_threshold,
@@ -902,38 +712,30 @@ def write_evaluation_results(
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(evaluation_dict, pickle_file_handle)
+    pickle.dump(result_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_evaluation_results(pickle_file_name):
-    """Reads evaluation results from Pickle file.
+def read_file(pickle_file_name):
+    """Reads results from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: evaluation_dict: Dictionary with all keys in the list
-        `EVALUATION_DICT_KEYS`.
-    :raises: ValueError: if dictionary does not contain all keys in the list
-        `EVALUATION_DICT_KEYS`.
+    :return: result_dict: Dictionary with all keys listed in `write_file`.
+    :raises: ValueError: if dictionary does not contain all keys in
+        `REQUIRED_KEYS`.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    evaluation_dict = pickle.load(pickle_file_handle)
+    result_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if AUPD_BY_CLASS_KEY not in evaluation_dict:
-        evaluation_dict.update(
-            {AUPD_BY_CLASS_KEY: evaluation_dict[AUC_BY_CLASS_KEY] + numpy.nan}
-        )
+    missing_keys = list(set(REQUIRED_KEYS) - set(result_dict.keys()))
+    if len(missing_keys) == 0:
+        return result_dict
 
-    expected_keys_as_set = set(EVALUATION_DICT_KEYS)
-    actual_keys_as_set = set(evaluation_dict.keys())
-    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
-        error_string = (
-            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
-            '("{1:s}") are listed below.  Some expected keys were not found.'
-            '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
-                                evaluation_dict.keys())
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
 
-        raise ValueError(error_string)
-
-    return evaluation_dict
+    raise ValueError(error_string)
