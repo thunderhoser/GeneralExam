@@ -16,7 +16,6 @@ from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import fronts_io
 from generalexam.ge_io import predictor_io
 from generalexam.ge_io import wpc_bulletin_input
-from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
 from generalexam.plotting import front_plotting
@@ -66,8 +65,7 @@ PLOT_EVERY_KTH_WIND_BARB = 8
 PRESSURE_SYSTEM_FONT_SIZE = 50
 PRESSURE_SYSTEM_COLOUR = numpy.full(3, 0.)
 
-# FIGURE_RESOLUTION_DPI = 300
-FIGURE_RESOLUTION_DPI = 600
+FIGURE_RESOLUTION_DPI = 300
 
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 FRONT_DIR_ARG_NAME = 'input_front_line_dir_name'
@@ -490,10 +488,10 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             predictor_utils.DATA_MATRIX_KEY
         ][0, ..., 0, :]
 
-        for j in range(len(predictor_names)):
-            this_predictor_matrix[..., j] = utils.fill_nans(
-                this_predictor_matrix[..., j]
-            )
+        # for j in range(len(predictor_names)):
+        #     this_predictor_matrix[..., j] = utils.fill_nans(
+        #         this_predictor_matrix[..., j]
+        #     )
 
         this_predictor_matrix = this_predictor_matrix[
             narr_row_limits[0]:(narr_row_limits[1] + 1),

@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -24,7 +25,7 @@ from generalexam.plotting import prediction_plotting
 
 DEFAULT_TIME_FORMAT = '%Y%m%d%H'
 NICE_TIME_FORMAT = '%H00 UTC %-d %b %Y'
-NARR_TIME_INTERVAL_SEC = 10800
+TIME_INTERVAL_SECONDS = 10800
 
 CNN_METHOD_NAME = 'cnn'
 NFA_METHOD_NAME = 'nfa'
@@ -59,7 +60,8 @@ GRID_DIR_HELP_STRING = (
 
 OBJECT_FILE_HELP_STRING = (
     'Name of file with object-based predictions.  Will be read by '
-    '`object_based_evaluation.read_predictions_and_obs`.')
+    '`object_based_evaluation.read_predictions_and_obs`.  If you do not want to'
+    ' plot objects, leave this argument alone.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Predictions will be plotted for all times '
@@ -94,7 +96,7 @@ INPUT_ARG_PARSER.add_argument(
     help=GRID_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OBJECT_FILE_ARG_NAME, type=str, required=True,
+    '--' + OBJECT_FILE_ARG_NAME, type=str, required=False, default='',
     help=OBJECT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -267,7 +269,10 @@ def _plot_one_time(
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    num_objects = len(predicted_region_table.index)
+    if predicted_region_table is None:
+        num_objects = 0
+    else:
+        num_objects = len(predicted_region_table.index)
 
     for i in range(num_objects):
         these_rows = predicted_region_table[
@@ -282,22 +287,6 @@ def _plot_one_time(
             front_type=predicted_region_table[
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             line_width=4)
-
-    # predicted_object_matrix = object_eval.regions_to_images(
-    #     predicted_region_table=predicted_region_table,
-    #     num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
-    #
-    # this_matrix = predicted_object_matrix[
-    #     0,
-    #     narr_row_limits[0]:(narr_row_limits[1] + 1),
-    #     narr_column_limits[0]:(narr_column_limits[1] + 1)
-    # ]
-    #
-    # front_plotting.plot_narr_grid(
-    #     frontal_grid_matrix=this_matrix, axes_object=axes_object,
-    #     basemap_object=basemap_object,
-    #     first_row_in_narr_grid=narr_row_limits[0],
-    #     first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
 
     pyplot.title(title_string)
     if letter_label is not None:
@@ -333,6 +322,9 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
     :raises: ValueError: if `method_name not in VALID_METHOD_NAMES`.
     """
 
+    if input_object_file_name in ['', 'None']:
+        input_object_file_name = None
+
     if first_letter_label in ['', 'None']:
         first_letter_label = None
 
@@ -346,35 +338,32 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
 
         raise ValueError(error_string)
 
-    print 'Reading data from: "{0:s}"...'.format(input_object_file_name)
-    predicted_region_table = object_eval.read_predictions_and_obs(
-        input_object_file_name
-    )[0]
-
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, DEFAULT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, DEFAULT_TIME_FORMAT)
 
-    # region_times_unix_sec = predicted_region_table[
-    #     front_utils.TIME_COLUMN].values
-    #
-    # good_indices = numpy.where(numpy.logical_and(
-    #     region_times_unix_sec >= first_time_unix_sec,
-    #     region_times_unix_sec <= last_time_unix_sec
-    # ))[0]
-    #
-    # predicted_region_table = predicted_region_table.iloc[good_indices]
+    if input_object_file_name is None:
+        valid_times_unix_sec = time_periods.range_and_interval_to_list(
+            start_time_unix_sec=first_time_unix_sec,
+            end_time_unix_sec=last_time_unix_sec,
+            time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+    else:
+        print 'Reading data from: "{0:s}"...'.format(input_object_file_name)
+        predicted_region_table = object_eval.read_predictions_and_obs(
+            input_object_file_name
+        )[0]
 
-    predicted_region_table = predicted_region_table.loc[
-        (predicted_region_table[front_utils.TIME_COLUMN] >= first_time_unix_sec)
-        &
-        (predicted_region_table[front_utils.TIME_COLUMN] <= last_time_unix_sec)
-    ]
+        predicted_region_table = predicted_region_table.loc[
+            (predicted_region_table[front_utils.TIME_COLUMN]
+             >= first_time_unix_sec) &
+            (predicted_region_table[front_utils.TIME_COLUMN]
+             <= last_time_unix_sec)
+        ]
 
-    valid_times_unix_sec = numpy.unique(
-        predicted_region_table[front_utils.TIME_COLUMN].values
-    )
+        valid_times_unix_sec = numpy.unique(
+            predicted_region_table[front_utils.TIME_COLUMN].values
+        )
 
     this_class_probability_matrix = None
     this_label_matrix = None
@@ -413,10 +402,13 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
                     this_file_name
                 )[0][0, ...]
 
-        this_predicted_region_table = predicted_region_table.loc[
-            predicted_region_table[front_utils.TIME_COLUMN] ==
-            this_time_unix_sec
-        ]
+        if input_object_file_name is None:
+            this_predicted_region_table = None
+        else:
+            this_predicted_region_table = predicted_region_table.loc[
+                predicted_region_table[front_utils.TIME_COLUMN] ==
+                this_time_unix_sec
+            ]
 
         this_title_string = '{0:s} predictions at {1:s}'.format(
             method_name.upper(),
