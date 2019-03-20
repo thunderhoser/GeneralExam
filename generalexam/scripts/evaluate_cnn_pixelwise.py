@@ -148,6 +148,29 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
+    cnn.write_metadata(
+        pickle_file_name=model_metafile_name,
+        num_epochs=model_metadata_dict[cnn.NUM_EPOCHS_KEY],
+        num_examples_per_batch=model_metadata_dict[cnn.NUM_EXAMPLES_PER_BATCH_KEY],
+        num_examples_per_time=model_metadata_dict[cnn.NUM_EXAMPLES_PER_TIME_KEY],
+        num_training_batches_per_epoch=model_metadata_dict[cnn.NUM_TRAINING_BATCHES_KEY],
+        num_validation_batches_per_epoch=model_metadata_dict[cnn.NUM_VALIDATION_BATCHES_KEY],
+        predictor_names=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+        pressure_level_mb=1013,
+        num_half_rows=model_metadata_dict[cnn.NUM_HALF_ROWS_KEY],
+        num_half_columns=model_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY],
+        normalization_type_string='z_score',
+        dilation_distance_metres=model_metadata_dict[cnn.DILATION_DISTANCE_KEY],
+        class_fractions=model_metadata_dict[cnn.CLASS_FRACTIONS_KEY],
+        weight_loss_function=model_metadata_dict[cnn.WEIGHT_LOSS_KEY],
+        first_training_time_unix_sec=model_metadata_dict[cnn.FIRST_TRAINING_TIME_KEY],
+        last_training_time_unix_sec=model_metadata_dict[cnn.LAST_TRAINING_TIME_KEY],
+        first_validation_time_unix_sec=model_metadata_dict[cnn.FIRST_VALIDATION_TIME_KEY],
+        last_validation_time_unix_sec=model_metadata_dict[cnn.LAST_VALIDATION_TIME_KEY],
+        mask_matrix=model_metadata_dict[cnn.MASK_MATRIX_KEY][0])
+
+    return
+
     if dilation_distance_metres < 0:
         dilation_distance_metres = (
             model_metadata_dict[cnn.DILATION_DISTANCE_KEY] + 0.

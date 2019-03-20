@@ -248,12 +248,7 @@ def read_metadata(pickle_file_name):
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    if MASK_MATRIX_KEY in metadata_dict:
-        try:
-            error_checking.assert_is_numpy_array(metadata_dict[MASK_MATRIX_KEY])
-        except:
-            metadata_dict[MASK_MATRIX_KEY] = metadata_dict[MASK_MATRIX_KEY][0]
-    else:
+    if MASK_MATRIX_KEY not in metadata_dict:
         metadata_dict.update({MASK_MATRIX_KEY: None})
 
     if NORMALIZATION_TYPE_KEY not in metadata_dict:
