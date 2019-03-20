@@ -167,7 +167,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         last_training_time_unix_sec=model_metadata_dict[cnn.LAST_TRAINING_TIME_KEY],
         first_validation_time_unix_sec=model_metadata_dict[cnn.FIRST_VALIDATION_TIME_KEY],
         last_validation_time_unix_sec=model_metadata_dict[cnn.LAST_VALIDATION_TIME_KEY],
-        mask_matrix=model_metadata_dict[cnn.MASK_MATRIX_KEY][0])
+        mask_matrix=model_metadata_dict[cnn.MASK_MATRIX_KEY])
 
     return
 
