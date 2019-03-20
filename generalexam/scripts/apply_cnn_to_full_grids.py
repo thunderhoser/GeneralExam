@@ -136,7 +136,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
-    if num_times != 1:
+    if num_times > 0:
         num_times = min([num_times, len(valid_times_unix_sec)])
 
         numpy.random.seed(RANDOM_SEED)
