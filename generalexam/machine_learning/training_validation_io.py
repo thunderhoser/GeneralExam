@@ -135,6 +135,12 @@ def downsized_generator_from_scratch(
                 predictor_utils.DATA_MATRIX_KEY
             ][[0], ..., 0, :]
 
+            for j in range(len(predictor_names)):
+                this_full_predictor_matrix[..., j] = (
+                    ml_utils.fill_nans_in_predictor_images(
+                        this_full_predictor_matrix[..., j])
+                )
+
             this_full_predictor_matrix, _ = ml_utils.normalize_predictors(
                 predictor_matrix=this_full_predictor_matrix,
                 normalization_type_string=normalization_type_string)

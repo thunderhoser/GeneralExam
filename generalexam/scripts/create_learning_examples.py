@@ -179,45 +179,6 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _read_inputs_one_time(
-        top_input_dir_name, valid_time_unix_sec, pressure_level_mb,
-        predictor_names):
-    """Reads input fields for one time.
-
-    J = number of rows in full model grid
-    K = number of columns in full model grid
-
-    :param top_input_dir_name: See documentation at top of file.
-    :param valid_time_unix_sec: Valid time.
-    :param pressure_level_mb: See documentation at top of file.
-    :param predictor_names: Same.
-    :return: predictor_matrix: 1-by-J-by-K-by-C numpy array of predictor values.
-    """
-
-    input_file_name = predictor_io.find_file(
-        top_directory_name=top_input_dir_name,
-        valid_time_unix_sec=valid_time_unix_sec)
-
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    predictor_dict = predictor_io.read_file(
-        netcdf_file_name=input_file_name,
-        pressure_levels_to_keep_mb=numpy.array([pressure_level_mb]),
-        field_names_to_keep=predictor_names)
-
-    predictor_matrix = predictor_dict[
-        predictor_utils.DATA_MATRIX_KEY
-    ][[0], ..., 0, :]
-
-    num_fields = predictor_matrix.shape[-1]
-
-    for k in range(num_fields):
-        predictor_matrix[..., k] = ml_utils.fill_nans_in_predictor_images(
-            predictor_matrix[..., k]
-        )
-
-    return predictor_matrix
-
-
 def _write_example_file(
         top_output_dir_name, example_dict, first_time_unix_sec,
         last_time_unix_sec):

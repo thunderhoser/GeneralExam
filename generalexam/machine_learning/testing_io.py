@@ -115,6 +115,13 @@ def create_downsized_examples(
             predictor_utils.DATA_MATRIX_KEY
         ][[0], ..., 0, :]
 
+        for j in range(len(predictor_names)):
+            full_size_predictor_matrix[..., j] = (
+                ml_utils.fill_nans_in_predictor_images(
+                    full_size_predictor_matrix[..., j]
+                )
+            )
+
         full_size_predictor_matrix, _ = ml_utils.normalize_predictors(
             predictor_matrix=full_size_predictor_matrix,
             normalization_type_string=normalization_type_string)
