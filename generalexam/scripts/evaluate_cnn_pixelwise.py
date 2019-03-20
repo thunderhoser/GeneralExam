@@ -166,7 +166,6 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         isotonic_model_object_by_class = None
 
     print SEPARATOR_STRING
-    print model_metadata_dict[cnn.PRESSURE_LEVEL_KEY]
 
     class_probability_matrix, observed_labels = (
         eval_utils.create_eval_pairs_for_cnn(
