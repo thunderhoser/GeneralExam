@@ -104,10 +104,6 @@ def create_downsized_examples(
             raise_error_if_missing=True)
 
         print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
-        print numpy.array(
-            [pressure_level_mb], dtype=int
-        )
-
         predictor_dict = predictor_io.read_file(
             netcdf_file_name=predictor_file_name,
             pressure_levels_to_keep_mb=numpy.array(

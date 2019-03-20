@@ -205,6 +205,8 @@ def read_file(
         ]
     }
 
+    print predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY]
+
     if predictor_utils.LATITUDES_KEY in dataset_object.variables:
         predictor_dict.update({
             predictor_utils.LATITUDES_KEY: numpy.array(
