@@ -9,10 +9,10 @@ import matplotlib.pyplot as pyplot
 from keras import backend as K
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import cnn as gg_cnn
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import feature_map_plotting
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn as ge_cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 
 random.seed(6695)
@@ -36,7 +36,7 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
-    '`traditional_cnn.read_keras_model`.')
+    '`ge_cnn.read_model`.')
 
 EXAMPLE_FILE_HELP_STRING = (
     'Path to example file, containing input examples for the CNN.  Will be read'
@@ -164,27 +164,21 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         error_checking.assert_is_greater(num_examples, 0)
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
-    model_object = traditional_cnn.read_keras_model(model_file_name)
+    model_object = ge_cnn.read_model(model_file_name)
+    num_half_rows, num_half_columns = ge_cnn.model_to_grid_dimensions(
+        model_object)
 
-    model_metafile_name = traditional_cnn.find_metafile(
-        model_file_name=model_file_name)
-
-    print 'Reading model metadata from: "{0:s}"...'.format(
-        model_metafile_name)
-    model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metafile_name)
+    model_metafile_name = ge_cnn.find_metafile(model_file_name=model_file_name)
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = ge_cnn.read_metadata(model_metafile_name)
 
     print 'Reading normalized examples from: "{0:s}"...'.format(
         example_file_name)
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
-        predictor_names_to_keep=model_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        num_half_rows_to_keep=model_metadata_dict[
-            traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        num_half_columns_to_keep=model_metadata_dict[
-            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY]
-    )
+        predictor_names_to_keep=model_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
+        num_half_rows_to_keep=num_half_rows,
+        num_half_columns_to_keep=num_half_columns)
 
     print SEPARATOR_STRING
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
@@ -208,7 +202,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         print 'Creating feature maps for layer "{0:s}"...'.format(
             layer_names[k])
 
-        this_partial_model_object = cnn.model_to_feature_generator(
+        this_partial_model_object = gg_cnn.model_to_feature_generator(
             model_object=model_object, feature_layer_name=layer_names[k])
 
         feature_matrix_by_layer[k] = this_partial_model_object.predict(

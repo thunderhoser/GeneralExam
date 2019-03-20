@@ -8,7 +8,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import backwards_optimization as bwo
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.plotting import example_plotting
 
 FIGURE_RESOLUTION_DPI = 300
@@ -107,27 +107,25 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    this_list, bwo_metadata_dict = bwo.read_results(input_file_name)
+    bwo_dictionary = bwo.read_standard_file(input_file_name)
 
-    optimized_predictor_matrix = this_list[0]
+    optimized_predictor_matrix = bwo_dictionary.pop(bwo.OPTIMIZED_MATRICES_KEY)
+    optimized_predictor_matrix = optimized_predictor_matrix[0]
     num_examples = optimized_predictor_matrix.shape[0]
-    del this_list
 
-    original_predictor_matrix = bwo_metadata_dict[bwo.INIT_FUNCTION_KEY][0]
-    model_metafile_name = traditional_cnn.find_metafile(
-        model_file_name=bwo_metadata_dict[bwo.MODEL_FILE_NAME_KEY]
+    original_predictor_matrix = bwo_dictionary[bwo.INIT_FUNCTION_KEY][0]
+    model_metafile_name = cnn.find_metafile(
+        model_file_name=bwo_dictionary[bwo.MODEL_FILE_NAME_KEY]
     )
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
-    model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metafile_name)
+    model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
-    narr_predictor_names = model_metadata_dict[
-        traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
-    num_predictors = len(narr_predictor_names)
+    predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
+    num_predictors = len(predictor_names)
 
     try:
-        example_plotting.get_wind_indices(narr_predictor_names)
+        example_plotting.get_wind_indices(predictor_names)
         plot_wind_barbs = True
     except ValueError:
         plot_wind_barbs = False
@@ -164,14 +162,14 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
         if plot_wind_barbs:
             example_plotting.plot_many_predictors_with_barbs(
                 predictor_matrix=original_predictor_matrix[i, ...],
-                predictor_names=narr_predictor_names,
+                predictor_names=predictor_names,
                 cmap_object_by_predictor=[colour_map_object] * num_predictors,
                 min_colour_value_by_predictor=this_min_cval_by_predictor,
                 max_colour_value_by_predictor=this_max_cval_by_predictor)
         else:
             example_plotting.plot_many_predictors_sans_barbs(
                 predictor_matrix=original_predictor_matrix[i, ...],
-                predictor_names=narr_predictor_names,
+                predictor_names=predictor_names,
                 cmap_object_by_predictor=[colour_map_object] * num_predictors,
                 min_colour_value_by_predictor=this_min_cval_by_predictor,
                 max_colour_value_by_predictor=this_max_cval_by_predictor)
@@ -186,14 +184,14 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
         if plot_wind_barbs:
             example_plotting.plot_many_predictors_with_barbs(
                 predictor_matrix=optimized_predictor_matrix[i, ...],
-                predictor_names=narr_predictor_names,
+                predictor_names=predictor_names,
                 cmap_object_by_predictor=[colour_map_object] * num_predictors,
                 min_colour_value_by_predictor=this_min_cval_by_predictor,
                 max_colour_value_by_predictor=this_max_cval_by_predictor)
         else:
             example_plotting.plot_many_predictors_sans_barbs(
                 predictor_matrix=optimized_predictor_matrix[i, ...],
-                predictor_names=narr_predictor_names,
+                predictor_names=predictor_names,
                 cmap_object_by_predictor=[colour_map_object] * num_predictors,
                 min_colour_value_by_predictor=this_min_cval_by_predictor,
                 max_colour_value_by_predictor=this_max_cval_by_predictor)

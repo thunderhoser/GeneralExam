@@ -51,8 +51,8 @@ def downsized_generator_from_scratch(
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param class_fractions: length-K numpy array with sampling fraction for each
-        class (no front, warm front, cold front).  This will be achieved by
-        downsampling.
+        class.  Order must be (no front, warm front, cold front) or
+        (no front, yes front).  This will be achieved by downsampling.
     :param num_examples_per_batch: Number of examples per batch.
     :param num_examples_per_time: Average number of examples per valid time.
     :param narr_mask_matrix: See doc for

@@ -17,9 +17,10 @@ import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_utils import predictor_utils
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import cnn_architecture
-from generalexam.machine_learning import traditional_cnn
 from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.machine_learning import training_validation_io as trainval_io
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=7, inter_op_parallelism_threads=7
@@ -242,51 +243,59 @@ def _run(num_half_rows, num_half_columns, predictor_names,
     else:
         mask_matrix = None
 
-    output_metafile_name = traditional_cnn.find_metafile(
+    output_metafile_name = cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
     print 'Writing metadata to: "{0:s}"...'.format(output_metafile_name)
 
-    traditional_cnn.write_model_metadata(
+    cnn.write_metadata(
         pickle_file_name=output_metafile_name, num_epochs=num_epochs,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_target_time=NUM_EXAMPLES_PER_TIME,
+        num_examples_per_time=NUM_EXAMPLES_PER_TIME,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        num_rows_in_half_grid=num_half_rows,
-        num_columns_in_half_grid=num_half_columns,
+        predictor_names=predictor_names, pressure_level_mb=PRESSURE_LEVEL_MB,
+        num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         dilation_distance_metres=DILATION_DISTANCE_METRES,
         class_fractions=CLASS_FRACTIONS,
         weight_loss_function=WEIGHT_LOSS_FUNCTION,
-        narr_predictor_names=predictor_names,
-        pressure_level_mb=PRESSURE_LEVEL_MB,
-        training_start_time_unix_sec=first_training_time_unix_sec,
-        training_end_time_unix_sec=last_training_time_unix_sec,
-        validation_start_time_unix_sec=first_validation_time_unix_sec,
-        validation_end_time_unix_sec=last_validation_time_unix_sec,
-        num_lead_time_steps=None, predictor_time_step_offsets=None,
-        narr_mask_matrix=mask_matrix)
+        first_training_time_unix_sec=first_training_time_unix_sec,
+        last_training_time_unix_sec=last_training_time_unix_sec,
+        first_validation_time_unix_sec=first_validation_time_unix_sec,
+        last_validation_time_unix_sec=last_validation_time_unix_sec,
+        mask_matrix=mask_matrix)
     print SEPARATOR_STRING
 
     model_object = cnn_architecture.create_cnn(
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
-        num_channels=len(predictor_names))
+        num_channels=len(predictor_names)
+    )
     print SEPARATOR_STRING
 
-    traditional_cnn.quick_train_3d(
-        model_object=model_object, output_file_name=output_model_file_name,
-        num_examples_per_batch=num_examples_per_batch, num_epochs=num_epochs,
+    training_generator = trainval_io.downsized_generator_from_example_files(
+        top_input_dir_name=top_training_dir_name,
+        first_time_unix_sec=first_training_time_unix_sec,
+        last_time_unix_sec=last_training_time_unix_sec,
+        predictor_names=predictor_names, num_half_rows=num_half_rows,
+        num_half_columns=num_half_columns, num_classes=len(CLASS_FRACTIONS),
+        num_examples_per_batch=num_examples_per_batch)
+
+    validation_generator = trainval_io.downsized_generator_from_example_files(
+        top_input_dir_name=top_validation_dir_name,
+        first_time_unix_sec=first_validation_time_unix_sec,
+        last_time_unix_sec=last_validation_time_unix_sec,
+        predictor_names=predictor_names, num_half_rows=num_half_rows,
+        num_half_columns=num_half_columns, num_classes=len(CLASS_FRACTIONS),
+        num_examples_per_batch=num_examples_per_batch)
+
+    cnn.train_cnn(
+        model_object=model_object,
+        output_model_file_name=output_model_file_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        training_start_time_unix_sec=first_training_time_unix_sec,
-        training_end_time_unix_sec=last_training_time_unix_sec,
-        top_training_dir_name=top_training_dir_name,
-        top_validation_dir_name=top_validation_dir_name,
-        narr_predictor_names=predictor_names,
-        num_classes=len(CLASS_FRACTIONS),
-        num_rows_in_half_grid=num_half_rows,
-        num_columns_in_half_grid=num_half_columns,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validation_start_time_unix_sec=first_validation_time_unix_sec,
-        validation_end_time_unix_sec=last_validation_time_unix_sec)
+        training_generator=training_generator,
+        validation_generator=validation_generator,
+        weight_loss_function=WEIGHT_LOSS_FUNCTION,
+        class_fractions=CLASS_FRACTIONS)
 
 
 if __name__ == '__main__':

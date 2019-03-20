@@ -11,8 +11,6 @@ PREDICTOR_NAMES_ARG_NAME = 'predictor_names'
 
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
-LEAD_TIME_ARG_NAME = 'num_lead_time_steps'
-PREDICTOR_TIMES_ARG_NAME = 'predictor_time_step_offsets'
 NUM_EX_PER_TIME_ARG_NAME = 'num_examples_per_time'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
 DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
@@ -49,18 +47,6 @@ PRESSURE_LEVEL_HELP_STRING = (
 DILATION_DISTANCE_HELP_STRING = (
     'Dilation distance for target variable (front label).  Each warm-frontal or'
     ' cold-frontal grid cell will be dilated by this amount.')
-
-LEAD_TIME_HELP_STRING = (
-    'Number of time steps (1 time step = 3 hours) between target time and last '
-    'possible predictor time.  If you want target time = predictor time '
-    '(recommended), leave this alone.')
-
-PREDICTOR_TIMES_HELP_STRING = (
-    'List of time offsets (each between one predictor time and the last '
-    'possible predictor time).  For example, if `{0:s}` = 2 and '
-    '`{1:s}` = [2 4 6 8], predictor times will be 4, 6, 8, and 10 time steps '
-    '-- or 12, 18, 24, and 30 hours -- before target time.'
-).format(LEAD_TIME_ARG_NAME, PREDICTOR_TIMES_ARG_NAME)
 
 NUM_EX_PER_TIME_HELP_STRING = (
     'Average number of training examples for each target time.  This constraint'
@@ -194,14 +180,6 @@ def add_input_args(argument_parser, use_downsized_files):
             '--' + DILATION_DISTANCE_ARG_NAME, type=int, required=False,
             default=DEFAULT_DILATION_DISTANCE_METRES,
             help=DILATION_DISTANCE_HELP_STRING)
-
-        argument_parser.add_argument(
-            '--' + LEAD_TIME_ARG_NAME, type=int, required=False, default=-1,
-            help=LEAD_TIME_HELP_STRING)
-
-        argument_parser.add_argument(
-            '--' + PREDICTOR_TIMES_ARG_NAME, type=int, nargs='+',
-            required=False, default=[-1], help=PREDICTOR_TIMES_HELP_STRING)
 
         argument_parser.add_argument(
             '--' + NUM_EX_PER_TIME_ARG_NAME, type=int, required=False,

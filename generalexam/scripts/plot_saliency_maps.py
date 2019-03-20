@@ -8,8 +8,8 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import saliency_maps
-from generalexam.machine_learning import traditional_cnn
 from generalexam.plotting import example_plotting
 from generalexam.plotting import saliency_plotting
 
@@ -149,18 +149,16 @@ def _run(input_file_name, predictor_colour_map_name,
         saliency_maps.read_file(input_file_name)
     )
 
-    model_metafile_name = traditional_cnn.find_metafile(
+    model_metafile_name = cnn.find_metafile(
         model_file_name=saliency_metadata_dict[
             saliency_maps.MODEL_FILE_NAME_KEY]
     )
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
-    model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metafile_name)
+    model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
-    narr_predictor_names = model_metadata_dict[
-        traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
-    num_predictors = len(narr_predictor_names)
+    predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
+    num_predictors = len(predictor_names)
     num_examples = predictor_matrix.shape[0]
 
     for i in range(num_examples):
@@ -175,7 +173,7 @@ def _run(input_file_name, predictor_colour_map_name,
 
         _, these_axes_objects = example_plotting.plot_many_predictors_sans_barbs(
             predictor_matrix=predictor_matrix[i, ...],
-            predictor_names=narr_predictor_names,
+            predictor_names=predictor_names,
             cmap_object_by_predictor=
             [predictor_colour_map_object] * num_predictors,
             min_colour_value_by_predictor=this_min_cval_by_predictor,

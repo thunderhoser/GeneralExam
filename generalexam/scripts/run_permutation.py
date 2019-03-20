@@ -18,7 +18,7 @@ from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 
 random.seed(6695)
@@ -41,7 +41,7 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
-    '`traditional_cnn.read_keras_model`.')
+    '`cnn.read_model`.')
 
 EXAMPLE_DIR_HELP_STRING = (
     'Name of directory with learning examples.  Files therein will be found by '
@@ -111,11 +111,13 @@ def _prediction_function(model_object, predictor_matrix_in_list):
 
     return model_object.predict(
         predictor_matrix_in_list[0],
-        batch_size=predictor_matrix_in_list[0].shape[0])
+        batch_size=predictor_matrix_in_list[0].shape[0]
+    )
 
 
-def _read_examples(top_example_dir_name, first_time_string, last_time_string,
-                   num_times, num_examples_per_time, model_metadata_dict):
+def _read_examples(
+        top_example_dir_name, first_time_string, last_time_string, num_times,
+        num_examples_per_time, model_object, model_metadata_dict):
     """Reads learning examples.
 
     These and the trained model are the main inputs to the permutation test.
@@ -125,13 +127,17 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
     :param last_time_string: Same.
     :param num_times: Same.
     :param num_examples_per_time: Same.
+    :param model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
     :param model_metadata_dict: Dictionary with metadata for trained model
-        (created by `traditional_cnn.read_model_metadata`).
+        (created by `cnn.read_metadata`).
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values
         (images).
     :return: target_values: length-E numpy array of target values (integer
         class labels).
     """
+
+    num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
 
     error_checking.assert_is_greater(num_times, 0)
     error_checking.assert_is_geq(num_examples_per_time, 10)
@@ -159,11 +165,9 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[i],
             predictor_names_to_keep=model_metadata_dict[
-                traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-            num_half_rows_to_keep=model_metadata_dict[
-                traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-            num_half_columns_to_keep=model_metadata_dict[
-                traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+                cnn.PREDICTOR_NAMES_KEY],
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
@@ -217,29 +221,24 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
     """
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
-    model_object = traditional_cnn.read_keras_model(model_file_name)
+    model_object = cnn.read_model(model_file_name)
 
-    model_metafile_name = traditional_cnn.find_metafile(
-        model_file_name=model_file_name)
-
-    print 'Reading model metadata from: "{0:s}"...'.format(
-        model_metafile_name)
-    model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metafile_name)
+    model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     print SEPARATOR_STRING
     predictor_matrix, target_values = _read_examples(
         top_example_dir_name=top_example_dir_name,
         first_time_string=first_time_string, last_time_string=last_time_string,
         num_times=num_times, num_examples_per_time=num_examples_per_time,
-        model_metadata_dict=model_metadata_dict)
+        model_object=model_object, model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
-    narr_predictor_names = model_metadata_dict[
-        traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
+    predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     result_dict = permutation.run_permutation_test(
         model_object=model_object, list_of_input_matrices=[predictor_matrix],
-        predictor_names_by_matrix=[narr_predictor_names],
+        predictor_names_by_matrix=[predictor_names],
         target_values=target_values, prediction_function=_prediction_function,
         cost_function=permutation.cross_entropy_function)
 

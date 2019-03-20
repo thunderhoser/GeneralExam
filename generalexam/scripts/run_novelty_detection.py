@@ -21,7 +21,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import novelty_detection
 from generalexam.ge_utils import front_utils
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import upconvnet
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.plotting import example_plotting
@@ -51,8 +51,7 @@ PERCENT_VARIANCE_ARG_NAME = 'percent_svd_variance_to_keep'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 UPCONVNET_FILE_HELP_STRING = (
-    'Path to file with trained upconvnet.  Will be read by '
-    '`traditional_cnn.read_keras_model`.')
+    'Path to file with trained upconvnet.  Will be read by `cnn.read_model`.')
 
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input data.  Files therein (containing'
@@ -196,6 +195,9 @@ def _find_baseline_and_test_examples(
         (input examples for the CNN).
     """
 
+    num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(
+        cnn_model_object)
+
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -212,14 +214,12 @@ def _find_baseline_and_test_examples(
 
     for k in range(len(example_file_names)):
         print 'Reading data from: "{0:s}"...'.format(example_file_names[k])
+
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[k], metadata_only=False,
-            predictor_names_to_keep=cnn_metadata_dict[
-                traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-            num_half_rows_to_keep=cnn_metadata_dict[
-                traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-            num_half_columns_to_keep=cnn_metadata_dict[
-                traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+            predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
@@ -292,12 +292,9 @@ def _find_baseline_and_test_examples(
         print 'Reading data from: "{0:s}"...'.format(example_file_names[k])
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[k], metadata_only=False,
-            predictor_names_to_keep=cnn_metadata_dict[
-                traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-            num_half_rows_to_keep=cnn_metadata_dict[
-                traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-            num_half_columns_to_keep=cnn_metadata_dict[
-                traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+            predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
@@ -335,29 +332,35 @@ def _find_baseline_and_test_examples(
     return baseline_image_matrix, test_image_matrix
 
 
-def _plot_results(novelty_dict, narr_predictor_names, test_index,
-                  top_output_dir_name):
+def _plot_results(
+        novelty_dict, predictor_names, test_index, top_output_dir_name):
     """Plots results of novelty detection.
 
     :param novelty_dict: Dictionary created by
         `novelty_detection.do_novelty_detection`.
-    :param narr_predictor_names: length-C list of predictor names.
+    :param predictor_names: length-C list of predictor names.
     :param test_index: Array index.  The [i]th-most novel test example will be
         plotted, where i = `test_index`.
     :param top_output_dir_name: Name of top-level output directory.  Figures
         will be saved here.
     """
 
-    num_predictors = len(narr_predictor_names)
+    num_predictors = len(predictor_names)
 
     try:
-        example_plotting.get_wind_indices(narr_predictor_names)
+        example_plotting.get_wind_indices(predictor_names)
         plot_wind_barbs = True
     except ValueError:
         plot_wind_barbs = False
 
-    image_matrix_actual = novelty_dict[
-        novelty_detection.NOVEL_IMAGES_ACTUAL_KEY][test_index, ...]
+    # TODO(thunderhoser): Don't know if this new code will work.
+    novel_indices = novelty_dict[novelty_detection.NOVEL_INDICES_KEY]
+    image_matrix_actual = novelty_dict[novelty_detection.TRIAL_INPUTS_KEY][0][
+        novel_indices[test_index], ...]
+
+    # image_matrix_actual = novelty_dict[
+    #     novelty_detection.NOVEL_IMAGES_ACTUAL_KEY][test_index, ...]
+
     image_matrix_upconv = novelty_dict[
         novelty_detection.NOVEL_IMAGES_UPCONV_KEY][test_index, ...]
     this_combined_matrix = numpy.concatenate(
@@ -376,7 +379,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
     if plot_wind_barbs:
         this_figure_object = example_plotting.plot_many_predictors_with_barbs(
             predictor_matrix=image_matrix_actual,
-            predictor_names=narr_predictor_names,
+            predictor_names=predictor_names,
             cmap_object_by_predictor=[MAIN_COLOUR_MAP_OBJECT] * num_predictors,
             min_colour_value_by_predictor=these_min_colour_values,
             max_colour_value_by_predictor=these_max_colour_values
@@ -384,7 +387,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
     else:
         this_figure_object = example_plotting.plot_many_predictors_sans_barbs(
             predictor_matrix=image_matrix_actual,
-            predictor_names=narr_predictor_names,
+            predictor_names=predictor_names,
             cmap_object_by_predictor=[MAIN_COLOUR_MAP_OBJECT] * num_predictors,
             min_colour_value_by_predictor=these_min_colour_values,
             max_colour_value_by_predictor=these_max_colour_values
@@ -405,7 +408,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
     if plot_wind_barbs:
         this_figure_object = example_plotting.plot_many_predictors_with_barbs(
             predictor_matrix=image_matrix_upconv,
-            predictor_names=narr_predictor_names,
+            predictor_names=predictor_names,
             cmap_object_by_predictor=[MAIN_COLOUR_MAP_OBJECT] * num_predictors,
             min_colour_value_by_predictor=these_min_colour_values,
             max_colour_value_by_predictor=these_max_colour_values
@@ -413,7 +416,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
     else:
         this_figure_object = example_plotting.plot_many_predictors_sans_barbs(
             predictor_matrix=image_matrix_upconv,
-            predictor_names=narr_predictor_names,
+            predictor_names=predictor_names,
             cmap_object_by_predictor=[MAIN_COLOUR_MAP_OBJECT] * num_predictors,
             min_colour_value_by_predictor=these_min_colour_values,
             max_colour_value_by_predictor=these_max_colour_values
@@ -449,7 +452,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
         this_figure_object, _ = (
             example_plotting.plot_many_predictors_with_barbs(
                 predictor_matrix=novelty_matrix,
-                predictor_names=narr_predictor_names,
+                predictor_names=predictor_names,
                 cmap_object_by_predictor=
                 [NOVELTY_COLOUR_MAP_OBJECT] * num_predictors,
                 min_colour_value_by_predictor=these_min_colour_values,
@@ -459,7 +462,7 @@ def _plot_results(novelty_dict, narr_predictor_names, test_index,
         this_figure_object, _ = (
             example_plotting.plot_many_predictors_sans_barbs(
                 predictor_matrix=novelty_matrix,
-                predictor_names=narr_predictor_names,
+                predictor_names=predictor_names,
                 cmap_object_by_predictor=
                 [NOVELTY_COLOUR_MAP_OBJECT] * num_predictors,
                 min_colour_value_by_predictor=these_min_colour_values,
@@ -496,12 +499,12 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
     """
 
     # Read upconvnet and metadata.
-    ucn_metafile_name = traditional_cnn.find_metafile(
+    ucn_metafile_name = cnn.find_metafile(
         model_file_name=upconvnet_file_name, raise_error_if_missing=True)
 
     print 'Reading trained upconvnet from: "{0:s}"...'.format(
         upconvnet_file_name)
-    upconvnet_model_object = traditional_cnn.read_keras_model(upconvnet_file_name)
+    upconvnet_model_object = cnn.read_model(upconvnet_file_name)
 
     print 'Reading upconvnet metadata from: "{0:s}"...'.format(
         ucn_metafile_name)
@@ -509,14 +512,14 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
 
     # Read CNN and metadata.
     cnn_file_name = ucn_metadata_dict[upconvnet.CNN_FILE_NAME_KEY]
-    cnn_metafile_name = traditional_cnn.find_metafile(
+    cnn_metafile_name = cnn.find_metafile(
         model_file_name=cnn_file_name, raise_error_if_missing=True)
 
     print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
-    cnn_model_object = traditional_cnn.read_keras_model(cnn_file_name)
+    cnn_model_object = cnn.read_model(cnn_file_name)
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
-    cnn_metadata_dict = traditional_cnn.read_model_metadata(cnn_metafile_name)
+    cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
     print SEPARATOR_STRING
 
     baseline_image_matrix, test_image_matrix = _find_baseline_and_test_examples(
@@ -531,8 +534,7 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
         list_of_baseline_input_matrices=[baseline_image_matrix],
         list_of_trial_input_matrices=[test_image_matrix],
         cnn_model_object=cnn_model_object,
-        cnn_feature_layer_name=traditional_cnn.get_flattening_layer(
-            cnn_model_object),
+        cnn_feature_layer_name=cnn.get_flattening_layer(cnn_model_object),
         upconvnet_model_object=upconvnet_model_object,
         num_novel_examples=num_test_examples,
         percent_svd_variance_to_keep=percent_svd_variance_to_keep)
@@ -548,8 +550,7 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
     for i in range(num_test_examples):
         _plot_results(
             novelty_dict=novelty_dict,
-            narr_predictor_names=cnn_metadata_dict[
-                traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
+            predictor_names=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
             test_index=i, top_output_dir_name=top_output_dir_name)
 
         print '\n'

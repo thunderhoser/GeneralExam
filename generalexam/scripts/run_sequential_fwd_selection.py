@@ -18,7 +18,7 @@ from keras.models import Model
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import sequential_selection
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 
 random.seed(6695)
@@ -41,7 +41,7 @@ VALIDN_DIR_ARG_NAME = 'input_validn_dir_name'
 FIRST_VALIDN_TIME_ARG_NAME = 'first_validn_time_string'
 LAST_VALIDN_TIME_ARG_NAME = 'last_validn_time_string'
 NUM_VALIDN_EXAMPLES_ARG_NAME = 'num_validn_examples'
-NARR_PREDICTORS_ARG_NAME = 'narr_predictor_names'
+PREDICTORS_ARG_NAME = 'predictor_names'
 NUM_TRAIN_EX_PER_BATCH_ARG_NAME = 'num_training_examples_per_batch'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 MIN_LOSS_DECREASE_ARG_NAME = 'min_loss_decrease'
@@ -50,11 +50,11 @@ NUM_STEPS_FOR_DECREASE_ARG_NAME = 'num_steps_for_loss_decrease'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 ORIG_MODEL_FILE_HELP_STRING = (
-    'Path to file containing original CNN.  Will be read by '
-    '`traditional_cnn.read_keras_model`.  At each step of sequential selection,'
-    ' the architecture of the new CNN will be based on this original CNN.  The '
-    'only difference is that the number of filters will be adjusted to account '
-    'for different numbers of input channels (predictors).')
+    'Path to file containing original CNN.  Will be read by `cnn.read_model`.  '
+    'At each step of sequential selection, the architecture of the new CNN will'
+    ' be based on this original CNN.  The only difference is that the number of'
+    ' filters will be adjusted to account for different numbers of input '
+    'channels (predictors).')
 
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training examples.  Files therein will be'
@@ -82,9 +82,9 @@ LAST_VALIDN_TIME_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
 NUM_VALIDN_EXAMPLES_HELP_STRING = 'Same as `{0:s}` but for validation.'.format(
     NUM_TRAINING_EXAMPLES_ARG_NAME)
 
-NARR_PREDICTORS_HELP_STRING = (
+PREDICTORS_HELP_STRING = (
     'List of predictor variables to test.  Each must be accepted by '
-    '`processed_narr_io.check_field_name`.  To test only predictors used in the'
+    '`predictor_utils.check_field_name`.  To test only predictors used in the'
     ' original model (represented by `{0:s}`), leave this argument alone.'
 ).format(ORIG_MODEL_FILE_ARG_NAME)
 
@@ -159,8 +159,8 @@ INPUT_ARG_PARSER.add_argument(
     default=NUM_TRAINING_EXAMPLES_DEFAULT, help=NUM_VALIDN_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NARR_PREDICTORS_ARG_NAME, type=str, nargs='+', required=False,
-    default=[''], help=NARR_PREDICTORS_HELP_STRING)
+    '--' + PREDICTORS_ARG_NAME, type=str, nargs='+', required=False,
+    default=[''], help=PREDICTORS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TRAIN_EX_PER_BATCH_ARG_NAME, type=int, required=False,
@@ -269,25 +269,27 @@ def _create_model_builder(orig_model_object):
 
 
 def _read_examples(top_example_dir_name, first_time_string, last_time_string,
-                   num_examples, model_metadata_dict):
+                   num_examples, orig_model_object, model_metadata_dict):
     """Reads learning examples for either training or validation.
 
     :param top_example_dir_name: See doc for either `top_training_dir_name` or
         `top_validn_dir_name` at top of file.
-    :param first_time_string: See doc for either `top_training_dir_name` or
-        `top_validn_dir_name` at top of file.
-    :param last_time_string: See doc for either `top_training_dir_name` or
-        `top_validn_dir_name` at top of file.
-    :param num_examples: See doc for either `num_training_examples` or
-        `num_validn_examples` at top of file.
-    :param model_metadata_dict: Dictionary (created by
-        `traditional_cnn.read_model_metadata`) for original model, whose
-        architecture will be mostly copied to train the new models.
+    :param first_time_string: Same.
+    :param last_time_string: Same.
+    :param num_examples: Same.
+    :param orig_model_object: Original CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param model_metadata_dict: Dictionary (created by `cnn.read_metadata`) for
+        original model, whose architecture will be mostly copied to train the
+        new models.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values
         (images).
     :return: target_values: length-E numpy array of target values (integer
         class labels).
     """
+
+    num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(
+        orig_model_object)
 
     error_checking.assert_is_geq(num_examples, 100)
 
@@ -310,11 +312,9 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
         this_example_dict = examples_io.read_file(
             netcdf_file_name=this_example_file_name,
             predictor_names_to_keep=model_metadata_dict[
-                traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-            num_half_rows_to_keep=model_metadata_dict[
-                traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-            num_half_columns_to_keep=model_metadata_dict[
-                traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+                cnn.PREDICTOR_NAMES_KEY],
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
             last_time_to_keep_unix_sec=last_time_unix_sec)
 
@@ -349,7 +349,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
 def _run(orig_model_file_name, top_training_dir_name,
          first_training_time_string, last_training_time_string,
          num_training_examples, top_validn_dir_name, first_validn_time_string,
-         last_validn_time_string, num_validn_examples, narr_predictor_names,
+         last_validn_time_string, num_validn_examples, predictor_names,
          num_training_examples_per_batch, num_epochs, min_loss_decrease,
          min_percentage_loss_decrease, num_steps_for_loss_decrease,
          output_file_name):
@@ -366,7 +366,7 @@ def _run(orig_model_file_name, top_training_dir_name,
     :param first_validn_time_string: Same.
     :param last_validn_time_string: Same.
     :param num_validn_examples: Same.
-    :param narr_predictor_names: Same.
+    :param predictor_names: Same.
     :param num_training_examples_per_batch: Same.
     :param num_epochs: Same.
     :param min_loss_decrease: Same.
@@ -376,22 +376,20 @@ def _run(orig_model_file_name, top_training_dir_name,
     """
 
     print 'Reading original model from: "{0:s}"...'.format(orig_model_file_name)
-    orig_model_object = traditional_cnn.read_keras_model(orig_model_file_name)
+    orig_model_object = cnn.read_model(orig_model_file_name)
 
-    model_metafile_name = traditional_cnn.find_metafile(
+    model_metafile_name = cnn.find_metafile(
         model_file_name=orig_model_file_name)
 
-    print 'Reading model metadata from: "{0:s}"...'.format(
-        model_metafile_name)
-    model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metafile_name)
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     print SEPARATOR_STRING
     training_predictor_matrix, training_target_values = _read_examples(
         top_example_dir_name=top_training_dir_name,
         first_time_string=first_training_time_string,
         last_time_string=last_training_time_string,
-        num_examples=num_training_examples,
+        num_examples=num_training_examples, orig_model_object=orig_model_object,
         model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
@@ -399,15 +397,14 @@ def _run(orig_model_file_name, top_training_dir_name,
         top_example_dir_name=top_validn_dir_name,
         first_time_string=first_validn_time_string,
         last_time_string=last_validn_time_string,
-        num_examples=num_validn_examples,
+        num_examples=num_validn_examples, orig_model_object=orig_model_object,
         model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
     # TODO(thunderhoser): I could make the code more efficient by making
-    # `narr_predictor_names` an input arg to `_read_examples`.
-    if narr_predictor_names[0] in ['', 'None']:
-        narr_predictor_names = model_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY]
+    # `predictor_names` an input arg to `_read_examples`.
+    if predictor_names[0] in ['', 'None']:
+        predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
 
     training_function = sequential_selection.create_training_function(
         num_training_examples_per_batch=num_training_examples_per_batch,
@@ -418,7 +415,7 @@ def _run(orig_model_file_name, top_training_dir_name,
         training_target_values=training_target_values,
         list_of_validation_matrices=[validn_predictor_matrix],
         validation_target_values=validn_target_values,
-        predictor_names_by_matrix=[narr_predictor_names],
+        predictor_names_by_matrix=[predictor_names],
         model_builder=_create_model_builder(orig_model_object),
         training_function=training_function,
         min_loss_decrease=min_loss_decrease,
@@ -462,8 +459,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, LAST_VALIDN_TIME_ARG_NAME),
         num_validn_examples=getattr(
             INPUT_ARG_OBJECT, NUM_VALIDN_EXAMPLES_ARG_NAME),
-        narr_predictor_names=getattr(
-            INPUT_ARG_OBJECT, NARR_PREDICTORS_ARG_NAME),
+        predictor_names=getattr(INPUT_ARG_OBJECT, PREDICTORS_ARG_NAME),
         num_training_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, NUM_TRAIN_EX_PER_BATCH_ARG_NAME),
         num_epochs=getattr(INPUT_ARG_OBJECT, NUM_EPOCHS_ARG_NAME),

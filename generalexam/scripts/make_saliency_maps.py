@@ -7,7 +7,7 @@ from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import saliency_maps as gg_saliency_maps
 from gewittergefahr.deep_learning import model_interpretation
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import saliency_maps as ge_saliency_maps
 
@@ -37,7 +37,7 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
-    '`traditional_cnn.read_keras_model`.')
+    '`cnn.read_model`.')
 
 EXAMPLE_FILE_HELP_STRING = (
     'Path to example file, containing input examples for the CNN.  Will be read'
@@ -167,27 +167,20 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         error_checking.assert_is_greater(num_examples, 0)
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
-    model_object = traditional_cnn.read_keras_model(model_file_name)
+    model_object = cnn.read_model(model_file_name)
+    num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
 
-    model_metafile_name = traditional_cnn.find_metafile(
-        model_file_name=model_file_name)
-
-    print 'Reading model metadata from: "{0:s}"...'.format(
-        model_metafile_name)
-    model_metadata_dict = traditional_cnn.read_model_metadata(
-        model_metafile_name)
+    model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     print 'Reading normalized examples from: "{0:s}"...'.format(
         example_file_name)
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
-        predictor_names_to_keep=model_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        num_half_rows_to_keep=model_metadata_dict[
-            traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        num_half_columns_to_keep=model_metadata_dict[
-            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY]
-    )
+        predictor_names_to_keep=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+        num_half_rows_to_keep=num_half_rows,
+        num_half_columns_to_keep=num_half_columns)
 
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
     if num_examples is not None:

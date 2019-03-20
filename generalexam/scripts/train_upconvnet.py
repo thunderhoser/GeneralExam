@@ -4,7 +4,7 @@ import argparse
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import upconvnet
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
@@ -35,10 +35,9 @@ NUM_VALIDATION_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
 OUTPUT_FILE_ARG_NAME = 'output_model_file_name'
 
 CNN_FILE_HELP_STRING = (
-    'Path to file with trained CNN (will be read by '
-    '`traditional_cnn.read_keras_model`).  Upconvnet predictors will be outputs'
-    ' from the CNN''s flattening layer, and upconvnet targets will be CNN '
-    'predictors (input images).')
+    'Path to file with trained CNN (will be read by `cnn.read_model`).  '
+    'Upconvnet predictors will be outputs from the CNN''s flattening layer, and'
+    ' upconvnet targets will be CNN predictors (input images).')
 
 USE_BATCH_NORM_HELP_STRING = (
     'Boolean flag.  If 1, will use batch normalization after output layer.')
@@ -223,18 +222,15 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
         smoothing_radius_px = None
 
     print 'Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name)
-    cnn_model_object = traditional_cnn.read_keras_model(input_cnn_file_name)
+    cnn_model_object = cnn.read_model(input_cnn_file_name)
 
-    cnn_metafile_name = traditional_cnn.find_metafile(
+    cnn_metafile_name = cnn.find_metafile(
         model_file_name=input_cnn_file_name, raise_error_if_missing=True)
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
-    cnn_metadata_dict = traditional_cnn.read_model_metadata(
-        cnn_metafile_name)
+    cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
 
-    cnn_feature_layer_name = traditional_cnn.get_flattening_layer(
-        cnn_model_object)
-
+    cnn_feature_layer_name = cnn.get_flattening_layer(cnn_model_object)
     cnn_feature_layer_object = cnn_model_object.get_layer(
         name=cnn_feature_layer_name)
     cnn_feature_dimensions = numpy.array(
@@ -247,7 +243,7 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
         cnn_model_object.input.shape[1:], dtype=int
     )[-1]
 
-    ucn_metafile_name = traditional_cnn.find_metafile(
+    ucn_metafile_name = cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
 
     print 'Writing upconvnet metadata to: "{0:s}"...'.format(ucn_metafile_name)

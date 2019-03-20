@@ -17,10 +17,10 @@ import numpy
 import keras
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import cnn as gg_cnn
 from gewittergefahr.deep_learning import upconvnet as gg_upconvnet
-from generalexam.machine_learning import traditional_cnn
-from generalexam.machine_learning import training_validation_io as trainval_io
+from generalexam.machine_learning import cnn as ge_cnn
+from generalexam.machine_learning import learning_examples_io as examples_io
 
 # TODO(thunderhoser): This code contains a lot of hacks, including constants
 # that shouldn't really be constants.
@@ -65,16 +65,13 @@ def _trainval_generator(
 
     :param top_input_dir_name: Name of top-level directory with downsized 3-D
         examples (two spatial dimensions).  Files therein will be found by
-        `training_validation_io.find_downsized_3d_example_file` (with
-        `shuffled = True`) and read by
-        `training_validation_io.read_downsized_3d_examples`.
+        `learning_examples_io.find_many_files` (with `shuffled = True`) and read
+        by `learning_examples_io.read_file`.
     :param first_time_unix_sec: First valid time.  Only examples with valid time
         in `first_time_unix_sec`...`last_time_unix_sec` will be kept.
     :param last_time_unix_sec: See above.
-    :param narr_predictor_names: See doc for
-        `training_validation_io.read_downsized_3d_examples`.
-    :param num_half_rows: See doc for
-        `training_validation_io.read_downsized_3d_examples`.
+    :param narr_predictor_names: See doc for `learning_examples_io.read_file`.
+    :param num_half_rows: Same.
     :param num_half_columns: Same.
     :param num_examples_per_batch: Number of examples in each batch.
     :param cnn_model_object: Trained CNN model (instance of
@@ -92,10 +89,11 @@ def _trainval_generator(
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
 
-    partial_cnn_model_object = cnn.model_to_feature_generator(
-        model_object=cnn_model_object, output_layer_name=cnn_feature_layer_name)
+    partial_cnn_model_object = gg_cnn.model_to_feature_generator(
+        model_object=cnn_model_object,
+        feature_layer_name=cnn_feature_layer_name)
 
-    example_file_names = trainval_io.find_downsized_3d_example_files(
+    example_file_names = examples_io.find_many_files(
         top_directory_name=top_input_dir_name, shuffled=True,
         first_batch_number=0, last_batch_number=LARGE_INTEGER)
     shuffle(example_file_names)
@@ -114,7 +112,7 @@ def _trainval_generator(
             print 'Reading data from: "{0:s}"...'.format(
                 example_file_names[file_index])
 
-            this_example_dict = trainval_io.read_downsized_3d_examples(
+            this_example_dict = examples_io.read_file(
                 netcdf_file_name=example_file_names[file_index],
                 predictor_names_to_keep=narr_predictor_names,
                 num_half_rows_to_keep=num_half_rows,
@@ -127,19 +125,19 @@ def _trainval_generator(
                 file_index = 0
 
             this_num_examples = len(
-                this_example_dict[trainval_io.TARGET_TIMES_KEY]
+                this_example_dict[examples_io.VALID_TIMES_KEY]
             )
             if this_num_examples == 0:
                 continue
 
             if full_target_matrix is None or full_target_matrix.size == 0:
                 full_target_matrix = (
-                    this_example_dict[trainval_io.PREDICTOR_MATRIX_KEY] + 0.
+                    this_example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.
                 )
             else:
                 full_target_matrix = numpy.concatenate(
                     (full_target_matrix,
-                     this_example_dict[trainval_io.PREDICTOR_MATRIX_KEY]),
+                     this_example_dict[examples_io.PREDICTOR_MATRIX_KEY]),
                     axis=0)
 
             num_examples_in_memory = full_target_matrix.shape[0]
@@ -354,8 +352,7 @@ def train_upconvnet(
         input `last_time_unix_sec` to method `training_generator`.
     :param cnn_model_object: See doc for `training_generator`.
     :param cnn_feature_layer_name: Same.
-    :param cnn_metadata_dict: Dictionary returned by
-        `traditional_cnn.read_model_metadata`.
+    :param cnn_metadata_dict: Dictionary returned by `ge_cnn.read_metadata`.
     :param num_examples_per_batch: Number of examples in each training or
         validation batch.
     :param num_epochs: Number of epochs.
@@ -399,12 +396,9 @@ def train_upconvnet(
         top_input_dir_name=top_training_dir_name,
         first_time_unix_sec=first_training_time_unix_sec,
         last_time_unix_sec=last_training_time_unix_sec,
-        narr_predictor_names=cnn_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        num_half_rows=cnn_metadata_dict[
-            traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        num_half_columns=cnn_metadata_dict[
-            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+        narr_predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
+        num_half_rows=cnn_metadata_dict[ge_cnn.NUM_HALF_ROWS_KEY],
+        num_half_columns=cnn_metadata_dict[ge_cnn.NUM_HALF_COLUMNS_KEY],
         num_examples_per_batch=num_examples_per_batch,
         cnn_model_object=cnn_model_object,
         cnn_feature_layer_name=cnn_feature_layer_name)
@@ -427,12 +421,9 @@ def train_upconvnet(
         top_input_dir_name=top_validation_dir_name,
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
-        narr_predictor_names=cnn_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        num_half_rows=cnn_metadata_dict[
-            traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        num_half_columns=cnn_metadata_dict[
-            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY],
+        narr_predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
+        num_half_rows=cnn_metadata_dict[ge_cnn.NUM_HALF_ROWS_KEY],
+        num_half_columns=cnn_metadata_dict[ge_cnn.NUM_HALF_COLUMNS_KEY],
         num_examples_per_batch=num_examples_per_batch,
         cnn_model_object=cnn_model_object,
         cnn_feature_layer_name=cnn_feature_layer_name)
@@ -463,9 +454,9 @@ def apply_upconvnet(actual_image_matrix, cnn_model_object, ucn_model_object):
     error_checking.assert_is_numpy_array_without_nan(actual_image_matrix)
     error_checking.assert_is_numpy_array(actual_image_matrix, num_dimensions=4)
 
-    partial_cnn_model_object = cnn.model_to_feature_generator(
+    partial_cnn_model_object = gg_cnn.model_to_feature_generator(
         model_object=cnn_model_object,
-        output_layer_name=traditional_cnn.get_flattening_layer(cnn_model_object)
+        feature_layer_name=ge_cnn.get_flattening_layer(cnn_model_object)
     )
 
     num_examples = actual_image_matrix.shape[0]

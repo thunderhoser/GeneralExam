@@ -19,7 +19,7 @@ import matplotlib.pyplot as pyplot
 from keras import backend as K
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.machine_learning import traditional_cnn
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import upconvnet
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.plotting import example_plotting
@@ -43,8 +43,7 @@ EXAMPLE_INDICES_ARG_NAME = 'example_indices'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 UPCONVNET_FILE_HELP_STRING = (
-    'Path to file with trained upconvnet.  Will be read by '
-    '`traditional_cnn.read_keras_model`.')
+    'Path to file with trained upconvnet.  Will be read by `cnn.read_model`.')
 
 EXAMPLE_FILE_HELP_STRING = (
     'Path to file with input data (images).  Will be read by '
@@ -93,8 +92,7 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
     """Reads input examples (images to be reconstructed).
 
     :param example_file_name: See documentation at top of file.
-    :param cnn_metadata_dict: Dictionary returned by
-        `traditional_cnn.read_model_metadata`.
+    :param cnn_metadata_dict: Dictionary returned by `cnn.read_metadata`.
     :param num_examples: See documentation at top of file.
     :param example_indices: Same.
     :return: actual_image_matrix: E-by-M-by-N-by-C numpy array with actual
@@ -106,12 +104,9 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
 
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
-        predictor_names_to_keep=cnn_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
-        num_half_rows_to_keep=cnn_metadata_dict[
-            traditional_cnn.NUM_ROWS_IN_HALF_GRID_KEY],
-        num_half_columns_to_keep=cnn_metadata_dict[
-            traditional_cnn.NUM_COLUMNS_IN_HALF_GRID_KEY]
+        predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+        num_half_rows_to_keep=cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY],
+        num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY]
     )
 
     actual_image_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
@@ -242,12 +237,12 @@ def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
         error_checking.assert_is_greater(num_examples, 0)
 
     # Read upconvnet and metadata.
-    ucn_metafile_name = traditional_cnn.find_metafile(
+    ucn_metafile_name = cnn.find_metafile(
         model_file_name=upconvnet_file_name, raise_error_if_missing=True)
 
     print('Reading trained upconvnet from: "{0:s}"...'.format(
         upconvnet_file_name))
-    ucn_model_object = traditional_cnn.read_keras_model(upconvnet_file_name)
+    ucn_model_object = cnn.read_model(upconvnet_file_name)
 
     print('Reading upconvnet metadata from: "{0:s}"...'.format(
         ucn_metafile_name))
@@ -255,14 +250,14 @@ def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
 
     # Read CNN and metadata.
     cnn_file_name = ucn_metadata_dict[upconvnet.CNN_FILE_NAME_KEY]
-    cnn_metafile_name = traditional_cnn.find_metafile(
+    cnn_metafile_name = cnn.find_metafile(
         model_file_name=cnn_file_name, raise_error_if_missing=True)
 
     print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
-    cnn_model_object = traditional_cnn.read_keras_model(cnn_file_name)
+    cnn_model_object = cnn.read_model(cnn_file_name)
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
-    cnn_metadata_dict = traditional_cnn.read_model_metadata(cnn_metafile_name)
+    cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
     print SEPARATOR_STRING
 
     actual_image_matrix = _read_input_examples(
@@ -279,8 +274,7 @@ def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
     _plot_examples(
         actual_image_matrix=actual_image_matrix,
         reconstructed_image_matrix=reconstructed_image_matrix,
-        narr_predictor_names=cnn_metadata_dict[
-            traditional_cnn.NARR_PREDICTOR_NAMES_KEY],
+        narr_predictor_names=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
         top_output_dir_name=top_output_dir_name)
 
 
