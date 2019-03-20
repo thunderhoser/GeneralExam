@@ -368,7 +368,7 @@ def train_model_with_3d_examples(
         model_object, output_file_name, num_examples_per_batch, num_epochs,
         num_training_batches_per_epoch, training_start_time_unix_sec,
         training_end_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, num_classes,
         num_validation_batches_per_epoch=None,
         validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
@@ -385,7 +385,7 @@ def train_model_with_3d_examples(
         `machine_learning_io.full_size_3d_example_generator`.
     :param training_end_time_unix_sec: Same.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
@@ -415,7 +415,7 @@ def train_model_with_3d_examples(
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -437,7 +437,7 @@ def train_model_with_3d_examples(
                 first_target_time_unix_sec=training_start_time_unix_sec,
                 last_target_time_unix_sec=training_end_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -450,110 +450,7 @@ def train_model_with_3d_examples(
                 first_target_time_unix_sec=validation_start_time_unix_sec,
                 last_target_time_unix_sec=validation_end_time_unix_sec,
                 top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                num_classes=num_classes),
-            validation_steps=num_validation_batches_per_epoch)
-
-
-def train_model_with_4d_examples(
-        model_object, output_file_name, num_examples_per_batch, num_epochs,
-        num_training_batches_per_epoch, num_predictor_time_steps,
-        num_lead_time_steps, training_start_time_unix_sec,
-        training_end_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
-        dilation_distance_metres, num_classes,
-        num_validation_batches_per_epoch=None,
-        validation_start_time_unix_sec=None, validation_end_time_unix_sec=None):
-    """Trains FCN, using 4-D examples generated on the fly.
-
-    :param model_object: Instance of `keras.models.Model`.
-    :param output_file_name: Path to output file (HDF5 format).  The model will
-        be saved here after every epoch.
-    :param num_examples_per_batch: Number of examples per batch.  This argument
-        is known as "batch_size" in Keras.
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param num_predictor_time_steps: See documentation for
-        `machine_learning_io.full_size_4d_example_generator`.
-    :param num_lead_time_steps: Same.
-    :param training_start_time_unix_sec: Same.
-    :param training_end_time_unix_sec: Same.
-    :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
-    :param narr_predictor_names: Same.
-    :param pressure_level_mb: Same.
-    :param dilation_distance_metres: Same.
-    :param num_classes: Same.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param validation_start_time_unix_sec: See documentation for
-        `machine_learning_io.full_size_3d_example_generator`.
-    :param validation_end_time_unix_sec: Same.
-    """
-
-    error_checking.assert_is_integer(num_epochs)
-    error_checking.assert_is_geq(num_epochs, 1)
-    error_checking.assert_is_integer(num_training_batches_per_epoch)
-    error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-
-    if num_validation_batches_per_epoch is None:
-        checkpoint_object = ModelCheckpoint(
-            output_file_name, monitor='loss', verbose=1, save_best_only=False,
-            save_weights_only=False, mode='min', period=1)
-
-        model_object.fit_generator(
-            generator=trainval_io.full_size_4d_example_generator(
-                num_examples_per_batch=num_examples_per_batch,
-                first_target_time_unix_sec=training_start_time_unix_sec,
-                last_target_time_unix_sec=training_end_time_unix_sec,
-                predictor_time_step_offsets=num_predictor_time_steps,
-                num_lead_time_steps=num_lead_time_steps,
-                top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                num_classes=num_classes),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object])
-
-    else:
-        error_checking.assert_is_integer(num_validation_batches_per_epoch)
-        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
-
-        checkpoint_object = ModelCheckpoint(
-            output_file_name, monitor='val_loss', verbose=1,
-            save_best_only=True, save_weights_only=False, mode='min', period=1)
-
-        model_object.fit_generator(
-            generator=trainval_io.full_size_4d_example_generator(
-                num_examples_per_batch=num_examples_per_batch,
-                first_target_time_unix_sec=training_start_time_unix_sec,
-                last_target_time_unix_sec=training_end_time_unix_sec,
-                predictor_time_step_offsets=num_predictor_time_steps,
-                num_lead_time_steps=num_lead_time_steps,
-                top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-                narr_predictor_names=narr_predictor_names,
-                pressure_level_mb=pressure_level_mb,
-                dilation_distance_metres=dilation_distance_metres,
-                num_classes=num_classes),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object],
-            validation_data=
-            trainval_io.full_size_4d_example_generator(
-                num_examples_per_batch=num_examples_per_batch,
-                first_target_time_unix_sec=validation_start_time_unix_sec,
-                last_target_time_unix_sec=validation_end_time_unix_sec,
-                predictor_time_step_offsets=num_predictor_time_steps,
-                num_lead_time_steps=num_lead_time_steps,
-                top_narr_directory_name=top_narr_directory_name,
-                top_frontal_grid_dir_name=top_frontal_grid_dir_name,
+                top_gridded_front_dir_name=top_gridded_front_dir_name,
                 narr_predictor_names=narr_predictor_names,
                 pressure_level_mb=pressure_level_mb,
                 dilation_distance_metres=dilation_distance_metres,
@@ -563,7 +460,7 @@ def train_model_with_4d_examples(
 
 def apply_model_to_3d_example(
         model_object, target_time_unix_sec, top_narr_directory_name,
-        top_frontal_grid_dir_name, narr_predictor_names, pressure_level_mb,
+        top_gridded_front_dir_name, narr_predictor_names, pressure_level_mb,
         dilation_distance_metres, num_classes,
         isotonic_model_object_by_class=None):
     """Applies FCN to one 3-D example.
@@ -571,10 +468,10 @@ def apply_model_to_3d_example(
     K = number of classes (possible values of target label)
 
     :param model_object: Instance of `keras.models.Model`.
-    :param target_time_unix_sec: See documentation for
-        `testing_io.create_full_size_3d_example`.
+    :param target_time_unix_sec: See doc for
+        `testing_io.create_full_size_example`.
     :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
+    :param top_gridded_front_dir_name: Same.
     :param narr_predictor_names: Same.
     :param pressure_level_mb: Same.
     :param dilation_distance_metres: Same.
@@ -588,15 +485,17 @@ def apply_model_to_3d_example(
         the NARR grid.
     """
 
-    (predictor_matrix, actual_target_matrix
-    ) = testing_io.create_full_size_3d_example(
-        target_time_unix_sec=target_time_unix_sec,
-        top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        narr_predictor_names=narr_predictor_names,
-        pressure_level_mb=pressure_level_mb,
-        dilation_distance_metres=dilation_distance_metres,
-        num_classes=num_classes)
+    predictor_matrix, actual_target_matrix = (
+        testing_io.create_full_size_example(
+            top_predictor_dir_name=top_narr_directory_name,
+            top_gridded_front_dir_name=top_gridded_front_dir_name,
+            valid_time_unix_sec=target_time_unix_sec,
+            pressure_level_mb=pressure_level_mb,
+            predictor_names=narr_predictor_names,
+            normalization_type_string=ml_utils.Z_SCORE_STRING,
+            dilation_distance_metres=dilation_distance_metres,
+            num_classes=num_classes)
+    )
 
     class_probability_matrix = model_object.predict(
         predictor_matrix, batch_size=1)
@@ -608,7 +507,8 @@ def apply_model_to_3d_example(
 
         this_class_probability_matrix = numpy.reshape(
             class_probability_matrix[0, ...],
-            (num_grid_rows * num_grid_columns, num_classes))
+            (num_grid_rows * num_grid_columns, num_classes)
+        )
 
         these_observed_labels = numpy.reshape(
             actual_target_matrix[0, ...], num_grid_rows * num_grid_columns)
@@ -617,81 +517,14 @@ def apply_model_to_3d_example(
             isotonic_regression.apply_model_for_each_class(
                 orig_class_probability_matrix=this_class_probability_matrix,
                 observed_labels=these_observed_labels,
-                model_object_by_class=isotonic_model_object_by_class))
+                model_object_by_class=isotonic_model_object_by_class)
+        )
 
         this_class_probability_matrix = numpy.reshape(
             this_class_probability_matrix,
-            (num_grid_rows, num_grid_columns, num_classes))
-        class_probability_matrix[0, ...] = this_class_probability_matrix
+            (num_grid_rows, num_grid_columns, num_classes)
+        )
 
-    return class_probability_matrix, actual_target_matrix
-
-
-def apply_model_to_4d_example(
-        model_object, target_time_unix_sec, num_predictor_time_steps,
-        num_lead_time_steps, top_narr_directory_name, top_frontal_grid_dir_name,
-        narr_predictor_names, pressure_level_mb, dilation_distance_metres,
-        num_classes, isotonic_model_object_by_class=None):
-    """Applies FCN to one 4-D example.
-
-    K = number of classes (possible values of target label)
-
-    :param model_object: Instance of `keras.models.Model`.
-    :param target_time_unix_sec: See documentation for
-        `testing_io.create_full_size_4d_example`.
-    :param num_predictor_time_steps: Same.
-    :param num_lead_time_steps: Same.
-    :param top_narr_directory_name: Same.
-    :param top_frontal_grid_dir_name: Same.
-    :param narr_predictor_names: Same.
-    :param pressure_level_mb: Same.
-    :param dilation_distance_metres: Same.
-    :param num_classes: Number of classes.  This is K in the above discussion.
-    :param isotonic_model_object_by_class: length-K list with trained instances
-        of `sklearn.isotonic.IsotonicRegression`.  If None, will omit isotonic
-        regression.
-    :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
-        class probabilities.
-    :return: actual_target_matrix: 1-by-M-by-N numpy array of actual targets on
-        the NARR grid.
-    """
-
-    (predictor_matrix, actual_target_matrix
-    ) = testing_io.create_full_size_4d_example(
-        target_time_unix_sec=target_time_unix_sec,
-        predictor_time_step_offsets=num_predictor_time_steps,
-        num_lead_time_steps=num_lead_time_steps,
-        top_narr_directory_name=top_narr_directory_name,
-        top_frontal_grid_dir_name=top_frontal_grid_dir_name,
-        narr_predictor_names=narr_predictor_names,
-        pressure_level_mb=pressure_level_mb,
-        dilation_distance_metres=dilation_distance_metres,
-        num_classes=num_classes)
-
-    class_probability_matrix = model_object.predict(
-        predictor_matrix, batch_size=1)
-    actual_target_matrix = actual_target_matrix[..., 0]
-
-    if isotonic_model_object_by_class is not None:
-        num_grid_rows = class_probability_matrix.shape[1]
-        num_grid_columns = class_probability_matrix.shape[2]
-
-        this_class_probability_matrix = numpy.reshape(
-            class_probability_matrix[0, ...],
-            (num_grid_rows * num_grid_columns, num_classes))
-
-        these_observed_labels = numpy.reshape(
-            actual_target_matrix[0, ...], num_grid_rows * num_grid_columns)
-
-        this_class_probability_matrix = (
-            isotonic_regression.apply_model_for_each_class(
-                orig_class_probability_matrix=this_class_probability_matrix,
-                observed_labels=these_observed_labels,
-                model_object_by_class=isotonic_model_object_by_class))
-
-        this_class_probability_matrix = numpy.reshape(
-            this_class_probability_matrix,
-            (num_grid_rows, num_grid_columns, num_classes))
         class_probability_matrix[0, ...] = this_class_probability_matrix
 
     return class_probability_matrix, actual_target_matrix
