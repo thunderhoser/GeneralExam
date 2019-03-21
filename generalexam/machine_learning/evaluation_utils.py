@@ -664,8 +664,31 @@ def get_gerrity_score(contingency_table_as_matrix):
 
     s_matrix = _get_s_for_gerrity_score(contingency_table_as_matrix)
     num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+
     return numpy.sum(
-        contingency_table_as_matrix * s_matrix) / num_evaluation_pairs
+        contingency_table_as_matrix * s_matrix
+    ) / num_evaluation_pairs
+
+
+def get_multiclass_csi(contingency_table_as_matrix):
+    """Computes multiclass critical success index.
+
+    This works for binary classification as well.  In the multiclass setting,
+    "correct nulls" are evaluation pairs where both forecast and observed class
+     are 0.
+
+    :param contingency_table_as_matrix: See doc for `_check_contingency_table`.
+    :return: multiclass_csi: Multiclass CSI.
+    """
+
+    num_correct_nulls = contingency_table_as_matrix[0, 0]
+    num_correct_forecasts = numpy.trace(contingency_table_as_matrix)
+    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+
+    return (
+        float(num_correct_forecasts - num_correct_nulls) /
+        float(num_evaluation_pairs - num_correct_nulls)
+    )
 
 
 def write_file(

@@ -72,6 +72,8 @@ GERRITY_SCORE = numpy.sum(
     S_MATRIX_FOR_GERRITY_SCORE * CONTINGENCY_TABLE_AS_MATRIX
 ) / NUM_EVALUATION_PAIRS
 
+MULTICLASS_CSI = 0.5
+
 
 class EvaluationUtilsTests(unittest.TestCase):
     """Each method is a unit test for evaluation_utils.py."""
@@ -83,10 +85,11 @@ class EvaluationUtilsTests(unittest.TestCase):
         `for_downsized_examples = True and narr_mask_matrix is None`.
         """
 
-        (these_row_indices, these_column_indices
-        ) = evaluation_utils._get_random_sample_points(
-            num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=True,
-            narr_mask_matrix=None)
+        these_row_indices, these_column_indices = (
+            evaluation_utils._get_random_sample_points(
+                num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=True,
+                narr_mask_matrix=None)
+        )
 
         error_checking.assert_is_integer_numpy_array(these_row_indices)
         error_checking.assert_is_geq_numpy_array(these_row_indices, 0)
@@ -105,10 +108,11 @@ class EvaluationUtilsTests(unittest.TestCase):
         `for_downsized_examples = True and narr_mask_matrix is not None`.
         """
 
-        (these_row_indices, these_column_indices
-        ) = evaluation_utils._get_random_sample_points(
-            num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=True,
-            narr_mask_matrix=NARR_MASK_MATRIX)
+        these_row_indices, these_column_indices = (
+            evaluation_utils._get_random_sample_points(
+                num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=True,
+                narr_mask_matrix=NARR_MASK_MATRIX)
+        )
 
         error_checking.assert_is_integer_numpy_array(these_row_indices)
         error_checking.assert_is_geq_numpy_array(
@@ -128,9 +132,10 @@ class EvaluationUtilsTests(unittest.TestCase):
         In this case, for_downsized_examples = False.
         """
 
-        (these_row_indices, these_column_indices
-        ) = evaluation_utils._get_random_sample_points(
-            num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=False)
+        these_row_indices, these_column_indices = (
+            evaluation_utils._get_random_sample_points(
+                num_points=NUM_POINTS_TO_SAMPLE, for_downsized_examples=False)
+        )
 
         error_checking.assert_is_integer_numpy_array(these_row_indices)
         error_checking.assert_is_geq_numpy_array(these_row_indices, 0)
@@ -150,7 +155,8 @@ class EvaluationUtilsTests(unittest.TestCase):
             binarization_threshold=BINARIZATION_THRESHOLD)
 
         self.assertTrue(numpy.array_equal(
-            these_predicted_labels, PREDICTED_LABELS))
+            these_predicted_labels, PREDICTED_LABELS
+        ))
 
     def test_get_contingency_table(self):
         """Ensures correct output from get_contingency_table."""
@@ -160,13 +166,15 @@ class EvaluationUtilsTests(unittest.TestCase):
             num_classes=NUM_CLASSES)
 
         self.assertTrue(numpy.array_equal(
-            this_contingency_table, CONTINGENCY_TABLE_AS_MATRIX))
+            this_contingency_table, CONTINGENCY_TABLE_AS_MATRIX
+        ))
 
     def test_get_accuracy(self):
         """Ensures correct output from get_accuracy."""
 
         this_accuracy = evaluation_utils.get_accuracy(
             CONTINGENCY_TABLE_AS_MATRIX)
+
         self.assertTrue(numpy.isclose(this_accuracy, ACCURACY, atol=TOLERANCE))
 
     def test_get_peirce_score(self):
@@ -174,43 +182,63 @@ class EvaluationUtilsTests(unittest.TestCase):
 
         this_peirce_score = evaluation_utils.get_peirce_score(
             CONTINGENCY_TABLE_AS_MATRIX)
+
         self.assertTrue(numpy.isclose(
-            this_peirce_score, PEIRCE_SCORE, atol=TOLERANCE))
+            this_peirce_score, PEIRCE_SCORE, atol=TOLERANCE
+        ))
 
     def test_get_heidke_score(self):
         """Ensures correct output from get_heidke_score."""
 
         this_heidke_score = evaluation_utils.get_heidke_score(
             CONTINGENCY_TABLE_AS_MATRIX)
+
         self.assertTrue(numpy.isclose(
-            this_heidke_score, HEIDKE_SCORE, atol=TOLERANCE))
+            this_heidke_score, HEIDKE_SCORE, atol=TOLERANCE
+        ))
 
     def test_get_a_for_gerrity_score(self):
         """Ensures correct output from _get_a_for_gerrity_score."""
 
         this_a_vector = evaluation_utils._get_a_for_gerrity_score(
             CONTINGENCY_TABLE_AS_MATRIX)
+
         self.assertTrue(numpy.allclose(
             this_a_vector, A_VECTOR_FOR_GERRITY_SCORE,
-            atol=TOLERANCE_FOR_GERRITY_SCORE))
+            atol=TOLERANCE_FOR_GERRITY_SCORE
+        ))
 
     def test_get_s_for_gerrity_score(self):
         """Ensures correct output from _get_s_for_gerrity_score."""
 
         this_s_matrix = evaluation_utils._get_s_for_gerrity_score(
             CONTINGENCY_TABLE_AS_MATRIX)
+
         self.assertTrue(numpy.allclose(
             this_s_matrix, S_MATRIX_FOR_GERRITY_SCORE,
-            atol=TOLERANCE_FOR_GERRITY_SCORE))
+            atol=TOLERANCE_FOR_GERRITY_SCORE
+        ))
 
     def test_get_gerrity_score(self):
         """Ensures correct output from get_gerrity_score."""
 
         this_gerrity_score = evaluation_utils.get_gerrity_score(
             CONTINGENCY_TABLE_AS_MATRIX)
+
         self.assertTrue(numpy.isclose(
             this_gerrity_score, GERRITY_SCORE,
-            atol=TOLERANCE_FOR_GERRITY_SCORE))
+            atol=TOLERANCE_FOR_GERRITY_SCORE
+        ))
+
+    def test_get_multiclass_csi(self):
+        """Ensures correct output from get_multiclass_csi."""
+
+        this_multiclass_csi = evaluation_utils.get_multiclass_csi(
+            CONTINGENCY_TABLE_AS_MATRIX)
+
+        self.assertTrue(numpy.isclose(
+            this_multiclass_csi, MULTICLASS_CSI, atol=TOLERANCE
+        ))
 
 
 if __name__ == '__main__':

@@ -230,18 +230,14 @@ def _plot_attributes_diagrams(class_probability_matrix, observed_labels,
     return reliability_by_class, bss_by_class
 
 
-def run_evaluation(class_probability_matrix, observed_labels, output_dir_name):
+def run_evaluation(class_probability_matrix, observed_labels, output_dir_name,
+                   criterion_function=ge_evaluation.get_gerrity_score):
     """Evaluates a set of multiclass probabilistic predictions.
 
-    E = number of examples
-    K = number of classes
-
-    :param class_probability_matrix: E-by-K numpy array, where
-        class_probability_matrix[i, k] = probability that the [i]th example
-        belongs to the [k]th class.  Classes should be mutually exclusive and
-        collectively exhaustive, so that the sum across each row is 1.0.
-    :param observed_labels: length-E numpy array of observed labels.  Each label
-        must be an integer from 0...(K - 1).
+    :param class_probability_matrix: See doc for
+        `ge_evaluation.find_best_binarization_threshold`.
+    :param observed_labels: Same.
+    :param criterion_function: Same.
     :param output_dir_name: Name of output directory.  Results will be saved
         here.
     """
@@ -256,7 +252,7 @@ def run_evaluation(class_probability_matrix, observed_labels, output_dir_name):
             class_probability_matrix=class_probability_matrix,
             observed_labels=observed_labels,
             threshold_arg=gg_evaluation.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-            criterion_function=ge_evaluation.get_gerrity_score,
+            criterion_function=criterion_function,
             optimization_direction=ge_evaluation.MAX_OPTIMIZATION_DIRECTION,
             forecast_precision_for_thresholds=FORECAST_PRECISION_FOR_THRESHOLDS)
     )

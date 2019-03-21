@@ -21,6 +21,11 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+NAME_TO_CRITERION_FUNCTION_DICT = {
+    'gerrity': eval_utils.get_gerrity_score,
+    'csi': eval_utils.get_multiclass_csi
+}
+
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 FRONT_DIR_ARG_NAME = 'input_gridded_front_dir_name'
@@ -30,6 +35,7 @@ NUM_TIMES_ARG_NAME = 'num_times'
 NUM_EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 USE_ISOTONIC_ARG_NAME = 'use_isotonic_regression'
+CRITERION_FUNCTION_ARG_NAME = 'criterion_function_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -65,6 +71,11 @@ DILATION_DISTANCE_HELP_STRING = (
 USE_ISOTONIC_HELP_STRING = (
     'Boolean flag.  If 1, will use isotonic regression to calibrate CNN '
     'probabilities.  If 0, will use raw CNN probabilities with no calibration.')
+
+CRITERION_FUNCTION_HELP_STRING = (
+    'Name of criterion function used to determine best binarization threshold.'
+    '  Must be in the following list:\n{0:s}'
+).format(str(NAME_TO_CRITERION_FUNCTION_DICT.keys()))
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be saved here.')
@@ -109,13 +120,18 @@ INPUT_ARG_PARSER.add_argument(
     help=USE_ISOTONIC_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + CRITERION_FUNCTION_ARG_NAME, type=str, required=False,
+    default='gerrity', help=CRITERION_FUNCTION_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
          first_time_string, last_time_string, num_times, num_examples_per_time,
-         dilation_distance_metres, use_isotonic_regression, output_dir_name):
+         dilation_distance_metres, use_isotonic_regression,
+         criterion_function_name, output_dir_name):
     """Evaluates probability grids created by a CNN.
 
     This is effectively the main method.
@@ -129,8 +145,12 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     :param num_examples_per_time: Same.
     :param dilation_distance_metres: Same.
     :param use_isotonic_regression: Same.
+    :param criterion_function_name: Same.
     :param output_dir_name: Same.
     """
+
+    criterion_function = NAME_TO_CRITERION_FUNCTION_DICT[
+        criterion_function_name]
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -186,7 +206,8 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
     model_eval_helper.run_evaluation(
         class_probability_matrix=class_probability_matrix,
-        observed_labels=observed_labels, output_dir_name=output_dir_name)
+        observed_labels=observed_labels, criterion_function=criterion_function,
+        output_dir_name=output_dir_name)
 
 
 if __name__ == '__main__':
@@ -207,5 +228,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME),
         use_isotonic_regression=bool(getattr(
             INPUT_ARG_OBJECT, USE_ISOTONIC_ARG_NAME)),
+        criterion_function_name=getattr(
+            INPUT_ARG_OBJECT, CRITERION_FUNCTION_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
