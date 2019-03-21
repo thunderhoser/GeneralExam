@@ -462,6 +462,8 @@ def find_best_binarization_threshold(
     #         this_contingency_table_as_dict)
 
     for i in range(num_thresholds):
+        print i
+
         these_predicted_labels = determinize_probabilities(
             class_probability_matrix=class_probability_matrix,
             binarization_threshold=possible_thresholds[i])

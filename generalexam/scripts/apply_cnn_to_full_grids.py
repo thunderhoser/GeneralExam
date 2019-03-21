@@ -5,6 +5,8 @@ import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from generalexam.ge_io import predictor_io
+from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import machine_learning_utils as ml_utils
@@ -162,13 +164,27 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     else:
         isotonic_model_object_by_class = None
 
-    num_times = len(valid_times_unix_sec)
-    print SEPARATOR_STRING
-
     if use_mask:
         mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
     else:
-        mask_matrix = None
+        first_predictor_file_name = predictor_io.find_file(
+            top_directory_name=top_predictor_dir_name,
+            valid_time_unix_sec=valid_times_unix_sec[0]
+        )
+
+        print 'Reading first predictor file: "{0:s}"...'.format(
+            first_predictor_file_name)
+        first_predictor_dict = predictor_io.read_file(
+            netcdf_file_name=first_predictor_file_name)
+
+        this_matrix = first_predictor_dict[
+            predictor_utils.DATA_MATRIX_KEY
+        ][0, ..., 0, 0]
+
+        mask_matrix = numpy.invert(numpy.isnan(this_matrix)).astype(int)
+
+    num_times = len(valid_times_unix_sec)
+    print SEPARATOR_STRING
 
     for i in range(num_times):
         this_class_probability_matrix, this_target_matrix = (
