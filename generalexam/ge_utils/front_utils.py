@@ -662,7 +662,7 @@ def close_binary_label_matrix(
 
     return binary_closing(
         binary_label_matrix, structure=mask_matrix, origin=0,
-        iterations=num_iterations)
+        iterations=0)
 
 
 def close_ternary_label_matrix(
@@ -698,11 +698,11 @@ def close_ternary_label_matrix(
 
     warm_front_flag_matrix = binary_closing(
         (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
-        structure=mask_matrix, origin=0, iterations=num_iterations)
+        structure=mask_matrix, origin=0, iterations=0)
 
     cold_front_flag_matrix = binary_closing(
         (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
-        structure=mask_matrix, origin=0, iterations=num_iterations)
+        structure=mask_matrix, origin=0, iterations=0)
 
     ternary_label_matrix[
         numpy.where(warm_front_flag_matrix)
