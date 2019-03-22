@@ -27,6 +27,7 @@ NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 
 PREDICTED_LABELS_KEY = 'predicted_label_matrix'
 ACTUAL_LABELS_KEY = 'actual_label_matrix'
+VALID_TIMES_KEY = 'valid_times_unix_sec'
 NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
 BINARY_CONTINGENCY_TABLE_KEY = 'binary_ct_as_dict'
 PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
@@ -43,18 +44,18 @@ REQUIRED_KEYS = [
 def _check_gridded_predictions(prediction_matrix, expect_probs):
     """Error-checks gridded predictions.
 
-    E = number of examples
+    T = number of time steps
     M = number of rows in grid
     N = number of columns in grid
     K = number of classes
 
     :param prediction_matrix: [if `expect_probs == True`]
-        E-by-M-by-N-by-K numpy array of class probabilities, where
+        T-by-M-by-N-by-K numpy array of class probabilities, where
         prediction_matrix[i, m, n, k] = probability that grid cell [m, n] in the
         [i]th example belongs to the [k]th class.
 
         [if `expect_probs == False`]
-        E-by-M-by-N numpy array of integers (each must be accepted by
+        T-by-M-by-N numpy array of integers (each must be accepted by
         `front_utils.check_front_type_enum`).
 
     :param expect_probs: Boolean flag.  If True, will expect `prediction_matrix`
@@ -531,14 +532,15 @@ def get_binary_frequency_bias(binary_ct_as_dict):
 
 def write_results(
         pickle_file_name, predicted_label_matrix, actual_label_matrix,
-        neigh_distance_metres, binary_ct_as_dict, prediction_oriented_ct_matrix,
-        actual_oriented_ct_matrix,
+        valid_times_unix_sec, neigh_distance_metres, binary_ct_as_dict,
+        prediction_oriented_ct_matrix, actual_oriented_ct_matrix,
         grid_spacing_metres=NARR_GRID_SPACING_METRES):
     """Writes results of neighbourhood evaluation to file.
 
     :param pickle_file_name: Path to output file.
     :param predicted_label_matrix: See doc for `make_contingency_tables`.
     :param actual_label_matrix: Same.
+    :param valid_times_unix_sec: 1-D numpy array of valid times.
     :param neigh_distance_metres: Same.
     :param binary_ct_as_dict: Same.
     :param prediction_oriented_ct_matrix: Same.
@@ -546,9 +548,42 @@ def write_results(
     :param grid_spacing_metres: Same.
     """
 
+    error_checking.assert_is_greater(neigh_distance_metres, 0.)
+    error_checking.assert_is_greater(grid_spacing_metres, 0.)
+
+    _check_gridded_predictions(
+        prediction_matrix=predicted_label_matrix, expect_probs=False)
+    _check_gridded_predictions(
+        prediction_matrix=actual_label_matrix, expect_probs=False)
+
+    error_checking.assert_is_numpy_array(
+        actual_label_matrix,
+        exact_dimensions=numpy.array(predicted_label_matrix.shape, dtype=int)
+    )
+
+    num_times = predicted_label_matrix.shape[0]
+
+    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        valid_times_unix_sec,
+        exact_dimensions=numpy.array([num_times], dtype=int)
+    )
+
+    num_classes = len(FRONT_TYPE_ENUMS)
+
+    error_checking.assert_is_numpy_array(
+        prediction_oriented_ct_matrix,
+        exact_dimensions=numpy.array([num_classes, num_classes], dtype=int)
+    )
+    error_checking.assert_is_numpy_array(
+        actual_oriented_ct_matrix,
+        exact_dimensions=numpy.array([num_classes, num_classes], dtype=int)
+    )
+
     evaluation_dict = {
         PREDICTED_LABELS_KEY: predicted_label_matrix,
         ACTUAL_LABELS_KEY: actual_label_matrix,
+        VALID_TIMES_KEY: valid_times_unix_sec,
         NEIGH_DISTANCE_KEY: neigh_distance_metres,
         BINARY_CONTINGENCY_TABLE_KEY: binary_ct_as_dict,
         PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,
