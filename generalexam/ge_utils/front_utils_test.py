@@ -73,23 +73,6 @@ CLOSED_VERTEX_LONGITUDES_DEG = numpy.array([246, 246.5, 246, 246])
 OPEN_VERTEX_LATITUDES_DEG = VERTEX_Y_COORDS_METRES + 0.
 OPEN_VERTEX_LONGITUDES_DEG = VERTEX_X_COORDS_METRES + 0.
 
-# The following constants are used to test close_gridded_labels.
-TERNARY_MATRIX_UNCLOSED = numpy.array(
-    [[0, 1, 1, 0, 0, 0, 0, 0],
-     [0, 0, 0, 1, 0, 1, 1, 1],
-     [0, 0, 0, 0, 0, 0, 1, 1],
-     [0, 0, 2, 2, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, 0, 0],
-     [2, 2, 2, 0, 0, 0, 0, 0]], dtype=int)
-
-TERNARY_MATRIX_CLOSED = numpy.array(
-    [[0, 1, 1, 0, 0, 0, 0, 0],
-     [0, 0, 0, 1, 1, 1, 1, 1],
-     [0, 0, 0, 0, 0, 0, 1, 1],
-     [0, 0, 2, 2, 0, 0, 0, 0],
-     [0, 0, 2, 0, 0, 0, 0, 0],
-     [2, 2, 2, 0, 0, 0, 0, 0]], dtype=int)
-
 # The following constants are used to test buffer_distance_to_dilation_mask.
 SMALL_BUFFER_DISTANCE_METRES = 1.
 SMALL_BUFFER_MASK_MATRIX = numpy.array([[1]], dtype=bool)
@@ -183,6 +166,89 @@ TERNARY_NARR_MATRIX_WF_TIEBREAKER = numpy.array(
      [0, 0, 2, 1, 1, 1, 1, 1, 2, 2],
      [0, 0, 0, 1, 1, 1, 1, 2, 2, 2],
      [0, 0, 0, 0, 0, 1, 2, 2, 2, 2]], dtype=int)
+
+# The following constants are used to test close_binary_label_matrix.
+SMALL_CLOSING_DISTANCE_METRES = 50000.
+LARGE_CLOSING_DISTANCE_METRES = 110000.
+
+BINARY_MATRIX_UNCLOSED = numpy.array([
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+    [0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0],
+    [0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+])
+
+BINARY_MATRIX_CLOSED_SMALL_BUFFER = numpy.array([
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+    [1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+    [1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+    [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+])
+
+BINARY_MATRIX_CLOSED_LARGE_BUFFER = numpy.array([
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1],
+    [0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1],
+    [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+])
+
+# The following constants are used to test close_ternary_label_matrix.
+TERNARY_MATRIX_UNCLOSED = numpy.array([
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 1],
+    [0, 0, 2, 1, 0, 0, 0, 0, 1, 1, 1, 0],
+    [0, 2, 2, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+    [2, 2, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+    [2, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+    [0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+])
+
+TERNARY_MATRIX_CLOSED_SMALL_BUFFER = numpy.array([
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 1],
+    [0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 2, 2, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+    [2, 2, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+    [2, 2, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+    [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+])
+
+TERNARY_MATRIX_CLOSED_LARGE_BUFFER = numpy.array([
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 2, 1, 1, 1, 1, 0, 0, 0, 1],
+    [0, 0, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 2, 2, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+    [2, 2, 2, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+    [2, 2, 2, 0, 0, 0, 0, 1, 1, 1, 1, 0],
+    [0, 2, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+    [0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 1, 1],
+    [0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+])
 
 # The following constants are used to test remove_fronts_in_masked_area.
 THESE_STRINGS = [
@@ -377,17 +443,6 @@ class FrontUtilsTests(unittest.TestCase):
             y_coords_metres=OPEN_VERTEX_LATITUDES_DEG
         ))
 
-    def test_close_gridded_labels(self):
-        """Ensures correct output from close_gridded_labels."""
-
-        this_closed_matrix = front_utils.close_gridded_labels(
-            ternary_label_matrix=TERNARY_MATRIX_UNCLOSED + 0,
-            num_iterations=1)
-
-        self.assertTrue(numpy.array_equal(
-            this_closed_matrix, TERNARY_MATRIX_CLOSED
-        ))
-
     def test_buffer_distance_to_dilation_mask_small(self):
         """Ensures correct output from buffer_distance_to_dilation_mask."""
 
@@ -452,6 +507,66 @@ class FrontUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             this_ternary_image_matrix, TERNARY_NARR_MATRIX_WF_TIEBREAKER
+        ))
+
+    def test_close_binary_label_matrix_small_dist(self):
+        """Ensures correct output from close_binary_label_matrix.
+
+        In this case the buffer distance is small.
+        """
+
+        this_label_matrix = front_utils.close_binary_label_matrix(
+            binary_label_matrix=BINARY_MATRIX_UNCLOSED + 0,
+            buffer_distance_metres=SMALL_CLOSING_DISTANCE_METRES,
+            grid_spacing_metres=NARR_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, BINARY_MATRIX_CLOSED_SMALL_BUFFER
+        ))
+
+    def test_close_binary_label_matrix_large_dist(self):
+        """Ensures correct output from close_binary_label_matrix.
+
+        In this case the buffer distance is large.
+        """
+
+        this_label_matrix = front_utils.close_binary_label_matrix(
+            binary_label_matrix=BINARY_MATRIX_UNCLOSED + 0,
+            buffer_distance_metres=LARGE_CLOSING_DISTANCE_METRES,
+            grid_spacing_metres=NARR_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, BINARY_MATRIX_CLOSED_LARGE_BUFFER
+        ))
+
+    def test_close_ternary_label_matrix_small_dist(self):
+        """Ensures correct output from close_ternary_label_matrix.
+
+        In this case the buffer distance is small.
+        """
+
+        this_label_matrix = front_utils.close_ternary_label_matrix(
+            ternary_label_matrix=TERNARY_MATRIX_UNCLOSED + 0,
+            buffer_distance_metres=SMALL_CLOSING_DISTANCE_METRES,
+            grid_spacing_metres=NARR_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, TERNARY_MATRIX_CLOSED_SMALL_BUFFER
+        ))
+
+    def test_close_ternary_label_matrix_large_dist(self):
+        """Ensures correct output from close_ternary_label_matrix.
+
+        In this case the buffer distance is large.
+        """
+
+        this_label_matrix = front_utils.close_ternary_label_matrix(
+            ternary_label_matrix=TERNARY_MATRIX_UNCLOSED + 0,
+            buffer_distance_metres=LARGE_CLOSING_DISTANCE_METRES,
+            grid_spacing_metres=NARR_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, TERNARY_MATRIX_CLOSED_LARGE_BUFFER
         ))
 
     def test_gridded_labels_to_points(self):

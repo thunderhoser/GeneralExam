@@ -278,6 +278,81 @@ def _is_polyline_closed(x_coords_metres, y_coords_metres):
     return x_flag and y_flag
 
 
+def _break_wf_cf_ties(ternary_label_matrix, new_wf_flag_matrix,
+                      new_cf_flag_matrix, tiebreaker_enum=COLD_FRONT_ENUM):
+    """Breaks ties between WF and CF labels.
+
+    Specifically, at any grid cell [i, j] where both new_wf_flag_matrix[i, j] =
+    new_cf_flag_matrix[i, j] = 1, this method determines what the best label is.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param ternary_label_matrix: M-by-N numpy array with original ternary
+        labels (no front, warm front, or cold front) before some image-
+        morphology operation (e.g., dilation or closing).
+    :param new_wf_flag_matrix: M-by-N numpy array (all 0 or 1) of warm-front
+        flags after the image-morphology operation.
+    :param new_cf_flag_matrix: Same but for cold fronts.
+    :param tiebreaker_enum: Front type in case of a tie (must be accepted by
+        `check_front_type_enum`).
+    :return: ternary_label_matrix: Same as input but maybe with different
+        elements.
+    """
+
+    cold_front_row_indices, cold_front_column_indices = numpy.where(
+        ternary_label_matrix == COLD_FRONT_ENUM)
+    warm_front_row_indices, warm_front_column_indices = numpy.where(
+        ternary_label_matrix == WARM_FRONT_ENUM)
+    both_fronts_row_indices, both_fronts_column_indices = numpy.where(
+        numpy.logical_and(new_cf_flag_matrix == 1, new_wf_flag_matrix == 1)
+    )
+
+    num_points_to_resolve = len(both_fronts_row_indices)
+
+    for i in range(num_points_to_resolve):
+        these_row_diffs = both_fronts_row_indices[i] - cold_front_row_indices
+        these_column_diffs = (
+            both_fronts_column_indices[i] - cold_front_column_indices
+        )
+        this_min_cold_front_distance = numpy.min(
+            these_row_diffs**2 + these_column_diffs**2)
+
+        these_row_diffs = both_fronts_row_indices[i] - warm_front_row_indices
+        these_column_diffs = (
+            both_fronts_column_indices[i] - warm_front_column_indices
+        )
+        this_min_warm_front_distance = numpy.min(
+            these_row_diffs ** 2 + these_column_diffs ** 2)
+
+        if numpy.isclose(this_min_cold_front_distance,
+                         this_min_warm_front_distance, atol=TOLERANCE):
+            if tiebreaker_enum == COLD_FRONT_ENUM:
+                new_wf_flag_matrix[
+                    both_fronts_row_indices[i], both_fronts_column_indices[i]
+                ] = NO_FRONT_ENUM
+            else:
+                new_cf_flag_matrix[
+                    both_fronts_row_indices[i], both_fronts_column_indices[i]
+                ] = NO_FRONT_ENUM
+
+            continue
+
+        if this_min_cold_front_distance < this_min_warm_front_distance:
+            new_wf_flag_matrix[
+                both_fronts_row_indices[i], both_fronts_column_indices[i]
+            ] = NO_FRONT_ENUM
+        else:
+            new_cf_flag_matrix[
+                both_fronts_row_indices[i], both_fronts_column_indices[i]
+            ] = NO_FRONT_ENUM
+
+    ternary_label_matrix[new_cf_flag_matrix == 1] = COLD_FRONT_ENUM
+    ternary_label_matrix[new_wf_flag_matrix == 1] = WARM_FRONT_ENUM
+
+    return ternary_label_matrix
+
+
 def check_polyline(x_coords_metres, y_coords_metres):
     """Error-checks polyline.
 
@@ -396,52 +471,6 @@ def front_type_string_to_int(front_type_string):
     return COLD_FRONT_ENUM
 
 
-def close_gridded_labels_old(ternary_label_matrix, num_iterations=1):
-    """Applies binary closing to gridded front labels.
-
-    :param ternary_label_matrix: See doc for `check_gridded_labels`.
-    :param num_iterations: Number of closing iterations.
-    :return: ternary_label_matrix: Same as input but after closing.
-    """
-
-    check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
-    error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_greater(num_iterations, 0)
-
-    # warm_front_flag_matrix = binary_closing(
-    #     (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
-    #     structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, border_value=0,
-    #     iterations=num_iterations
-    # )
-    #
-    # cold_front_flag_matrix = binary_closing(
-    #     (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
-    #     structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, border_value=0,
-    #     iterations=num_iterations
-    # )
-
-    warm_front_flag_matrix = binary_closing(
-        (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
-        iterations=num_iterations
-    )
-
-    cold_front_flag_matrix = binary_closing(
-        (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
-        iterations=num_iterations
-    )
-
-    ternary_label_matrix[
-        numpy.where(warm_front_flag_matrix)
-    ] = WARM_FRONT_ENUM
-    ternary_label_matrix[
-        numpy.where(cold_front_flag_matrix)
-    ] = COLD_FRONT_ENUM
-
-    return ternary_label_matrix
-
-
 def buffer_distance_to_dilation_mask(
         buffer_distance_metres, grid_spacing_metres):
     """Converts buffer distance to mask over model grid.
@@ -516,7 +545,9 @@ def dilate_binary_label_matrix(
 
     binary_label_matrix = cv2.dilate(
         binary_label_matrix.astype(numpy.uint8),
-        dilation_mask_matrix.astype(numpy.uint8), iterations=1)
+        dilation_mask_matrix.astype(numpy.uint8),
+        iterations=1
+    )
 
     return binary_label_matrix.astype(int)
 
@@ -550,100 +581,36 @@ def dilate_ternary_label_matrix(
             grid_spacing_metres=grid_spacing_metres
         ).astype(int)
 
-    cold_front_flag_matrix = numpy.full(
-        ternary_label_matrix.shape, NO_FRONT_ENUM, dtype=int)
-    cold_front_flag_matrix[
-        ternary_label_matrix == COLD_FRONT_ENUM
-    ] = ANY_FRONT_ENUM
-
-    cold_front_flag_matrix = dilate_binary_label_matrix(
-        binary_label_matrix=cold_front_flag_matrix,
+    new_cf_flag_matrix = (ternary_label_matrix == COLD_FRONT_ENUM).astype(int)
+    new_cf_flag_matrix = dilate_binary_label_matrix(
+        binary_label_matrix=new_cf_flag_matrix,
         dilation_mask_matrix=dilation_mask_matrix)
 
-    warm_front_flag_matrix = numpy.full(
-        ternary_label_matrix.shape, NO_FRONT_ENUM, dtype=int)
-    warm_front_flag_matrix[
-        ternary_label_matrix == WARM_FRONT_ENUM
-    ] = ANY_FRONT_ENUM
-
-    warm_front_flag_matrix = dilate_binary_label_matrix(
-        binary_label_matrix=warm_front_flag_matrix,
+    new_wf_flag_matrix = (ternary_label_matrix == WARM_FRONT_ENUM).astype(int)
+    new_wf_flag_matrix = dilate_binary_label_matrix(
+        binary_label_matrix=new_wf_flag_matrix,
         dilation_mask_matrix=dilation_mask_matrix)
 
-    cold_front_row_indices, cold_front_column_indices = numpy.where(
-        ternary_label_matrix == COLD_FRONT_ENUM)
-    warm_front_row_indices, warm_front_column_indices = numpy.where(
-        ternary_label_matrix == WARM_FRONT_ENUM)
-    both_fronts_row_indices, both_fronts_column_indices = numpy.where(
-        numpy.logical_and(cold_front_flag_matrix == ANY_FRONT_ENUM,
-                          warm_front_flag_matrix == ANY_FRONT_ENUM)
-    )
-
-    num_points_to_resolve = len(both_fronts_row_indices)
-
-    for i in range(num_points_to_resolve):
-        these_row_diffs = both_fronts_row_indices[i] - cold_front_row_indices
-        these_column_diffs = (
-            both_fronts_column_indices[i] - cold_front_column_indices
-        )
-        this_min_cold_front_distance = numpy.min(
-            these_row_diffs**2 + these_column_diffs**2)
-
-        these_row_diffs = both_fronts_row_indices[i] - warm_front_row_indices
-        these_column_diffs = (
-            both_fronts_column_indices[i] - warm_front_column_indices
-        )
-        this_min_warm_front_distance = numpy.min(
-            these_row_diffs ** 2 + these_column_diffs ** 2)
-
-        if numpy.isclose(this_min_cold_front_distance,
-                         this_min_warm_front_distance, atol=TOLERANCE):
-            if tiebreaker_enum == COLD_FRONT_ENUM:
-                warm_front_flag_matrix[
-                    both_fronts_row_indices[i], both_fronts_column_indices[i]
-                ] = NO_FRONT_ENUM
-            else:
-                cold_front_flag_matrix[
-                    both_fronts_row_indices[i], both_fronts_column_indices[i]
-                ] = NO_FRONT_ENUM
-
-            continue
-
-        if this_min_cold_front_distance < this_min_warm_front_distance:
-            warm_front_flag_matrix[
-                both_fronts_row_indices[i], both_fronts_column_indices[i]
-            ] = NO_FRONT_ENUM
-        else:
-            cold_front_flag_matrix[
-                both_fronts_row_indices[i], both_fronts_column_indices[i]
-            ] = NO_FRONT_ENUM
-
-    ternary_label_matrix[
-        cold_front_flag_matrix == ANY_FRONT_ENUM
-    ] = COLD_FRONT_ENUM
-
-    ternary_label_matrix[
-        warm_front_flag_matrix == ANY_FRONT_ENUM
-    ] = WARM_FRONT_ENUM
-
-    return ternary_label_matrix
+    return _break_wf_cf_ties(
+        ternary_label_matrix=ternary_label_matrix,
+        new_wf_flag_matrix=new_wf_flag_matrix,
+        new_cf_flag_matrix=new_cf_flag_matrix, tiebreaker_enum=tiebreaker_enum)
 
 
 def close_binary_label_matrix(
         binary_label_matrix, mask_matrix=None, buffer_distance_metres=None,
-        grid_spacing_metres=None, num_iterations=1):
+        grid_spacing_metres=None):
     """Closes gridded binary ("front or no front") labels.
 
     :param binary_label_matrix: See doc for `dilate_binary_label_matrix`.
     :param mask_matrix: Same.
     :param buffer_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :param num_iterations: Number of closing iterations.
     :return: binary_label_matrix: Same as input but closed.
     """
 
-    error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_geq(num_iterations, 0)
+    # TODO(thunderhoser): I still don't really understand the behaviour of
+    # binary closing.  It generally does not do what I want.
 
     check_gridded_labels(label_matrix=binary_label_matrix, assert_binary=True)
 
@@ -660,58 +627,63 @@ def close_binary_label_matrix(
     error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
     error_checking.assert_is_geq(numpy.sum(mask_matrix), 1)
 
-    return binary_closing(
-        binary_label_matrix, structure=mask_matrix, origin=0,
-        iterations=0)
+    this_num_cells = int(numpy.ceil(float(mask_matrix.shape[0]) / 2))
+    pad_width_arg = (
+        (this_num_cells, this_num_cells),
+        (this_num_cells, this_num_cells)
+    )
+
+    binary_label_matrix = numpy.pad(
+        binary_label_matrix, pad_width=pad_width_arg, mode='constant',
+        constant_values=0)
+
+    binary_label_matrix = binary_closing(
+        binary_label_matrix, structure=mask_matrix, origin=0, iterations=1
+    ).astype(int)
+
+    return binary_label_matrix[
+        this_num_cells:-this_num_cells,
+        this_num_cells:-this_num_cells
+    ]
 
 
 def close_ternary_label_matrix(
         ternary_label_matrix, mask_matrix=None, buffer_distance_metres=None,
-        grid_spacing_metres=None, num_iterations=1):
+        grid_spacing_metres=None, tiebreaker_enum=COLD_FRONT_ENUM):
     """Closes gridded ternary ("no front, warm front, or cold front") labels.
 
     :param ternary_label_matrix: See doc for `dilate_ternary_label_matrix`.
     :param mask_matrix: Same.
     :param buffer_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :param num_iterations: Number of closing iterations.
+    :param tiebreaker_enum: Front type in case of a tie (must be accepted by
+        `check_front_type_enum`).
     :return: ternary_label_matrix: Same as input but closed.
     """
 
-    error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_geq(num_iterations, 0)
+    # TODO(thunderhoser): I still don't really understand the behaviour of
+    # binary closing.  It generally does not do what I want.
 
     check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
 
-    if mask_matrix is None:
-        mask_matrix = buffer_distance_to_dilation_mask(
-            buffer_distance_metres=buffer_distance_metres,
-            grid_spacing_metres=grid_spacing_metres
-        ).astype(int)
+    new_wf_flag_matrix = (ternary_label_matrix == WARM_FRONT_ENUM).astype(int)
+    new_wf_flag_matrix = close_binary_label_matrix(
+        binary_label_matrix=new_wf_flag_matrix,
+        mask_matrix=mask_matrix, buffer_distance_metres=buffer_distance_metres,
+        grid_spacing_metres=grid_spacing_metres
+    )
 
-    error_checking.assert_is_integer_numpy_array(mask_matrix)
-    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+    new_cf_flag_matrix = (ternary_label_matrix == COLD_FRONT_ENUM).astype(int)
+    new_cf_flag_matrix = close_binary_label_matrix(
+        binary_label_matrix=new_cf_flag_matrix,
+        mask_matrix=mask_matrix, buffer_distance_metres=buffer_distance_metres,
+        grid_spacing_metres=grid_spacing_metres
+    )
 
-    error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
-    error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
-    error_checking.assert_is_geq(numpy.sum(mask_matrix), 1)
-
-    warm_front_flag_matrix = binary_closing(
-        (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
-        structure=mask_matrix, origin=0)
-
-    cold_front_flag_matrix = binary_closing(
-        (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
-        structure=mask_matrix, origin=0)
-
-    ternary_label_matrix[
-        numpy.where(warm_front_flag_matrix)
-    ] = WARM_FRONT_ENUM
-    ternary_label_matrix[
-        numpy.where(cold_front_flag_matrix)
-    ] = COLD_FRONT_ENUM
-
-    return ternary_label_matrix
+    return _break_wf_cf_ties(
+        ternary_label_matrix=ternary_label_matrix,
+        new_wf_flag_matrix=new_wf_flag_matrix,
+        new_cf_flag_matrix=new_cf_flag_matrix, tiebreaker_enum=tiebreaker_enum)
 
 
 def gridded_labels_to_points(ternary_label_matrix):
@@ -792,8 +764,9 @@ def gridded_labels_to_regions(ternary_label_matrix):
 
     check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
 
-    ternary_label_matrix = close_gridded_labels(
-        ternary_label_matrix=ternary_label_matrix, num_iterations=1)
+    ternary_label_matrix = close_ternary_label_matrix(
+        ternary_label_matrix=ternary_label_matrix, buffer_distance_metres=1.5,
+        grid_spacing_metres=1.)
 
     region_id_matrix = label_image(ternary_label_matrix, connectivity=2)
 
