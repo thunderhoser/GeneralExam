@@ -451,8 +451,9 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
 
         if (this_predicted_label_matrix is not None
                 and num_binary_closing_iters > 0):
-            this_predicted_label_matrix = front_utils.close_gridded_labels(
+            this_predicted_label_matrix = front_utils.close_ternary_label_matrix(
                 ternary_label_matrix=this_predicted_label_matrix,
+                buffer_distance_metres=150000, grid_spacing_metres=32000,
                 num_iterations=num_binary_closing_iters)
 
         if input_object_file_name is None:

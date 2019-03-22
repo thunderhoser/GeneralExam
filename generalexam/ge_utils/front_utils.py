@@ -396,7 +396,7 @@ def front_type_string_to_int(front_type_string):
     return COLD_FRONT_ENUM
 
 
-def close_gridded_labels(ternary_label_matrix, num_iterations=1):
+def close_gridded_labels_old(ternary_label_matrix, num_iterations=1):
     """Applies binary closing to gridded front labels.
 
     :param ternary_label_matrix: See doc for `check_gridded_labels`.
@@ -625,6 +625,91 @@ def dilate_ternary_label_matrix(
     ternary_label_matrix[
         warm_front_flag_matrix == ANY_FRONT_ENUM
     ] = WARM_FRONT_ENUM
+
+    return ternary_label_matrix
+
+
+def close_binary_label_matrix(
+        binary_label_matrix, mask_matrix=None, buffer_distance_metres=None,
+        grid_spacing_metres=None, num_iterations=1):
+    """Closes gridded binary ("front or no front") labels.
+
+    :param binary_label_matrix: See doc for `dilate_binary_label_matrix`.
+    :param mask_matrix: Same.
+    :param buffer_distance_metres: Same.
+    :param grid_spacing_metres: Same.
+    :param num_iterations: Number of closing iterations.
+    :return: binary_label_matrix: Same as input but closed.
+    """
+
+    error_checking.assert_is_integer(num_iterations)
+    error_checking.assert_is_geq(num_iterations, 0)
+
+    check_gridded_labels(label_matrix=binary_label_matrix, assert_binary=True)
+
+    if mask_matrix is None:
+        mask_matrix = buffer_distance_to_dilation_mask(
+            buffer_distance_metres=buffer_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        ).astype(int)
+
+    error_checking.assert_is_integer_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+
+    error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
+    error_checking.assert_is_geq(numpy.sum(mask_matrix), 1)
+
+    return binary_closing(
+        binary_label_matrix, structure=mask_matrix, origin=0,
+        iterations=num_iterations)
+
+
+def close_ternary_label_matrix(
+        ternary_label_matrix, mask_matrix=None, buffer_distance_metres=None,
+        grid_spacing_metres=None, num_iterations=1):
+    """Closes gridded ternary ("no front, warm front, or cold front") labels.
+
+    :param ternary_label_matrix: See doc for `dilate_ternary_label_matrix`.
+    :param mask_matrix: Same.
+    :param buffer_distance_metres: Same.
+    :param grid_spacing_metres: Same.
+    :param num_iterations: Number of closing iterations.
+    :return: ternary_label_matrix: Same as input but closed.
+    """
+
+    error_checking.assert_is_integer(num_iterations)
+    error_checking.assert_is_geq(num_iterations, 0)
+
+    check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
+
+    if mask_matrix is None:
+        mask_matrix = buffer_distance_to_dilation_mask(
+            buffer_distance_metres=buffer_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        ).astype(int)
+
+    error_checking.assert_is_integer_numpy_array(mask_matrix)
+    error_checking.assert_is_numpy_array(mask_matrix, num_dimensions=2)
+
+    error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
+    error_checking.assert_is_geq(numpy.sum(mask_matrix), 1)
+
+    warm_front_flag_matrix = binary_closing(
+        (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
+        structure=mask_matrix, origin=0, iterations=num_iterations)
+
+    cold_front_flag_matrix = binary_closing(
+        (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
+        structure=mask_matrix, origin=0, iterations=num_iterations)
+
+    ternary_label_matrix[
+        numpy.where(warm_front_flag_matrix)
+    ] = WARM_FRONT_ENUM
+    ternary_label_matrix[
+        numpy.where(cold_front_flag_matrix)
+    ] = COLD_FRONT_ENUM
 
     return ternary_label_matrix
 
