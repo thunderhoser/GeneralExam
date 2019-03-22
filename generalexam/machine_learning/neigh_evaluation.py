@@ -1,7 +1,9 @@
 """Methods for neighbourhood evaluation of gridded labels."""
 
+import pickle
 import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
@@ -22,6 +24,20 @@ NUM_ACTUAL_ORIENTED_TP_KEY = 'num_actual_oriented_true_positives'
 NUM_PREDICTION_ORIENTED_TP_KEY = 'num_prediction_oriented_true_positives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
+
+PREDICTED_LABELS_KEY = 'predicted_label_matrix'
+ACTUAL_LABELS_KEY = 'actual_label_matrix'
+NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
+BINARY_CONTINGENCY_TABLE_KEY = 'binary_ct_as_dict'
+PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
+ACTUAL_ORIENTED_CT_KEY = 'actual_oriented_ct_matrix'
+GRID_SPACING_KEY = 'grid_spacing_metres'
+
+REQUIRED_KEYS = [
+    PREDICTED_LABELS_KEY, ACTUAL_LABELS_KEY, NEIGH_DISTANCE_KEY,
+    BINARY_CONTINGENCY_TABLE_KEY, PREDICTION_ORIENTED_CT_KEY,
+    ACTUAL_ORIENTED_CT_KEY, GRID_SPACING_KEY
+]
 
 
 def _check_gridded_predictions(prediction_matrix, expect_probs):
@@ -427,3 +443,145 @@ def make_contingency_tables(
 
     return (binary_ct_as_dict, prediction_oriented_ct_matrix,
             actual_oriented_ct_matrix)
+
+
+def get_binary_pod(binary_ct_as_dict):
+    """Returns probability of detection.
+
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :return: binary_pod: Binary POD.
+    """
+
+    numerator = binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY]
+    denominator = numerator + binary_ct_as_dict[NUM_FALSE_NEGATIVES_KEY]
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_binary_fom(binary_ct_as_dict):
+    """Returns frequency of misses.
+
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :return: binary_fom: Binary FOM.
+    """
+
+    return 1. - get_binary_pod(binary_ct_as_dict)
+
+
+def get_binary_success_ratio(binary_ct_as_dict):
+    """Returns success ratio.
+
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :return: binary_success_ratio: Binary success ratio.
+    """
+
+    numerator = binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY]
+    denominator = numerator + binary_ct_as_dict[NUM_FALSE_POSITIVES_KEY]
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_binary_far(binary_ct_as_dict):
+    """Returns false-alarm rate.
+
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :return: binary_far: Binary FAR.
+    """
+
+    return 1. - get_binary_success_ratio(binary_ct_as_dict)
+
+
+def get_binary_csi(binary_ct_as_dict):
+    """Returns critical success index.
+
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :return: binary_csi: Binary CSI.
+    """
+
+    binary_pod = get_binary_pod(binary_ct_as_dict)
+    binary_success_ratio = get_binary_success_ratio(binary_ct_as_dict)
+
+    try:
+        return (binary_pod ** -1 + binary_success_ratio ** -1 - 1) ** -1
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_binary_frequency_bias(binary_ct_as_dict):
+    """Returns frequency bias.
+
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :return: binary_frequency_bias: Binary frequency bias.
+    """
+
+    binary_pod = get_binary_pod(binary_ct_as_dict)
+    binary_success_ratio = get_binary_success_ratio(binary_ct_as_dict)
+
+    try:
+        return binary_pod / binary_success_ratio
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def write_results(
+        pickle_file_name, predicted_label_matrix, actual_label_matrix,
+        neigh_distance_metres, binary_ct_as_dict, prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES):
+    """Writes results of neighbourhood evaluation to file.
+
+    :param pickle_file_name: Path to output file.
+    :param predicted_label_matrix: See doc for `make_contingency_tables`.
+    :param actual_label_matrix: Same.
+    :param neigh_distance_metres: Same.
+    :param binary_ct_as_dict: Same.
+    :param prediction_oriented_ct_matrix: Same.
+    :param actual_oriented_ct_matrix: Same.
+    :param grid_spacing_metres: Same.
+    """
+
+    evaluation_dict = {
+        PREDICTED_LABELS_KEY: predicted_label_matrix,
+        ACTUAL_LABELS_KEY: actual_label_matrix,
+        NEIGH_DISTANCE_KEY: neigh_distance_metres,
+        BINARY_CONTINGENCY_TABLE_KEY: binary_ct_as_dict,
+        PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,
+        ACTUAL_ORIENTED_CT_KEY: actual_oriented_ct_matrix,
+        GRID_SPACING_KEY: grid_spacing_metres
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(evaluation_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_results(pickle_file_name):
+    """Reads results of neighbourhood evaluation from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: evaluation_dict: Dictionary with keys listed in `write_results`.
+    :raises: ValueError: if any of the expected keys are not found.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    evaluation_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(set(REQUIRED_KEYS) - set(evaluation_dict.keys()))
+    if len(missing_keys) == 0:
+        return evaluation_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)

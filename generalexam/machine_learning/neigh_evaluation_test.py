@@ -129,6 +129,14 @@ ACTUAL_ORIENTED_CT_MATRIX_LARGE_NEIGH = numpy.array([
     [numpy.nan, 4. / 15, 6. / 15]
 ])
 
+# The following constants are used to test get_binary*.
+BINARY_POD_LARGE_NEIGH = 14. / 30
+BINARY_FOM_LARGE_NEIGH = 16. / 30
+BINARY_SUCCESS_RATIO_LARGE_NEIGH = 15. / 34
+BINARY_FAR_LARGE_NEIGH = 19. / 34
+BINARY_CSI_LARGE_NEIGH = (30. / 14 + 34. / 15 - 1) ** -1
+BINARY_FREQUENCY_BIAS_LARGE_NEIGH = float(14 * 34) / (30 * 15)
+
 
 class NeighEvaluationTests(unittest.TestCase):
     """Each method is a unit test for neigh_evaluation.py."""
@@ -356,6 +364,56 @@ class NeighEvaluationTests(unittest.TestCase):
             this_actual_oriented_ct_matrix,
             ACTUAL_ORIENTED_CT_MATRIX_LARGE_NEIGH,
             atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_get_binary_pod_large_neigh(self):
+        """Ensures correct output from get_binary_pod."""
+
+        self.assertTrue(numpy.isclose(
+            neigh_evaluation.get_binary_pod(BINARY_CT_AS_DICT_LARGE_NEIGH),
+            BINARY_POD_LARGE_NEIGH, atol=TOLERANCE
+        ))
+
+    def test_get_binary_fom_large_neigh(self):
+        """Ensures correct output from get_binary_fom."""
+
+        self.assertTrue(numpy.isclose(
+            neigh_evaluation.get_binary_fom(BINARY_CT_AS_DICT_LARGE_NEIGH),
+            BINARY_FOM_LARGE_NEIGH, atol=TOLERANCE
+        ))
+
+    def test_get_binary_success_ratio_large_neigh(self):
+        """Ensures correct output from get_binary_success_ratio."""
+
+        self.assertTrue(numpy.isclose(
+            neigh_evaluation.get_binary_success_ratio(
+                BINARY_CT_AS_DICT_LARGE_NEIGH),
+            BINARY_SUCCESS_RATIO_LARGE_NEIGH, atol=TOLERANCE
+        ))
+
+    def test_get_binary_far_large_neigh(self):
+        """Ensures correct output from get_binary_far."""
+
+        self.assertTrue(numpy.isclose(
+            neigh_evaluation.get_binary_far(BINARY_CT_AS_DICT_LARGE_NEIGH),
+            BINARY_FAR_LARGE_NEIGH, atol=TOLERANCE
+        ))
+
+    def test_get_binary_csi_large_neigh(self):
+        """Ensures correct output from get_binary_csi."""
+
+        self.assertTrue(numpy.isclose(
+            neigh_evaluation.get_binary_csi(BINARY_CT_AS_DICT_LARGE_NEIGH),
+            BINARY_CSI_LARGE_NEIGH, atol=TOLERANCE
+        ))
+
+    def test_get_binary_frequency_bias_large_neigh(self):
+        """Ensures correct output from get_binary_frequency_bias."""
+
+        self.assertTrue(numpy.isclose(
+            neigh_evaluation.get_binary_frequency_bias(
+                BINARY_CT_AS_DICT_LARGE_NEIGH),
+            BINARY_FREQUENCY_BIAS_LARGE_NEIGH, atol=TOLERANCE
         ))
 
 
