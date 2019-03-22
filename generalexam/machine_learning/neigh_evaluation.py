@@ -238,10 +238,10 @@ def determinize_predictions(class_probability_matrix, binarization_threshold):
     return predicted_label_matrix
 
 
-def get_binary_contingency_table(
+def make_contingency_tables(
         predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
         grid_spacing_metres=NARR_GRID_SPACING_METRES):
-    """Creates binary ("front vs. no front") contingency table.
+    """Creates contingency tables.
 
     :param predicted_label_matrix: See doc for `_check_gridded_predictions`
         with `expect_probs == False`.
@@ -249,6 +249,7 @@ def get_binary_contingency_table(
     :param neigh_distance_metres: Neighbourhood distance.
     :param grid_spacing_metres: Grid spacing (this method assumes that the grid
         is equidistant).
+
     :return: binary_ct_as_dict: Dictionary with the following keys.
     binary_ct_as_dict['num_actual_oriented_true_positives']: Number of actual
         frontal grid cells with a matching prediction within
@@ -260,6 +261,19 @@ def get_binary_contingency_table(
         cells with *no* matching actual within `neigh_distance_metres`.
     binary_ct_as_dict['num_false_negatives']: Number of actual frontal grid
         cells with *no* matching prediction within `neigh_distance_metres`.
+
+    :return: prediction_oriented_ct_matrix: 3-by-3 numpy array.
+        prediction_oriented_ct_matrix[i, j] is the probability, given that the
+        [i]th class is predicted, that the [j]th class will be observed.  Array
+        indices follow the "ENUM"s listed at the top of this file, and the first
+        row (for NF predictions) is all NaN, because this file does not handle
+        negative predictions.
+    :return: actual_oriented_ct_matrix: 3-by-3 numpy array.
+        actual_oriented_ct_matrix[i, j] is the probability, given that the [j]th
+        class is observed, that the [i]th class will be predicted.  Array
+        indices follow the "ENUM"s listed at the top of this file, and the first
+        column (for NF predictions) is all NaN, because this file does not
+        handle negative observations.
     """
 
     # TODO(thunderhoser): Incorporate time lag here?
@@ -284,6 +298,14 @@ def get_binary_contingency_table(
         NUM_FALSE_NEGATIVES_KEY: 0
     }
 
+    num_classes = len(FRONT_TYPE_ENUMS)
+    prediction_oriented_ct_matrix = numpy.full(
+        (num_classes, num_classes), 0, dtype=int
+    )
+    actual_oriented_ct_matrix = numpy.full(
+        (num_classes, num_classes), 0, dtype=int
+    )
+
     num_times = predicted_label_matrix.shape[0]
 
     for i in range(num_times):
@@ -292,10 +314,15 @@ def get_binary_contingency_table(
         ).format(i + 1, num_times)
 
         this_num_predicted_by_class = _match_actual_wf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...],
-            actual_label_matrix_one_time=actual_label_matrix[i, ...],
+            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres)
+
+        actual_oriented_ct_matrix[:, front_utils.WARM_FRONT_ENUM] = (
+            actual_oriented_ct_matrix[:, front_utils.WARM_FRONT_ENUM] +
+            this_num_predicted_by_class
+        )
 
         binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY] += (
             this_num_predicted_by_class[front_utils.WARM_FRONT_ENUM]
@@ -310,10 +337,15 @@ def get_binary_contingency_table(
         ).format(i + 1, num_times)
 
         this_num_predicted_by_class = _match_actual_cf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...],
-            actual_label_matrix_one_time=actual_label_matrix[i, ...],
+            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres)
+
+        actual_oriented_ct_matrix[:, front_utils.COLD_FRONT_ENUM] = (
+            actual_oriented_ct_matrix[:, front_utils.COLD_FRONT_ENUM] +
+            this_num_predicted_by_class
+        )
 
         binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY] += (
             this_num_predicted_by_class[front_utils.COLD_FRONT_ENUM]
@@ -328,10 +360,15 @@ def get_binary_contingency_table(
         ).format(i + 1, num_times)
 
         this_num_actual_by_class = _match_predicted_wf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...],
-            actual_label_matrix_one_time=actual_label_matrix[i, ...],
+            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres)
+
+        prediction_oriented_ct_matrix[front_utils.WARM_FRONT_ENUM, :] = (
+            prediction_oriented_ct_matrix[front_utils.WARM_FRONT_ENUM, :] +
+            this_num_actual_by_class
+        )
 
         binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY] += (
             this_num_actual_by_class[front_utils.WARM_FRONT_ENUM]
@@ -346,10 +383,15 @@ def get_binary_contingency_table(
         ).format(i + 1, num_times)
 
         this_num_actual_by_class = _match_predicted_cf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...],
-            actual_label_matrix_one_time=actual_label_matrix[i, ...],
+            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres)
+
+        prediction_oriented_ct_matrix[front_utils.COLD_FRONT_ENUM, :] = (
+            prediction_oriented_ct_matrix[front_utils.COLD_FRONT_ENUM, :] +
+            this_num_actual_by_class
+        )
 
         binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY] += (
             this_num_actual_by_class[front_utils.COLD_FRONT_ENUM]
@@ -358,3 +400,30 @@ def get_binary_contingency_table(
             numpy.sum(this_num_actual_by_class) -
             this_num_actual_by_class[front_utils.COLD_FRONT_ENUM]
         )
+
+    prediction_oriented_ct_matrix = prediction_oriented_ct_matrix.astype(float)
+    prediction_oriented_ct_matrix[0, :] = numpy.nan
+
+    for k in range(1, num_classes):
+        if numpy.sum(prediction_oriented_ct_matrix[k, :]) == 0:
+            prediction_oriented_ct_matrix[k, :] = numpy.nan
+        else:
+            prediction_oriented_ct_matrix[k, :] = (
+                prediction_oriented_ct_matrix[k, :] /
+                numpy.sum(prediction_oriented_ct_matrix[k, :])
+            )
+
+    actual_oriented_ct_matrix = actual_oriented_ct_matrix.astype(float)
+    actual_oriented_ct_matrix[:, 0] = numpy.nan
+
+    for k in range(1, num_classes):
+        if numpy.sum(actual_oriented_ct_matrix[:, k]) == 0:
+            actual_oriented_ct_matrix[:, k] = numpy.nan
+        else:
+            actual_oriented_ct_matrix[:, k] = (
+                actual_oriented_ct_matrix[:, k] /
+                numpy.sum(actual_oriented_ct_matrix[:, k])
+            )
+
+    return (binary_ct_as_dict, prediction_oriented_ct_matrix,
+            actual_oriented_ct_matrix)

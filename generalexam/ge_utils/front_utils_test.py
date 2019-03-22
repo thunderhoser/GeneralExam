@@ -164,7 +164,7 @@ TERNARY_NARR_MATRIX_UNDILATED = numpy.array(
      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
      [0, 0, 0, 0, 0, 0, 0, 0, 2, 0]], dtype=int)
 
-TERNARY_NARR_MATRIX_DILATED = numpy.array(
+TERNARY_NARR_MATRIX_CF_TIEBREAKER = numpy.array(
     [[1, 1, 1, 1, 2, 0, 0, 0, 0, 0],
      [1, 1, 1, 1, 2, 2, 2, 0, 0, 0],
      [1, 1, 1, 2, 2, 2, 2, 1, 0, 0],
@@ -173,6 +173,16 @@ TERNARY_NARR_MATRIX_DILATED = numpy.array(
      [0, 0, 2, 2, 1, 1, 1, 2, 2, 2],
      [0, 0, 0, 1, 1, 1, 2, 2, 2, 2],
      [0, 0, 0, 0, 0, 2, 2, 2, 2, 2]], dtype=int)
+
+TERNARY_NARR_MATRIX_WF_TIEBREAKER = numpy.array(
+    [[1, 1, 1, 1, 2, 0, 0, 0, 0, 0],
+     [1, 1, 1, 1, 2, 2, 2, 0, 0, 0],
+     [1, 1, 1, 2, 2, 2, 1, 1, 0, 0],
+     [1, 1, 2, 2, 2, 1, 1, 1, 0, 0],
+     [0, 1, 2, 2, 1, 1, 1, 1, 1, 0],
+     [0, 0, 2, 1, 1, 1, 1, 1, 2, 2],
+     [0, 0, 0, 1, 1, 1, 1, 2, 2, 2],
+     [0, 0, 0, 0, 0, 1, 2, 2, 2, 2]], dtype=int)
 
 # The following constants are used to test remove_fronts_in_masked_area.
 THESE_STRINGS = [
@@ -412,16 +422,36 @@ class FrontUtilsTests(unittest.TestCase):
             this_binary_image_matrix, BINARY_NARR_MATRIX_DILATED
         ))
 
-    def test_dilate_ternary_label_matrix(self):
-        """Ensures correct output from dilate_ternary_label_matrix."""
+    def test_dilate_ternary_label_matrix_cf_tiebreaker(self):
+        """Ensures correct output from dilate_ternary_label_matrix.
+
+        In this case the tiebreaker is the CF label.
+        """
 
         this_ternary_image_matrix = front_utils.dilate_ternary_label_matrix(
             ternary_label_matrix=TERNARY_NARR_MATRIX_UNDILATED + 0,
             dilation_distance_metres=DILATION_DISTANCE_METRES,
-            grid_spacing_metres=NARR_GRID_SPACING_METRES)
+            grid_spacing_metres=NARR_GRID_SPACING_METRES,
+            tiebreaker_enum=front_utils.COLD_FRONT_ENUM)
 
         self.assertTrue(numpy.array_equal(
-            this_ternary_image_matrix, TERNARY_NARR_MATRIX_DILATED
+            this_ternary_image_matrix, TERNARY_NARR_MATRIX_CF_TIEBREAKER
+        ))
+
+    def test_dilate_ternary_label_matrix_wf_tiebreaker(self):
+        """Ensures correct output from dilate_ternary_label_matrix.
+
+        In this case the tiebreaker is the WF label.
+        """
+
+        this_ternary_image_matrix = front_utils.dilate_ternary_label_matrix(
+            ternary_label_matrix=TERNARY_NARR_MATRIX_UNDILATED + 0,
+            dilation_distance_metres=DILATION_DISTANCE_METRES,
+            grid_spacing_metres=NARR_GRID_SPACING_METRES,
+            tiebreaker_enum=front_utils.WARM_FRONT_ENUM)
+
+        self.assertTrue(numpy.array_equal(
+            this_ternary_image_matrix, TERNARY_NARR_MATRIX_WF_TIEBREAKER
         ))
 
     def test_gridded_labels_to_points(self):
