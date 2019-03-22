@@ -49,6 +49,7 @@ LAST_TIME_ARG_NAME = 'last_time_string'
 METHOD_ARG_NAME = 'method_name'
 USE_ENSEMBLE_ARG_NAME = 'use_nfa_ensemble'
 THRESHOLD_ARG_NAME = 'binarization_threshold'
+NUM_CLOSING_ITERS_ARG_NAME = 'num_binary_closing_iters'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -89,6 +90,11 @@ THRESHOLD_HELP_STRING = (
 ).format(METHOD_ARG_NAME, CNN_METHOD_NAME, USE_ENSEMBLE_ARG_NAME,
          THRESHOLD_ARG_NAME)
 
+NUM_CLOSING_ITERS_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}" or {2:s} = 0] Number of binary-closing '
+    'iterations for deterministic labels.'
+).format(METHOD_ARG_NAME, CNN_METHOD_NAME, USE_ENSEMBLE_ARG_NAME)
+
 FIRST_LETTER_HELP_STRING = (
     'Letter label for first time step.  If this is "a", the label "(a)" will be'
     ' printed at the top left of the figure.  If you do not want labels, leave '
@@ -125,6 +131,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
     help=THRESHOLD_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_CLOSING_ITERS_ARG_NAME, type=int, required=False, default=0,
+    help=NUM_CLOSING_ITERS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_LETTER_ARG_NAME, type=str, required=False, default='',
@@ -327,8 +337,8 @@ def _plot_one_time(
 
 def _run(input_grid_dir_name, input_object_file_name, first_time_string,
          last_time_string, method_name, use_nfa_ensemble,
-         binarization_threshold, first_letter_label, letter_interval,
-         output_dir_name):
+         binarization_threshold, num_binary_closing_iters, first_letter_label,
+         letter_interval, output_dir_name):
     """Plots predictions on full NARR grid.
 
     This is effectively the main method.
@@ -339,6 +349,8 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
     :param last_time_string: Same.
     :param method_name: Same.
     :param use_nfa_ensemble: Same.
+    :param binarization_threshold: Same.
+    :param num_binary_closing_iters: Same.
     :param first_letter_label: Same.
     :param letter_interval: Same.
     :param output_dir_name: Same.
@@ -437,6 +449,12 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
             this_predicted_label_matrix = this_predicted_label_matrix[0, ...]
             this_class_probability_matrix = None
 
+        if (this_predicted_label_matrix is not None
+                and num_binary_closing_iters > 0):
+            this_predicted_label_matrix = front_utils.close_gridded_labels(
+                ternary_label_matrix=this_predicted_label_matrix,
+                num_iterations=num_binary_closing_iters)
+
         if input_object_file_name is None:
             this_predicted_region_table = None
         else:
@@ -500,6 +518,8 @@ if __name__ == '__main__':
         use_nfa_ensemble=bool(getattr(
             INPUT_ARG_OBJECT, USE_ENSEMBLE_ARG_NAME)),
         binarization_threshold=getattr(INPUT_ARG_OBJECT, THRESHOLD_ARG_NAME),
+        num_binary_closing_iters=getattr(
+            INPUT_ARG_OBJECT, NUM_CLOSING_ITERS_ARG_NAME),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
         letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
