@@ -408,15 +408,27 @@ def close_gridded_labels(ternary_label_matrix, num_iterations=1):
     error_checking.assert_is_integer(num_iterations)
     error_checking.assert_is_greater(num_iterations, 0)
 
+    # warm_front_flag_matrix = binary_closing(
+    #     (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
+    #     structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, border_value=0,
+    #     iterations=num_iterations
+    # )
+    #
+    # cold_front_flag_matrix = binary_closing(
+    #     (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
+    #     structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, border_value=0,
+    #     iterations=num_iterations
+    # )
+
     warm_front_flag_matrix = binary_closing(
         (ternary_label_matrix == WARM_FRONT_ENUM).astype(int),
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, border_value=0,
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
         iterations=num_iterations
     )
 
     cold_front_flag_matrix = binary_closing(
         (ternary_label_matrix == COLD_FRONT_ENUM).astype(int),
-        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0, border_value=0,
+        structure=STRUCTURE_MATRIX_FOR_BINARY_CLOSING, origin=0,
         iterations=num_iterations
     )
 
