@@ -511,7 +511,8 @@ def dilate_binary_label_matrix(
 
 def dilate_ternary_label_matrix(
         ternary_label_matrix, dilation_mask_matrix=None,
-        dilation_distance_metres=None, grid_spacing_metres=None):
+        dilation_distance_metres=None, grid_spacing_metres=None,
+        tiebreaker_enum=COLD_FRONT_ENUM):
     """Dilates gridded ternary ("no front, warm front, or cold front") labels.
 
     :param ternary_label_matrix: See doc for `check_gridded_labels`.
@@ -522,10 +523,14 @@ def dilate_ternary_label_matrix(
         Dilation distance.
     :param grid_spacing_metres: [used only if `dilation_mask_matrix is None`]
         Spacing between adjacent grid points in model grid.
+    :param tiebreaker_enum: Front type in case of a tie (must be accepted by
+        `check_front_type_enum`).
     :return: ternary_label_matrix: Same as input but dilated.
     """
 
     check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
+    check_front_type_enum(tiebreaker_enum)
+    error_checking.assert_is_greater(tiebreaker_enum, NO_FRONT_ENUM)
 
     if dilation_mask_matrix is None:
         dilation_mask_matrix = buffer_distance_to_dilation_mask(
@@ -577,9 +582,22 @@ def dilate_ternary_label_matrix(
             both_fronts_column_indices[i] - warm_front_column_indices
         )
         this_min_warm_front_distance = numpy.min(
-            these_row_diffs**2 + these_column_diffs**2)
+            these_row_diffs ** 2 + these_column_diffs ** 2)
 
-        if this_min_cold_front_distance <= this_min_warm_front_distance:
+        if numpy.isclose(this_min_cold_front_distance,
+                         this_min_warm_front_distance, atol=TOLERANCE):
+            if tiebreaker_enum == COLD_FRONT_ENUM:
+                warm_front_flag_matrix[
+                    both_fronts_row_indices[i], both_fronts_column_indices[i]
+                ] = NO_FRONT_ENUM
+            else:
+                cold_front_flag_matrix[
+                    both_fronts_row_indices[i], both_fronts_column_indices[i]
+                ] = NO_FRONT_ENUM
+
+            continue
+
+        if this_min_cold_front_distance < this_min_warm_front_distance:
             warm_front_flag_matrix[
                 both_fronts_row_indices[i], both_fronts_column_indices[i]
             ] = NO_FRONT_ENUM
