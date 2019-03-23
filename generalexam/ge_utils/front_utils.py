@@ -9,6 +9,7 @@ import cv2
 import shapely.geometry
 from scipy.ndimage.morphology import binary_closing
 from skimage.measure import label as label_image
+from skimage.measure import regionprops
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
@@ -17,7 +18,6 @@ from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 0.001
 TIME_FORMAT = '%Y-%m-%d-%H'
-STRUCTURE_MATRIX_FOR_BINARY_CLOSING = numpy.ones((3, 3))
 
 ERA5_MODEL_NAME = 'era5'
 VALID_NWP_MODEL_NAMES = [ERA5_MODEL_NAME, nwp_model_utils.NARR_MODEL_NAME]
@@ -36,7 +36,8 @@ MODEL_NAME_COLUMN = 'model_name'
 
 ROWS_BY_REGION_KEY = 'row_indices_by_region'
 COLUMNS_BY_REGION_KEY = 'column_indices_by_region'
-FRONT_TYPES_KEY = 'front_type_by_region'
+FRONT_TYPES_KEY = 'front_type_strings'
+MAJOR_AXIS_LENGTHS_KEY = 'major_axis_lengths_px'
 
 NO_FRONT_ENUM = 0
 ANY_FRONT_ENUM = 1
@@ -748,27 +749,38 @@ def points_to_gridded_labels(gridded_label_dict, num_grid_rows,
     return ternary_image_matrix
 
 
-def gridded_labels_to_regions(ternary_label_matrix):
+def gridded_labels_to_regions(ternary_label_matrix, compute_lengths=False):
     """Converts gridded labels to list of connected regions.
 
     R = number of connected regions
     P_i = number of grid points in the [i]th region
 
     :param ternary_label_matrix: See doc for `check_gridded_labels`.
+    :param compute_lengths: Boolean flag.  If True, will compute major-axis
+        length for each region.
+
     :return: region_dict: Dictionary with the following keys.
     region_dict['row_array_by_region']: length-R list, where the [i]th element
         is an integer numpy array (length P_i) of rows in the [i]th region.
     region_dict['column_array_by_region']: Same but for columns.
     region_dict['front_type_strings']: length-R list of front types.
+
+    If `compute_lengths == True`, also contains the following keys.
+
+    region_dict['major_axis_lengths_px']: length-R numpy array of major-axis
+        lengths (pixels).
     """
 
+    error_checking.assert_is_boolean(compute_lengths)
     check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
 
-    ternary_label_matrix = close_ternary_label_matrix(
-        ternary_label_matrix=ternary_label_matrix, buffer_distance_metres=1.5,
-        grid_spacing_metres=1.)
-
     region_id_matrix = label_image(ternary_label_matrix, connectivity=2)
+
+    if compute_lengths:
+        list_of_regionprop_objects = regionprops(region_id_matrix)
+        major_axis_lengths_px = numpy.array(
+            [r.major_axis_length for r in list_of_regionprop_objects]
+        )
 
     num_regions = numpy.max(region_id_matrix)
     row_array_by_region = [[]] * num_regions
@@ -777,20 +789,28 @@ def gridded_labels_to_regions(ternary_label_matrix):
 
     for i in range(num_regions):
         row_array_by_region[i], column_array_by_region[i] = numpy.where(
-            region_id_matrix == i + 1)
+            region_id_matrix == i + 1
+        )
+
         this_integer_id = ternary_label_matrix[
-            row_array_by_region[i][0], column_array_by_region[i][0]]
+            row_array_by_region[i][0], column_array_by_region[i][0]
+        ]
 
         if this_integer_id == WARM_FRONT_ENUM:
             front_type_strings[i] = WARM_FRONT_STRING
         elif this_integer_id == COLD_FRONT_ENUM:
             front_type_strings[i] = COLD_FRONT_STRING
 
-    return {
+    region_dict = {
         ROWS_BY_REGION_KEY: row_array_by_region,
         COLUMNS_BY_REGION_KEY: column_array_by_region,
         FRONT_TYPES_KEY: front_type_strings
     }
+
+    if compute_lengths:
+        region_dict.update({MAJOR_AXIS_LENGTHS_KEY: major_axis_lengths_px})
+
+    return region_dict
 
 
 def polyline_to_narr_grid(vertex_latitudes_deg, vertex_longitudes_deg,

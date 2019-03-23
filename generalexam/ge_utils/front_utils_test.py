@@ -107,6 +107,8 @@ COLD_FRONT_ROW_INDICES = numpy.array(
 COLD_FRONT_COLUMN_INDICES = numpy.array(
     [0, 0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 4], dtype=int)
 
+REGION_MAJOR_AXIS_LENGTHS_PX = numpy.array([4.750431, 5.535734])
+
 GRIDDED_LABEL_DICT = {
     front_utils.WARM_FRONT_ROWS_COLUMN: WARM_FRONT_ROW_INDICES,
     front_utils.WARM_FRONT_COLUMNS_COLUMN: WARM_FRONT_COLUMN_INDICES,
@@ -599,36 +601,39 @@ class FrontUtilsTests(unittest.TestCase):
     def test_gridded_labels_to_regions(self):
         """Ensures correct output from gridded_labels_to_regions."""
 
-        this_frontal_region_dict = front_utils.gridded_labels_to_regions(
-            TERNARY_LABEL_MATRIX + 0)
+        this_region_dict = front_utils.gridded_labels_to_regions(
+            ternary_label_matrix=TERNARY_LABEL_MATRIX + 0, compute_lengths=True)
 
-        this_num_fronts = len(
-            this_frontal_region_dict[front_utils.FRONT_TYPES_KEY]
-        )
+        self.assertTrue(numpy.allclose(
+            this_region_dict[front_utils.MAJOR_AXIS_LENGTHS_KEY],
+            REGION_MAJOR_AXIS_LENGTHS_PX, atol=TOLERANCE
+        ))
+
+        this_num_fronts = len(this_region_dict[front_utils.FRONT_TYPES_KEY])
         self.assertTrue(this_num_fronts == NUM_FRONTS)
 
         for i in range(NUM_FRONTS):
-            this_front_type_string = this_frontal_region_dict[
+            this_front_type_string = this_region_dict[
                 front_utils.FRONT_TYPES_KEY][i]
 
             if this_front_type_string == front_utils.WARM_FRONT_STRING:
                 self.assertTrue(numpy.array_equal(
-                    this_frontal_region_dict[front_utils.ROWS_BY_REGION_KEY][i],
+                    this_region_dict[front_utils.ROWS_BY_REGION_KEY][i],
                     WARM_FRONT_ROW_INDICES
                 ))
                 self.assertTrue(numpy.array_equal(
-                    this_frontal_region_dict[
+                    this_region_dict[
                         front_utils.COLUMNS_BY_REGION_KEY][i],
                     WARM_FRONT_COLUMN_INDICES
                 ))
 
             else:
                 self.assertTrue(numpy.array_equal(
-                    this_frontal_region_dict[front_utils.ROWS_BY_REGION_KEY][i],
+                    this_region_dict[front_utils.ROWS_BY_REGION_KEY][i],
                     COLD_FRONT_ROW_INDICES
                 ))
                 self.assertTrue(numpy.array_equal(
-                    this_frontal_region_dict[
+                    this_region_dict[
                         front_utils.COLUMNS_BY_REGION_KEY][i],
                     COLD_FRONT_COLUMN_INDICES
                 ))
