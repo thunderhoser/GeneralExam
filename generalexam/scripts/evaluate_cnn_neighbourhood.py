@@ -203,6 +203,10 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
             '{1:s}...'
         ).format(min_region_length_metres, valid_time_strings[i])
 
+        orig_num_frontal_grid_cells = numpy.sum(
+            predicted_label_matrix[i, ...] > front_utils.NO_FRONT_ENUM
+        )
+
         predicted_label_matrix[i, ...] = (
             neigh_evaluation.remove_small_regions_one_time(
                 predicted_label_matrix=predicted_label_matrix[i, ...],
@@ -210,7 +214,19 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
                 buffer_distance_metres=buffer_distance_metres)
         )
 
+        new_num_frontal_grid_cells = numpy.sum(
+            predicted_label_matrix[i, ...] > front_utils.NO_FRONT_ENUM
+        )
+
+        print 'Removed {0:d} of {1:d} frontal grid cells.'.format(
+            orig_num_frontal_grid_cells,
+            orig_num_frontal_grid_cells - new_num_frontal_grid_cells
+        )
+
         if mask_matrix is None:
+            if i != num_times - 1:
+                print '\n'
+
             continue
 
         print 'Masking out {0:d} grid cells at {1:s}...'.format(
@@ -224,6 +240,9 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
         actual_label_matrix[i, ...][mask_matrix == 0] = (
             front_utils.NO_FRONT_ENUM
         )
+
+        if i != num_times - 1:
+            print '\n'
 
     print SEPARATOR_STRING
 
