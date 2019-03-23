@@ -6,10 +6,10 @@ from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from generalexam.ge_io import predictor_io
+from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import isotonic_regression
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 RANDOM_SEED = 6695
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -66,8 +66,8 @@ USE_ISOTONIC_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written here by '
-    '`machine_learning_utils.write_gridded_predictions`, to exact locations '
-    'determined by `machine_learning_utils.find_gridded_prediction_file`.')
+    '`prediction_io.write_probabilities`, to exact locations determined by '
+    '`prediction_io.find_file`.')
 
 TOP_PREDICTOR_DIR_NAME_DEFAULT = (
     '/condo/swatwork/ralager/era5_data/processed/with_theta_w')
@@ -166,8 +166,6 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
     if use_mask:
         mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
-        print mask_matrix.size
-        print numpy.sum(mask_matrix)
     else:
         first_predictor_file_name = predictor_io.find_file(
             top_directory_name=top_predictor_dir_name,
@@ -208,22 +206,24 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         this_target_matrix[this_target_matrix == -1] = 0
         print MINOR_SEPARATOR_STRING
 
-        this_output_file_name = ml_utils.find_gridded_prediction_file(
+        this_output_file_name = prediction_io.find_file(
             directory_name=output_dir_name,
-            first_target_time_unix_sec=valid_times_unix_sec[i],
-            last_target_time_unix_sec=valid_times_unix_sec[i],
+            first_time_unix_sec=valid_times_unix_sec[i],
+            last_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
         print 'Writing gridded probabilities and labels to: "{0:s}"...'.format(
             this_output_file_name)
 
-        ml_utils.write_gridded_predictions(
-            pickle_file_name=this_output_file_name,
+        prediction_io.write_probabilities(
+            netcdf_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
-            target_times_unix_sec=valid_times_unix_sec[[i]],
+            target_matrix=this_target_matrix,
+            valid_times_unix_sec=valid_times_unix_sec[[i]],
             model_file_name=model_file_name,
-            used_isotonic_regression=use_isotonic_regression,
-            target_matrix=this_target_matrix)
+            target_dilation_distance_metres=model_metadata_dict[
+                cnn.DILATION_DISTANCE_KEY],
+            used_isotonic=use_isotonic_regression)
 
         if i != num_times - 1:
             print SEPARATOR_STRING

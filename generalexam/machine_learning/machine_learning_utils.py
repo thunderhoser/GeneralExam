@@ -14,17 +14,14 @@ C = number of channels (predictor variables) in each image
 
 import copy
 import pickle
-import os.path
 import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
-TIME_FORMAT_IN_FILE_NAMES = '%Y%m%d%H'
 
 NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
     model_name=nwp_model_utils.NARR_MODEL_NAME
@@ -40,12 +37,6 @@ LAST_NARR_ROW_FOR_FCN_INPUT = 276
 
 ROW_INDICES_BY_TIME_KEY = 'row_indices_by_time'
 COLUMN_INDICES_BY_TIME_KEY = 'column_indices_by_time'
-
-PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
-TARGET_TIMES_KEY = 'target_times_unix_sec'
-TARGET_MATRIX_KEY = 'target_matrix'
-MODEL_FILE_NAME_KEY = 'model_file_name'
-USED_ISOTONIC_KEY = 'used_isotonic_regression'
 
 MINMAX_STRING = 'minmax'
 Z_SCORE_STRING = 'z_score'
@@ -1241,125 +1232,3 @@ def read_narr_mask(pickle_file_name):
     pickle_file_handle.close()
 
     return mask_matrix, num_warm_fronts_matrix, num_cold_fronts_matrix
-
-
-def find_gridded_prediction_file(
-        directory_name, first_target_time_unix_sec, last_target_time_unix_sec,
-        raise_error_if_missing=True):
-    """Finds Pickle file with gridded predictions.
-
-    This type of file should be written by `write_gridded_predictions`.
-
-    :param directory_name: Name of directory with prediction file.
-    :param first_target_time_unix_sec: First target time in file.
-    :param last_target_time_unix_sec: Last target time in file.
-    :param raise_error_if_missing: Boolean flag.  If file is missing and
-        `raise_error_if_missing = True`, this method will error out.
-    :return: prediction_file_name: Path to prediction file.  If file is missing
-        and `raise_error_if_missing = False`, this will be the *expected* path.
-    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
-    """
-
-    error_checking.assert_is_string(directory_name)
-    error_checking.assert_is_integer(first_target_time_unix_sec)
-    error_checking.assert_is_integer(last_target_time_unix_sec)
-    error_checking.assert_is_geq(
-        last_target_time_unix_sec, first_target_time_unix_sec)
-    error_checking.assert_is_boolean(raise_error_if_missing)
-
-    prediction_file_name = '{0:s}/gridded_predictions_{1:s}-{2:s}.p'.format(
-        directory_name,
-        time_conversion.unix_sec_to_string(
-            first_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
-        time_conversion.unix_sec_to_string(
-            last_target_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
-    )
-
-    if not os.path.isfile(prediction_file_name) and raise_error_if_missing:
-        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
-            prediction_file_name)
-        raise ValueError(error_string)
-
-    return prediction_file_name
-
-
-def write_gridded_predictions(
-        pickle_file_name, class_probability_matrix, target_times_unix_sec,
-        model_file_name, used_isotonic_regression=False, target_matrix=None):
-    """Writes gridded predictions to Pickle file.
-
-    :param pickle_file_name: Path to output file.
-    :param class_probability_matrix: E-by-M-by-N-by-K numpy array of predicted
-        class probabilities.
-    :param target_times_unix_sec: length-E numpy array of target times.
-    :param model_file_name: Path to file containing the model used to generate
-        predictions.
-    :param used_isotonic_regression: Boolean flag.  If True, isotonic regression
-        was used to calibrate probabilities from the base model (contained in
-        `model_file_name`).
-    :param target_matrix: E-by-M-by-N numpy array of target classes.  If
-        `target_matrix is None`, this method will write only the predictions.
-    """
-
-    error_checking.assert_is_geq_numpy_array(
-        class_probability_matrix, 0., allow_nan=True)
-    error_checking.assert_is_leq_numpy_array(
-        class_probability_matrix, 1., allow_nan=True)
-    error_checking.assert_is_numpy_array(
-        class_probability_matrix, num_dimensions=4)
-
-    if target_matrix is not None:
-        _check_target_matrix(
-            target_matrix=target_matrix, assert_binary=False, num_dimensions=3)
-
-        num_classes = class_probability_matrix.shape[-1]
-        these_expected_dim = numpy.array(
-            target_matrix.shape + (num_classes,), dtype=int
-        )
-
-        error_checking.assert_is_numpy_array(
-            class_probability_matrix, exact_dimensions=these_expected_dim)
-
-    these_expected_dim = numpy.array(
-        [class_probability_matrix.shape[0]], dtype=int)
-
-    error_checking.assert_is_integer_numpy_array(target_times_unix_sec)
-    error_checking.assert_is_numpy_array(
-        target_times_unix_sec, exact_dimensions=these_expected_dim)
-
-    error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_boolean(used_isotonic_regression)
-
-    prediction_dict = {
-        PROBABILITY_MATRIX_KEY: class_probability_matrix,
-        TARGET_TIMES_KEY: target_times_unix_sec,
-        TARGET_MATRIX_KEY: target_matrix,
-        MODEL_FILE_NAME_KEY: model_file_name,
-        USED_ISOTONIC_KEY: used_isotonic_regression
-    }
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(prediction_dict, pickle_file_handle)
-    pickle_file_handle.close()
-
-
-def read_gridded_predictions(pickle_file_name):
-    """Reads gridded predictions from Pickle file.
-
-    :param pickle_file_name: Path to input file.
-    :return: prediction_dict: Dictionary with the following keys.
-    prediction_dict['class_probability_matrix']: See doc for
-        `write_gridded_predictions`.
-    prediction_dict['target_times_unix_sec']: Same.
-    prediction_dict['target_matrix']: Same.
-    prediction_dict['model_file_name']: Same.
-    prediction_dict['used_isotonic_regression']: Same.
-    """
-
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    prediction_dict = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
-
-    return prediction_dict

@@ -9,8 +9,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_io import fronts_io
+from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 
 RANDOM_SEED = 6695
@@ -37,8 +37,8 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 PREDICTION_DIR_HELP_STRING = (
     'Name of input directory, containing gridded predictions.  Files therein '
-    'will be found by `machine_learning_utils.find_gridded_prediction_file` and'
-    ' read by `machine_learning_utils.read_gridded_predictions`.')
+    'will be found by `prediction_io.find_file` and read by '
+    '`prediction_io.read_file`.')
 
 TIME_HELP_STRING = (
     'Input time (format "yyyymmddHH").  Times will be randomly drawn from the '
@@ -228,10 +228,10 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         if num_times_done == num_times:
             break
 
-        this_prediction_file_name = ml_utils.find_gridded_prediction_file(
+        this_prediction_file_name = prediction_io.find_file(
             directory_name=input_prediction_dir_name,
-            first_target_time_unix_sec=possible_times_unix_sec[i],
-            last_target_time_unix_sec=possible_times_unix_sec[i],
+            first_time_unix_sec=possible_times_unix_sec[i],
+            last_time_unix_sec=possible_times_unix_sec[i],
             raise_error_if_missing=False)
 
         if not os.path.isfile(this_prediction_file_name):
@@ -241,11 +241,12 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         valid_times_unix_sec.append(possible_times_unix_sec[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
-        this_prediction_dict = ml_utils.read_gridded_predictions(
-            this_prediction_file_name)
+        this_prediction_dict = prediction_io.read_file(
+            netcdf_file_name=this_prediction_file_name,
+            read_deterministic=False)
 
         class_probability_matrix = this_prediction_dict[
-            ml_utils.PROBABILITY_MATRIX_KEY]
+            prediction_io.CLASS_PROBABILITIES_KEY]
 
         # if narr_mask_matrix is None:
         #     narr_mask_matrix = numpy.invert(numpy.isnan(
@@ -256,8 +257,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
         print 'Determinizing probabilities...'
         this_predicted_label_matrix = object_eval.determinize_probabilities(
-            class_probability_matrix=this_prediction_dict[
-                ml_utils.PROBABILITY_MATRIX_KEY],
+            class_probability_matrix=class_probability_matrix,
             binarization_threshold=binarization_threshold)
 
         print 'Converting image to frontal regions...'

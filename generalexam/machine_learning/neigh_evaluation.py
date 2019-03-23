@@ -23,147 +23,16 @@ NUM_PREDICTION_ORIENTED_TP_KEY = 'num_prediction_oriented_true_positives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 
-PREDICTED_LABELS_KEY = 'predicted_label_matrix'
-ACTUAL_LABELS_KEY = 'actual_label_matrix'
-VALID_TIMES_KEY = 'valid_times_unix_sec'
-MIN_REGION_LENGTH_KEY = 'min_region_length_metres'
-BUFFER_DISTANCE_KEY = 'buffer_distance_metres'
+PREDICTION_FILES_KEY = 'prediction_file_names'
 NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
 BINARY_CONTINGENCY_TABLE_KEY = 'binary_ct_as_dict'
 PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
 ACTUAL_ORIENTED_CT_KEY = 'actual_oriented_ct_matrix'
-GRID_SPACING_KEY = 'grid_spacing_metres'
 
 REQUIRED_KEYS = [
-    PREDICTED_LABELS_KEY, ACTUAL_LABELS_KEY, NEIGH_DISTANCE_KEY,
-    BINARY_CONTINGENCY_TABLE_KEY, PREDICTION_ORIENTED_CT_KEY,
-    ACTUAL_ORIENTED_CT_KEY, GRID_SPACING_KEY
+    PREDICTION_FILES_KEY, NEIGH_DISTANCE_KEY, BINARY_CONTINGENCY_TABLE_KEY,
+    PREDICTION_ORIENTED_CT_KEY, ACTUAL_ORIENTED_CT_KEY
 ]
-
-
-def __remove_small_regions_old(
-        predicted_label_matrix, min_region_length_metres,
-        buffer_distance_metres, grid_spacing_metres=NARR_GRID_SPACING_METRES):
-    """Removes small regions of frontal (WF or CF) labels.
-
-    :param predicted_label_matrix: See doc for `_check_gridded_predictions` with
-        `expect_probs == False`.
-    :param min_region_length_metres: Minimum region length (applied to major
-        axis).
-    :param buffer_distance_metres: Buffer distance.  Small region R will be
-        removed if it is > `buffer_distance_metres` away from the nearest large
-        region.
-    :param grid_spacing_metres: Grid spacing (this method assumes that the grid
-        is equidistant).
-    :return: predicted_label_matrix: Same as input but maybe with fewer frontal
-        labels.
-    """
-
-    error_checking.assert_is_greater(min_region_length_metres, 0.)
-    error_checking.assert_is_greater(grid_spacing_metres, 0.)
-
-    region_dict = front_utils.gridded_labels_to_regions(
-        ternary_label_matrix=predicted_label_matrix, compute_lengths=True)
-
-    region_lengths_metres = grid_spacing_metres * region_dict[
-        front_utils.MAJOR_AXIS_LENGTHS_KEY]
-
-    small_region_indices = numpy.where(
-        region_lengths_metres < min_region_length_metres
-    )[0]
-
-    if len(small_region_indices) == 0:
-        return predicted_label_matrix
-
-    closed_label_matrix = front_utils.close_ternary_label_matrix(
-        ternary_label_matrix=predicted_label_matrix + 0,
-        buffer_distance_metres=buffer_distance_metres,
-        grid_spacing_metres=grid_spacing_metres)
-
-    closed_region_dict = front_utils.gridded_labels_to_regions(
-        ternary_label_matrix=closed_label_matrix, compute_lengths=True)
-
-    closed_region_lengths_metres = grid_spacing_metres * closed_region_dict[
-        front_utils.MAJOR_AXIS_LENGTHS_KEY]
-
-    large_closed_region_indices = numpy.where(
-        closed_region_lengths_metres >= min_region_length_metres
-    )[0]
-
-    for i in small_region_indices:
-        this_row_index = region_dict[front_utils.ROWS_BY_REGION_KEY][i][0]
-        this_column_index = region_dict[front_utils.COLUMNS_BY_REGION_KEY][i][0]
-
-        this_region_closed = False
-
-        for j in large_closed_region_indices:
-            this_region_closed = numpy.any(numpy.logical_and(
-                this_row_index == closed_region_dict[
-                    front_utils.ROWS_BY_REGION_KEY][j],
-                this_column_index == closed_region_dict[
-                    front_utils.COLUMNS_BY_REGION_KEY][j]
-            ))
-
-            if this_region_closed:
-                break
-
-        if this_region_closed:
-            continue
-
-        predicted_label_matrix[
-            region_dict[front_utils.ROWS_BY_REGION_KEY][i],
-            region_dict[front_utils.COLUMNS_BY_REGION_KEY][i]
-        ] = front_utils.NO_FRONT_ENUM
-
-    return predicted_label_matrix
-
-
-def _check_gridded_predictions(prediction_matrix, expect_probs):
-    """Error-checks gridded predictions.
-
-    T = number of time steps
-    M = number of rows in grid
-    N = number of columns in grid
-    K = number of classes
-
-    :param prediction_matrix: [if `expect_probs == True`]
-        T-by-M-by-N-by-K numpy array of class probabilities, where
-        prediction_matrix[i, m, n, k] = probability that grid cell [m, n] in the
-        [i]th example belongs to the [k]th class.
-
-        [if `expect_probs == False`]
-        T-by-M-by-N numpy array of integers (each must be accepted by
-        `front_utils.check_front_type_enum`).
-
-    :param expect_probs: Boolean flag.  If True, will expect `prediction_matrix`
-        to contain probabilities.  If False, will expect `prediction_matrix` to
-        contain deterministic labels.
-    """
-
-    if expect_probs:
-        error_checking.assert_is_numpy_array(
-            prediction_matrix, num_dimensions=4)
-        error_checking.assert_is_geq_numpy_array(prediction_matrix, 0.)
-        error_checking.assert_is_leq_numpy_array(prediction_matrix, 1.)
-
-        num_classes = prediction_matrix.shape[-1]
-        error_checking.assert_is_geq(num_classes, 3)
-        error_checking.assert_is_leq(num_classes, 3)
-
-        summed_prediction_matrix = numpy.sum(prediction_matrix, axis=-1)
-        assert numpy.allclose(summed_prediction_matrix, 1., atol=TOLERANCE)
-
-        return
-
-    error_checking.assert_is_integer_numpy_array(prediction_matrix)
-    error_checking.assert_is_numpy_array(prediction_matrix, num_dimensions=3)
-
-    error_checking.assert_is_geq_numpy_array(
-        prediction_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
-    )
-    error_checking.assert_is_leq_numpy_array(
-        prediction_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
-    )
 
 
 def _match_actual_wf_grid_cells(
@@ -296,25 +165,73 @@ def _match_predicted_cf_grid_cells(
     return num_actual_by_class
 
 
+def check_gridded_predictions(prediction_matrix, expect_probs):
+    """Error-checks gridded predictions.
+
+    T = number of time steps
+    M = number of rows in grid
+    N = number of columns in grid
+    K = number of classes
+
+    :param prediction_matrix: [if `expect_probs == True`]
+        T-by-M-by-N-by-K numpy array of class probabilities, where
+        prediction_matrix[i, m, n, k] = probability that grid cell [m, n] in the
+        [i]th example belongs to the [k]th class.
+
+        [if `expect_probs == False`]
+        T-by-M-by-N numpy array of integers (each must be accepted by
+        `front_utils.check_front_type_enum`).
+
+    :param expect_probs: Boolean flag.  If True, will expect `prediction_matrix`
+        to contain probabilities.  If False, will expect `prediction_matrix` to
+        contain deterministic labels.
+    """
+
+    if expect_probs:
+        error_checking.assert_is_numpy_array(
+            prediction_matrix, num_dimensions=4)
+        error_checking.assert_is_geq_numpy_array(prediction_matrix, 0.)
+        error_checking.assert_is_leq_numpy_array(prediction_matrix, 1.)
+
+        num_classes = prediction_matrix.shape[-1]
+        error_checking.assert_is_geq(num_classes, 3)
+        error_checking.assert_is_leq(num_classes, 3)
+
+        summed_prediction_matrix = numpy.sum(prediction_matrix, axis=-1)
+        assert numpy.allclose(summed_prediction_matrix, 1., atol=TOLERANCE)
+
+        return
+
+    error_checking.assert_is_integer_numpy_array(prediction_matrix)
+    error_checking.assert_is_numpy_array(prediction_matrix, num_dimensions=3)
+
+    error_checking.assert_is_geq_numpy_array(
+        prediction_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
+    )
+    error_checking.assert_is_leq_numpy_array(
+        prediction_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
+    )
+
+
 def determinize_predictions_1threshold(
         class_probability_matrix, binarization_threshold):
     """Determinizes predictions (converts from probabilistic to deterministic).
 
     In this case there is only one threshold, for the NF probability.
 
-    :param class_probability_matrix: See doc for `_check_gridded_predictions`
+    :param class_probability_matrix: See doc for `check_gridded_predictions`
         with `expect_probs == True`.
     :param binarization_threshold: Binarization threshold.  For each case (i.e.,
         each grid cell at each time step), if NF probability >=
         `binarization_threshold`, the deterministic label will be NF.
         Otherwise, the deterministic label will be the max of WF and CF
         probabilities.
-    :return: predicted_label_matrix: See doc for `_check_gridded_predictions`
+    :return: predicted_label_matrix: See doc for `check_gridded_predictions`
         with `expect_probs == False`.
     """
 
-    _check_gridded_predictions(prediction_matrix=class_probability_matrix,
-                               expect_probs=True)
+    check_gridded_predictions(prediction_matrix=class_probability_matrix,
+                              expect_probs=True)
 
     error_checking.assert_is_geq(binarization_threshold, 0.)
     error_checking.assert_is_leq(binarization_threshold, 1.)
@@ -343,16 +260,16 @@ def determinize_predictions_2thresholds(
     probability.  If both probabilities exceed their respective thresholds, the
     highest one is used to determine the label.
 
-    :param class_probability_matrix: See doc for `_check_gridded_predictions`
+    :param class_probability_matrix: See doc for `check_gridded_predictions`
         with `expect_probs == True`.
     :param wf_threshold: WF-probability threshold.
     :param cf_threshold: CF-probability threshold.
-    :return: predicted_label_matrix: See doc for `_check_gridded_predictions`
+    :return: predicted_label_matrix: See doc for `check_gridded_predictions`
         with `expect_probs == False`.
     """
 
-    _check_gridded_predictions(prediction_matrix=class_probability_matrix,
-                               expect_probs=True)
+    check_gridded_predictions(prediction_matrix=class_probability_matrix,
+                              expect_probs=True)
 
     error_checking.assert_is_geq(wf_threshold, 0.)
     error_checking.assert_is_leq(wf_threshold, 1.)
@@ -418,7 +335,7 @@ def remove_small_regions_one_time(
     """
 
     error_checking.assert_is_numpy_array(predicted_label_matrix)
-    _check_gridded_predictions(
+    check_gridded_predictions(
         prediction_matrix=numpy.expand_dims(predicted_label_matrix, axis=0),
         expect_probs=False
     )
@@ -492,7 +409,7 @@ def make_contingency_tables(
         grid_spacing_metres=NARR_GRID_SPACING_METRES):
     """Creates contingency tables.
 
-    :param predicted_label_matrix: See doc for `_check_gridded_predictions`
+    :param predicted_label_matrix: See doc for `check_gridded_predictions`
         with `expect_probs == False`.
     :param actual_label_matrix: Same.
     :param neigh_distance_metres: Neighbourhood distance.
@@ -530,9 +447,9 @@ def make_contingency_tables(
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
-    _check_gridded_predictions(
+    check_gridded_predictions(
         prediction_matrix=predicted_label_matrix, expect_probs=False)
-    _check_gridded_predictions(
+    check_gridded_predictions(
         prediction_matrix=actual_label_matrix, expect_probs=False)
 
     error_checking.assert_is_numpy_array(
@@ -763,48 +680,24 @@ def get_binary_frequency_bias(binary_ct_as_dict):
 
 
 def write_results(
-        pickle_file_name, predicted_label_matrix, actual_label_matrix,
-        valid_times_unix_sec, min_region_length_metres, buffer_distance_metres,
-        neigh_distance_metres, binary_ct_as_dict, prediction_oriented_ct_matrix,
-        actual_oriented_ct_matrix,
-        grid_spacing_metres=NARR_GRID_SPACING_METRES):
-    """Writes results of neighbourhood evaluation to file.
+        pickle_file_name, prediction_file_names, neigh_distance_metres,
+        binary_ct_as_dict, prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix):
+    """Writes results of neighbourhood evaluation to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param predicted_label_matrix: See doc for `make_contingency_tables`.
-    :param actual_label_matrix: Same.
-    :param valid_times_unix_sec: 1-D numpy array of valid times.
-    :param min_region_length_metres: See doc for
-        `remove_small_regions_one_time`.
-    :param buffer_distance_metres: Same.
-    :param neigh_distance_metres: Same.
-    :param binary_ct_as_dict: Same.
+    :param prediction_file_names: 1-D list of paths to input files (readable by
+        `prediction_io.read_file`).
+    :param neigh_distance_metres: Neighbourhood distance.
+    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
     :param prediction_oriented_ct_matrix: Same.
     :param actual_oriented_ct_matrix: Same.
-    :param grid_spacing_metres: Same.
     """
 
-    error_checking.assert_is_greater(min_region_length_metres, 0.)
-    error_checking.assert_is_greater(buffer_distance_metres, 0.)
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
-    error_checking.assert_is_greater(grid_spacing_metres, 0.)
-
-    _check_gridded_predictions(
-        prediction_matrix=predicted_label_matrix, expect_probs=False)
-    _check_gridded_predictions(
-        prediction_matrix=actual_label_matrix, expect_probs=False)
-
+    error_checking.assert_is_string_list(prediction_file_names)
     error_checking.assert_is_numpy_array(
-        actual_label_matrix,
-        exact_dimensions=numpy.array(predicted_label_matrix.shape, dtype=int)
-    )
-
-    num_times = predicted_label_matrix.shape[0]
-
-    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
-    error_checking.assert_is_numpy_array(
-        valid_times_unix_sec,
-        exact_dimensions=numpy.array([num_times], dtype=int)
+        numpy.array(prediction_file_names), num_dimensions=1
     )
 
     num_classes = len(FRONT_TYPE_ENUMS)
@@ -819,16 +712,11 @@ def write_results(
     )
 
     evaluation_dict = {
-        PREDICTED_LABELS_KEY: predicted_label_matrix,
-        ACTUAL_LABELS_KEY: actual_label_matrix,
-        VALID_TIMES_KEY: valid_times_unix_sec,
-        MIN_REGION_LENGTH_KEY: min_region_length_metres,
-        BUFFER_DISTANCE_KEY: buffer_distance_metres,
+        PREDICTION_FILES_KEY: prediction_file_names,
         NEIGH_DISTANCE_KEY: neigh_distance_metres,
         BINARY_CONTINGENCY_TABLE_KEY: binary_ct_as_dict,
         PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,
-        ACTUAL_ORIENTED_CT_KEY: actual_oriented_ct_matrix,
-        GRID_SPACING_KEY: grid_spacing_metres
+        ACTUAL_ORIENTED_CT_KEY: actual_oriented_ct_matrix
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)

@@ -13,9 +13,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
+from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
-from generalexam.machine_learning import neigh_evaluation
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
 from generalexam.plotting import prediction_plotting
 
@@ -33,23 +32,21 @@ BORDER_COLOUR = numpy.full(3, 0.)
 
 FIGURE_RESOLUTION_DPI = 300
 
-PROBABILISTIC_DIR_ARG_NAME = 'input_probabilistic_dir_name'
-DETERMINISTIC_FILE_ARG_NAME = 'input_deterministic_file_name'
+PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
+DETERMINISTIC_ARG_NAME = 'plot_deterministic'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-PROBABILISTIC_DIR_HELP_STRING = (
-    'Name of directory with gridded probabilities.  Files therein will be found'
-    ' by `machine_learning_utils.find_gridded_prediction_file` and read by '
-    '`machine_learning_utils.read_gridded_predictions`.  If this is empty, will'
-    ' plot deterministic labels instead.')
+PREDICTION_DIR_HELP_STRING = (
+    'Name of directory with gridded predictions.  Files therein will be found '
+    'by `prediction_io.find_file` and read by `prediction_io.read_file`.')
 
-DETERMINISTIC_FILE_HELP_STRING = (
-    'Name of file with gridded deterministic labels.  Will be read by '
-    '`neigh_evaluation.read_results`.')
+DETERMINISTIC_HELP_STRING = (
+    'Boolean flag.  If 1, deterministic predictions will be plotted.  If 0, '
+    'probabilities will be plotted.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Predictions will be plotted for all times in '
@@ -69,12 +66,12 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + PROBABILISTIC_DIR_ARG_NAME, type=str, required=False, default='',
-    help=PROBABILISTIC_DIR_HELP_STRING)
+    '--' + PREDICTION_DIR_ARG_NAME, type=str, required=True,
+    help=PREDICTION_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + DETERMINISTIC_FILE_ARG_NAME, type=str, required=False, default='',
-    help=DETERMINISTIC_FILE_HELP_STRING)
+    '--' + DETERMINISTIC_ARG_NAME, type=int, required=False, default=0,
+    help=DETERMINISTIC_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
@@ -253,26 +250,21 @@ def _plot_one_time(
         input_file_name=output_file_name, output_file_name=output_file_name)
 
 
-def _run(probabilistic_dir_name, deterministic_file_name, first_time_string,
+def _run(prediction_dir_name, plot_deterministic, first_time_string,
          last_time_string, first_letter_label, letter_interval,
          output_dir_name):
     """Plots CNN predictions on full grid.
 
     This is effectively the main method.
 
-    :param probabilistic_dir_name: See documentation at top of file.
-    :param deterministic_file_name: Same.
+    :param prediction_dir_name: See documentation at top of file.
+    :param plot_deterministic: Same.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param first_letter_label: Same.
     :param letter_interval: Same.
     :param output_dir_name: Same.
     """
-
-    if probabilistic_dir_name in ['', 'None']:
-        probabilistic_dir_name = None
-    else:
-        deterministic_file_name = None
 
     if first_letter_label in ['', 'None']:
         first_letter_label = None
@@ -285,29 +277,10 @@ def _run(probabilistic_dir_name, deterministic_file_name, first_time_string,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, DEFAULT_TIME_FORMAT)
 
-    if deterministic_file_name is None:
-        valid_times_unix_sec = time_periods.range_and_interval_to_list(
-            start_time_unix_sec=first_time_unix_sec,
-            end_time_unix_sec=last_time_unix_sec,
-            time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
-
-        predicted_label_matrix = None
-    else:
-        print 'Reading data from: "{0:s}"...\n'.format(deterministic_file_name)
-        evaluation_dict = neigh_evaluation.read_results(deterministic_file_name)
-
-        valid_times_unix_sec = evaluation_dict[neigh_evaluation.VALID_TIMES_KEY]
-        good_indices = numpy.where(numpy.logical_and(
-            valid_times_unix_sec >= first_time_unix_sec,
-            valid_times_unix_sec <= last_time_unix_sec
-        ))[0]
-
-        valid_times_unix_sec = valid_times_unix_sec[good_indices]
-        predicted_label_matrix = evaluation_dict[
-            neigh_evaluation.PREDICTED_LABELS_KEY
-        ][good_indices, ...]
-
-        del evaluation_dict
+    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_time_unix_sec,
+        end_time_unix_sec=last_time_unix_sec,
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
     this_class_probability_matrix = None
     this_predicted_label_matrix = None
@@ -318,22 +291,28 @@ def _run(probabilistic_dir_name, deterministic_file_name, first_time_string,
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
-        if deterministic_file_name is None:
-            this_file_name = ml_utils.find_gridded_prediction_file(
-                directory_name=probabilistic_dir_name,
-                first_target_time_unix_sec=valid_times_unix_sec[i],
-                last_target_time_unix_sec=valid_times_unix_sec[i],
-                raise_error_if_missing=False)
+        this_file_name = prediction_io.find_file(
+            directory_name=prediction_dir_name,
+            first_time_unix_sec=valid_times_unix_sec[i],
+            last_time_unix_sec=valid_times_unix_sec[i],
+            raise_error_if_missing=False)
 
-            if not os.path.isfile(this_file_name):
-                continue
+        if not os.path.isfile(this_file_name):
+            continue
 
-            print 'Reading data from: "{0:s}"...'.format(this_file_name)
-            this_class_probability_matrix = ml_utils.read_gridded_predictions(
-                this_file_name
-            )[ml_utils.PROBABILITY_MATRIX_KEY][0, ...]
+        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        this_prediction_dict = prediction_io.read_file(
+            netcdf_file_name=this_file_name,
+            read_deterministic=plot_deterministic)
+
+        if plot_deterministic:
+            this_predicted_label_matrix = this_prediction_dict[
+                prediction_io.PREDICTED_LABELS_KEY
+            ][0, ...]
         else:
-            this_predicted_label_matrix = predicted_label_matrix[i, ...]
+            this_class_probability_matrix = this_prediction_dict[
+                prediction_io.CLASS_PROBABILITIES_KEY
+            ][0, ...]
 
         this_title_string = 'CNN predictions at {0:s}'.format(
             time_conversion.unix_sec_to_string(
@@ -379,10 +358,10 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        probabilistic_dir_name=getattr(
-            INPUT_ARG_OBJECT, PROBABILISTIC_DIR_ARG_NAME),
-        deterministic_file_name=getattr(
-            INPUT_ARG_OBJECT, DETERMINISTIC_FILE_ARG_NAME),
+        prediction_dir_name=getattr(
+            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME),
+        plot_deterministic=bool(getattr(
+            INPUT_ARG_OBJECT, DETERMINISTIC_ARG_NAME)),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),

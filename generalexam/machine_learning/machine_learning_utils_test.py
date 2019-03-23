@@ -615,12 +615,6 @@ EXAMPLE_INDICES_AT_SELECTED_POINTS = numpy.array([0, 0, 0, 0], dtype=int)
 CENTER_ROWS_AT_SELECTED_POINTS = numpy.array([0, 0, 1, 1], dtype=int)
 CENTER_COLUMNS_AT_SELECTED_POINTS = numpy.array([2, 1, 3, 0], dtype=int)
 
-# The following constants are used to test find_gridded_prediction_file.
-PREDICTION_DIR_NAME = 'poop'
-FIRST_PREDICTION_TIME_UNIX_SEC = 1234569600
-LAST_PREDICTION_TIME_UNIX_SEC = 2345684400
-PREDICTION_FILE_NAME = 'poop/gridded_predictions_2009021400-2044050103.p'
-
 
 def _compare_target_point_dicts(
         first_target_point_dict, second_target_point_dict):
@@ -1490,26 +1484,20 @@ class MachineLearningUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_small_predictor_matrix, DOWNSIZED_MATRIX_AT_SELECTED_POINTS,
-            atol=TOLERANCE))
+            atol=TOLERANCE
+        ))
         self.assertTrue(numpy.array_equal(
-            this_target_vector, TARGET_VECTOR_AT_SELECTED_POINTS))
+            this_target_vector, TARGET_VECTOR_AT_SELECTED_POINTS
+        ))
         self.assertTrue(numpy.array_equal(
-            these_example_indices, EXAMPLE_INDICES_AT_SELECTED_POINTS))
+            these_example_indices, EXAMPLE_INDICES_AT_SELECTED_POINTS
+        ))
         self.assertTrue(numpy.array_equal(
-            these_center_rows, CENTER_ROWS_AT_SELECTED_POINTS))
+            these_center_rows, CENTER_ROWS_AT_SELECTED_POINTS
+        ))
         self.assertTrue(numpy.array_equal(
-            these_center_columns, CENTER_COLUMNS_AT_SELECTED_POINTS))
-
-    def test_find_gridded_prediction_file(self):
-        """Ensures correct output from find_gridded_prediction_file."""
-
-        this_file_name = ml_utils.find_gridded_prediction_file(
-            directory_name=PREDICTION_DIR_NAME,
-            first_target_time_unix_sec=FIRST_PREDICTION_TIME_UNIX_SEC,
-            last_target_time_unix_sec=LAST_PREDICTION_TIME_UNIX_SEC,
-            raise_error_if_missing=False)
-
-        self.assertTrue(this_file_name == PREDICTION_FILE_NAME)
+            these_center_columns, CENTER_COLUMNS_AT_SELECTED_POINTS
+        ))
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import neigh_evaluation
@@ -27,8 +28,7 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 PREDICTION_DIR_HELP_STRING = (
     'Name of directory with gridded probabilities.  Files therein will be found'
-    ' by `machine_learning_utils.find_gridded_prediction_file` and read by '
-    '`machine_learning_utils.read_gridded_predictions`.')
+    ' by `prediction_io.find_file` and read by `prediction_io.read_file`.')
 
 MASK_FILE_HELP_STRING = (
     'Path to mask file (will be read by `machine_learning_utils.read_narr_mask`'
@@ -139,12 +139,11 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
     valid_times_unix_sec = []
 
     for i in range(len(all_times_unix_sec)):
-        this_file_name = ml_utils.find_gridded_prediction_file(
+        this_file_name = prediction_io.find_file(
             directory_name=prediction_dir_name,
-            first_target_time_unix_sec=all_times_unix_sec[i],
-            last_target_time_unix_sec=all_times_unix_sec[i],
-            raise_error_if_missing=False
-        )
+            first_time_unix_sec=all_times_unix_sec[i],
+            last_time_unix_sec=all_times_unix_sec[i],
+            raise_error_if_missing=False)
 
         if not os.path.isfile(this_file_name):
             continue
@@ -152,12 +151,12 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
         valid_times_unix_sec.append(all_times_unix_sec[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
-        this_dict = ml_utils.read_gridded_predictions(this_file_name)
+        this_prediction_dict = prediction_io.read_file(this_file_name)
 
-        this_class_probability_matrix = this_dict[
-            ml_utils.PROBABILITY_MATRIX_KEY]
-        this_actual_label_matrix = this_dict[
-            ml_utils.TARGET_MATRIX_KEY]
+        this_class_probability_matrix = this_prediction_dict[
+            prediction_io.CLASS_PROBABILITIES_KEY]
+        this_actual_label_matrix = this_prediction_dict[
+            prediction_io.TARGET_MATRIX_KEY]
 
         if class_probability_matrix is None:
             class_probability_matrix = this_class_probability_matrix + 0.
