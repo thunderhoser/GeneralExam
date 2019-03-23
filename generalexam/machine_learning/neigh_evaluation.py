@@ -2,6 +2,7 @@
 
 import pickle
 import numpy
+from sklearn.metrics.pairwise import euclidean_distances
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -39,6 +40,83 @@ REQUIRED_KEYS = [
     BINARY_CONTINGENCY_TABLE_KEY, PREDICTION_ORIENTED_CT_KEY,
     ACTUAL_ORIENTED_CT_KEY, GRID_SPACING_KEY
 ]
+
+
+def __remove_small_regions_old(
+        predicted_label_matrix, min_region_length_metres,
+        buffer_distance_metres, grid_spacing_metres=NARR_GRID_SPACING_METRES):
+    """Removes small regions of frontal (WF or CF) labels.
+
+    :param predicted_label_matrix: See doc for `_check_gridded_predictions` with
+        `expect_probs == False`.
+    :param min_region_length_metres: Minimum region length (applied to major
+        axis).
+    :param buffer_distance_metres: Buffer distance.  Small region R will be
+        removed if it is > `buffer_distance_metres` away from the nearest large
+        region.
+    :param grid_spacing_metres: Grid spacing (this method assumes that the grid
+        is equidistant).
+    :return: predicted_label_matrix: Same as input but maybe with fewer frontal
+        labels.
+    """
+
+    error_checking.assert_is_greater(min_region_length_metres, 0.)
+    error_checking.assert_is_greater(grid_spacing_metres, 0.)
+
+    region_dict = front_utils.gridded_labels_to_regions(
+        ternary_label_matrix=predicted_label_matrix, compute_lengths=True)
+
+    region_lengths_metres = grid_spacing_metres * region_dict[
+        front_utils.MAJOR_AXIS_LENGTHS_KEY]
+
+    small_region_indices = numpy.where(
+        region_lengths_metres < min_region_length_metres
+    )[0]
+
+    if len(small_region_indices) == 0:
+        return predicted_label_matrix
+
+    closed_label_matrix = front_utils.close_ternary_label_matrix(
+        ternary_label_matrix=predicted_label_matrix + 0,
+        buffer_distance_metres=buffer_distance_metres,
+        grid_spacing_metres=grid_spacing_metres)
+
+    closed_region_dict = front_utils.gridded_labels_to_regions(
+        ternary_label_matrix=closed_label_matrix, compute_lengths=True)
+
+    closed_region_lengths_metres = grid_spacing_metres * closed_region_dict[
+        front_utils.MAJOR_AXIS_LENGTHS_KEY]
+
+    large_closed_region_indices = numpy.where(
+        closed_region_lengths_metres >= min_region_length_metres
+    )[0]
+
+    for i in small_region_indices:
+        this_row_index = region_dict[front_utils.ROWS_BY_REGION_KEY][i][0]
+        this_column_index = region_dict[front_utils.COLUMNS_BY_REGION_KEY][i][0]
+
+        this_region_closed = False
+
+        for j in large_closed_region_indices:
+            this_region_closed = numpy.any(numpy.logical_and(
+                this_row_index == closed_region_dict[
+                    front_utils.ROWS_BY_REGION_KEY][j],
+                this_column_index == closed_region_dict[
+                    front_utils.COLUMNS_BY_REGION_KEY][j]
+            ))
+
+            if this_region_closed:
+                break
+
+        if this_region_closed:
+            continue
+
+        predicted_label_matrix[
+            region_dict[front_utils.ROWS_BY_REGION_KEY][i],
+            region_dict[front_utils.COLUMNS_BY_REGION_KEY][i]
+        ] = front_utils.NO_FRONT_ENUM
+
+    return predicted_label_matrix
 
 
 def _check_gridded_predictions(prediction_matrix, expect_probs):
@@ -219,8 +297,11 @@ def _match_predicted_cf_grid_cells(
     return num_actual_by_class
 
 
-def determinize_predictions(class_probability_matrix, binarization_threshold):
+def determinize_predictions_1threshold(
+        class_probability_matrix, binarization_threshold):
     """Determinizes predictions (converts from probabilistic to deterministic).
+
+    In this case there is only one threshold, for the NF probability.
 
     :param class_probability_matrix: See doc for `_check_gridded_predictions`
         with `expect_probs == True`.
@@ -251,6 +332,148 @@ def determinize_predictions(class_probability_matrix, binarization_threshold):
     predicted_label_matrix[
         numpy.where(nf_flag_matrix)
     ] = front_utils.NO_FRONT_ENUM
+
+    return predicted_label_matrix
+
+
+def determinize_predictions_2thresholds(
+        class_probability_matrix, wf_threshold, cf_threshold):
+    """Determinizes predictions (converts from probabilistic to deterministic).
+
+    In this case there are two thresholds, one for WF probability and one for CF
+    probability.  If both probabilities exceed their respective thresholds, the
+    highest one is used to determine the label.
+
+    :param class_probability_matrix: See doc for `_check_gridded_predictions`
+        with `expect_probs == True`.
+    :param wf_threshold: WF-probability threshold.
+    :param cf_threshold: CF-probability threshold.
+    :return: predicted_label_matrix: See doc for `_check_gridded_predictions`
+        with `expect_probs == False`.
+    """
+
+    _check_gridded_predictions(prediction_matrix=class_probability_matrix,
+                               expect_probs=True)
+
+    error_checking.assert_is_geq(wf_threshold, 0.)
+    error_checking.assert_is_leq(wf_threshold, 1.)
+    error_checking.assert_is_geq(cf_threshold, 0.)
+    error_checking.assert_is_leq(cf_threshold, 1.)
+
+    predicted_label_matrix = numpy.full(
+        class_probability_matrix.shape[:-1], front_utils.NO_FRONT_ENUM,
+        dtype=int)
+
+    wf_flag_matrix = (
+        class_probability_matrix[..., front_utils.WARM_FRONT_ENUM] >=
+        wf_threshold
+    )
+
+    cf_flag_matrix = (
+        class_probability_matrix[..., front_utils.COLD_FRONT_ENUM] >=
+        cf_threshold
+    )
+
+    both_true_indices_as_tuple = numpy.where(
+        numpy.logical_and(wf_flag_matrix, cf_flag_matrix)
+    )
+
+    these_cf_flags = (
+        class_probability_matrix[..., front_utils.COLD_FRONT_ENUM][
+            both_true_indices_as_tuple] >=
+        class_probability_matrix[..., front_utils.WARM_FRONT_ENUM][
+            both_true_indices_as_tuple]
+    )
+
+    these_cf_indices = numpy.where(these_cf_flags)[0]
+    wf_flag_matrix[both_true_indices_as_tuple][these_cf_indices] = False
+
+    these_wf_indices = numpy.where(numpy.invert(these_cf_flags))[0]
+    cf_flag_matrix[both_true_indices_as_tuple][these_wf_indices] = False
+
+    predicted_label_matrix[wf_flag_matrix] = front_utils.WARM_FRONT_ENUM
+    predicted_label_matrix[cf_flag_matrix] = front_utils.COLD_FRONT_ENUM
+
+    return predicted_label_matrix
+
+
+def remove_small_regions(
+        predicted_label_matrix, min_region_length_metres,
+        buffer_distance_metres, grid_spacing_metres=NARR_GRID_SPACING_METRES):
+    """Removes small regions of frontal (WF or CF) labels.
+
+    :param predicted_label_matrix: See doc for `_check_gridded_predictions` with
+        `expect_probs == False`.
+    :param min_region_length_metres: Minimum region length (applied to major
+        axis).
+    :param buffer_distance_metres: Buffer distance.  Small region R will be
+        removed if it is > `buffer_distance_metres` away from the nearest large
+        region.
+    :param grid_spacing_metres: Grid spacing (this method assumes that the grid
+        is equidistant).
+    :return: predicted_label_matrix: Same as input but maybe with fewer frontal
+        labels.
+    """
+
+    error_checking.assert_is_greater(min_region_length_metres, 0.)
+    error_checking.assert_is_greater(grid_spacing_metres, 0.)
+
+    region_dict = front_utils.gridded_labels_to_regions(
+        ternary_label_matrix=predicted_label_matrix, compute_lengths=True)
+
+    region_lengths_metres = grid_spacing_metres * region_dict[
+        front_utils.MAJOR_AXIS_LENGTHS_KEY]
+
+    small_region_flags = region_lengths_metres < min_region_length_metres
+    if not numpy.any(small_region_flags):
+        return predicted_label_matrix
+
+    small_region_indices = numpy.where(small_region_flags)[0]
+    large_region_indices = numpy.where(numpy.invert(small_region_flags))[0]
+
+    for i in small_region_indices:
+        these_rows = region_dict[front_utils.ROWS_BY_REGION_KEY][i]
+        these_columns = region_dict[front_utils.COLUMNS_BY_REGION_KEY][i]
+
+        this_small_region_coord_matrix = numpy.hstack((
+            numpy.reshape(these_columns, (these_columns.size, 1)),
+            numpy.reshape(these_rows, (these_rows.size, 1))
+        ))
+
+        this_small_region_closed = False
+
+        for j in large_region_indices:
+            if (region_dict[front_utils.FRONT_TYPES_KEY][i] !=
+                    region_dict[front_utils.FRONT_TYPES_KEY][j]):
+                continue
+
+            these_rows = region_dict[front_utils.ROWS_BY_REGION_KEY][j]
+            these_columns = region_dict[front_utils.COLUMNS_BY_REGION_KEY][j]
+
+            this_large_region_coord_matrix = numpy.hstack((
+                numpy.reshape(these_columns, (these_columns.size, 1)),
+                numpy.reshape(these_rows, (these_rows.size, 1))
+            ))
+
+            this_distance_matrix_metres = grid_spacing_metres * (
+                euclidean_distances(X=this_small_region_coord_matrix,
+                                    Y=this_large_region_coord_matrix)
+            )
+
+            this_small_region_closed = (
+                numpy.min(this_distance_matrix_metres) <= buffer_distance_metres
+            )
+
+            if this_small_region_closed:
+                break
+
+        if this_small_region_closed:
+            continue
+
+        predicted_label_matrix[
+            region_dict[front_utils.ROWS_BY_REGION_KEY][i],
+            region_dict[front_utils.COLUMNS_BY_REGION_KEY][i]
+        ] = front_utils.NO_FRONT_ENUM
 
     return predicted_label_matrix
 

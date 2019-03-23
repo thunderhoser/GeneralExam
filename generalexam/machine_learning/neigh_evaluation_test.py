@@ -6,7 +6,8 @@ from generalexam.machine_learning import neigh_evaluation
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test determinize_predictions.
+# The following constants are used to test determinize_predictions_1threshold
+# and determinize_predictions_2thresholds.
 THIS_CLASS0_PROB_MATRIX = numpy.array([
     [0.7, 0.1, 0.4, 0.9, 0.6, 0.2, 0.5, 0.6],
     [0.7, 0.6, 0.6, 1.0, 0.7, 0.6, 0.3, 0.8],
@@ -38,7 +39,7 @@ TOY_PROBABILITY_MATRIX = numpy.stack(
 TOY_PROBABILITY_MATRIX = numpy.expand_dims(TOY_PROBABILITY_MATRIX, axis=0)
 
 BINARIZATION_THRESHOLD = 0.75
-TOY_LABEL_MATRIX = numpy.array([
+TOY_LABEL_MATRIX_1THRESHOLD = numpy.array([
     [1, 1, 1, 0, 2, 2, 2, 2],
     [1, 1, 1, 0, 2, 2, 2, 0],
     [1, 0, 1, 0, 2, 2, 2, 0],
@@ -46,7 +47,110 @@ TOY_LABEL_MATRIX = numpy.array([
     [1, 0, 0, 1, 2, 2, 2, 2]
 ], dtype=int)
 
-TOY_LABEL_MATRIX = numpy.expand_dims(TOY_LABEL_MATRIX, axis=0)
+TOY_LABEL_MATRIX_1THRESHOLD = numpy.expand_dims(
+    TOY_LABEL_MATRIX_1THRESHOLD, axis=0)
+
+WF_THRESHOLD = 0.2
+CF_THRESHOLD = 0.4
+
+TOY_LABEL_MATRIX_2THRESHOLDS = numpy.array([
+    [1, 1, 1, 0, 0, 2, 1, 0],
+    [1, 1, 1, 0, 0, 0, 2, 0],
+    [1, 0, 1, 0, 0, 2, 2, 0],
+    [0, 0, 1, 2, 0, 1, 0, 0],
+    [1, 0, 0, 1, 2, 2, 2, 2]
+], dtype=int)
+
+TOY_LABEL_MATRIX_2THRESHOLDS = numpy.expand_dims(
+    TOY_LABEL_MATRIX_2THRESHOLDS, axis=0)
+
+# The following constants are used to test remove_small_regions.
+LABEL_MATRIX_ALL_REGIONS = numpy.array([
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 2, 0],
+    [0, 2, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2],
+    [0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 2, 0, 1, 0, 2, 0, 0, 0, 0, 2, 0],
+    [0, 2, 2, 2, 0, 1, 0, 2, 0, 0, 0, 0, 0, 2]
+], dtype=int)
+
+GRID_SPACING_METRES = 32.
+MIN_REGION_LENGTH_METRES = 160.
+
+BUFFER1_DISTANCE_METRES = GRID_SPACING_METRES
+BUFFER2_DISTANCE_METRES = numpy.sqrt(2) * GRID_SPACING_METRES
+BUFFER3_DISTANCE_METRES = numpy.sqrt(8) * GRID_SPACING_METRES
+BUFFER4_DISTANCE_METRES = numpy.sqrt(18) * GRID_SPACING_METRES
+BUFFER5_DISTANCE_METRES = numpy.sqrt(32) * GRID_SPACING_METRES
+
+LABEL_MATRIX_LARGE_REGIONS_BUFFER1 = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+], dtype=int)
+
+LABEL_MATRIX_LARGE_REGIONS_BUFFER2 = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+], dtype=int)
+
+LABEL_MATRIX_LARGE_REGIONS_BUFFER3 = numpy.array([
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+], dtype=int)
+
+LABEL_MATRIX_LARGE_REGIONS_BUFFER4 = numpy.array([
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]
+], dtype=int)
+
+LABEL_MATRIX_LARGE_REGIONS_BUFFER5 = numpy.array([
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 2],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]
+], dtype=int)
 
 # The following constants are used to test _match_actual_wf_grid_cells,
 # _match_actual_cf_grid_cells, _match_predicted_wf_grid_cells,
@@ -77,7 +181,6 @@ PREDICTED_LABEL_MATRIX = numpy.array([
     [0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 2, 2]
 ], dtype=int)
 
-GRID_SPACING_METRES = 32.
 SMALL_NEIGH_DISTANCE_METRES = 1.
 LARGE_NEIGH_DISTANCE_METRES = 50.
 
@@ -141,15 +244,110 @@ BINARY_FREQUENCY_BIAS_LARGE_NEIGH = float(14 * 34) / (30 * 15)
 class NeighEvaluationTests(unittest.TestCase):
     """Each method is a unit test for neigh_evaluation.py."""
 
-    def test_determinize_predictions(self):
-        """Ensures correct output from determinize_predictions."""
+    def test_determinize_predictions_1threshold(self):
+        """Ensures correct output from determinize_predictions_1threshold."""
 
-        this_predicted_label_matrix = neigh_evaluation.determinize_predictions(
-            class_probability_matrix=TOY_PROBABILITY_MATRIX + 0.,
-            binarization_threshold=BINARIZATION_THRESHOLD)
+        this_predicted_label_matrix = (
+            neigh_evaluation.determinize_predictions_1threshold(
+                class_probability_matrix=TOY_PROBABILITY_MATRIX + 0.,
+                binarization_threshold=BINARIZATION_THRESHOLD)
+        )
 
         self.assertTrue(numpy.array_equal(
-            this_predicted_label_matrix, TOY_LABEL_MATRIX
+            this_predicted_label_matrix, TOY_LABEL_MATRIX_1THRESHOLD
+        ))
+
+    def test_determinize_predictions_2thresholds(self):
+        """Ensures correct output from determinize_predictions_2thresholds."""
+
+        this_predicted_label_matrix = (
+            neigh_evaluation.determinize_predictions_2thresholds(
+                class_probability_matrix=TOY_PROBABILITY_MATRIX + 0.,
+                wf_threshold=WF_THRESHOLD, cf_threshold=CF_THRESHOLD)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            this_predicted_label_matrix, TOY_LABEL_MATRIX_2THRESHOLDS
+        ))
+
+    def test_remove_small_regions_buffer1(self):
+        """Ensures correct output from remove_small_regions.
+
+        In this case, using first buffer distance.
+        """
+
+        this_label_matrix = neigh_evaluation.remove_small_regions(
+            predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
+            min_region_length_metres=MIN_REGION_LENGTH_METRES,
+            buffer_distance_metres=BUFFER1_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, LABEL_MATRIX_LARGE_REGIONS_BUFFER1
+        ))
+
+    def test_remove_small_regions_buffer2(self):
+        """Ensures correct output from remove_small_regions.
+
+        In this case, using second buffer distance.
+        """
+
+        this_label_matrix = neigh_evaluation.remove_small_regions(
+            predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
+            min_region_length_metres=MIN_REGION_LENGTH_METRES,
+            buffer_distance_metres=BUFFER2_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, LABEL_MATRIX_LARGE_REGIONS_BUFFER2
+        ))
+
+    def test_remove_small_regions_buffer3(self):
+        """Ensures correct output from remove_small_regions.
+
+        In this case, using third buffer distance.
+        """
+
+        this_label_matrix = neigh_evaluation.remove_small_regions(
+            predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
+            min_region_length_metres=MIN_REGION_LENGTH_METRES,
+            buffer_distance_metres=BUFFER3_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, LABEL_MATRIX_LARGE_REGIONS_BUFFER3
+        ))
+
+    def test_remove_small_regions_buffer4(self):
+        """Ensures correct output from remove_small_regions.
+
+        In this case, using fourth buffer distance.
+        """
+
+        this_label_matrix = neigh_evaluation.remove_small_regions(
+            predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
+            min_region_length_metres=MIN_REGION_LENGTH_METRES,
+            buffer_distance_metres=BUFFER4_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, LABEL_MATRIX_LARGE_REGIONS_BUFFER4
+        ))
+
+    def test_remove_small_regions_buffer5(self):
+        """Ensures correct output from remove_small_regions.
+
+        In this case, using fifth buffer distance.
+        """
+
+        this_label_matrix = neigh_evaluation.remove_small_regions(
+            predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
+            min_region_length_metres=MIN_REGION_LENGTH_METRES,
+            buffer_distance_metres=BUFFER5_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_label_matrix, LABEL_MATRIX_LARGE_REGIONS_BUFFER5
         ))
 
     def test_match_actual_wf_grid_cells_small_neigh(self):
