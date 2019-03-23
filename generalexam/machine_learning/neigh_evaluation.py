@@ -8,9 +8,6 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
-# TODO(thunderhoser): Make sure to deal with masked grid cells.  Maybe by just
-# having these labels and probs be all zero?
-
 TOLERANCE = 1e-6
 NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
     model_name=nwp_model_utils.NARR_MODEL_NAME
@@ -29,6 +26,8 @@ NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 PREDICTED_LABELS_KEY = 'predicted_label_matrix'
 ACTUAL_LABELS_KEY = 'actual_label_matrix'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
+MIN_REGION_LENGTH_KEY = 'min_region_length_metres'
+BUFFER_DISTANCE_KEY = 'buffer_distance_metres'
 NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
 BINARY_CONTINGENCY_TABLE_KEY = 'binary_ct_as_dict'
 PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
@@ -397,13 +396,16 @@ def determinize_predictions_2thresholds(
     return predicted_label_matrix
 
 
-def remove_small_regions(
+def remove_small_regions_one_time(
         predicted_label_matrix, min_region_length_metres,
         buffer_distance_metres, grid_spacing_metres=NARR_GRID_SPACING_METRES):
     """Removes small regions of frontal (WF or CF) labels.
 
-    :param predicted_label_matrix: See doc for `_check_gridded_predictions` with
-        `expect_probs == False`.
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param predicted_label_matrix: M-by-N numpy array of integers (each must be
+        accepted by `front_utils.check_front_type_enum`).
     :param min_region_length_metres: Minimum region length (applied to major
         axis).
     :param buffer_distance_metres: Buffer distance.  Small region R will be
@@ -415,7 +417,14 @@ def remove_small_regions(
         labels.
     """
 
+    error_checking.assert_is_numpy_array(predicted_label_matrix)
+    _check_gridded_predictions(
+        prediction_matrix=numpy.expand_dims(predicted_label_matrix, axis=0),
+        expect_probs=False
+    )
+
     error_checking.assert_is_greater(min_region_length_metres, 0.)
+    error_checking.assert_is_greater(buffer_distance_metres, 0.)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
     region_dict = front_utils.gridded_labels_to_regions(
@@ -755,8 +764,9 @@ def get_binary_frequency_bias(binary_ct_as_dict):
 
 def write_results(
         pickle_file_name, predicted_label_matrix, actual_label_matrix,
-        valid_times_unix_sec, neigh_distance_metres, binary_ct_as_dict,
-        prediction_oriented_ct_matrix, actual_oriented_ct_matrix,
+        valid_times_unix_sec, min_region_length_metres, buffer_distance_metres,
+        neigh_distance_metres, binary_ct_as_dict, prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix,
         grid_spacing_metres=NARR_GRID_SPACING_METRES):
     """Writes results of neighbourhood evaluation to file.
 
@@ -764,6 +774,9 @@ def write_results(
     :param predicted_label_matrix: See doc for `make_contingency_tables`.
     :param actual_label_matrix: Same.
     :param valid_times_unix_sec: 1-D numpy array of valid times.
+    :param min_region_length_metres: See doc for
+        `remove_small_regions_one_time`.
+    :param buffer_distance_metres: Same.
     :param neigh_distance_metres: Same.
     :param binary_ct_as_dict: Same.
     :param prediction_oriented_ct_matrix: Same.
@@ -771,6 +784,8 @@ def write_results(
     :param grid_spacing_metres: Same.
     """
 
+    error_checking.assert_is_greater(min_region_length_metres, 0.)
+    error_checking.assert_is_greater(buffer_distance_metres, 0.)
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
@@ -807,6 +822,8 @@ def write_results(
         PREDICTED_LABELS_KEY: predicted_label_matrix,
         ACTUAL_LABELS_KEY: actual_label_matrix,
         VALID_TIMES_KEY: valid_times_unix_sec,
+        MIN_REGION_LENGTH_KEY: min_region_length_metres,
+        BUFFER_DISTANCE_KEY: buffer_distance_metres,
         NEIGH_DISTANCE_KEY: neigh_distance_metres,
         BINARY_CONTINGENCY_TABLE_KEY: binary_ct_as_dict,
         PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,

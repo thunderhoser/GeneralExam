@@ -64,7 +64,7 @@ TOY_LABEL_MATRIX_2THRESHOLDS = numpy.array([
 TOY_LABEL_MATRIX_2THRESHOLDS = numpy.expand_dims(
     TOY_LABEL_MATRIX_2THRESHOLDS, axis=0)
 
-# The following constants are used to test remove_small_regions.
+# The following constants are used to test remove_small_regions_one_time.
 LABEL_MATRIX_ALL_REGIONS = numpy.array([
     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0],
@@ -271,12 +271,12 @@ class NeighEvaluationTests(unittest.TestCase):
         ))
 
     def test_remove_small_regions_buffer1(self):
-        """Ensures correct output from remove_small_regions.
+        """Ensures correct output from remove_small_regions_one_time.
 
         In this case, using first buffer distance.
         """
 
-        this_label_matrix = neigh_evaluation.remove_small_regions(
+        this_label_matrix = neigh_evaluation.remove_small_regions_one_time(
             predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
             min_region_length_metres=MIN_REGION_LENGTH_METRES,
             buffer_distance_metres=BUFFER1_DISTANCE_METRES,
@@ -287,12 +287,12 @@ class NeighEvaluationTests(unittest.TestCase):
         ))
 
     def test_remove_small_regions_buffer2(self):
-        """Ensures correct output from remove_small_regions.
+        """Ensures correct output from remove_small_regions_one_time.
 
         In this case, using second buffer distance.
         """
 
-        this_label_matrix = neigh_evaluation.remove_small_regions(
+        this_label_matrix = neigh_evaluation.remove_small_regions_one_time(
             predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
             min_region_length_metres=MIN_REGION_LENGTH_METRES,
             buffer_distance_metres=BUFFER2_DISTANCE_METRES,
@@ -303,12 +303,12 @@ class NeighEvaluationTests(unittest.TestCase):
         ))
 
     def test_remove_small_regions_buffer3(self):
-        """Ensures correct output from remove_small_regions.
+        """Ensures correct output from remove_small_regions_one_time.
 
         In this case, using third buffer distance.
         """
 
-        this_label_matrix = neigh_evaluation.remove_small_regions(
+        this_label_matrix = neigh_evaluation.remove_small_regions_one_time(
             predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
             min_region_length_metres=MIN_REGION_LENGTH_METRES,
             buffer_distance_metres=BUFFER3_DISTANCE_METRES,
@@ -318,13 +318,13 @@ class NeighEvaluationTests(unittest.TestCase):
             this_label_matrix, LABEL_MATRIX_LARGE_REGIONS_BUFFER3
         ))
 
-    def test_remove_small_regions_buffer4(self):
-        """Ensures correct output from remove_small_regions.
+    def test_remove_small_regions_one_time_buffer4(self):
+        """Ensures correct output from remove_small_regions_one_time.
 
         In this case, using fourth buffer distance.
         """
 
-        this_label_matrix = neigh_evaluation.remove_small_regions(
+        this_label_matrix = neigh_evaluation.remove_small_regions_one_time(
             predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
             min_region_length_metres=MIN_REGION_LENGTH_METRES,
             buffer_distance_metres=BUFFER4_DISTANCE_METRES,
@@ -335,12 +335,12 @@ class NeighEvaluationTests(unittest.TestCase):
         ))
 
     def test_remove_small_regions_buffer5(self):
-        """Ensures correct output from remove_small_regions.
+        """Ensures correct output from remove_small_regions_one_time.
 
         In this case, using fifth buffer distance.
         """
 
-        this_label_matrix = neigh_evaluation.remove_small_regions(
+        this_label_matrix = neigh_evaluation.remove_small_regions_one_time(
             predicted_label_matrix=LABEL_MATRIX_ALL_REGIONS + 0,
             min_region_length_metres=MIN_REGION_LENGTH_METRES,
             buffer_distance_metres=BUFFER5_DISTANCE_METRES,

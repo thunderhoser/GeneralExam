@@ -5,18 +5,23 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import neigh_evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
+LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
 TIME_INTERVAL_SECONDS = 10800
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
+MASK_FILE_ARG_NAME = 'input_mask_file_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 THRESHOLD_ARG_NAME = 'binarization_threshold'
+MIN_LENGTH_ARG_NAME = 'min_region_length_metres'
+BUFFER_DISTANCE_ARG_NAME = 'buffer_distance_metres'
 NEIGH_DISTANCE_ARG_NAME = 'neigh_distance_metres'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
@@ -24,6 +29,12 @@ PREDICTION_DIR_HELP_STRING = (
     'Name of directory with gridded probabilities.  Files therein will be found'
     ' by `machine_learning_utils.find_gridded_prediction_file` and read by '
     '`machine_learning_utils.read_gridded_predictions`.')
+
+MASK_FILE_HELP_STRING = (
+    'Path to mask file (will be read by `machine_learning_utils.read_narr_mask`'
+    ').  The mask will be applied after removing small regions, and evaluation '
+    'will not include masked grid cells.  If you do not want a mask, leave this'
+    ' argument alone.')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Neighbourhood evaluation will be run on all '
@@ -37,6 +48,16 @@ THRESHOLD_HELP_STRING = (
     'probabilities.'
 ).format(THRESHOLD_ARG_NAME)
 
+MIN_LENGTH_HELP_STRING = (
+    'Minimum region length.  Frontal regions (connected regions of either WF or'
+    ' CF labels) with smaller major axes will be thrown out.')
+
+BUFFER_DISTANCE_HELP_STRING = (
+    'Buffer distance for matching small regions (major axis < `{0:s}`) with '
+    'large regions (major axis >= `{0:s}`).  Any small region that can be '
+    'matched with a large region, will *not* be thrown out.'
+).format(MIN_LENGTH_ARG_NAME)
+
 NEIGH_DISTANCE_HELP_STRING = 'Neighbourhood distance for evaluation.'
 
 OUTPUT_FILE_HELP_STRING = (
@@ -49,6 +70,10 @@ INPUT_ARG_PARSER.add_argument(
     help=PREDICTION_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + MASK_FILE_ARG_NAME, type=str, required=True,
+    help=MASK_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -59,6 +84,14 @@ INPUT_ARG_PARSER.add_argument(
     help=THRESHOLD_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_LENGTH_ARG_NAME, type=float, required=False, default=500000,
+    help=MIN_LENGTH_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + BUFFER_DISTANCE_ARG_NAME, type=float, required=False, default=200000,
+    help=BUFFER_DISTANCE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + NEIGH_DISTANCE_ARG_NAME, type=float, required=True,
     help=NEIGH_DISTANCE_HELP_STRING)
 
@@ -67,19 +100,29 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _run(top_prediction_dir_name, first_time_string, last_time_string,
-         binarization_threshold, neigh_distance_metres, output_file_name):
+def _run(prediction_dir_name, mask_file_name, first_time_string,
+         last_time_string, binarization_threshold, min_region_length_metres,
+         buffer_distance_metres, neigh_distance_metres, output_file_name):
     """Runs neighbourhood evaluation on probability grids created by CNN.
 
     This is effectively the main method.
 
-    :param top_prediction_dir_name: See documentation at top of file.
+    :param prediction_dir_name: See documentation at top of file.
+    :param mask_file_name: Same.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param binarization_threshold: Same.
+    :param min_region_length_metres: Same.
+    :param buffer_distance_metres: Same.
     :param neigh_distance_metres: Same.
     :param output_file_name: Same.
     """
+
+    if mask_file_name in ['', 'None']:
+        mask_matrix = None
+    else:
+        print 'Reading mask from: "{0:s}"...'.format(mask_file_name)
+        mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -97,7 +140,7 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
 
     for i in range(len(all_times_unix_sec)):
         this_file_name = ml_utils.find_gridded_prediction_file(
-            directory_name=top_prediction_dir_name,
+            directory_name=prediction_dir_name,
             first_target_time_unix_sec=all_times_unix_sec[i],
             last_target_time_unix_sec=all_times_unix_sec[i],
             raise_error_if_missing=False
@@ -129,15 +172,54 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
             )
 
     valid_times_unix_sec = numpy.array(valid_times_unix_sec, dtype=int)
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, LOG_MESSAGE_TIME_FORMAT)
+        for t in valid_times_unix_sec
+    ]
 
     print SEPARATOR_STRING
     print (
         'Determinizing probabilities with binarization threshold = {0:.4f}...'
     ).format(binarization_threshold)
 
-    predicted_label_matrix = neigh_evaluation.determinize_predictions(
-        class_probability_matrix=class_probability_matrix,
-        binarization_threshold=binarization_threshold)
+    predicted_label_matrix = (
+        neigh_evaluation.determinize_predictions_1threshold(
+            class_probability_matrix=class_probability_matrix,
+            binarization_threshold=binarization_threshold)
+    )
+
+    num_times = predicted_label_matrix.shape[0]
+    print SEPARATOR_STRING
+
+    for i in range(num_times):
+        print (
+            'Removing small frontal regions (major axis < {0:f} metres) at '
+            '{1:s}...'
+        ).format(min_region_length_metres, valid_time_strings[i])
+
+        predicted_label_matrix[i, ...] = (
+            neigh_evaluation.remove_small_regions_one_time(
+                predicted_label_matrix=predicted_label_matrix[i, ...],
+                min_region_length_metres=min_region_length_metres,
+                buffer_distance_metres=buffer_distance_metres)
+        )
+
+        if mask_matrix is None:
+            continue
+
+        print 'Masking out {0:d} grid cells at {1:s}...'.format(
+            numpy.sum(mask_matrix == 0), valid_time_strings[i]
+        )
+
+        predicted_label_matrix[i, ...][mask_matrix == 0] = (
+            front_utils.NO_FRONT_ENUM
+        )
+
+        actual_label_matrix[i, ...][mask_matrix == 0] = (
+            front_utils.NO_FRONT_ENUM
+        )
+
+    print SEPARATOR_STRING
 
     print 'Creating 2-class and 3-class contingency tables...'
     (binary_ct_as_dict, prediction_oriented_ct_matrix,
@@ -175,6 +257,8 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
         predicted_label_matrix=predicted_label_matrix,
         actual_label_matrix=actual_label_matrix,
         valid_times_unix_sec=valid_times_unix_sec,
+        min_region_length_metres=min_region_length_metres,
+        buffer_distance_metres=buffer_distance_metres,
         neigh_distance_metres=neigh_distance_metres,
         binary_ct_as_dict=binary_ct_as_dict,
         prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
@@ -185,11 +269,14 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_prediction_dir_name=getattr(
-            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME),
+        prediction_dir_name=getattr(INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME),
+        mask_file_name=getattr(INPUT_ARG_OBJECT, MASK_FILE_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         binarization_threshold=getattr(INPUT_ARG_OBJECT, THRESHOLD_ARG_NAME),
+        min_region_length_metres=getattr(INPUT_ARG_OBJECT, MIN_LENGTH_ARG_NAME),
+        buffer_distance_metres=getattr(
+            INPUT_ARG_OBJECT, BUFFER_DISTANCE_ARG_NAME),
         neigh_distance_metres=getattr(
             INPUT_ARG_OBJECT, NEIGH_DISTANCE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
