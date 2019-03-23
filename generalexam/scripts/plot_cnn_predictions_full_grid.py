@@ -1,5 +1,6 @@
 """Plots CNN predictions on full grid."""
 
+import os.path
 import argparse
 import numpy
 import matplotlib
@@ -292,7 +293,7 @@ def _run(probabilistic_dir_name, deterministic_file_name, first_time_string,
 
         predicted_label_matrix = None
     else:
-        print 'Reading data from: "{0:s}"...'.format(deterministic_file_name)
+        print 'Reading data from: "{0:s}"...\n'.format(deterministic_file_name)
         evaluation_dict = neigh_evaluation.read_results(deterministic_file_name)
 
         valid_times_unix_sec = evaluation_dict[neigh_evaluation.VALID_TIMES_KEY]
@@ -321,8 +322,11 @@ def _run(probabilistic_dir_name, deterministic_file_name, first_time_string,
             this_file_name = ml_utils.find_gridded_prediction_file(
                 directory_name=probabilistic_dir_name,
                 first_target_time_unix_sec=valid_times_unix_sec[i],
-                last_target_time_unix_sec=valid_times_unix_sec[i]
-            )
+                last_target_time_unix_sec=valid_times_unix_sec[i],
+                raise_error_if_missing=False)
+
+            if not os.path.isfile(this_file_name):
+                continue
 
             print 'Reading data from: "{0:s}"...'.format(this_file_name)
             this_class_probability_matrix = ml_utils.read_gridded_predictions(
