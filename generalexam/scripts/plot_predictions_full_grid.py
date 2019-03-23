@@ -18,7 +18,6 @@ from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import nfa
-from generalexam.machine_learning import neigh_evaluation
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.evaluation import object_based_evaluation as object_eval
 from generalexam.plotting import front_plotting
@@ -48,8 +47,6 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 METHOD_ARG_NAME = 'method_name'
 USE_ENSEMBLE_ARG_NAME = 'use_nfa_ensemble'
-THRESHOLD_ARG_NAME = 'binarization_threshold'
-NUM_CLOSING_ITERS_ARG_NAME = 'num_binary_closing_iters'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -81,19 +78,6 @@ USE_ENSEMBLE_HELP_STRING = (
     'will be probabilities from an NFA ensemble.  If 0, gridded predictions '
     'will be deterministic labels from a single NFA method.'
 ).format(METHOD_ARG_NAME, NFA_METHOD_NAME)
-
-THRESHOLD_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}" or {2:s} = 0] Binarization threshold.  For '
-    'each case (i.e., each grid cell at each time step), if NF probability >= '
-    '`{3:s}`, the deterministic label will be NF.  Otherwise, the deterministic'
-    ' label will be the max of WF and CF probabilities.'
-).format(METHOD_ARG_NAME, CNN_METHOD_NAME, USE_ENSEMBLE_ARG_NAME,
-         THRESHOLD_ARG_NAME)
-
-NUM_CLOSING_ITERS_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}" or {2:s} = 0] Number of binary-closing '
-    'iterations for deterministic labels.'
-).format(METHOD_ARG_NAME, CNN_METHOD_NAME, USE_ENSEMBLE_ARG_NAME)
 
 FIRST_LETTER_HELP_STRING = (
     'Letter label for first time step.  If this is "a", the label "(a)" will be'
@@ -127,14 +111,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + USE_ENSEMBLE_ARG_NAME, type=int, required=False, default=0,
     help=USE_ENSEMBLE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + THRESHOLD_ARG_NAME, type=float, required=False, default=-1,
-    help=THRESHOLD_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_CLOSING_ITERS_ARG_NAME, type=int, required=False, default=0,
-    help=NUM_CLOSING_ITERS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_LETTER_ARG_NAME, type=str, required=False, default='',
@@ -239,6 +215,7 @@ def _plot_one_time(
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.WARM_FRONT_ENUM
         ]
+
         this_wf_probability_matrix[numpy.isnan(this_wf_probability_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
@@ -253,6 +230,7 @@ def _plot_one_time(
             narr_column_limits[0]:(narr_column_limits[1] + 1),
             front_utils.COLD_FRONT_ENUM
         ]
+
         this_cf_probability_matrix[numpy.isnan(this_cf_probability_matrix)] = 0.
 
         prediction_plotting.plot_narr_grid(
@@ -336,8 +314,7 @@ def _plot_one_time(
 
 
 def _run(input_grid_dir_name, input_object_file_name, first_time_string,
-         last_time_string, method_name, use_nfa_ensemble,
-         binarization_threshold, num_binary_closing_iters, first_letter_label,
+         last_time_string, method_name, use_nfa_ensemble, first_letter_label,
          letter_interval, output_dir_name):
     """Plots predictions on full NARR grid.
 
@@ -349,8 +326,6 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
     :param last_time_string: Same.
     :param method_name: Same.
     :param use_nfa_ensemble: Same.
-    :param binarization_threshold: Same.
-    :param num_binary_closing_iters: Same.
     :param first_letter_label: Same.
     :param letter_interval: Same.
     :param output_dir_name: Same.
@@ -394,14 +369,14 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
              >= first_time_unix_sec) &
             (predicted_region_table[front_utils.TIME_COLUMN]
              <= last_time_unix_sec)
-        ]
+            ]
 
         valid_times_unix_sec = numpy.unique(
             predicted_region_table[front_utils.TIME_COLUMN].values
         )
 
     this_class_probability_matrix = None
-    this_predicted_label_matrix = None
+    this_label_matrix = None
     this_letter_label = None
 
     plot_wf_colour_bar = False
@@ -433,28 +408,9 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
                     this_file_name
                 )[nfa.CLASS_PROBABILITIES_KEY][0, ...]
             else:
-                this_predicted_label_matrix = nfa.read_gridded_predictions(
+                this_label_matrix = nfa.read_gridded_predictions(
                     this_file_name
                 )[0][0, ...]
-
-        if (this_class_probability_matrix is not None
-                and binarization_threshold > 0):
-            this_predicted_label_matrix = (
-                neigh_evaluation.determinize_predictions(
-                    class_probability_matrix=numpy.expand_dims(
-                        this_class_probability_matrix, axis=0),
-                    binarization_threshold=binarization_threshold)
-            )
-
-            this_predicted_label_matrix = this_predicted_label_matrix[0, ...]
-            this_class_probability_matrix = None
-
-        if (this_predicted_label_matrix is not None
-                and num_binary_closing_iters > 0):
-            this_predicted_label_matrix = front_utils.close_ternary_label_matrix(
-                ternary_label_matrix=this_predicted_label_matrix,
-                buffer_distance_metres=150000, grid_spacing_metres=32000,
-                num_iterations=num_binary_closing_iters)
 
         if input_object_file_name is None:
             this_predicted_region_table = None
@@ -462,7 +418,7 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
             this_predicted_region_table = predicted_region_table.loc[
                 predicted_region_table[front_utils.TIME_COLUMN] ==
                 this_time_unix_sec
-            ]
+                ]
 
         this_title_string = '{0:s} predictions at {1:s}'.format(
             method_name.upper(),
@@ -492,7 +448,7 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
         #     title_string=this_title_string, letter_label=this_letter_label,
         #     output_file_name=this_output_file_name,
         #     class_probability_matrix=this_class_probability_matrix,
-        #     predicted_label_matrix=this_predicted_label_matrix,
+        #     predicted_label_matrix=this_label_matrix,
         #     plot_wf_colour_bar=plot_wf_colour_bar,
         #     plot_cf_colour_bar=plot_cf_colour_bar)
 
@@ -501,7 +457,7 @@ def _run(input_grid_dir_name, input_object_file_name, first_time_string,
             title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
-            predicted_label_matrix=this_predicted_label_matrix,
+            predicted_label_matrix=this_label_matrix,
             plot_wf_colour_bar=True, plot_cf_colour_bar=True)
 
         print '\n'
@@ -518,9 +474,6 @@ if __name__ == '__main__':
         method_name=getattr(INPUT_ARG_OBJECT, METHOD_ARG_NAME),
         use_nfa_ensemble=bool(getattr(
             INPUT_ARG_OBJECT, USE_ENSEMBLE_ARG_NAME)),
-        binarization_threshold=getattr(INPUT_ARG_OBJECT, THRESHOLD_ARG_NAME),
-        num_binary_closing_iters=getattr(
-            INPUT_ARG_OBJECT, NUM_CLOSING_ITERS_ARG_NAME),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
         letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
