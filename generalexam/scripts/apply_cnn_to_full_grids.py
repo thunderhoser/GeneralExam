@@ -166,6 +166,8 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
     if use_mask:
         mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
+        print mask_matrix.size
+        print numpy.sum(mask_matrix)
     else:
         first_predictor_file_name = predictor_io.find_file(
             top_directory_name=top_predictor_dir_name,
