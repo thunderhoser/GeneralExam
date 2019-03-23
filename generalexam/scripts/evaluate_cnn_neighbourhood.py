@@ -182,6 +182,12 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
         'Determinizing probabilities with binarization threshold = {0:.4f}...'
     ).format(binarization_threshold)
 
+    class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
+        numpy.isnan(class_probability_matrix[..., front_utils.NO_FRONT_ENUM])
+    ] = 1.
+
+    class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
+
     predicted_label_matrix = (
         neigh_evaluation.determinize_predictions_1threshold(
             class_probability_matrix=class_probability_matrix,
