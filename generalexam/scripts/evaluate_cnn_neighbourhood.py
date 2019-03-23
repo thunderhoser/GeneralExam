@@ -219,8 +219,8 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
         )
 
         print 'Removed {0:d} of {1:d} frontal grid cells.'.format(
-            orig_num_frontal_grid_cells,
-            orig_num_frontal_grid_cells - new_num_frontal_grid_cells
+            orig_num_frontal_grid_cells - new_num_frontal_grid_cells,
+            orig_num_frontal_grid_cells
         )
 
         if mask_matrix is None:
@@ -246,13 +246,14 @@ def _run(prediction_dir_name, mask_file_name, first_time_string,
 
     print SEPARATOR_STRING
 
-    print 'Creating 2-class and 3-class contingency tables...'
     (binary_ct_as_dict, prediction_oriented_ct_matrix,
      actual_oriented_ct_matrix
     ) = neigh_evaluation.make_contingency_tables(
         predicted_label_matrix=predicted_label_matrix,
         actual_label_matrix=actual_label_matrix,
         neigh_distance_metres=neigh_distance_metres)
+
+    print SEPARATOR_STRING
 
     print 'Binary (2-class) contingency table:\n'
     print binary_ct_as_dict
