@@ -6,6 +6,7 @@ import netCDF4
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import front_utils
 from generalexam.machine_learning import neigh_evaluation
 
 NUM_CLASSES = 3
@@ -28,7 +29,26 @@ ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
 CLASS_DIMENSION_KEY = 'class'
 
-# TODO(thunderhoser): May need to allow for NaN predictions.
+
+def _fill_probabilities(class_probability_matrix):
+    """Fills missing class probabilities.
+
+    For any grid cell with missing probabilities, this method assumes that there
+    is no front.
+
+    :param class_probability_matrix: numpy array of class probabilities.  The
+        last axis should have length 3.  class_probability_matrix[..., k] should
+        contain probabilities for the [k]th class.
+    :return: class_probability_matrix: Same but with no missing values.
+    """
+
+    class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
+        numpy.isnan(class_probability_matrix[..., front_utils.NO_FRONT_ENUM])
+    ] = 1.
+
+    class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
+
+    return class_probability_matrix
 
 
 def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
@@ -90,6 +110,9 @@ def write_probabilities(
     :param used_isotonic: Boolean flag.  True means that isotonic regression was
         used for probability calibration.
     """
+
+    error_checking.assert_is_numpy_array(class_probability_matrix)
+    class_probability_matrix = _fill_probabilities(class_probability_matrix)
 
     # Check input args.
     neigh_evaluation.check_gridded_predictions(

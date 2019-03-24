@@ -113,27 +113,6 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _fill_probabilities(class_probability_matrix):
-    """Fills missing class probabilities.
-
-    For any grid cell with missing probabilities, this method assumes that there
-    is no front.
-
-    :param class_probability_matrix: numpy array of class probabilities.  The
-        last axis should have length 3.  class_probability_matrix[..., k] should
-        contain probabilities for the [k]th class.
-    :return: class_probability_matrix: Same but with no missing values.
-    """
-
-    class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
-        numpy.isnan(class_probability_matrix[..., front_utils.NO_FRONT_ENUM])
-    ] = 1.
-
-    class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
-
-    return class_probability_matrix
-
-
 def _run(input_prediction_dir_name, mask_file_name, first_time_string,
          last_time_string, nf_prob_threshold, wf_prob_threshold,
          cf_prob_threshold, min_region_length_metres,
@@ -194,9 +173,6 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
         this_class_probability_matrix = (
             this_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY] + 0.
         )
-
-        this_class_probability_matrix = _fill_probabilities(
-            this_class_probability_matrix)
 
         if numpy.isnan(nf_prob_threshold):
             print (

@@ -7,7 +7,6 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from generalexam.ge_io import predictor_io
 from generalexam.ge_io import prediction_io
-from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import isotonic_regression
@@ -30,6 +29,7 @@ FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_TIMES_ARG_NAME = 'num_times'
 USE_MASK_ARG_NAME = 'use_mask'
+DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 USE_ISOTONIC_ARG_NAME = 'use_isotonic_regression'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -60,6 +60,10 @@ USE_MASK_HELP_STRING = (
     'Boolean flag.  If 1, the CNN will not be applied to masked grid cells '
     '(using the same mask used for training).  If 0, the CNN will be applied to'
     ' all grid cells.')
+
+DILATION_DISTANCE_HELP_STRING = (
+    'Dilation distance for target variable.  To use the same dilation distance '
+    'used for training the model, leave this argument alone.')
 
 USE_ISOTONIC_HELP_STRING = (
     'Boolean flag.  If 1, will use isotonic regression to calibrate CNN '
@@ -103,6 +107,10 @@ INPUT_ARG_PARSER.add_argument(
     help=USE_MASK_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=False, default=-1,
+    help=DILATION_DISTANCE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + USE_ISOTONIC_ARG_NAME, type=int, required=False, default=0,
     help=USE_ISOTONIC_HELP_STRING)
 
@@ -111,30 +119,9 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _fill_probabilities(class_probability_matrix):
-    """Fills missing class probabilities.
-
-    For any grid cell with missing probabilities, this method assumes that there
-    is no front.
-
-    :param class_probability_matrix: numpy array of class probabilities.  The
-        last axis should have length 3.  class_probability_matrix[..., k] should
-        contain probabilities for the [k]th class.
-    :return: class_probability_matrix: Same but with no missing values.
-    """
-
-    class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
-        numpy.isnan(class_probability_matrix[..., front_utils.NO_FRONT_ENUM])
-    ] = 1.
-
-    class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
-
-    return class_probability_matrix
-
-
 def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
          first_time_string, last_time_string, num_times, use_mask,
-         use_isotonic_regression, output_dir_name):
+         dilation_distance_metres, use_isotonic_regression, output_dir_name):
     """Applies trained CNN to full grids.
 
     This is effectively the main method.
@@ -146,6 +133,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     :param last_time_string: Same.
     :param num_times: Same.
     :param use_mask: Same.
+    :param dilation_distance_metres: Same.
     :param use_isotonic_regression: Same.
     :param output_dir_name: Same.
     """
@@ -173,6 +161,10 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
     print 'Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
+
+    if dilation_distance_metres < 0:
+        dilation_distance_metres = model_metadata_dict[
+            cnn.DILATION_DISTANCE_KEY]
 
     if use_isotonic_regression:
         isotonic_file_name = isotonic_regression.find_model_file(
@@ -219,14 +211,10 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
                 predictor_names=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
                 normalization_type_string=model_metadata_dict[
                     cnn.NORMALIZATION_TYPE_KEY],
-                dilation_distance_metres=model_metadata_dict[
-                    cnn.DILATION_DISTANCE_KEY],
+                dilation_distance_metres=dilation_distance_metres,
                 isotonic_model_object_by_class=isotonic_model_object_by_class,
                 mask_matrix=mask_matrix)
         )
-
-        this_class_probability_matrix = _fill_probabilities(
-            this_class_probability_matrix)
 
         this_target_matrix[this_target_matrix == -1] = 0
         print MINOR_SEPARATOR_STRING
@@ -246,8 +234,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             target_matrix=this_target_matrix,
             valid_times_unix_sec=valid_times_unix_sec[[i]],
             model_file_name=model_file_name,
-            target_dilation_distance_metres=model_metadata_dict[
-                cnn.DILATION_DISTANCE_KEY],
+            target_dilation_distance_metres=dilation_distance_metres,
             used_isotonic=use_isotonic_regression)
 
         if i != num_times - 1:
@@ -267,6 +254,8 @@ if __name__ == '__main__':
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
         use_mask=bool(getattr(INPUT_ARG_OBJECT, USE_MASK_ARG_NAME)),
+        dilation_distance_metres=getattr(
+            INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME),
         use_isotonic_regression=bool(getattr(
             INPUT_ARG_OBJECT, USE_ISOTONIC_ARG_NAME
         )),
