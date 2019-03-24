@@ -124,9 +124,7 @@ def _fill_probabilities(class_probability_matrix):
     """
 
     class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
-        numpy.isnan(
-            class_probability_matrix[..., front_utils.NO_FRONT_ENUM]
-        )
+        numpy.isnan(class_probability_matrix[..., front_utils.NO_FRONT_ENUM])
     ] = 1.
 
     class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
