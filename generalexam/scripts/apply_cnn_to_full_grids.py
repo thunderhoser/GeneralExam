@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from generalexam.ge_io import predictor_io
 from generalexam.ge_io import prediction_io
+from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import isotonic_regression
@@ -110,6 +111,27 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _fill_probabilities(class_probability_matrix):
+    """Fills missing class probabilities.
+
+    For any grid cell with missing probabilities, this method assumes that there
+    is no front.
+
+    :param class_probability_matrix: numpy array of class probabilities.  The
+        last axis should have length 3.  class_probability_matrix[..., k] should
+        contain probabilities for the [k]th class.
+    :return: class_probability_matrix: Same but with no missing values.
+    """
+
+    class_probability_matrix[..., front_utils.NO_FRONT_ENUM][
+        numpy.isnan(class_probability_matrix[..., front_utils.NO_FRONT_ENUM])
+    ] = 1.
+
+    class_probability_matrix[numpy.isnan(class_probability_matrix)] = 0.
+
+    return class_probability_matrix
+
+
 def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
          first_time_string, last_time_string, num_times, use_mask,
          use_isotonic_regression, output_dir_name):
@@ -202,6 +224,9 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
                 isotonic_model_object_by_class=isotonic_model_object_by_class,
                 mask_matrix=mask_matrix)
         )
+
+        this_class_probability_matrix = _fill_probabilities(
+            this_class_probability_matrix)
 
         this_target_matrix[this_target_matrix == -1] = 0
         print MINOR_SEPARATOR_STRING

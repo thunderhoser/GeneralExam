@@ -28,6 +28,8 @@ ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
 CLASS_DIMENSION_KEY = 'class'
 
+# TODO(thunderhoser): May need to allow for NaN predictions.
+
 
 def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
               raise_error_if_missing=False):
