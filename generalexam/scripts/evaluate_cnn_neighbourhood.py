@@ -183,7 +183,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             prediction_io.TARGET_MATRIX_KEY]
 
         if predicted_label_matrix is None:
-            predicted_label_matrix = this_predicted_label_matrix + 0.
+            predicted_label_matrix = this_predicted_label_matrix + 0
             actual_label_matrix = this_actual_label_matrix + 0
         else:
             predicted_label_matrix = numpy.concatenate(
