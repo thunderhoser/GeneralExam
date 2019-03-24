@@ -224,11 +224,11 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
                 numpy.sum(mask_matrix == 0), mask_matrix.size
             )
 
-            this_predicted_label_matrix[mask_matrix == 0] = (
+            this_predicted_label_matrix[0, ...][mask_matrix == 0] = (
                 front_utils.NO_FRONT_ENUM
             )
 
-            this_prediction_dict[prediction_io.TARGET_MATRIX_KEY][
+            this_prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...][
                 mask_matrix == 0
             ] = front_utils.NO_FRONT_ENUM
 
