@@ -216,8 +216,10 @@ def append_deterministic_labels(
         exact_dimensions=numpy.array([NUM_CLASSES], dtype=int)
     )
 
-    error_checking.assert_is_geq(prob_threshold_by_class, 0., allow_nan=True)
-    error_checking.assert_is_leq(prob_threshold_by_class, 1., allow_nan=True)
+    error_checking.assert_is_geq_numpy_array(
+        prob_threshold_by_class, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        prob_threshold_by_class, 1., allow_nan=True)
 
     if numpy.isnan(prob_threshold_by_class[0]):
         assert not numpy.any(numpy.isnan(prob_threshold_by_class[1:]))
