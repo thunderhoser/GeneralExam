@@ -174,7 +174,8 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         prediction_file_names.append(this_file_name)
 
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
-        this_prediction_dict = prediction_io.read_file(this_file_name)
+        this_prediction_dict = prediction_io.read_file(
+	    netcdf_file_name=this_file_name, read_deterministic=True)
 
         this_predicted_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
@@ -182,7 +183,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             prediction_io.TARGET_MATRIX_KEY]
 
         if predicted_label_matrix is None:
-            predicted_label_matrix = this_predicted_label_matrix + 0.
+            predicted_label_matrix = this_predicted_label_matrix + 0
             actual_label_matrix = this_actual_label_matrix + 0
         else:
             predicted_label_matrix = numpy.concatenate(
