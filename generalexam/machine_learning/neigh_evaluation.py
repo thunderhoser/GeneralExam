@@ -280,32 +280,19 @@ def determinize_predictions_2thresholds(
         class_probability_matrix.shape[:-1], front_utils.NO_FRONT_ENUM,
         dtype=int)
 
-    wf_flag_matrix = (
+    wf_flag_matrix = numpy.logical_and(
         class_probability_matrix[..., front_utils.WARM_FRONT_ENUM] >=
-        wf_threshold
+        wf_threshold,
+        class_probability_matrix[..., front_utils.WARM_FRONT_ENUM] >=
+        class_probability_matrix[..., front_utils.COLD_FRONT_ENUM]
     )
 
-    cf_flag_matrix = (
+    cf_flag_matrix = numpy.logical_and(
         class_probability_matrix[..., front_utils.COLD_FRONT_ENUM] >=
-        cf_threshold
+        cf_threshold,
+        class_probability_matrix[..., front_utils.COLD_FRONT_ENUM] >=
+        class_probability_matrix[..., front_utils.WARM_FRONT_ENUM]
     )
-
-    both_true_indices_as_tuple = numpy.where(
-        numpy.logical_and(wf_flag_matrix, cf_flag_matrix)
-    )
-
-    these_cf_flags = (
-        class_probability_matrix[..., front_utils.COLD_FRONT_ENUM][
-            both_true_indices_as_tuple] >=
-        class_probability_matrix[..., front_utils.WARM_FRONT_ENUM][
-            both_true_indices_as_tuple]
-    )
-
-    these_cf_indices = numpy.where(these_cf_flags)[0]
-    wf_flag_matrix[both_true_indices_as_tuple][these_cf_indices] = False
-
-    these_wf_indices = numpy.where(numpy.invert(these_cf_flags))[0]
-    cf_flag_matrix[both_true_indices_as_tuple][these_wf_indices] = False
 
     predicted_label_matrix[wf_flag_matrix] = front_utils.WARM_FRONT_ENUM
     predicted_label_matrix[cf_flag_matrix] = front_utils.COLD_FRONT_ENUM
