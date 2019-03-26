@@ -189,10 +189,16 @@ def _shuffle_one_input_file(
             num=this_last_index - this_first_index + 1, dtype=int)
 
         this_example_dict = {}
-        for this_key in examples_io.MAIN_KEYS:
-            this_example_dict.update({
-                this_key: example_dict[this_key][these_example_indices, ...]
-            })
+
+        for this_key in example_dict.keys():
+            if this_key in examples_io.MAIN_KEYS:
+                this_example_dict.update({
+                    this_key: example_dict[this_key][these_example_indices, ...]
+                })
+            else:
+                this_example_dict.update(
+                    {this_key: example_dict[this_key]}
+                )
 
         this_output_file_name = output_file_names[output_file_indices[j]]
         print 'Writing shuffled examples to: "{0:s}"...'.format(
