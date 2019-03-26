@@ -10,6 +10,8 @@ N = number of columns in grid
 C = number of channels (predictors)
 """
 
+# TODO(thunderhoser): Need to deal with predictor-pressure pairs.
+
 import argparse
 import numpy
 from keras import backend as K

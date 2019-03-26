@@ -11,6 +11,8 @@ C = number of channels (predictors)
 K = number of target classes
 """
 
+# TODO(thunderhoser): Need to deal with predictor-pressure pairs.
+
 import argparse
 import numpy
 from keras import backend as K

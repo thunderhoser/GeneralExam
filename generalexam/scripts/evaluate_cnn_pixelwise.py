@@ -192,7 +192,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             first_time_unix_sec=first_time_unix_sec,
             last_time_unix_sec=last_time_unix_sec, num_times=num_times,
             num_examples_per_time=num_examples_per_time,
-            pressure_level_mb=model_metadata_dict[cnn.PRESSURE_LEVEL_KEY],
+            pressure_levels_mb=model_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
             predictor_names=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY],
