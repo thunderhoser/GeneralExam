@@ -659,8 +659,8 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
 
 
 def read_file(
-        netcdf_file_name, metadata_only=False, predictor_names_to_keep=False,
-        pressure_levels_to_keep_mb=False, num_half_rows_to_keep=None,
+        netcdf_file_name, metadata_only=False, predictor_names_to_keep=None,
+        pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
         num_half_columns_to_keep=None, first_time_to_keep_unix_sec=None,
         last_time_to_keep_unix_sec=None):
     """Reads learning examples from NetCDF file.
