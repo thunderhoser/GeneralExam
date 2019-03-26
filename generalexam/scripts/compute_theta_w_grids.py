@@ -107,25 +107,22 @@ def _read_inputs_one_time(
 
         raise ValueError(error_string)
 
-    num_pressures_in_file = len(
+    unique_pressures_in_file_mb = numpy.unique(
         predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY]
     )
 
-    if num_pressures_in_file > 1:
+    if len(unique_pressures_in_file_mb) > 1:
         error_string = (
-            'File ("{0:s}") should contain 1 pressure level, not {1:d}.'
-        ).format(input_file_name, num_pressures_in_file)
+            'File ("{0:s}") should contain 1 unique pressure level, not {1:d}.'
+        ).format(input_file_name, len(unique_pressures_in_file_mb))
 
         raise ValueError(error_string)
 
-    pressure_level_in_file_mb = predictor_dict[
-        predictor_utils.PRESSURE_LEVELS_KEY][0]
-
-    if pressure_level_in_file_mb != pressure_level_mb:
+    if unique_pressures_in_file_mb[0] != pressure_level_mb:
         error_string = (
             'Pressure level in file ({0:d} mb) does not match desired pressure '
             'level ({1:d} mb).'
-        ).format(pressure_level_in_file_mb, pressure_level_mb)
+        ).format(unique_pressures_in_file_mb[0], pressure_level_mb)
 
         raise ValueError(error_string)
 

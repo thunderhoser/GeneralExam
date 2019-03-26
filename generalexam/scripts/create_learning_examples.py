@@ -16,7 +16,6 @@ import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import learning_examples_io as examples_io
@@ -29,7 +28,7 @@ TIME_INTERVAL_SECONDS = 10800
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
-PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
+PRESSURE_LEVELS_ARG_NAME = 'pressure_levels_mb'
 PREDICTOR_NAMES_ARG_NAME = 'predictor_names'
 NUM_HALF_ROWS_ARG_NAME = 'num_half_rows'
 NUM_HALF_COLUMNS_ARG_NAME = 'num_half_columns'
@@ -55,9 +54,10 @@ TIME_HELP_STRING = (
     ' all time steps in the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-PRESSURE_LEVEL_HELP_STRING = (
-    'Will create examples only for this pressure level (millibars).  To use '
-    'surface data as predictors, leave this argument alone.')
+PRESSURE_LEVELS_HELP_STRING = (
+    'Will create examples for these pressure levels (millibars).  List must '
+    'have same length as `{0:s}`.'
+).format(PREDICTOR_NAMES_ARG_NAME)
 
 PREDICTOR_NAMES_HELP_STRING = (
     'Names of predictor variables.  Must be accepted by '
@@ -116,6 +116,10 @@ DEFAULT_PREDICTOR_NAMES = [
     predictor_utils.HEIGHT_NAME
 ]
 
+DEFAULT_PRESSURE_LEVELS_MB = numpy.full(
+    len(DEFAULT_PREDICTOR_NAMES), 1000, dtype=int
+)
+
 DEFAULT_CLASS_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -130,9 +134,8 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
-    default=predictor_utils.DUMMY_SURFACE_PRESSURE_MB,
-    help=PRESSURE_LEVEL_HELP_STRING)
+    '--' + PRESSURE_LEVELS_ARG_NAME, type=int, nargs='+', required=False,
+    default=DEFAULT_PRESSURE_LEVELS_MB, help=PRESSURE_LEVELS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PREDICTOR_NAMES_ARG_NAME, type=str, nargs='+', required=False,
@@ -206,7 +209,7 @@ def _write_example_file(
 
 
 def _run(top_predictor_dir_name, first_time_string, last_time_string,
-         pressure_level_mb, predictor_names, num_half_rows, num_half_columns,
+         pressure_levels_mb, predictor_names, num_half_rows, num_half_columns,
          normalization_type_string, class_fractions, top_gridded_front_dir_name,
          dilation_distance_metres, mask_file_name, max_examples_per_time,
          num_times_per_output_file, top_output_dir_name):
@@ -217,7 +220,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
     :param top_predictor_dir_name: See documentation at top of file.
     :param first_time_string: Same.
     :param last_time_string: Same.
-    :param pressure_level_mb: Same.
+    :param pressure_levels_mb: Same.
     :param predictor_names: Same.
     :param num_half_rows: Same.
     :param num_half_columns: Same.
@@ -235,19 +238,6 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
 
     if mask_file_name in ['', 'None']:
         mask_file_name = None
-
-    if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
-        predictor_names = [
-            predictor_utils.PRESSURE_NAME
-            if n == predictor_utils.HEIGHT_NAME else n
-            for n in predictor_names
-        ]
-    else:
-        predictor_names = [
-            predictor_utils.HEIGHT_NAME
-            if n == predictor_utils.PRESSURE_NAME else n
-            for n in predictor_names
-        ]
 
     if mask_file_name is not None:
         print 'Reading mask from: "{0:s}"...\n'.format(mask_file_name)
@@ -287,7 +277,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
             top_gridded_front_dir_name=top_gridded_front_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             predictor_names=predictor_names,
-            pressure_level_mb=pressure_level_mb,
+            pressure_levels_mb=pressure_levels_mb,
             num_half_rows=num_half_rows, num_half_columns=num_half_columns,
             dilation_distance_metres=dilation_distance_metres,
             class_fractions=class_fractions,
@@ -324,7 +314,9 @@ if __name__ == '__main__':
         top_predictor_dir_name=getattr(INPUT_ARG_OBJECT, PREDICTOR_DIR_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
-        pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
+        pressure_levels_mb=numpy.array(
+            getattr(INPUT_ARG_OBJECT, PRESSURE_LEVELS_ARG_NAME), dtype=int
+        ),
         predictor_names=getattr(INPUT_ARG_OBJECT, PREDICTOR_NAMES_ARG_NAME),
         num_half_rows=getattr(INPUT_ARG_OBJECT, NUM_HALF_ROWS_ARG_NAME),
         num_half_columns=getattr(INPUT_ARG_OBJECT, NUM_HALF_COLUMNS_ARG_NAME),
