@@ -21,7 +21,7 @@ def create_downsized_examples(
         num_half_columns, full_size_predictor_matrix=None,
         full_size_target_matrix=None, top_predictor_dir_name=None,
         top_gridded_front_dir_name=None, valid_time_unix_sec=None,
-        pressure_level_mb=None, predictor_names=None,
+        pressure_levels_mb=None, predictor_names=None,
         normalization_type_string=None, dilation_distance_metres=None,
         num_classes=3):
     """Creates downsized examples (for patch classification).
@@ -57,9 +57,10 @@ def create_downsized_examples(
         `fronts_io.find_gridded_file` and read by
         `fronts_io.read_grid_from_file`.
     :param valid_time_unix_sec: Valid time.
-    :param pressure_level_mb: Pressure level (millibars) for predictors.
-    :param predictor_names: 1-D list of predictor names (each must be accepted
-        by `predictor_utils.check_field_name`).
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
+    :param predictor_names: length-C list of predictor names (each must be
+        accepted by `predictor_utils.check_field_name`).
     :param normalization_type_string: Normalization method for predictors (see
         doc for `machine_learning_utils.normalize_predictors`).
     :param dilation_distance_metres: Dilation distance for gridded warm-front
@@ -78,9 +79,6 @@ def create_downsized_examples(
     """
 
     if full_size_predictor_matrix is None or full_size_target_matrix is None:
-        error_checking.assert_is_integer(pressure_level_mb)
-        error_checking.assert_is_greater(pressure_level_mb, 0)
-
         error_checking.assert_is_integer(num_classes)
         error_checking.assert_is_geq(num_classes, 2)
         error_checking.assert_is_leq(num_classes, 3)
@@ -106,14 +104,12 @@ def create_downsized_examples(
         print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
         predictor_dict = predictor_io.read_file(
             netcdf_file_name=predictor_file_name,
-            pressure_levels_to_keep_mb=numpy.array(
-                [pressure_level_mb], dtype=int
-            ),
+            pressure_levels_to_keep_mb=pressure_levels_mb,
             field_names_to_keep=predictor_names)
 
         full_size_predictor_matrix = predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
-        ][[0], ..., 0, :]
+        ][[0], ...]
 
         for j in range(len(predictor_names)):
             full_size_predictor_matrix[..., j] = (
@@ -197,7 +193,7 @@ def create_downsized_examples(
 
 def create_full_size_example(
         top_predictor_dir_name, top_gridded_front_dir_name, valid_time_unix_sec,
-        pressure_level_mb, predictor_names, normalization_type_string,
+        pressure_levels_mb, predictor_names, normalization_type_string,
         dilation_distance_metres, num_classes):
     """Creates full-size example (for semantic segmentation).
 
@@ -209,7 +205,7 @@ def create_full_size_example(
     :param top_predictor_dir_name: See doc for `create_downsized_examples`.
     :param top_gridded_front_dir_name: Same.
     :param valid_time_unix_sec: Same.
-    :param pressure_level_mb: Same.
+    :param pressure_levels_mb: Same.
     :param predictor_names: Same.
     :param normalization_type_string: Same.
     :param dilation_distance_metres: Same.
@@ -221,9 +217,6 @@ def create_full_size_example(
     """
 
     # TODO(thunderhoser): Probably need to use mask here as well.
-
-    error_checking.assert_is_integer(pressure_level_mb)
-    error_checking.assert_is_greater(pressure_level_mb, 0)
 
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
@@ -250,14 +243,10 @@ def create_full_size_example(
     print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
     predictor_dict = predictor_io.read_file(
         netcdf_file_name=predictor_file_name,
-        pressure_levels_to_keep_mb=numpy.array(
-            [pressure_level_mb], dtype=int
-        ),
+        pressure_levels_to_keep_mb=pressure_levels_mb,
         field_names_to_keep=predictor_names)
 
-    predictor_matrix = predictor_dict[
-        predictor_utils.DATA_MATRIX_KEY
-    ][[0], ..., 0, :]
+    predictor_matrix = predictor_dict[predictor_utils.DATA_MATRIX_KEY][[0], ...]
 
     for j in range(len(predictor_names)):
         predictor_matrix[..., j] = ml_utils.fill_nans_in_predictor_images(

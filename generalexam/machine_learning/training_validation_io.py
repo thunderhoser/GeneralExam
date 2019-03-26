@@ -19,7 +19,7 @@ TIME_INTERVAL_SECONDS = 10800
 
 def downsized_generator_from_scratch(
         top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
-        last_time_unix_sec, predictor_names, pressure_level_mb, num_half_rows,
+        last_time_unix_sec, predictor_names, pressure_levels_mb, num_half_rows,
         num_half_columns, normalization_type_string, dilation_distance_metres,
         class_fractions, num_examples_per_batch, num_examples_per_time,
         narr_mask_matrix=None):
@@ -40,9 +40,10 @@ def downsized_generator_from_scratch(
         `fronts_io.read_grid_from_file`.
     :param first_time_unix_sec: First valid time in desired period.
     :param last_time_unix_sec: Last valid time in desired period.
-    :param predictor_names: 1-D list of predictor names (each must be accepted
-        by `predictor_utils.check_field_name`).
-    :param pressure_level_mb: Pressure level (millibars) for predictors.
+    :param predictor_names: length-C list of predictor names (each must be
+        accepted by `predictor_utils.check_field_name`).
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
     :param num_half_rows: Number of half-rows in predictor grid.  M (defined in
         the above discussion) will be `2 * num_half_rows + 1`.
     :param num_half_columns: Same but for columns.
@@ -126,14 +127,12 @@ def downsized_generator_from_scratch(
 
             this_predictor_dict = predictor_io.read_file(
                 netcdf_file_name=this_predictor_file_name,
-                pressure_levels_to_keep_mb=numpy.array(
-                    [pressure_level_mb], dtype=int
-                ),
+                pressure_levels_to_keep_mb=pressure_levels_mb,
                 field_names_to_keep=predictor_names)
 
             this_full_predictor_matrix = this_predictor_dict[
                 predictor_utils.DATA_MATRIX_KEY
-            ][[0], ..., 0, :]
+            ][[0], ...]
 
             for j in range(len(predictor_names)):
                 this_full_predictor_matrix[..., j] = (
@@ -337,7 +336,7 @@ def downsized_generator_from_example_files(
 
 def full_size_generator_from_scratch(
         top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
-        last_time_unix_sec, predictor_names, pressure_level_mb,
+        last_time_unix_sec, predictor_names, pressure_levels_mb,
         normalization_type_string, dilation_distance_metres, num_classes,
         num_times_per_batch):
     """Generates full-size examples (for semantic segmentation) from scratch.
@@ -354,7 +353,7 @@ def full_size_generator_from_scratch(
     :param first_time_unix_sec: Same.
     :param last_time_unix_sec: Same.
     :param predictor_names: Same.
-    :param pressure_level_mb: Same.
+    :param pressure_levels_mb: Same.
     :param normalization_type_string: Same.
     :param dilation_distance_metres: Same.
     :param num_classes: Number of classes.  If `num_classes == 3`, the problem
@@ -422,14 +421,12 @@ def full_size_generator_from_scratch(
 
             this_predictor_dict = predictor_io.read_file(
                 netcdf_file_name=this_predictor_file_name,
-                pressure_levels_to_keep_mb=numpy.array(
-                    [pressure_level_mb], dtype=int
-                ),
+                pressure_levels_to_keep_mb=pressure_levels_mb,
                 field_names_to_keep=predictor_names)
 
             this_predictor_matrix = this_predictor_dict[
                 predictor_utils.DATA_MATRIX_KEY
-            ][[0], ..., 0, :]
+            ][[0], ...]
 
             for j in range(len(predictor_names)):
                 this_predictor_matrix[..., j] = (

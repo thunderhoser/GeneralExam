@@ -15,7 +15,6 @@ TIME_FORMAT = '%Y%m%d%H'
 VALID_TIME_KEY = 'valid_time_unix_sec'
 ROW_DIMENSION_KEY = 'grid_row'
 COLUMN_DIMENSION_KEY = 'grid_column'
-PRESSURE_LEVEL_DIM_KEY = 'pressure_level'
 FIELD_DIMENSION_KEY = 'field'
 FIELD_NAME_CHAR_DIM_KEY = 'field_name_character'
 
@@ -92,12 +91,8 @@ def write_file(netcdf_file_name, predictor_dict):
         predictor_dict[predictor_utils.DATA_MATRIX_KEY].shape[1]
     )
     dataset_object.createDimension(
-        PRESSURE_LEVEL_DIM_KEY,
-        predictor_dict[predictor_utils.DATA_MATRIX_KEY].shape[2]
-    )
-    dataset_object.createDimension(
         FIELD_DIMENSION_KEY,
-        predictor_dict[predictor_utils.DATA_MATRIX_KEY].shape[3]
+        predictor_dict[predictor_utils.DATA_MATRIX_KEY].shape[2]
     )
 
     num_field_name_chars = numpy.max(numpy.array(
@@ -111,7 +106,7 @@ def write_file(netcdf_file_name, predictor_dict):
     dataset_object.createVariable(
         predictor_utils.DATA_MATRIX_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY,
-                    PRESSURE_LEVEL_DIM_KEY, FIELD_DIMENSION_KEY)
+                    FIELD_DIMENSION_KEY)
     )
 
     dataset_object.variables[predictor_utils.DATA_MATRIX_KEY][:] = (
@@ -141,7 +136,7 @@ def write_file(netcdf_file_name, predictor_dict):
     # Add pressure levels.
     dataset_object.createVariable(
         predictor_utils.PRESSURE_LEVELS_KEY, datatype=numpy.int32,
-        dimensions=PRESSURE_LEVEL_DIM_KEY)
+        dimensions=FIELD_DIMENSION_KEY)
 
     dataset_object.variables[predictor_utils.PRESSURE_LEVELS_KEY][:] = (
         predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY]
@@ -168,16 +163,18 @@ def read_file(
         field_names_to_keep=None):
     """Reads predictor file (NetCDF with all data at one time step).
 
+    C = number of predictors to keep
+
     :param netcdf_file_name: Path to input file.
     :param metadata_only: Boolean flag.  If True, will read only metadata
         (everything except the big data matrix).
     :param pressure_levels_to_keep_mb: [used only if `metadata_only == False`]
-        1-D numpy array of pressure levels (millibars) to read.  Use 1013 to
-        denote surface.  If you want to read all pressure levels, make this
+        length-C numpy array of pressure levels (millibars) to read.  Use 1013
+        to denote surface.  If you want to read all pressure levels, make this
         None.
     :param field_names_to_keep: [used only if `metadata_only == False`]
-        1-D list of field names.  If you want to read all fields, make this
-        None.
+        length-C list of field names to read.  If you want to read all fields,
+        make this None.
     :return: predictor_dict: See doc for `write_file`.  If
         `metadata_only = True`, this dictionary will not contain "data_matrix".
     """
@@ -192,17 +189,27 @@ def read_file(
     ))
     valid_times_unix_sec = numpy.array([valid_time_unix_sec], dtype=int)
 
+    field_names = [
+        str(f) for f in netCDF4.chartostring(
+            dataset_object.variables[predictor_utils.FIELD_NAMES_KEY][:]
+        )
+    ]
+
+    pressure_levels_mb = numpy.array(
+        dataset_object.variables[predictor_utils.PRESSURE_LEVELS_KEY][:],
+        dtype=int
+    )
+
+    is_old_file = (len(field_names) != len(pressure_levels_mb))
+    if is_old_file:
+        pressure_levels_mb = numpy.full(
+            len(field_names), pressure_levels_mb[0], dtype=int
+        )
+
     predictor_dict = {
         predictor_utils.VALID_TIMES_KEY: valid_times_unix_sec,
-        predictor_utils.PRESSURE_LEVELS_KEY: numpy.array(
-            dataset_object.variables[predictor_utils.PRESSURE_LEVELS_KEY][:],
-            dtype=int
-        ),
-        predictor_utils.FIELD_NAMES_KEY: [
-            str(f) for f in netCDF4.chartostring(
-                dataset_object.variables[predictor_utils.FIELD_NAMES_KEY][:]
-            )
-        ]
+        predictor_utils.FIELD_NAMES_KEY: field_names,
+        predictor_utils.PRESSURE_LEVELS_KEY: pressure_levels_mb
     }
 
     if predictor_utils.LATITUDES_KEY in dataset_object.variables:
@@ -229,7 +236,14 @@ def read_file(
     predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.expand_dims(
         predictor_dict[predictor_utils.DATA_MATRIX_KEY], axis=0)
 
-    if pressure_levels_to_keep_mb is None:
+    if is_old_file:
+        predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_dict[
+            predictor_utils.DATA_MATRIX_KEY][..., 0, :]
+
+    if field_names_to_keep is None and pressure_levels_to_keep_mb is None:
+        field_names_to_keep = copy.deepcopy(
+            predictor_dict[predictor_utils.FIELD_NAMES_KEY]
+        )
         pressure_levels_to_keep_mb = (
             predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] + 0
         )
@@ -239,38 +253,27 @@ def read_file(
     ).astype(int)
 
     error_checking.assert_is_numpy_array(
-        pressure_levels_to_keep_mb, num_dimensions=1)
-    error_checking.assert_is_greater_numpy_array(pressure_levels_to_keep_mb, 0)
-
-    if field_names_to_keep is None:
-        field_names_to_keep = copy.deepcopy(
-            predictor_dict[predictor_utils.FIELD_NAMES_KEY]
-        )
-
-    error_checking.assert_is_numpy_array(
         numpy.array(field_names_to_keep), num_dimensions=1)
 
-    pressure_indices = numpy.array([
-        numpy.where(
-            predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] == p
-        )[0][0] for p in pressure_levels_to_keep_mb
-    ], dtype=int)
+    num_fields_to_keep = len(field_names_to_keep)
+    error_checking.assert_is_numpy_array(
+        pressure_levels_to_keep_mb,
+        exact_dimensions=numpy.array([num_fields_to_keep], dtype=int)
+    )
 
-    field_indices = numpy.array([
-        predictor_dict[predictor_utils.FIELD_NAMES_KEY].index(f)
-        for f in field_names_to_keep
-    ], dtype=int)
+    field_indices = [
+        numpy.where(numpy.logical_and(
+            numpy.array(predictor_dict[predictor_utils.FIELD_NAMES_KEY]) == f,
+            predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] == p
+        ))[0][0]
+        for f, p in zip(field_names_to_keep, pressure_levels_to_keep_mb)
+    ]
 
     predictor_dict[
         predictor_utils.PRESSURE_LEVELS_KEY] = pressure_levels_to_keep_mb
     predictor_dict[predictor_utils.FIELD_NAMES_KEY] = field_names_to_keep
 
-    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.take(
-        predictor_dict[predictor_utils.DATA_MATRIX_KEY],
-        indices=pressure_indices, axis=-2)
-
-    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.take(
-        predictor_dict[predictor_utils.DATA_MATRIX_KEY], indices=field_indices,
-        axis=-1)
+    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_dict[
+        predictor_utils.DATA_MATRIX_KEY][..., field_indices]
 
     return predictor_dict

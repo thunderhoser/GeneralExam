@@ -300,7 +300,6 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
     latitudes_deg = latitudes_deg[::-1]
 
     data_matrix = numpy.expand_dims(data_matrix, axis=-1)
-    data_matrix = numpy.expand_dims(data_matrix, axis=-1)
 
     return {
         predictor_utils.DATA_MATRIX_KEY: data_matrix,
@@ -384,42 +383,37 @@ def interp_to_narr_grid(predictor_dict, era5_x_matrix_metres=None,
 
     num_times = predictor_dict[predictor_utils.DATA_MATRIX_KEY].shape[0]
     num_fields = predictor_dict[predictor_utils.DATA_MATRIX_KEY].shape[-1]
-    num_pressure_levels = predictor_dict[
-        predictor_utils.DATA_MATRIX_KEY].shape[-2]
 
     num_narr_rows = narr_x_matrix_metres.shape[0]
     num_narr_columns = narr_x_matrix_metres.shape[1]
     new_data_matrix = numpy.full(
-        (num_times, num_narr_rows, num_narr_columns, num_pressure_levels,
-         num_fields),
-        numpy.nan)
+        (num_times, num_narr_rows, num_narr_columns, num_fields), numpy.nan
+    )
 
     for i in range(num_times):
         this_time_string = time_conversion.unix_sec_to_string(
             predictor_dict[predictor_utils.VALID_TIMES_KEY][i], TIME_FORMAT)
 
-        for j in range(num_pressure_levels):
-            for k in range(num_fields):
-                print (
-                    'Interpolating field "{0:s}" at {1:d} mb and {2:s}...'
-                ).format(
-                    predictor_dict[predictor_utils.FIELD_NAMES_KEY][k],
-                    predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY][j],
-                    this_time_string
-                )
+        for k in range(num_fields):
+            print (
+                'Interpolating field "{0:s}" at {1:d} mb and {2:s}...'
+            ).format(
+                predictor_dict[predictor_utils.FIELD_NAMES_KEY][k],
+                predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY][k],
+                this_time_string
+            )
 
-                this_interp_object = griddata(
-                    era5_xy_matrix_metres,
-                    numpy.ravel(
-                        predictor_dict[
-                            predictor_utils.DATA_MATRIX_KEY][i, ..., j, k]
-                    ),
-                    narr_xy_matrix_metres, method='linear',
-                    fill_value=numpy.nan)
+            this_interp_object = griddata(
+                era5_xy_matrix_metres,
+                numpy.ravel(
+                    predictor_dict[predictor_utils.DATA_MATRIX_KEY][i, ..., k]
+                ),
+                narr_xy_matrix_metres, method='linear',
+                fill_value=numpy.nan)
 
-                new_data_matrix[i, ..., j, k] = numpy.reshape(
-                    this_interp_object.T, (num_narr_rows, num_narr_columns)
-                )
+            new_data_matrix[i, ..., k] = numpy.reshape(
+                this_interp_object.T, (num_narr_rows, num_narr_columns)
+            )
 
     predictor_dict[predictor_utils.DATA_MATRIX_KEY] = new_data_matrix
     predictor_dict[predictor_utils.LATITUDES_KEY] = None

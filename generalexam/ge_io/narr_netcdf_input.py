@@ -352,7 +352,6 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
 
     data_matrix = _remove_sentinel_values(data_matrix)
     data_matrix = numpy.expand_dims(data_matrix, axis=-1)
-    data_matrix = numpy.expand_dims(data_matrix, axis=-1)
 
     return {
         predictor_utils.DATA_MATRIX_KEY: data_matrix,

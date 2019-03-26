@@ -47,7 +47,7 @@ ROW_INDICES_KEY = 'row_indices'
 COLUMN_INDICES_KEY = 'column_indices'
 NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 PREDICTOR_NAMES_KEY = 'narr_predictor_names'
-PRESSURE_LEVEL_KEY = 'pressure_level_mb'
+PRESSURE_LEVELS_KEY = 'pressure_levels_mb'
 DILATION_DISTANCE_KEY = 'dilation_distance_metres'
 MASK_MATRIX_KEY = 'narr_mask_matrix'
 
@@ -166,10 +166,12 @@ def _shrink_predictor_grid(predictor_matrix, num_half_rows=None,
 
 def create_examples(
         top_predictor_dir_name, top_gridded_front_dir_name, valid_time_unix_sec,
-        predictor_names, pressure_level_mb, num_half_rows, num_half_columns,
+        predictor_names, pressure_levels_mb, num_half_rows, num_half_columns,
         dilation_distance_metres, class_fractions, max_num_examples,
         normalization_type_string, narr_mask_matrix=None):
     """Creates examples.
+
+    C = number of predictors
 
     :param top_predictor_dir_name: Name of top-level directory with predictors.
         Files therein will be found by `predictor_io.find_file` and read by
@@ -179,9 +181,10 @@ def create_examples(
         `fronts_io.find_gridded_file` and read by
         `fronts_io.read_grid_from_file`.
     :param valid_time_unix_sec: Valid time.
-    :param predictor_names: 1-D list of predictor names (each must be accepted
-        by `predictor_utils.check_field_name`).
-    :param pressure_level_mb: Pressure level (millibars) for predictors.
+    :param predictor_names: length-C list of predictor names (each must be
+        accepted by `predictor_utils.check_field_name`).
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
     :param num_half_rows: Number of half-rows (on either side of center) for
         predictor grid.
     :param num_half_columns: Same but for columns.
@@ -212,14 +215,14 @@ def create_examples(
         values of second normalization param (either max or standard deviation).
     example_dict['normalization_type_string']: Same as input (metadata).
     example_dict['narr_predictor_names']: Same as input (metadata).
-    example_dict['pressure_level_mb']: Same as input (metadata).
+    example_dict['pressure_levels_mb']: Same as input (metadata).
     example_dict['dilation_distance_metres']: Same as input (metadata).
     example_dict['narr_mask_matrix']: Same as input (metadata).
     """
 
-    these_expected_dim = numpy.array([3], dtype=int)
     error_checking.assert_is_numpy_array(
-        class_fractions, exact_dimensions=these_expected_dim)
+        class_fractions, exact_dimensions=numpy.array([3], dtype=int)
+    )
 
     if narr_mask_matrix is not None:
         ml_utils.check_narr_mask(narr_mask_matrix)
@@ -243,12 +246,10 @@ def create_examples(
     print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
     predictor_dict = predictor_io.read_file(
         netcdf_file_name=predictor_file_name,
-        pressure_levels_to_keep_mb=numpy.array([pressure_level_mb], dtype=int),
+        pressure_levels_to_keep_mb=pressure_levels_mb,
         field_names_to_keep=predictor_names)
 
-    predictor_matrix = predictor_dict[
-        predictor_utils.DATA_MATRIX_KEY
-    ][[0], ..., 0, :]
+    predictor_matrix = predictor_dict[predictor_utils.DATA_MATRIX_KEY][[0], ...]
 
     for j in range(len(predictor_names)):
         predictor_matrix[..., j] = ml_utils.fill_nans_in_predictor_images(
@@ -304,7 +305,7 @@ def create_examples(
         COLUMN_INDICES_KEY: column_indices,
         NORMALIZATION_TYPE_KEY: normalization_type_string,
         PREDICTOR_NAMES_KEY: predictor_names,
-        PRESSURE_LEVEL_KEY: pressure_level_mb,
+        PRESSURE_LEVELS_KEY: pressure_levels_mb,
         DILATION_DISTANCE_KEY: dilation_distance_metres,
         MASK_MATRIX_KEY: narr_mask_matrix
     }
@@ -500,11 +501,6 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
         dataset_object = netCDF4.Dataset(
             netcdf_file_name, 'a', format='NETCDF3_64BIT_OFFSET')
 
-        orig_pressure_level_mb = int(
-            getattr(dataset_object, PRESSURE_LEVEL_KEY)
-        )
-        assert orig_pressure_level_mb == example_dict[PRESSURE_LEVEL_KEY]
-
         orig_dilation_distance_metres = getattr(
             dataset_object, DILATION_DISTANCE_KEY
         )
@@ -517,6 +513,13 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
             getattr(dataset_object, NORMALIZATION_TYPE_KEY)
         )
         assert orig_norm_type_string == example_dict[NORMALIZATION_TYPE_KEY]
+
+        orig_pressure_levels_mb = numpy.array(
+            dataset_object.variables[PRESSURE_LEVELS_KEY][:], dtype=int
+        )
+        assert numpy.array_equal(
+            orig_pressure_levels_mb, example_dict[PRESSURE_LEVELS_KEY]
+        )
 
         orig_predictor_names = netCDF4.chartostring(
             dataset_object.variables[PREDICTOR_NAMES_KEY][:]
@@ -549,9 +552,6 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
     dataset_object = netCDF4.Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
-    dataset_object.setncattr(
-        PRESSURE_LEVEL_KEY, int(numpy.round(example_dict[PRESSURE_LEVEL_KEY]))
-    )
     dataset_object.setncattr(
         DILATION_DISTANCE_KEY, example_dict[DILATION_DISTANCE_KEY]
     )
@@ -597,6 +597,12 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
     )
     dataset_object.variables[PREDICTOR_NAMES_KEY][:] = numpy.array(
         predictor_names_as_char_array)
+
+    dataset_object.createVariable(
+        PRESSURE_LEVELS_KEY, datatype=numpy.int32,
+        dimensions=PREDICTOR_DIMENSION_KEY)
+    dataset_object.variables[PRESSURE_LEVELS_KEY][:] = example_dict[
+        PRESSURE_LEVELS_KEY]
 
     dataset_object.createVariable(
         MASK_MATRIX_KEY, datatype=numpy.int32,
@@ -654,15 +660,20 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
 
 def read_file(
         netcdf_file_name, metadata_only=False, predictor_names_to_keep=False,
-        num_half_rows_to_keep=None, num_half_columns_to_keep=None,
-        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None):
+        pressure_levels_to_keep_mb=False, num_half_rows_to_keep=None,
+        num_half_columns_to_keep=None, first_time_to_keep_unix_sec=None,
+        last_time_to_keep_unix_sec=None):
     """Reads learning examples from NetCDF file.
+
+    C = number of predictors to keep
 
     :param netcdf_file_name: Path to input file.
     :param metadata_only: Boolean flag.  If True, will read only metadata
         (everything except predictor and target matrices).
-    :param predictor_names_to_keep: 1-D list of predictors to keep.  If None,
-        all predictors will be kept.
+    :param predictor_names_to_keep: length-C list of predictors to keep.  If
+        None, all predictors will be kept.
+    :param pressure_levels_to_keep_mb: length-C numpy array of pressure levels
+        to keep (millibars).
     :param num_half_rows_to_keep: Number of half-rows to keep in predictor
         grids.  If None, all rows will be kept.
     :param num_half_columns_to_keep: Same but for columns.
@@ -698,17 +709,38 @@ def read_file(
     predictor_names = netCDF4.chartostring(
         dataset_object.variables[PREDICTOR_NAMES_KEY][:]
     )
-
     predictor_names = [str(s) for s in predictor_names]
-    if predictor_names_to_keep is None:
+
+    if hasattr(dataset_object, 'pressure_level_mb'):
+        pressure_level_mb = int(getattr(dataset_object, 'pressure_level_mb'))
+        pressure_levels_mb = numpy.array([pressure_level_mb], dtype=int)
+    else:
+        pressure_levels_mb = numpy.array(
+            dataset_object.variables[PRESSURE_LEVELS_KEY][:], dtype=int)
+
+    if predictor_names_to_keep is None and pressure_levels_to_keep_mb is None:
         predictor_names_to_keep = copy.deepcopy(predictor_names)
+        pressure_levels_to_keep_mb = pressure_levels_mb + 0
+
+    pressure_levels_to_keep_mb = numpy.round(
+        pressure_levels_to_keep_mb
+    ).astype(int)
 
     error_checking.assert_is_numpy_array(
         numpy.array(predictor_names_to_keep), num_dimensions=1)
 
-    predictor_indices = numpy.array(
-        [predictor_names.index(p) for p in predictor_names_to_keep],
-        dtype=int)
+    num_predictors_to_keep = len(predictor_names_to_keep)
+    error_checking.assert_is_numpy_array(
+        pressure_levels_to_keep_mb,
+        exact_dimensions=numpy.array([num_predictors_to_keep], dtype=int)
+    )
+
+    predictor_indices = [
+        numpy.where(numpy.logical_and(
+            numpy.array(predictor_names) == n, pressure_levels_mb == l
+        ))[0][0]
+        for n, l in zip(predictor_names_to_keep, pressure_levels_to_keep_mb)
+    ]
 
     found_normalization_params = (
         FIRST_NORM_PARAM_KEY in dataset_object.variables or
@@ -766,7 +798,7 @@ def read_file(
         ROW_INDICES_KEY: row_indices[example_indices],
         COLUMN_INDICES_KEY: column_indices[example_indices],
         PREDICTOR_NAMES_KEY: predictor_names_to_keep,
-        PRESSURE_LEVEL_KEY: int(getattr(dataset_object, PRESSURE_LEVEL_KEY)),
+        PRESSURE_LEVELS_KEY: pressure_levels_to_keep_mb,
         DILATION_DISTANCE_KEY: getattr(dataset_object, DILATION_DISTANCE_KEY),
         MASK_MATRIX_KEY:
             numpy.array(dataset_object.variables[MASK_MATRIX_KEY][:], dtype=int)

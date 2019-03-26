@@ -42,18 +42,16 @@ def check_predictor_dict(predictor_dict):
     T = number of time steps
     M = number of rows in grid
     N = number of columns in grid
-    C = number of channels (fields)
-    P = number of pressure levels
+    C = number of predictors
 
     :param predictor_dict: Dictionary with the following keys.
-    predictor_dict['data_matrix']: T-by-M-by-N-by-P-by-C numpy array of data
-        values.
+    predictor_dict['data_matrix']: T-by-M-by-N-by-C numpy array of data values.
     predictor_dict['valid_times_unix_sec']: length-T numpy array of valid times.
     predictor_dict['latitudes_deg']: length-M numpy array of grid-point
         latitudes (deg N).  If data are on the NARR grid, this should be None.
     predictor_dict['longitudes_deg']: length-N numpy array of grid-point
         longitudes (deg E).  If data are on the NARR grid, this should be None.
-    predictor_dict['pressure_levels_mb']: length-P numpy array of pressure
+    predictor_dict['pressure_levels_mb']: length-C numpy array of pressure
         levels (use 1013 mb to denote surface).
     predictor_dict['field_names']: length-C list of field names.
     """
@@ -70,11 +68,14 @@ def check_predictor_dict(predictor_dict):
     error_checking.assert_is_numpy_array(
         predictor_dict[PRESSURE_LEVELS_KEY], num_dimensions=1)
 
-    error_checking.assert_is_numpy_array(
-        numpy.array(predictor_dict[FIELD_NAMES_KEY]), num_dimensions=1)
+    num_predictors = len(predictor_dict[PRESSURE_LEVELS_KEY])
 
-    num_fields = len(predictor_dict[FIELD_NAMES_KEY])
-    for j in range(num_fields):
+    error_checking.assert_is_numpy_array(
+        numpy.array(predictor_dict[FIELD_NAMES_KEY]),
+        exact_dimensions=numpy.array([num_predictors], dtype=int)
+    )
+
+    for j in range(num_predictors):
         check_field_name(predictor_dict[FIELD_NAMES_KEY][j])
 
     on_narr_grid = (
@@ -94,12 +95,10 @@ def check_predictor_dict(predictor_dict):
             predictor_dict[LONGITUDES_KEY], num_dimensions=1)
 
     this_num_dimensions = len(predictor_dict[DATA_MATRIX_KEY].shape)
-    error_checking.assert_is_geq(this_num_dimensions, 5)
-    error_checking.assert_is_leq(this_num_dimensions, 5)
+    error_checking.assert_is_geq(this_num_dimensions, 4)
+    error_checking.assert_is_leq(this_num_dimensions, 4)
 
     num_times = len(predictor_dict[VALID_TIMES_KEY])
-    num_pressure_levels = len(predictor_dict[PRESSURE_LEVELS_KEY])
-
     if on_narr_grid:
         num_grid_rows = predictor_dict[DATA_MATRIX_KEY].shape[1]
         num_grid_columns = predictor_dict[DATA_MATRIX_KEY].shape[2]
@@ -108,9 +107,8 @@ def check_predictor_dict(predictor_dict):
         num_grid_columns = len(predictor_dict[LONGITUDES_KEY])
 
     these_expected_dim = numpy.array(
-        [num_times, num_grid_rows, num_grid_columns, num_pressure_levels,
-         num_fields],
-        dtype=int)
+        [num_times, num_grid_rows, num_grid_columns, num_predictors], dtype=int
+    )
 
     error_checking.assert_is_numpy_array(
         predictor_dict[DATA_MATRIX_KEY], exact_dimensions=these_expected_dim)
