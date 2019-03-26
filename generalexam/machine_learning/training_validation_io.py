@@ -222,8 +222,8 @@ def downsized_generator_from_scratch(
 
 def downsized_generator_from_example_files(
         top_input_dir_name, first_time_unix_sec, last_time_unix_sec,
-        predictor_names, num_half_rows, num_half_columns, num_classes,
-        num_examples_per_batch):
+        predictor_names, pressure_levels_mb, num_half_rows, num_half_columns,
+        num_classes, num_examples_per_batch):
     """Generates downsized examples (for patch classifn) from example files.
 
     E = number of examples
@@ -239,6 +239,7 @@ def downsized_generator_from_example_files(
     :param first_time_unix_sec: See doc for `downsized_generator_from_scratch`.
     :param last_time_unix_sec: Same.
     :param predictor_names: Same.
+    :param pressure_levels_mb: Same.
     :param num_half_rows: Same.
     :param num_half_columns: Same.
     :param num_classes: Number of classes.  If `num_classes == 3`, the problem
@@ -281,6 +282,7 @@ def downsized_generator_from_example_files(
             this_example_dict = examples_io.read_file(
                 netcdf_file_name=example_file_names[file_index],
                 predictor_names_to_keep=predictor_names,
+                pressure_levels_to_keep_mb=pressure_levels_mb,
                 num_half_rows_to_keep=num_half_rows,
                 num_half_columns_to_keep=num_half_columns,
                 first_time_to_keep_unix_sec=first_time_unix_sec,

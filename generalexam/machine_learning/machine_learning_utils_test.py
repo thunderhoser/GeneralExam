@@ -1416,21 +1416,6 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_dilated_matrix, FRONTAL_GRID_MATRIX_TERNARY_DILATED))
 
-    def test_stack_predictor_variables(self):
-        """Ensures correct output from stack_predictor_variables."""
-
-        this_matrix = ml_utils.stack_predictor_variables(
-            TUPLE_OF_3D_PREDICTOR_MATRICES)
-        self.assertTrue(numpy.allclose(
-            this_matrix, PREDICTOR_MATRIX_4D, atol=TOLERANCE, equal_nan=True))
-
-    def test_stack_time_steps(self):
-        """Ensures correct output from stack_time_steps."""
-
-        this_matrix = ml_utils.stack_time_steps(TUPLE_OF_4D_PREDICTOR_MATRICES)
-        self.assertTrue(numpy.allclose(
-            this_matrix, PREDICTOR_MATRIX_5D, atol=TOLERANCE, equal_nan=True))
-
     def test_subset_narr_grid_for_fcn_input_3d(self):
         """Ensures correct output from subset_narr_grid_for_fcn_input.
 

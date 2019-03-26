@@ -272,7 +272,7 @@ def check_evaluation_pairs(class_probability_matrix, observed_labels):
 def create_eval_pairs_for_cnn(
         model_object, top_predictor_dir_name, top_gridded_front_dir_name,
         first_time_unix_sec, last_time_unix_sec, num_times,
-        num_examples_per_time, pressure_level_mb, predictor_names,
+        num_examples_per_time, pressure_levels_mb, predictor_names,
         normalization_type_string, dilation_distance_metres,
         isotonic_model_object_by_class=None, mask_matrix=None,
         random_seed=None):
@@ -294,7 +294,7 @@ def create_eval_pairs_for_cnn(
     :param num_times: Number of times to draw randomly from the period.
     :param num_examples_per_time: Number of examples (grid cells) to draw
         randomly from each time.
-    :param pressure_level_mb: See doc for
+    :param pressure_levels_mb: See doc for
         `testing_io.create_downsized_examples`.
     :param predictor_names: Same.
     :param normalization_type_string: Same.
@@ -357,7 +357,7 @@ def create_eval_pairs_for_cnn(
             top_predictor_dir_name=top_predictor_dir_name,
             top_gridded_front_dir_name=top_gridded_front_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
-            pressure_level_mb=pressure_level_mb,
+            pressure_levels_mb=pressure_levels_mb,
             predictor_names=predictor_names,
             normalization_type_string=normalization_type_string,
             dilation_distance_metres=dilation_distance_metres,
@@ -548,7 +548,10 @@ def get_contingency_table(predicted_labels, observed_labels, num_classes):
 
     num_evaluation_pairs = len(predicted_labels)
     error_checking.assert_is_numpy_array(
-        observed_labels, exact_dimensions=numpy.array([num_evaluation_pairs]))
+        observed_labels,
+        exact_dimensions=numpy.array([num_evaluation_pairs], dtype=int)
+    )
+
     error_checking.assert_is_integer_numpy_array(observed_labels)
     error_checking.assert_is_geq_numpy_array(observed_labels, 0)
     error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
@@ -559,7 +562,8 @@ def get_contingency_table(predicted_labels, observed_labels, num_classes):
     for i in range(num_classes):
         for j in range(num_classes):
             contingency_table_as_matrix[i, j] = numpy.sum(
-                numpy.logical_and(predicted_labels == i, observed_labels == j))
+                numpy.logical_and(predicted_labels == i, observed_labels == j)
+            )
 
     return contingency_table_as_matrix
 

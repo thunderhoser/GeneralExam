@@ -979,44 +979,6 @@ def dilate_binary_target_images(
     return target_matrix
 
 
-def stack_predictor_variables(tuple_of_3d_predictor_matrices):
-    """Stacks images with different predictor variables.
-
-    C = number of predictor variables (channels)
-
-    :param tuple_of_3d_predictor_matrices: length-C tuple, where each element is
-        an E-by-M-by-N numpy array of predictor images.
-    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor
-        images.
-    """
-
-    predictor_matrix = numpy.stack(tuple_of_3d_predictor_matrices, axis=-1)
-    _check_predictor_matrix(
-        predictor_matrix, allow_nan=True, min_num_dimensions=4,
-        max_num_dimensions=4)
-
-    return predictor_matrix
-
-
-def stack_time_steps(tuple_of_4d_predictor_matrices):
-    """Stacks predictor images from different time steps.
-
-    T = number of time steps
-
-    :param tuple_of_4d_predictor_matrices: length-T tuple, where each element is
-        an E-by-M-by-N-by-C numpy array of predictor images.
-    :return: predictor_matrix: E-by-M-by-N-by-T-by-C numpy array of predictor
-        images.
-    """
-
-    predictor_matrix = numpy.stack(tuple_of_4d_predictor_matrices, axis=-2)
-    _check_predictor_matrix(
-        predictor_matrix, allow_nan=True, min_num_dimensions=5,
-        max_num_dimensions=5)
-
-    return predictor_matrix
-
-
 def fill_nans_in_predictor_images(predictor_matrix):
     """Fills NaN's in predictor images.
 

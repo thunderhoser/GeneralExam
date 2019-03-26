@@ -32,7 +32,7 @@ DILATION_DISTANCE_KEY = 'dilation_distance_for_target_metres'
 CLASS_FRACTIONS_KEY = 'class_fractions'
 WEIGHT_LOSS_KEY = 'weight_loss_function'
 PREDICTOR_NAMES_KEY = 'narr_predictor_names'
-PRESSURE_LEVEL_KEY = 'pressure_level_mb'
+PRESSURE_LEVELS_KEY = 'pressure_levels_mb'
 NUM_HALF_ROWS_KEY = 'num_rows_in_half_grid'
 NUM_HALF_COLUMNS_KEY = 'num_columns_in_half_grid'
 NORMALIZATION_TYPE_KEY = 'normalization_type_string'
@@ -46,7 +46,7 @@ METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY,
     NUM_EXAMPLES_PER_TIME_KEY, NUM_TRAINING_BATCHES_KEY,
     NUM_VALIDATION_BATCHES_KEY, DILATION_DISTANCE_KEY, CLASS_FRACTIONS_KEY,
-    WEIGHT_LOSS_KEY, PREDICTOR_NAMES_KEY, PRESSURE_LEVEL_KEY,
+    WEIGHT_LOSS_KEY, PREDICTOR_NAMES_KEY, PRESSURE_LEVELS_KEY,
     NUM_HALF_ROWS_KEY, NUM_HALF_COLUMNS_KEY, NORMALIZATION_TYPE_KEY,
     FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, MASK_MATRIX_KEY
@@ -162,7 +162,7 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
 def write_metadata(
         pickle_file_name, num_epochs, num_examples_per_batch,
         num_examples_per_time, num_training_batches_per_epoch,
-        num_validation_batches_per_epoch, predictor_names, pressure_level_mb,
+        num_validation_batches_per_epoch, predictor_names, pressure_levels_mb,
         num_half_rows, num_half_columns, normalization_type_string,
         dilation_distance_metres, class_fractions, weight_loss_function,
         first_training_time_unix_sec, last_training_time_unix_sec,
@@ -173,6 +173,8 @@ def write_metadata(
     In this context "validation" means on-the-fly validation (monitoring during
     training).
 
+    C = number of predictors
+
     :param pickle_file_name: Path to output file.
     :param num_epochs: Number of training epochs.
     :param num_examples_per_batch: Number of examples per (training or
@@ -182,9 +184,10 @@ def write_metadata(
     :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
-    :param predictor_names: 1-D list of predictor names (each must be accepted
-        by `predictor_utils.check_field_name`).
-    :param pressure_level_mb: Pressure level (millibars) for predictors.
+    :param predictor_names: length-C list of predictor names (each must be
+        accepted by `predictor_utils.check_field_name`).
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
     :param num_half_rows: Number of rows in half-grid (on either side of center)
         for predictors.
     :param num_half_columns: Same but for columns.
@@ -215,7 +218,7 @@ def write_metadata(
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         PREDICTOR_NAMES_KEY: predictor_names,
-        PRESSURE_LEVEL_KEY: pressure_level_mb,
+        PRESSURE_LEVELS_KEY: pressure_levels_mb,
         NUM_HALF_ROWS_KEY: num_half_rows,
         NUM_HALF_COLUMNS_KEY: num_half_columns,
         NORMALIZATION_TYPE_KEY: normalization_type_string,
@@ -247,6 +250,12 @@ def read_metadata(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if PRESSURE_LEVELS_KEY not in metadata_dict:
+        num_predictors = len(metadata_dict[PREDICTOR_NAMES_KEY])
+        metadata_dict[PRESSURE_LEVELS_KEY] = numpy.full(
+            num_predictors, metadata_dict['pressure_level_mb'], dtype=int
+        )
 
     if MASK_MATRIX_KEY not in metadata_dict:
         metadata_dict.update({MASK_MATRIX_KEY: None})
@@ -344,13 +353,14 @@ def train_cnn(
 
 def apply_model_to_full_grid(
         model_object, top_predictor_dir_name, top_gridded_front_dir_name,
-        valid_time_unix_sec, pressure_level_mb, predictor_names,
+        valid_time_unix_sec, pressure_levels_mb, predictor_names,
         normalization_type_string, dilation_distance_metres,
         isotonic_model_object_by_class=None, mask_matrix=None):
     """Applies CNN independently to each grid cell in a full grid.
 
     M = number of rows in full grid
     N = number of columns in full grid
+    C = number of predictors
     K = number of classes
 
     :param model_object: Trained CNN (instance of `keras.models.Model` or
@@ -363,9 +373,10 @@ def apply_model_to_full_grid(
         `fronts_io.find_gridded_file` and read by
         `fronts_io.read_grid_from_file`.
     :param valid_time_unix_sec: Valid time.
-    :param pressure_level_mb: Pressure level (millibars) for predictors.
-    :param predictor_names: 1-D list of predictor names (each must be accepted
-        by `predictor_utils.check_field_name`).
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
+    :param predictor_names: length-C list of predictor names (each must be
+        accepted by `predictor_utils.check_field_name`).
     :param normalization_type_string: Normalization method for predictors (see
         doc for `machine_learning_utils.normalize_predictors`).
     :param dilation_distance_metres: Dilation distance for gridded warm-front
@@ -424,7 +435,7 @@ def apply_model_to_full_grid(
                 top_predictor_dir_name=top_predictor_dir_name,
                 top_gridded_front_dir_name=top_gridded_front_dir_name,
                 valid_time_unix_sec=valid_time_unix_sec,
-                pressure_level_mb=pressure_level_mb,
+                pressure_levels_mb=pressure_levels_mb,
                 predictor_names=predictor_names,
                 normalization_type_string=normalization_type_string,
                 dilation_distance_metres=dilation_distance_metres,

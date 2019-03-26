@@ -59,8 +59,9 @@ MODEL_METADATA_KEYS = [
 
 def _trainval_generator(
         top_input_dir_name, first_time_unix_sec, last_time_unix_sec,
-        narr_predictor_names, num_half_rows, num_half_columns,
-        num_examples_per_batch, cnn_model_object, cnn_feature_layer_name):
+        narr_predictor_names, pressure_levels_mb, num_half_rows,
+        num_half_columns, num_examples_per_batch, cnn_model_object,
+        cnn_feature_layer_name):
     """Generates training or validation examples for upconvnet on the fly.
 
     :param top_input_dir_name: Name of top-level directory with downsized 3-D
@@ -71,6 +72,7 @@ def _trainval_generator(
         in `first_time_unix_sec`...`last_time_unix_sec` will be kept.
     :param last_time_unix_sec: See above.
     :param narr_predictor_names: See doc for `learning_examples_io.read_file`.
+    :param pressure_levels_mb: Same.
     :param num_half_rows: Same.
     :param num_half_columns: Same.
     :param num_examples_per_batch: Number of examples in each batch.
@@ -115,6 +117,7 @@ def _trainval_generator(
             this_example_dict = examples_io.read_file(
                 netcdf_file_name=example_file_names[file_index],
                 predictor_names_to_keep=narr_predictor_names,
+                pressure_levels_to_keep_mb=pressure_levels_mb,
                 num_half_rows_to_keep=num_half_rows,
                 num_half_columns_to_keep=num_half_columns,
                 first_time_to_keep_unix_sec=first_time_unix_sec,
@@ -397,6 +400,7 @@ def train_upconvnet(
         first_time_unix_sec=first_training_time_unix_sec,
         last_time_unix_sec=last_training_time_unix_sec,
         narr_predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
+        pressure_levels_mb=cnn_metadata_dict[ge_cnn.PRESSURE_LEVELS_KEY],
         num_half_rows=cnn_metadata_dict[ge_cnn.NUM_HALF_ROWS_KEY],
         num_half_columns=cnn_metadata_dict[ge_cnn.NUM_HALF_COLUMNS_KEY],
         num_examples_per_batch=num_examples_per_batch,
@@ -422,6 +426,7 @@ def train_upconvnet(
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
         narr_predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
+        pressure_levels_mb=cnn_metadata_dict[ge_cnn.PRESSURE_LEVELS_KEY],
         num_half_rows=cnn_metadata_dict[ge_cnn.NUM_HALF_ROWS_KEY],
         num_half_columns=cnn_metadata_dict[ge_cnn.NUM_HALF_COLUMNS_KEY],
         num_examples_per_batch=num_examples_per_batch,
