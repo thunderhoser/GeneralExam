@@ -36,6 +36,7 @@ CLASS_FRACTIONS_DUMMY = numpy.array([0.5, 0.25, 0.25])
 NUM_HALF_ROWS_ARG_NAME = 'num_half_rows'
 NUM_HALF_COLUMNS_ARG_NAME = 'num_half_columns'
 PREDICTOR_NAMES_ARG_NAME = 'predictor_names'
+PRESSURE_LEVELS_ARG_NAME = 'pressure_levels_mb'
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
@@ -61,6 +62,10 @@ NUM_HALF_COLUMNS_HELP_STRING = (
 PREDICTOR_NAMES_HELP_STRING = (
     'List of predictor variables (channels).  Each must be accepted by '
     '`predictor_utils.check_field_name`.')
+
+PRESSURE_LEVELS_HELP_STRING = (
+    'List of pressure levels (millibars).  Must have same length as `{0:s}`.'
+).format(PREDICTOR_NAMES_ARG_NAME)
 
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training data.  Files therein (containing'
@@ -105,6 +110,10 @@ DEFAULT_PREDICTOR_NAMES = [
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
+DEFAULT_PRESSURE_LEVELS_MB = numpy.full(
+    len(DEFAULT_PREDICTOR_NAMES), 1000, dtype=int
+)
+
 DEFAULT_TOP_TRAINING_DIR_NAME = (
     '/condo/swatwork/ralager/narr_data/downsized_3d_examples/z_normalized/'
     'shuffled/training')
@@ -134,6 +143,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + PREDICTOR_NAMES_ARG_NAME, type=str, nargs='+', required=False,
     default=DEFAULT_PREDICTOR_NAMES, help=PREDICTOR_NAMES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + PRESSURE_LEVELS_ARG_NAME, type=int, nargs='+', required=False,
+    default=DEFAULT_PRESSURE_LEVELS_MB, help=PRESSURE_LEVELS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,
@@ -182,7 +195,7 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _run(num_half_rows, num_half_columns, predictor_names,
+def _run(num_half_rows, num_half_columns, predictor_names, pressure_levels_mb,
          top_training_dir_name, first_training_time_string,
          last_training_time_string, top_validation_dir_name,
          first_validation_time_string, last_validation_time_string,
@@ -195,6 +208,7 @@ def _run(num_half_rows, num_half_columns, predictor_names,
     :param num_half_rows: See documentation at top of file.
     :param num_half_columns: Same.
     :param predictor_names: Same.
+    :param pressure_levels_mb: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -228,7 +242,6 @@ def _run(num_half_rows, num_half_columns, predictor_names,
     this_example_dict = examples_io.read_file(
         netcdf_file_name=training_file_names[0], metadata_only=True)
 
-    pressure_level_mb = this_example_dict[examples_io.PRESSURE_LEVEL_KEY]
     normalization_type_string = this_example_dict[
         examples_io.NORMALIZATION_TYPE_KEY]
     dilation_distance_metres = this_example_dict[
@@ -246,7 +259,7 @@ def _run(num_half_rows, num_half_columns, predictor_names,
         num_examples_per_time=NUM_EXAMPLES_PER_TIME_DUMMY,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         normalization_type_string=normalization_type_string,
         dilation_distance_metres=dilation_distance_metres,
@@ -269,8 +282,8 @@ def _run(num_half_rows, num_half_columns, predictor_names,
         top_input_dir_name=top_training_dir_name,
         first_time_unix_sec=first_training_time_unix_sec,
         last_time_unix_sec=last_training_time_unix_sec,
-        predictor_names=predictor_names, num_half_rows=num_half_rows,
-        num_half_columns=num_half_columns,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
+        num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         num_classes=len(CLASS_FRACTIONS_DUMMY),
         num_examples_per_batch=num_examples_per_batch)
 
@@ -278,8 +291,8 @@ def _run(num_half_rows, num_half_columns, predictor_names,
         top_input_dir_name=top_validation_dir_name,
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
-        predictor_names=predictor_names, num_half_rows=num_half_rows,
-        num_half_columns=num_half_columns,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
+        num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         num_classes=len(CLASS_FRACTIONS_DUMMY),
         num_examples_per_batch=num_examples_per_batch)
 
@@ -302,6 +315,9 @@ if __name__ == '__main__':
         num_half_columns=getattr(INPUT_ARG_OBJECT, NUM_HALF_COLUMNS_ARG_NAME),
         predictor_names=getattr(
             INPUT_ARG_OBJECT, PREDICTOR_NAMES_ARG_NAME),
+        pressure_levels_mb=numpy.array(
+            getattr(INPUT_ARG_OBJECT, PREDICTOR_NAMES_ARG_NAME), dtype=int
+        ),
         top_training_dir_name=getattr(INPUT_ARG_OBJECT, TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_TRAINING_TIME_ARG_NAME),

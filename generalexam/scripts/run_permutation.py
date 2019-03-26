@@ -168,6 +168,8 @@ def _read_examples(
             netcdf_file_name=example_file_names[i],
             predictor_names_to_keep=model_metadata_dict[
                 cnn.PREDICTOR_NAMES_KEY],
+            pressure_levels_to_keep_mb=model_metadata_dict[
+                cnn.PRESSURE_LEVELS_KEY],
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,

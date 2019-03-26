@@ -177,6 +177,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+        pressure_levels_to_keep_mb=model_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
         num_half_rows_to_keep=num_half_rows,
         num_half_columns_to_keep=num_half_columns)
 

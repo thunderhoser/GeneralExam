@@ -9,7 +9,7 @@ TIME_FORMAT = '%Y%m%d%H'
 INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
 PREDICTOR_NAMES_ARG_NAME = 'predictor_names'
 
-PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
+PRESSURE_LEVELS_ARG_NAME = 'pressure_levels_mb'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 NUM_EX_PER_TIME_ARG_NAME = 'num_examples_per_time'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
@@ -40,8 +40,8 @@ PREDICTOR_NAMES_HELP_STRING = (
     'List of predictor variables (channels).  Each must be accepted by '
     '`predictor_utils.check_field_name`.')
 
-PRESSURE_LEVEL_HELP_STRING = (
-    'Pressure level (millibars) for predictors in list `{0:s}`.'
+PRESSURE_LEVELS_HELP_STRING = (
+    'List of pressure levels (millibars).  Must have same length as `{0:s}`.'
 ).format(PREDICTOR_NAMES_ARG_NAME)
 
 DILATION_DISTANCE_HELP_STRING = (
@@ -119,7 +119,10 @@ DEFAULT_PREDICTOR_NAMES = [
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
-DEFAULT_PRESSURE_LEVEL_MB = 1000
+DEFAULT_PRESSURE_LEVELS_MB = numpy.full(
+    len(DEFAULT_PREDICTOR_NAMES), 1000, dtype=int
+)
+
 DEFAULT_DILATION_DISTANCE_METRES = 50000
 DEFAULT_NUM_EXAMPLES_PER_TIME = 8
 DEFAULT_WEIGHT_LOSS_FLAG = 0
@@ -163,6 +166,10 @@ def add_input_args(argument_parser, use_downsized_files):
         '--' + PREDICTOR_NAMES_ARG_NAME, type=str, nargs='+', required=False,
         default=DEFAULT_PREDICTOR_NAMES, help=PREDICTOR_NAMES_HELP_STRING)
 
+    argument_parser.add_argument(
+        '--' + PRESSURE_LEVELS_ARG_NAME, type=int, nargs='+', required=False,
+        default=DEFAULT_PRESSURE_LEVELS_MB, help=PRESSURE_LEVELS_HELP_STRING)
+
     if use_downsized_files:
         argument_parser.add_argument(
             '--' + TRAINING_DIR_ARG_NAME, type=str, required=True,
@@ -172,10 +179,6 @@ def add_input_args(argument_parser, use_downsized_files):
             '--' + VALIDATION_DIR_ARG_NAME, type=str, required=True,
             help=VALIDATION_DIR_HELP_STRING)
     else:
-        argument_parser.add_argument(
-            '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=False,
-            default=DEFAULT_PRESSURE_LEVEL_MB, help=PRESSURE_LEVEL_HELP_STRING)
-
         argument_parser.add_argument(
             '--' + DILATION_DISTANCE_ARG_NAME, type=int, required=False,
             default=DEFAULT_DILATION_DISTANCE_METRES,

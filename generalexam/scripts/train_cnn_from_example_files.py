@@ -24,18 +24,19 @@ INPUT_ARG_PARSER = ml_helper.add_input_args(
     argument_parser=INPUT_ARG_PARSER, use_downsized_files=True)
 
 
-def _run(input_model_file_name, predictor_names, top_training_dir_name,
-         first_training_time_string, last_training_time_string,
-         top_validation_dir_name, first_validation_time_string,
-         last_validation_time_string, num_examples_per_batch, num_epochs,
-         num_training_batches_per_epoch, num_validation_batches_per_epoch,
-         output_model_file_name):
+def _run(input_model_file_name, predictor_names, pressure_levels_mb,
+         top_training_dir_name, first_training_time_string,
+         last_training_time_string, top_validation_dir_name,
+         first_validation_time_string, last_validation_time_string,
+         num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
+         num_validation_batches_per_epoch, output_model_file_name):
     """Trains CNN with example files.
 
     This is effectively the main method.
 
     :param input_model_file_name: See documentation at top of file.
     :param predictor_names: Same.
+    :param pressure_levels_mb: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -85,7 +86,6 @@ def _run(input_model_file_name, predictor_names, top_training_dir_name,
     this_example_dict = examples_io.read_file(
         netcdf_file_name=training_file_names[0], metadata_only=True)
 
-    pressure_level_mb = this_example_dict[examples_io.PRESSURE_LEVEL_KEY]
     normalization_type_string = this_example_dict[
         examples_io.NORMALIZATION_TYPE_KEY]
     dilation_distance_metres = this_example_dict[
@@ -105,7 +105,7 @@ def _run(input_model_file_name, predictor_names, top_training_dir_name,
         num_examples_per_time=NUM_EXAMPLES_PER_TIME_DUMMY,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         normalization_type_string=normalization_type_string,
         dilation_distance_metres=dilation_distance_metres,
@@ -122,8 +122,8 @@ def _run(input_model_file_name, predictor_names, top_training_dir_name,
         top_input_dir_name=top_training_dir_name,
         first_time_unix_sec=first_training_time_unix_sec,
         last_time_unix_sec=last_training_time_unix_sec,
-        predictor_names=predictor_names, num_half_rows=num_half_rows,
-        num_half_columns=num_half_columns,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
+        num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         num_classes=len(CLASS_FRACTIONS_DUMMY),
         num_examples_per_batch=num_examples_per_batch)
 
@@ -131,8 +131,8 @@ def _run(input_model_file_name, predictor_names, top_training_dir_name,
         top_input_dir_name=top_validation_dir_name,
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
-        predictor_names=predictor_names, num_half_rows=num_half_rows,
-        num_half_columns=num_half_columns,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
+        num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         num_classes=len(CLASS_FRACTIONS_DUMMY),
         num_examples_per_batch=num_examples_per_batch)
 
@@ -155,6 +155,10 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ml_helper.INPUT_MODEL_FILE_ARG_NAME),
         predictor_names=getattr(
             INPUT_ARG_OBJECT, ml_helper.PREDICTOR_NAMES_ARG_NAME),
+        pressure_levels_mb=numpy.array(
+            getattr(INPUT_ARG_OBJECT, ml_helper.PREDICTOR_NAMES_ARG_NAME),
+            dtype=int
+        ),
         top_training_dir_name=getattr(
             INPUT_ARG_OBJECT, ml_helper.TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(

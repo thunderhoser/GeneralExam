@@ -13,6 +13,9 @@ from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import predictor_utils
 from generalexam.ge_utils import conversions as ge_conversions
 
+# TODO(thunderhoser): This script is a bit sloppy, since it does not allow input
+# files with multiple pressure levels.
+
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SECONDS = 10800
 MB_TO_PASCALS = 100
@@ -84,7 +87,9 @@ def _read_inputs_one_time(
     :return: humidity_matrix_kg_kg01: 1-by-M-by-N numpy array of
         specific humidities (kg/kg).
     :return: pressure_matrix_pascals: 1-by-M-by-N numpy array of pressures.
-    :raises: ValueError: if the file contains multiple time steps.
+    :raises: ValueError: if the file contains multiple time steps or pressure
+        levels.
+    :raises: ValueError: if the file contains the wrong pressure level.
     """
 
     input_file_name = predictor_io.find_file(
@@ -92,10 +97,7 @@ def _read_inputs_one_time(
         valid_time_unix_sec=valid_time_unix_sec)
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    predictor_dict = predictor_io.read_file(
-        netcdf_file_name=input_file_name,
-        pressure_levels_to_keep_mb=numpy.array([pressure_level_mb])
-    )
+    predictor_dict = predictor_io.read_file(netcdf_file_name=input_file_name)
 
     num_times_in_file = len(predictor_dict[predictor_utils.VALID_TIMES_KEY])
     if num_times_in_file > 1:
@@ -105,21 +107,43 @@ def _read_inputs_one_time(
 
         raise ValueError(error_string)
 
+    num_pressures_in_file = len(
+        predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY]
+    )
+
+    if num_pressures_in_file > 1:
+        error_string = (
+            'File ("{0:s}") should contain 1 pressure level, not {1:d}.'
+        ).format(input_file_name, num_pressures_in_file)
+
+        raise ValueError(error_string)
+
+    pressure_level_in_file_mb = predictor_dict[
+        predictor_utils.PRESSURE_LEVELS_KEY][0]
+
+    if pressure_level_in_file_mb != pressure_level_mb:
+        error_string = (
+            'Pressure level in file ({0:d} mb) does not match desired pressure '
+            'level ({1:d} mb).'
+        ).format(pressure_level_in_file_mb, pressure_level_mb)
+
+        raise ValueError(error_string)
+
     temperature_index = predictor_dict[predictor_utils.FIELD_NAMES_KEY].index(
         predictor_utils.TEMPERATURE_NAME)
     temperature_matrix_kelvins = predictor_dict[
-        predictor_utils.DATA_MATRIX_KEY][..., 0, temperature_index]
+        predictor_utils.DATA_MATRIX_KEY][..., temperature_index]
 
     humidity_index = predictor_dict[predictor_utils.FIELD_NAMES_KEY].index(
         predictor_utils.SPECIFIC_HUMIDITY_NAME)
     humidity_matrix_kg_kg01 = predictor_dict[predictor_utils.DATA_MATRIX_KEY][
-        ..., 0, humidity_index]
+        ..., humidity_index]
 
     if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
         pressure_index = predictor_dict[predictor_utils.FIELD_NAMES_KEY].index(
             predictor_utils.PRESSURE_NAME)
         pressure_matrix_pascals = predictor_dict[
-            predictor_utils.DATA_MATRIX_KEY][..., 0, pressure_index]
+            predictor_utils.DATA_MATRIX_KEY][..., pressure_index]
     else:
         pressure_matrix_pascals = numpy.full(
             humidity_matrix_kg_kg01.shape, pressure_level_mb * MB_TO_PASCALS)

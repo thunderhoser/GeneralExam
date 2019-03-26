@@ -450,6 +450,10 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         predictor_utils.V_WIND_GRID_RELATIVE_NAME
     ]
 
+    pressure_levels_mb = numpy.full(
+        len(predictor_names), pressure_level_mb, dtype=int
+    )
+
     this_letter_label = None
 
     for this_time_unix_sec in valid_times_unix_sec:
@@ -480,13 +484,12 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         print 'Reading data from: "{0:s}"...'.format(this_file_name)
         this_predictor_dict = predictor_io.read_file(
             netcdf_file_name=this_file_name,
-            pressure_levels_to_keep_mb=numpy.array(
-                [pressure_level_mb], dtype=int),
+            pressure_levels_to_keep_mb=pressure_levels_mb,
             field_names_to_keep=predictor_names)
 
         this_predictor_matrix = this_predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
-        ][0, ..., 0, :]
+        ][0, ...]
 
         # for j in range(len(predictor_names)):
         #     this_predictor_matrix[..., j] = utils.fill_nans(

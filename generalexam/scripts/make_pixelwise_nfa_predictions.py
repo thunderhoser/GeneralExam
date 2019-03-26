@@ -205,6 +205,10 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         predictor_utils.V_WIND_GRID_RELATIVE_NAME
     ]
 
+    pressure_levels_to_read_mb = numpy.full(
+        len(field_names_to_read), pressure_level_mb, dtype=int
+    )
+
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -244,13 +248,12 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         print 'Reading predictors from: "{0:s}"...'.format(this_file_name)
         this_predictor_dict = predictor_io.read_file(
             netcdf_file_name=this_file_name,
-            pressure_levels_to_keep_mb=numpy.array(
-                [pressure_level_mb], dtype=int),
+            pressure_levels_to_keep_mb=pressure_levels_to_read_mb,
             field_names_to_keep=field_names_to_read)
 
         this_thermal_matrix_kelvins = this_predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
-        ][0, ..., 0, 0]
+        ][0, ..., 0]
 
         this_thermal_matrix_kelvins = general_utils.fill_nans(
             this_thermal_matrix_kelvins)
@@ -261,7 +264,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
         this_u_wind_matrix_m_s01 = this_predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
-        ][0, ..., 0, 1]
+        ][0, ..., 1]
 
         this_u_wind_matrix_m_s01 = general_utils.fill_nans(
             this_u_wind_matrix_m_s01)
@@ -272,7 +275,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
         this_v_wind_matrix_m_s01 = this_predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
-        ][0, ..., 0, 2]
+        ][0, ..., 2]
 
         this_v_wind_matrix_m_s01 = general_utils.fill_nans(
             this_v_wind_matrix_m_s01)

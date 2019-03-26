@@ -24,7 +24,7 @@ INPUT_ARG_PARSER = ml_helper.add_input_args(
     argument_parser=INPUT_ARG_PARSER, use_downsized_files=False)
 
 
-def _run(input_model_file_name, predictor_names, pressure_level_mb,
+def _run(input_model_file_name, predictor_names, pressure_levels_mb,
          dilation_distance_metres, num_examples_per_time, weight_loss_function,
          class_fractions, top_predictor_dir_name,
          top_gridded_front_dir_name, mask_file_name,
@@ -38,7 +38,7 @@ def _run(input_model_file_name, predictor_names, pressure_level_mb,
 
     :param input_model_file_name: See documentation at top of file.
     :param predictor_names: Same.
-    :param pressure_level_mb: Same.
+    :param pressure_levels_mb: Same.
     :param dilation_distance_metres: Same.
     :param num_examples_per_time: Same.
     :param weight_loss_function: Same.
@@ -102,7 +102,7 @@ def _run(input_model_file_name, predictor_names, pressure_level_mb,
         num_examples_per_time=num_examples_per_time,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         dilation_distance_metres=dilation_distance_metres,
@@ -120,7 +120,7 @@ def _run(input_model_file_name, predictor_names, pressure_level_mb,
         top_gridded_front_dir_name=top_gridded_front_dir_name,
         first_time_unix_sec=first_training_time_unix_sec,
         last_time_unix_sec=last_training_time_unix_sec,
-        predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         dilation_distance_metres=dilation_distance_metres,
@@ -134,7 +134,7 @@ def _run(input_model_file_name, predictor_names, pressure_level_mb,
         top_gridded_front_dir_name=top_gridded_front_dir_name,
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
-        predictor_names=predictor_names, pressure_level_mb=pressure_level_mb,
+        predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         dilation_distance_metres=dilation_distance_metres,
@@ -162,8 +162,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, ml_helper.INPUT_MODEL_FILE_ARG_NAME),
         predictor_names=getattr(
             INPUT_ARG_OBJECT, ml_helper.PREDICTOR_NAMES_ARG_NAME),
-        pressure_level_mb=getattr(
-            INPUT_ARG_OBJECT, ml_helper.PRESSURE_LEVEL_ARG_NAME),
+        pressure_levels_mb=getattr(
+            INPUT_ARG_OBJECT, ml_helper.PRESSURE_LEVELS_ARG_NAME),
         dilation_distance_metres=float(getattr(
             INPUT_ARG_OBJECT, ml_helper.DILATION_DISTANCE_ARG_NAME)),
         num_examples_per_time=getattr(

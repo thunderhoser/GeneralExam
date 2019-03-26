@@ -220,12 +220,12 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                     predictor_utils.DATA_MATRIX_KEY].shape[2]
 
                 one_time_data_matrix = numpy.full(
-                    (1, num_grid_rows, num_grid_columns, 1, num_fields),
+                    (1, num_grid_rows, num_grid_columns, num_fields),
                     numpy.nan
                 )
 
-            one_time_data_matrix[0, ..., 0, j] = this_predictor_dict[
-                predictor_utils.DATA_MATRIX_KEY][0, ..., 0, 0]
+            one_time_data_matrix[0, ..., j] = this_predictor_dict[
+                predictor_utils.DATA_MATRIX_KEY][0, ..., 0]
 
         if era5_input.DEWPOINT_NAME_RAW in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
@@ -258,7 +258,7 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             predictor_utils.LONGITUDES_KEY:
                 this_predictor_dict[predictor_utils.LONGITUDES_KEY],
             predictor_utils.PRESSURE_LEVELS_KEY:
-                numpy.array([pressure_level_mb], dtype=int),
+                numpy.full(len(field_names), pressure_level_mb, dtype=int),
             predictor_utils.FIELD_NAMES_KEY: field_names
         }
 

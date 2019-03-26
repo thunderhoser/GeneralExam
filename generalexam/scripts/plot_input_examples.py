@@ -55,6 +55,7 @@ INPUT_FILE_ARG_NAME = 'input_example_file_name'
 FRONT_DIR_ARG_NAME = 'input_front_line_dir_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
 EXAMPLE_INDICES_ARG_NAME = 'example_indices'
+PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 COLOUR_MAP_ARG_NAME = 'thetaw_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'thetaw_max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -78,6 +79,8 @@ EXAMPLE_INDICES_HELP_STRING = (
     '`{1:s}`.  Only these examples will be plotted.'
 ).format(NUM_EXAMPLES_ARG_NAME, INPUT_FILE_ARG_NAME)
 
+PRESSURE_LEVEL_HELP_STRING = 'Will plot this pressure level (millibars).'
+
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map for wet-bulb potential temperature.  For example, if '
     'name is "YlGn", the colour map used will be `pyplot.cm.YlGn`.  This '
@@ -93,7 +96,7 @@ MAX_PERCENTILE_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
-TOP_FRONT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts/polylines'
+TOP_FRONT_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/fronts_netcdf/polylines'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -113,6 +116,10 @@ INPUT_ARG_PARSER.add_argument(
     default=[-1], help=EXAMPLE_INDICES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + PRESSURE_LEVEL_ARG_NAME, type=int, required=True,
+    help=PRESSURE_LEVEL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlOrRd',
     help=COLOUR_MAP_HELP_STRING)
 
@@ -126,8 +133,8 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(example_file_name, top_front_line_dir_name, num_examples,
-         example_indices, thetaw_colour_map_name, thetaw_max_colour_percentile,
-         output_dir_name):
+         example_indices, pressure_level_mb, thetaw_colour_map_name,
+         thetaw_max_colour_percentile, output_dir_name):
     """Plots one or more input examples.
 
     This is effectively the main method.
@@ -136,6 +143,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     :param top_front_line_dir_name: Same.
     :param num_examples: Same.
     :param example_indices: Same.
+    :param pressure_level_mb: Same.
     :param thetaw_colour_map_name: Same.
     :param thetaw_max_colour_percentile: Same.
     :param output_dir_name: Same.
@@ -162,7 +170,10 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name, num_half_rows_to_keep=NUM_HALF_ROWS,
         num_half_columns_to_keep=NUM_HALF_COLUMNS,
-        predictor_names_to_keep=PREDICTOR_NAMES)
+        predictor_names_to_keep=PREDICTOR_NAMES,
+        pressure_levels_to_keep_mb=numpy.full(
+            len(PREDICTOR_NAMES), pressure_level_mb, dtype=int)
+    )
 
     # TODO(thunderhoser): This is a HACK (assuming that normalization method is
     # z-score and not min-max).
@@ -367,6 +378,7 @@ if __name__ == '__main__':
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         example_indices=numpy.array(
             getattr(INPUT_ARG_OBJECT, EXAMPLE_INDICES_ARG_NAME), dtype=int),
+        pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         thetaw_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         thetaw_max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),

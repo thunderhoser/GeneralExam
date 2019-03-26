@@ -103,6 +103,7 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+        pressure_levels_to_keep_mb=cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
         num_half_rows_to_keep=cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY],
         num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY]
     )

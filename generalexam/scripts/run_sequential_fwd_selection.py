@@ -315,6 +315,8 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
             netcdf_file_name=this_example_file_name,
             predictor_names_to_keep=model_metadata_dict[
                 cnn.PREDICTOR_NAMES_KEY],
+            pressure_levels_to_keep_mb=model_metadata_dict[
+                cnn.PRESSURE_LEVELS_KEY],
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
