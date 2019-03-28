@@ -251,7 +251,7 @@ def downsized_generator_from_example_files(
     :return: target_matrix: Same.
     """
 
-    error_checking.assert_is_integer_numpy_array(num_classes)
+    error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
@@ -371,7 +371,7 @@ def full_size_generator_from_scratch(
 
     # TODO(thunderhoser): Probably need to use mask here as well.
 
-    error_checking.assert_is_integer_numpy_array(num_classes)
+    error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
 
