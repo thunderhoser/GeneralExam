@@ -156,7 +156,7 @@ if __name__ == '__main__':
         predictor_names=getattr(
             INPUT_ARG_OBJECT, ml_helper.PREDICTOR_NAMES_ARG_NAME),
         pressure_levels_mb=numpy.array(
-            getattr(INPUT_ARG_OBJECT, ml_helper.PREDICTOR_NAMES_ARG_NAME),
+            getattr(INPUT_ARG_OBJECT, ml_helper.PRESSURE_LEVELS_ARG_NAME),
             dtype=int
         ),
         top_training_dir_name=getattr(
