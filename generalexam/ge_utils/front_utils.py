@@ -10,6 +10,7 @@ import shapely.geometry
 from scipy.ndimage.morphology import binary_closing
 from skimage.measure import label as label_image
 from skimage.measure import regionprops
+from sklearn.metrics.pairwise import euclidean_distances
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import polygons
@@ -778,9 +779,27 @@ def gridded_labels_to_regions(ternary_label_matrix, compute_lengths=False):
 
     if compute_lengths:
         list_of_regionprop_objects = regionprops(region_id_matrix)
-        major_axis_lengths_px = numpy.array(
-            [r.major_axis_length for r in list_of_regionprop_objects]
-        )
+        # major_axis_lengths_px = numpy.array(
+        #     [r.major_axis_length for r in list_of_regionprop_objects]
+        # )
+
+        num_regions = len(list_of_regionprop_objects)
+        major_axis_lengths_px = numpy.full(num_regions, numpy.nan)
+
+        for i in range(num_regions):
+            these_rows, these_columns = numpy.where(
+                list_of_regionprop_objects[i].convex_image)
+
+            this_coord_matrix = numpy.hstack((
+                numpy.reshape(these_columns, (these_columns.size, 1)),
+                numpy.reshape(these_rows, (these_rows.size, 1))
+            ))
+
+            this_distance_matrix_px = euclidean_distances(
+                X=this_coord_matrix.astype(float)
+            )
+
+            major_axis_lengths_px[i] = numpy.max(this_distance_matrix_px)
 
     num_regions = numpy.max(region_id_matrix)
     row_array_by_region = [[]] * num_regions

@@ -107,7 +107,7 @@ COLD_FRONT_ROW_INDICES = numpy.array(
 COLD_FRONT_COLUMN_INDICES = numpy.array(
     [0, 0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 4], dtype=int)
 
-REGION_MAJOR_AXIS_LENGTHS_PX = numpy.array([4.750431, 5.535734])
+REGION_MAJOR_AXIS_LENGTHS_PX = numpy.array([numpy.sqrt(17), 5])
 
 GRIDDED_LABEL_DICT = {
     front_utils.WARM_FRONT_ROWS_COLUMN: WARM_FRONT_ROW_INDICES,
