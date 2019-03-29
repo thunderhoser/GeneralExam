@@ -273,7 +273,7 @@ def _plot_one_time(
             axes_object_or_list=axes_object,
             values_to_colour=predictor_matrix[..., j],
             colour_map=thermal_colour_map_object, colour_min=min_colour_value,
-            colour_max=max_colour_value, orientation='horizontal',
+            colour_max=max_colour_value, orientation='vertical',
             extend_min=True, extend_max=True, fraction_of_axis_length=0.9)
 
     u_wind_index = predictor_names.index(
@@ -341,7 +341,7 @@ def _plot_one_time(
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             marker_colour=this_colour)
 
-    pyplot.title(title_string)
+    # pyplot.title(title_string)
 
     if letter_label is not None:
         plotting_utils.annotate_axes(
