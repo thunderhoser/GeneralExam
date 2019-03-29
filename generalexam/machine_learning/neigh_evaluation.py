@@ -338,7 +338,7 @@ def remove_small_regions_one_time(
         front_utils.MAJOR_AXIS_LENGTHS_KEY]
     print grid_spacing_metres
 
-    for i in range(region_lengths_metres):
+    for i in range(len(region_lengths_metres)):
         print (
             'Front type = {0:s} ... rows = {1:d}-{2:d} ... columns = '
             '{3:d}-{4:d} ... length = {5:f} km'
