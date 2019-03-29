@@ -756,16 +756,13 @@ def read_file(
             normalization_type_string = ml_utils.Z_SCORE_STRING
 
         first_normalization_param_matrix = numpy.array(
-            dataset_object.variables[FIRST_NORM_PARAM_KEY][:]
+            dataset_object.variables[FIRST_NORM_PARAM_KEY][
+                ..., predictor_indices]
         )
         second_normalization_param_matrix = numpy.array(
-            dataset_object.variables[SECOND_NORM_PARAM_KEY][:]
+            dataset_object.variables[SECOND_NORM_PARAM_KEY][
+                ..., predictor_indices]
         )
-
-        first_normalization_param_matrix = first_normalization_param_matrix[
-            ..., predictor_indices]
-        second_normalization_param_matrix = second_normalization_param_matrix[
-            ..., predictor_indices]
     else:
         normalization_type_string = None
         first_normalization_param_matrix = None
@@ -776,13 +773,13 @@ def read_file(
         target_matrix = None
     else:
         predictor_matrix = numpy.array(
-            dataset_object.variables[PREDICTOR_MATRIX_KEY][:]
+            dataset_object.variables[PREDICTOR_MATRIX_KEY][
+                ..., predictor_indices]
         )
         target_matrix = numpy.array(
             dataset_object.variables[TARGET_MATRIX_KEY][:]
         )
 
-        predictor_matrix = predictor_matrix[..., predictor_indices]
         predictor_matrix = _shrink_predictor_grid(
             predictor_matrix=predictor_matrix,
             num_half_rows=num_half_rows_to_keep,
