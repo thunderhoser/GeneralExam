@@ -336,6 +336,20 @@ def remove_small_regions_one_time(
 
     region_lengths_metres = grid_spacing_metres * region_dict[
         front_utils.MAJOR_AXIS_LENGTHS_KEY]
+    print grid_spacing_metres
+
+    for i in range(region_lengths_metres):
+        print (
+            'Front type = {0:s} ... rows = {1:d}-{2:d} ... columns = '
+            '{3:d}-{4:d} ... length = {5:f} km'
+        ).format(
+            region_dict[front_utils.FRONT_TYPES_KEY][i],
+            numpy.min(region_dict[front_utils.ROWS_BY_REGION_KEY][i]),
+            numpy.max(region_dict[front_utils.ROWS_BY_REGION_KEY][i]),
+            numpy.min(region_dict[front_utils.COLUMNS_BY_REGION_KEY][i]),
+            numpy.max(region_dict[front_utils.COLUMNS_BY_REGION_KEY][i]),
+            0.001 * region_dict[front_utils.MAJOR_AXIS_LENGTHS_KEY][i]
+        )
 
     small_region_flags = region_lengths_metres < min_region_length_metres
     if not numpy.any(small_region_flags):
