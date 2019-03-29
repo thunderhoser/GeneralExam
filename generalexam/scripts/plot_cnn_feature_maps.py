@@ -209,6 +209,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
         feature_matrix_by_layer[k] = this_partial_model_object.predict(
             predictor_matrix, batch_size=num_examples)
+        print feature_matrix_by_layer[k].shape
 
     print SEPARATOR_STRING
 
