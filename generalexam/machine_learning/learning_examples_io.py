@@ -220,9 +220,10 @@ def create_examples(
     example_dict['narr_mask_matrix']: Same as input (metadata).
     """
 
-    error_checking.assert_is_numpy_array(
-        class_fractions, exact_dimensions=numpy.array([3], dtype=int)
-    )
+    if class_fractions is not None:
+        error_checking.assert_is_numpy_array(
+            class_fractions, exact_dimensions=numpy.array([3], dtype=int)
+        )
 
     if narr_mask_matrix is not None:
         ml_utils.check_narr_mask(narr_mask_matrix)
@@ -276,9 +277,26 @@ def create_examples(
         target_matrix=target_matrix,
         dilation_distance_metres=dilation_distance_metres, verbose=False)
 
-    sampled_target_point_dict = ml_utils.sample_target_points(
-        target_matrix=target_matrix, class_fractions=class_fractions,
-        num_points_to_sample=max_num_examples, mask_matrix=narr_mask_matrix)
+    if class_fractions is None:
+        row_indices, column_indices = numpy.where(narr_mask_matrix == 1)
+        linear_indices = numpy.linspace(
+            0, len(row_indices) - 1, num=len(row_indices), dtype=int
+        )
+
+        numpy.random.shuffle(linear_indices)
+        if len(linear_indices) < max_num_examples:
+            linear_indices = linear_indices[:max_num_examples]
+
+        sampled_target_point_dict = {
+            ml_utils.ROW_INDICES_BY_TIME_KEY: [row_indices[linear_indices]],
+            ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+                [column_indices[linear_indices]]
+        }
+
+    else:
+        sampled_target_point_dict = ml_utils.sample_target_points(
+            target_matrix=target_matrix, class_fractions=class_fractions,
+            num_points_to_sample=max_num_examples, mask_matrix=narr_mask_matrix)
 
     if sampled_target_point_dict is None:
         return None

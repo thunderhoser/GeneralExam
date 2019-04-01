@@ -75,7 +75,8 @@ NORMALIZATION_TYPE_HELP_STRING = (
 
 CLASS_FRACTIONS_HELP_STRING = (
     'Downsampling fractions for the 3 classes (no front, warm front, cold '
-    'front).  Must sum to 1.0.')
+    'front).  Must sum to 1.0.  If you do not want downsampling, make one of '
+    'these values negative.')
 
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with gridded front labels.  Files therein will'
@@ -233,6 +234,9 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
     :param num_times_per_output_file: Same.
     :param top_output_dir_name: Same.
     """
+
+    if numpy.any(class_fractions < 0):
+        class_fractions = None
 
     error_checking.assert_is_greater(num_times_per_output_file, 0)
 
