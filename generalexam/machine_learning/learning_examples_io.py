@@ -284,7 +284,7 @@ def create_examples(
         )
 
         numpy.random.shuffle(linear_indices)
-        if len(linear_indices) < max_num_examples:
+        if len(linear_indices) > max_num_examples:
             linear_indices = linear_indices[:max_num_examples]
 
         sampled_target_point_dict = {
