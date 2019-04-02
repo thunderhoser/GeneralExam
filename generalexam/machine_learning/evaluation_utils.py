@@ -859,4 +859,4 @@ def plot_scores_2d(
         axes_object_or_list=axes_object, values_to_colour=score_matrix_to_plot,
         colour_map=colour_map_object, colour_min=min_colour_value,
         colour_max=max_colour_value, orientation='vertical', extend_min=True,
-        extend_max=True, fraction_of_axis_length=0.8)
+        extend_max=True, fraction_of_axis_length=0.6)
