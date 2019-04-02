@@ -844,7 +844,7 @@ def plot_scores_2d(
     score_matrix_to_plot = numpy.ma.masked_where(
         numpy.isnan(score_matrix), score_matrix)
 
-    axes_object.imshow(
+    pyplot.imshow(
         score_matrix_to_plot, cmap=colour_map_object, origin='lower',
         vmin=min_colour_value, vmax=max_colour_value)
 
@@ -853,8 +853,12 @@ def plot_scores_2d(
     y_tick_values = numpy.linspace(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
 
-    axes_object.set_xticks(x_tick_values, x_tick_label_strings)
+    print x_tick_values
+    print x_tick_label_strings
+    pyplot.xticks(x_tick_values, x_tick_label_strings)
+
+    print y_tick_values
     print y_tick_label_strings
-    axes_object.set_yticks(y_tick_values, y_tick_label_strings)
+    pyplot.yticks(y_tick_values, y_tick_label_strings)
 
     return axes_object
