@@ -11,7 +11,6 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.plotting import plotting_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import cnn
@@ -853,12 +852,7 @@ def plot_scores_2d(
     y_tick_values = numpy.linspace(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
 
-    print x_tick_values
-    print x_tick_label_strings
     pyplot.xticks(x_tick_values, x_tick_label_strings)
-
-    print y_tick_values
-    print y_tick_label_strings
     pyplot.yticks(y_tick_values, y_tick_label_strings)
 
     return axes_object
