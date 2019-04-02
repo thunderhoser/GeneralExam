@@ -814,6 +814,7 @@ def plot_scores_2d(
     :param axes_object: Will plot on these axes (instance of
         `matplotlib.axes._subplots.AxesSubplot`).  If `axes_object is None`,
         will create new axes.
+    :return: axes_object: See input doc.
     """
 
     error_checking.assert_is_real_numpy_array(score_matrix)
@@ -853,10 +854,7 @@ def plot_scores_2d(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
 
     axes_object.set_xticks(x_tick_values, x_tick_label_strings)
+    print y_tick_label_strings
     axes_object.set_yticks(y_tick_values, y_tick_label_strings)
 
-    plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object, values_to_colour=score_matrix_to_plot,
-        colour_map=colour_map_object, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='vertical', extend_min=True,
-        extend_max=True, fraction_of_axis_length=0.6)
+    return axes_object
