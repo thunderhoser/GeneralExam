@@ -2,12 +2,16 @@
 
 import pickle
 import numpy
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import plotting_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import cnn
@@ -52,6 +56,9 @@ REQUIRED_KEYS = [
     SCIKIT_LEARN_AUC_BY_CLASS_KEY, AUPD_BY_CLASS_KEY, RELIABILITY_BY_CLASS_KEY,
     BSS_BY_CLASS_KEY
 ]
+
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
 
 
 def _check_contingency_table(contingency_table_as_matrix):
@@ -786,3 +793,70 @@ def read_file(pickle_file_name):
     ).format(str(missing_keys), pickle_file_name)
 
     raise ValueError(error_string)
+
+
+def plot_scores_2d(
+        score_matrix, min_colour_value, max_colour_value, x_tick_label_strings,
+        y_tick_label_strings, colour_map_object=pyplot.cm.plasma,
+        axes_object=None):
+    """Plots scores on 2-D grid.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param score_matrix: M-by-N numpy array of scores.
+    :param min_colour_value: Minimum value in colour scheme.
+    :param max_colour_value: Max value in colour scheme.
+    :param x_tick_label_strings: length-N list of labels for x-axis.
+    :param y_tick_label_strings: length-M list of labels for y-axis.
+    :param colour_map_object: Colour scheme (instance of
+        `matplotlib.pyplot.cm`).
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).  If `axes_object is None`,
+        will create new axes.
+    """
+
+    error_checking.assert_is_real_numpy_array(score_matrix)
+    error_checking.assert_is_numpy_array(score_matrix, num_dimensions=2)
+    error_checking.assert_is_greater(max_colour_value, min_colour_value)
+
+    num_grid_rows = score_matrix.shape[0]
+    num_grid_columns = score_matrix.shape[1]
+
+    error_checking.assert_is_string_list(x_tick_label_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(x_tick_label_strings),
+        exact_dimensions=numpy.array([num_grid_columns], dtype=int)
+    )
+
+    error_checking.assert_is_string_list(y_tick_label_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(y_tick_label_strings),
+        exact_dimensions=numpy.array([num_grid_rows], dtype=int)
+    )
+
+    if axes_object is None:
+        _, axes_object = pyplot.subplots(
+            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        )
+
+    score_matrix_to_plot = numpy.ma.masked_where(
+        numpy.isnan(score_matrix), score_matrix)
+
+    axes_object.imshow(
+        score_matrix_to_plot, cmap=colour_map_object, origin='lower',
+        vmin=min_colour_value, vmax=max_colour_value)
+
+    x_tick_values = numpy.linspace(
+        0, num_grid_columns - 1, num=num_grid_columns, dtype=float)
+    y_tick_values = numpy.linspace(
+        0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
+
+    axes_object.set_xticks(x_tick_values, x_tick_label_strings)
+    axes_object.set_yticks(y_tick_values, y_tick_label_strings)
+
+    plotting_utils.add_linear_colour_bar(
+        axes_object_or_list=axes_object, values_to_colour=score_matrix_to_plot,
+        colour_map=colour_map_object, colour_min=min_colour_value,
+        colour_max=max_colour_value, orientation='vertical', extend_min=True,
+        extend_max=True, fraction_of_axis_length=0.8)
