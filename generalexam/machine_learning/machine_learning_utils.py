@@ -920,6 +920,9 @@ def dilate_ternary_target_images(
     """
 
     _check_target_matrix(target_matrix, assert_binary=False, num_dimensions=3)
+    if dilation_distance_metres is not None and dilation_distance_metres <= 0:
+        return target_matrix
+
     error_checking.assert_is_boolean(verbose)
 
     dilation_mask_matrix = front_utils.buffer_distance_to_dilation_mask(
@@ -956,6 +959,9 @@ def dilate_binary_target_images(
     """
 
     _check_target_matrix(target_matrix, assert_binary=True, num_dimensions=3)
+    if dilation_distance_metres is not None and dilation_distance_metres <= 0:
+        return target_matrix
+
     error_checking.assert_is_boolean(verbose)
 
     dilation_mask_matrix = front_utils.buffer_distance_to_dilation_mask(

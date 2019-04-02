@@ -530,7 +530,7 @@ def dilate_binary_label_matrix(
     """
 
     check_gridded_labels(label_matrix=binary_label_matrix, assert_binary=True)
-    if dilation_distance_metres <= 0:
+    if dilation_distance_metres is not None and dilation_distance_metres <= 0:
         return binary_label_matrix
 
     if dilation_mask_matrix is None:
@@ -576,7 +576,7 @@ def dilate_ternary_label_matrix(
     """
 
     check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
-    if dilation_distance_metres <= 0:
+    if dilation_distance_metres is not None and dilation_distance_metres <= 0:
         return ternary_label_matrix
 
     check_front_type_enum(tiebreaker_enum)
