@@ -237,7 +237,7 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
         numpy.random.seed(RANDOM_SEED)
         example_file_names = numpy.array(example_file_names)
         numpy.random.shuffle(example_file_names)
-        example_file_names = example_file_names.tolist()
+        example_file_names = example_file_names[:num_times].tolist()
 
     class_probability_matrix, observed_labels = _create_evaluation_pairs(
         model_object=model_object, model_metadata_dict=model_metadata_dict,
