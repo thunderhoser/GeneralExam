@@ -530,6 +530,8 @@ def dilate_binary_label_matrix(
     """
 
     check_gridded_labels(label_matrix=binary_label_matrix, assert_binary=True)
+    if dilation_distance_metres <= 0:
+        return binary_label_matrix
 
     if dilation_mask_matrix is None:
         dilation_mask_matrix = buffer_distance_to_dilation_mask(
@@ -574,6 +576,9 @@ def dilate_ternary_label_matrix(
     """
 
     check_gridded_labels(label_matrix=ternary_label_matrix, assert_binary=False)
+    if dilation_distance_metres <= 0:
+        return ternary_label_matrix
+
     check_front_type_enum(tiebreaker_enum)
     error_checking.assert_is_greater(tiebreaker_enum, NO_FRONT_ENUM)
 
@@ -1039,7 +1044,7 @@ def remove_fronts_in_masked_area(
         this_binary_label_matrix = polyline_to_narr_grid(
             vertex_latitudes_deg=polyline_table[LATITUDES_COLUMN].values[i],
             vertex_longitudes_deg=polyline_table[LONGITUDES_COLUMN].values[i],
-            dilation_distance_metres=1.
+            dilation_distance_metres=0.
         )
 
         found_unmasked_frontal_pixel = numpy.any(numpy.logical_and(
