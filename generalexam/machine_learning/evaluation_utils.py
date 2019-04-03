@@ -852,7 +852,7 @@ def plot_scores_2d(
     y_tick_values = numpy.linspace(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
 
-    pyplot.xticks(x_tick_values, x_tick_label_strings)
+    pyplot.xticks(x_tick_values, x_tick_label_strings, rotation=90.)
     pyplot.yticks(y_tick_values, y_tick_label_strings)
 
     return axes_object
