@@ -341,7 +341,7 @@ def _plot_one_time(
                 front_utils.FRONT_TYPE_COLUMN].values[i],
             marker_colour=this_colour)
 
-    # pyplot.title(title_string)
+    pyplot.title(title_string)
 
     if letter_label is not None:
         plotting_utils.annotate_axes(
