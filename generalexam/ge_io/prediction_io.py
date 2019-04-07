@@ -71,8 +71,10 @@ def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
     error_checking.assert_is_geq(last_time_unix_sec, first_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    prediction_file_name = '{0:s}/predictions_{1:s}-{2:s}.nc'.format(
-        directory_name,
+    year_string = time_conversion.unix_sec_to_string(first_time_unix_sec, '%Y')
+
+    prediction_file_name = '{0:s}/{1:s}/predictions_{2:s}-{3:s}.nc'.format(
+        directory_name, year_string,
         time_conversion.unix_sec_to_string(
             first_time_unix_sec, FILE_NAME_TIME_FORMAT),
         time_conversion.unix_sec_to_string(
