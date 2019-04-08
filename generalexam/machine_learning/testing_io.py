@@ -33,8 +33,15 @@ def create_downsized_examples(
     N = number of columns in full grid
     C = number of channels (predictors)
 
-    If `full_size_predictor_matrix` and `full_size_target_matrix` are defined,
-    this method will not use the following arguments.
+    If `full_size_predictor_matrix` is defined (not None):
+
+    - Will not use args after `full_size_target_matrix`.
+    - If `full_size_target_matrix is None`, will not return target values.
+
+    If `full_size_predictor_matrix is None`:
+
+    - Will use args after `full_size_target_matrix`.
+    - If `top_gridded_front_dir_name is None`, will not return target values.
 
     :param center_row_indices: length-E numpy array of row indices.  If
         center_row_indices[i] = j, the center of the predictor grid for the
@@ -73,28 +80,15 @@ def create_downsized_examples(
     result_dict['predictor_matrix']: E-by-m-by-n-by-C numpy array of predictor
         values.
     result_dict['target_values']: length-E numpy array of target values
-        (integers in range 0...[num_classes - 1]).
+        (integers in range 0...[num_classes - 1]).  This may also be None.
     result_dict['full_size_predictor_matrix']: See input doc.
     result_dict['full_size_target_matrix']: See input doc.
     """
 
-    if full_size_predictor_matrix is None or full_size_target_matrix is None:
+    if full_size_predictor_matrix is None:
         error_checking.assert_is_integer(num_classes)
         error_checking.assert_is_geq(num_classes, 2)
         error_checking.assert_is_leq(num_classes, 3)
-
-        gridded_front_file_name = fronts_io.find_gridded_file(
-            top_directory_name=top_gridded_front_dir_name,
-            valid_time_unix_sec=valid_time_unix_sec,
-            raise_error_if_missing=False)
-
-        if not os.path.isfile(gridded_front_file_name):
-            warning_string = (
-                'POTENTIAL PROBLEM.  Cannot find file expected at: "{0:s}"'
-            ).format(gridded_front_file_name)
-
-            warnings.warn(warning_string)
-            return None
 
         predictor_file_name = predictor_io.find_file(
             top_directory_name=top_predictor_dir_name,
@@ -122,29 +116,50 @@ def create_downsized_examples(
             predictor_matrix=full_size_predictor_matrix,
             normalization_type_string=normalization_type_string)
 
-        print 'Reading data from: "{0:s}"...'.format(gridded_front_file_name)
-        gridded_front_table = fronts_io.read_grid_from_file(
-            gridded_front_file_name)
+        if top_gridded_front_dir_name is None:
 
-        full_size_target_matrix = ml_utils.front_table_to_images(
-            frontal_grid_table=gridded_front_table,
-            num_rows_per_image=full_size_predictor_matrix.shape[1],
-            num_columns_per_image=full_size_predictor_matrix.shape[2])
-
-        if num_classes == 2:
-            full_size_target_matrix = ml_utils.binarize_front_images(
-                full_size_target_matrix)
-
-        if num_classes == 2:
-            full_size_target_matrix = ml_utils.dilate_binary_target_images(
-                target_matrix=full_size_target_matrix,
-                dilation_distance_metres=dilation_distance_metres,
-                verbose=False)
+            # TODO(thunderhoser): This is a HACK.
+            full_size_target_matrix = numpy.full(
+                full_size_predictor_matrix.shape[:-1], 0, dtype=int
+            )
         else:
-            full_size_target_matrix = ml_utils.dilate_ternary_target_images(
-                target_matrix=full_size_target_matrix,
-                dilation_distance_metres=dilation_distance_metres,
-                verbose=False)
+            gridded_front_file_name = fronts_io.find_gridded_file(
+                top_directory_name=top_gridded_front_dir_name,
+                valid_time_unix_sec=valid_time_unix_sec,
+                raise_error_if_missing=False)
+
+            if not os.path.isfile(gridded_front_file_name):
+                warning_string = (
+                    'POTENTIAL PROBLEM.  Cannot find file expected at: "{0:s}"'
+                ).format(gridded_front_file_name)
+
+                warnings.warn(warning_string)
+                return None
+
+            print 'Reading data from: "{0:s}"...'.format(
+                gridded_front_file_name)
+            gridded_front_table = fronts_io.read_grid_from_file(
+                gridded_front_file_name)
+
+            full_size_target_matrix = ml_utils.front_table_to_images(
+                frontal_grid_table=gridded_front_table,
+                num_rows_per_image=full_size_predictor_matrix.shape[1],
+                num_columns_per_image=full_size_predictor_matrix.shape[2])
+
+            if num_classes == 2:
+                full_size_target_matrix = ml_utils.binarize_front_images(
+                    full_size_target_matrix)
+
+            if num_classes == 2:
+                full_size_target_matrix = ml_utils.dilate_binary_target_images(
+                    target_matrix=full_size_target_matrix,
+                    dilation_distance_metres=dilation_distance_metres,
+                    verbose=False)
+            else:
+                full_size_target_matrix = ml_utils.dilate_ternary_target_images(
+                    target_matrix=full_size_target_matrix,
+                    dilation_distance_metres=dilation_distance_metres,
+                    verbose=False)
 
     error_checking.assert_is_integer_numpy_array(center_row_indices)
     error_checking.assert_is_numpy_array(center_row_indices, num_dimensions=1)

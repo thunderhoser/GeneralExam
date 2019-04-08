@@ -393,6 +393,10 @@ def apply_model_to_full_grid(
         cell [i, j] is masked out, target_matrix[0, i, j] = -1.
     """
 
+    # TODO(thunderhoser): Allow this method to return no true labels.
+    # Currently, if `top_gridded_front_dir_name is None`, returns 0 (no front)
+    # for all true labels.
+
     num_classes = model_to_num_classes(model_object)
     num_half_patch_rows, num_half_patch_columns = model_to_grid_dimensions(
         model_object)

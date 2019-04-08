@@ -44,7 +44,8 @@ PREDICTOR_DIR_HELP_STRING = (
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with gridded front labels.  Files therein will'
     ' be found by `fronts_io.find_gridded_file` and read by '
-    '`fronts_io.read_grid_from_file`.')
+    '`fronts_io.read_grid_from_file`.  If you do not want to read true labels, '
+    'make this empty ("").')
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  This script will apply the CNN to `{0:s}` '
@@ -138,6 +139,9 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     :param output_dir_name: Same.
     """
 
+    if top_gridded_front_dir_name in ['', None]:
+        top_gridded_front_dir_name = None
+
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
     last_time_unix_sec = time_conversion.string_to_unix_sec(
@@ -201,6 +205,10 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     print SEPARATOR_STRING
 
     for i in range(num_times):
+        # TODO(thunderhoser): Allow this script to ignore true labels.
+        # Currently, if `top_gridded_front_dir_name is None`, assumes 0 (no
+        # front for all true labels.
+
         this_class_probability_matrix, this_target_matrix = (
             cnn.apply_model_to_full_grid(
                 model_object=model_object,
