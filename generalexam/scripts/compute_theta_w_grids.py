@@ -167,6 +167,12 @@ def _write_output_one_time(
     predictor_dict[predictor_utils.FIELD_NAMES_KEY].append(
         predictor_utils.WET_BULB_THETA_NAME
     )
+
+    predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] = numpy.concatenate((
+        predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY],
+        predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY][[0]]
+    ))
+
     predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.concatenate(
         (predictor_dict[predictor_utils.DATA_MATRIX_KEY],
          theta_w_matrix_kelvins),
