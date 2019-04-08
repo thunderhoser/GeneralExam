@@ -163,7 +163,6 @@ def _write_output_one_time(
     """
 
     theta_w_matrix_kelvins = numpy.expand_dims(theta_w_matrix_kelvins, axis=-1)
-    theta_w_matrix_kelvins = numpy.expand_dims(theta_w_matrix_kelvins, axis=-1)
 
     predictor_dict[predictor_utils.FIELD_NAMES_KEY].append(
         predictor_utils.WET_BULB_THETA_NAME
