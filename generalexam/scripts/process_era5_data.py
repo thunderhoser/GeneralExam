@@ -276,14 +276,14 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             print 'Rotating winds from Earth-relative to grid-relative...'
 
             (one_time_predictor_dict[predictor_utils.DATA_MATRIX_KEY][
-                 0, ..., 0, u_wind_index],
+                 0, ..., u_wind_index],
              one_time_predictor_dict[predictor_utils.DATA_MATRIX_KEY][
-                 0, ..., 0, v_wind_index]
+                 0, ..., v_wind_index]
             ) = nwp_model_utils.rotate_winds_to_grid_relative(
                 u_winds_earth_relative_m_s01=one_time_predictor_dict[
-                    predictor_utils.DATA_MATRIX_KEY][0, ..., 0, u_wind_index],
+                    predictor_utils.DATA_MATRIX_KEY][0, ..., u_wind_index],
                 v_winds_earth_relative_m_s01=one_time_predictor_dict[
-                    predictor_utils.DATA_MATRIX_KEY][0, ..., 0, v_wind_index],
+                    predictor_utils.DATA_MATRIX_KEY][0, ..., v_wind_index],
                 rotation_angle_cosines=narr_rotation_cos_matrix,
                 rotation_angle_sines=narr_rotation_sin_matrix)
 
