@@ -296,10 +296,11 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
         print dataset_object
         print data_matrix.shape
 
-        if data_matrix.shape[1] > 100:
-            data_matrix = data_matrix[..., pressure_level_index]
-        elif len(data_matrix.shape) > 3:
-            data_matrix = data_matrix[:, pressure_level_index, ...]
+        if len(data_matrix.shape) > 3:
+            if data_matrix.shape[1] > 100:
+                data_matrix = data_matrix[..., pressure_level_index]
+            else:
+                data_matrix = data_matrix[:, pressure_level_index, ...]
 
         print data_matrix.shape
 
