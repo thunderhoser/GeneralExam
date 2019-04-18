@@ -285,16 +285,18 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
     ))[0]
 
     valid_times_unix_sec = valid_times_unix_sec[time_indices]
+    data_matrix = numpy.array(
+        dataset_object.variables[field_name_key][time_indices, ...]
+    )
 
-    if has_surface_data:
-        data_matrix = numpy.array(
-            dataset_object.variables[field_name_key][time_indices, ...]
-        )
-    else:
-        data_matrix = numpy.array(
-            dataset_object.variables[field_name_key][
-                time_indices, pressure_level_index, ...]
-        )
+    if not has_surface_data:
+
+        # TODO(thunderhoser): This is a HACK to deal with the fact that pressure
+        # axis is inconsistent across files.
+        if data_matrix.shape[1] > 100:
+            data_matrix = data_matrix[..., pressure_level_index]
+        else:
+            data_matrix = data_matrix[:, pressure_level_index, ...]
 
     data_matrix = numpy.flip(data_matrix, axis=1)
     latitudes_deg = latitudes_deg[::-1]
