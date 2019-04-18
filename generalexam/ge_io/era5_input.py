@@ -293,6 +293,7 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
 
         # TODO(thunderhoser): This is a HACK to deal with the fact that pressure
         # axis is inconsistent across files.
+        print dataset_object
         print data_matrix.shape
 
         if data_matrix.shape[1] > 100:
