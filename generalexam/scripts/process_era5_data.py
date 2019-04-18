@@ -224,16 +224,12 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
                     numpy.nan
                 )
 
-            try:
-                one_time_data_matrix[0, ..., j] = this_predictor_dict[
-                    predictor_utils.DATA_MATRIX_KEY][0, ..., 0]
-            except ValueError:
-                print this_predictor_dict[
-                    predictor_utils.DATA_MATRIX_KEY
-                ].shape
+            print this_predictor_dict[
+                predictor_utils.DATA_MATRIX_KEY
+            ].shape
 
-                one_time_data_matrix[0, ..., j] = this_predictor_dict[
-                    predictor_utils.DATA_MATRIX_KEY][0, ...]
+            one_time_data_matrix[0, ..., j] = this_predictor_dict[
+                predictor_utils.DATA_MATRIX_KEY][0, ..., 0]
 
         if era5_input.DEWPOINT_NAME_RAW in raw_field_names:
             print 'Converting dewpoint to specific humidity...'
