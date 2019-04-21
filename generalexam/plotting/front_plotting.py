@@ -4,10 +4,11 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import front_utils
-from generalexam.plotting import narr_plotting
 
 DEFAULT_WARM_FRONT_COLOUR = numpy.array([228., 26., 28.]) / 255
 DEFAULT_COLD_FRONT_COLOUR = numpy.array([31., 120., 180.]) / 255
@@ -170,46 +171,48 @@ def plot_polyline(
         linestyle=line_style, linewidth=line_width)
 
 
-def plot_narr_grid(
-        frontal_grid_matrix, axes_object, basemap_object,
-        first_row_in_narr_grid=0, first_column_in_narr_grid=0,
+def plot_gridded_labels(
+        gridded_front_matrix, axes_object, basemap_object, full_grid_name,
+        first_row_in_full_grid=0, first_column_in_full_grid=0,
         opacity=DEFAULT_GRID_OPACITY):
-    """Plots NARR grid points intersected by a warm front or cold front.
+    """Plots gridded front labels.
 
-    This method plots data over a contiguous subset of the NARR grid, which need
-    not be *strictly* a subset.  In other words, the "subset" could be the full
-    NARR grid.
-
-    :param frontal_grid_matrix: See documentation for
+    :param gridded_front_matrix: See doc for
         `front_utils.gridded_labels_to_points`.
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
-    :param first_row_in_narr_grid: Row 0 in the subgrid is row
-        `first_row_in_narr_grid` in the full NARR grid.
-    :param first_column_in_narr_grid: Column 0 in the subgrid is row
-        `first_column_in_narr_grid` in the full NARR grid.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Will be used to convert between lat-long and x-y
+        (projection) coordinates (instance of `mpl_toolkits.basemap.Basemap`).
+    :param full_grid_name: Name of full grid (must be accepted by
+        `nwp_model_utils.check_grid_name`).
+    :param first_row_in_full_grid: First row in full grid.  In other words,
+        row 0 in `gridded_front_matrix` = row `first_row_in_full_grid` in the
+        full grid.
+    :param first_column_in_full_grid: Same but for column.
     :param opacity: Opacity for colour map (in range 0...1).
     """
 
-    error_checking.assert_is_integer_numpy_array(frontal_grid_matrix)
-    error_checking.assert_is_numpy_array(frontal_grid_matrix, num_dimensions=2)
+    error_checking.assert_is_integer_numpy_array(gridded_front_matrix)
+    error_checking.assert_is_numpy_array(gridded_front_matrix, num_dimensions=2)
 
     error_checking.assert_is_geq_numpy_array(
-        frontal_grid_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
+        gridded_front_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
     )
     error_checking.assert_is_leq_numpy_array(
-        frontal_grid_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
+        gridded_front_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
     )
 
     colour_map_object, _, colour_bounds = get_colour_map_for_grid()
 
-    frontal_grid_matrix = numpy.ma.masked_where(
-        frontal_grid_matrix == front_utils.NO_FRONT_ENUM,
-        frontal_grid_matrix)
+    gridded_front_matrix = numpy.ma.masked_where(
+        gridded_front_matrix == front_utils.NO_FRONT_ENUM,
+        gridded_front_matrix)
 
-    narr_plotting.plot_xy_grid(
-        data_matrix=frontal_grid_matrix, axes_object=axes_object,
+    nwp_plotting.plot_subgrid(
+        field_matrix=gridded_front_matrix,
+        model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
         basemap_object=basemap_object, colour_map=colour_map_object,
-        colour_minimum=colour_bounds[1], colour_maximum=colour_bounds[-2],
-        first_row_in_narr_grid=first_row_in_narr_grid,
-        first_column_in_narr_grid=first_column_in_narr_grid, opacity=opacity)
+        min_value_in_colour_map=colour_bounds[1],
+        max_value_in_colour_map=colour_bounds[-2], grid_id=full_grid_name,
+        first_row_in_full_grid=first_row_in_full_grid,
+        first_column_in_full_grid=first_column_in_full_grid, opacity=opacity)

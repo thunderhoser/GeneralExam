@@ -8,11 +8,12 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
-from generalexam.plotting import narr_plotting
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -119,7 +120,9 @@ def _make_one_plot(
         masked.
     """
 
-    _, axes_object, basemap_object = narr_plotting.init_basemap()
+    _, axes_object, basemap_object = nwp_plotting.init_basemap(
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_id=nwp_model_utils.NAME_OF_221GRID)
 
     parallel_spacing_deg = numpy.round(
         (basemap_object.urcrnrlat - basemap_object.llcrnrlat) /
@@ -155,19 +158,25 @@ def _make_one_plot(
         matrix_to_plot = (mask_matrix + 0).astype(float)
         matrix_to_plot[matrix_to_plot == 0] = numpy.nan
 
-        narr_plotting.plot_xy_grid(
-            data_matrix=matrix_to_plot, axes_object=axes_object,
-            basemap_object=basemap_object, colour_map=colour_map_object,
-            colour_minimum=0., colour_maximum=1.)
+        nwp_plotting.plot_subgrid(
+            field_matrix=matrix_to_plot,
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            axes_object=axes_object, basemap_object=basemap_object,
+            colour_map=colour_map_object,
+            min_value_in_colour_map=0., max_value_in_colour_map=1.,
+            grid_id=nwp_model_utils.NAME_OF_221GRID)
     else:
         num_fronts_matrix = num_fronts_matrix.astype(float)
         max_value_for_colours = numpy.percentile(
             num_fronts_matrix, max_percentile_for_colours)
 
-        narr_plotting.plot_xy_grid(
-            data_matrix=num_fronts_matrix, axes_object=axes_object,
-            basemap_object=basemap_object, colour_map=colour_map_object,
-            colour_minimum=0., colour_maximum=max_value_for_colours)
+        nwp_plotting.plot_subgrid(
+            field_matrix=num_fronts_matrix,
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            axes_object=axes_object, basemap_object=basemap_object,
+            colour_map=colour_map_object, min_value_in_colour_map=0.,
+            max_value_in_colour_map=max_value_for_colours,
+            grid_id=nwp_model_utils.NAME_OF_221GRID)
 
         plotting_utils.add_linear_colour_bar(
             axes_object_or_list=axes_object, values_to_colour=num_fronts_matrix,

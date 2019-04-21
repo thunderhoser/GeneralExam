@@ -2,9 +2,10 @@
 
 import numpy
 import matplotlib.colors
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import front_utils
-from generalexam.plotting import narr_plotting
 
 DEFAULT_GRID_OPACITY = 0.5
 
@@ -144,30 +145,29 @@ def get_warm_front_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds
 
 
-def plot_narr_grid(
+def plot_gridded_probs(
         probability_matrix, front_string_id, axes_object, basemap_object,
-        first_row_in_narr_grid=0, first_column_in_narr_grid=0,
+        full_grid_name, first_row_in_full_grid=0, first_column_in_full_grid=0,
         opacity=DEFAULT_GRID_OPACITY):
-    """Plots frontal-probability map on NARR grid.
+    """Plots gridded front probabilities.
 
-    This method plots data over a contiguous subset of the NARR grid, which need
-    not be *strictly* a subset.  In other words, the "subset" could be the full
-    NARR grid.
+    M = number of rows in grid
+    N = number of columns in grid
 
-    M = number of rows (unique grid-point y-coordinates)
-    N = number of columns (unique grid-point x-coordinates)
-
-    :param probability_matrix: M-by-N numpy array, where
-        predicted_target_matrix[i, j] is the predicted probability of a front
-        passing through grid cell [i, j].
+    :param probability_matrix: M-by-N numpy array of predicted front
+        probabilities.
     :param front_string_id: Type of fronts predicted in `probability_matrix`.
-        May be "warm", "cold", or "any".
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
-    :param first_row_in_narr_grid: Row 0 in the subgrid is row
-        `first_row_in_narr_grid` in the full NARR grid.
-    :param first_column_in_narr_grid: Column 0 in the subgrid is row
-        `first_column_in_narr_grid` in the full NARR grid.
+        Must be accepted by `_check_front_type`.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Will be used to convert between lat-long and x-y
+        (projection) coordinates (instance of `mpl_toolkits.basemap.Basemap`).
+    :param full_grid_name: Name of full grid (must be accepted by
+        `nwp_model_utils.check_grid_name`).
+    :param first_row_in_full_grid: First row in full grid.  In other words,
+        row 0 in `probability_matrix` = row `first_row_in_full_grid` in the
+        full grid.
+    :param first_column_in_full_grid: Same but for column.
     :param opacity: Opacity for colour map (in range 0...1).
     """
 
@@ -186,12 +186,11 @@ def plot_narr_grid(
     else:
         colour_map_object, _, colour_bounds = get_cold_front_colour_map()
 
-    colour_minimum = colour_bounds[1]
-    colour_maximum = colour_bounds[-2]
-
-    narr_plotting.plot_xy_grid(
-        data_matrix=probability_matrix, axes_object=axes_object,
+    nwp_plotting.plot_subgrid(
+        field_matrix=probability_matrix,
+        model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
         basemap_object=basemap_object, colour_map=colour_map_object,
-        colour_minimum=colour_minimum, colour_maximum=colour_maximum,
-        first_row_in_narr_grid=first_row_in_narr_grid,
-        first_column_in_narr_grid=first_column_in_narr_grid, opacity=opacity)
+        min_value_in_colour_map=colour_bounds[1],
+        max_value_in_colour_map=colour_bounds[-2], grid_id=full_grid_name,
+        first_row_in_full_grid=first_row_in_full_grid,
+        first_column_in_full_grid=first_column_in_full_grid, opacity=opacity)

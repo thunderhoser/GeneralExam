@@ -186,8 +186,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_time(
         predictor_matrix, predictor_names, front_polyline_table, high_low_table,
         thermal_colour_map_object, max_thermal_prctile_for_colours,
-        narr_row_limits, narr_column_limits, title_string, letter_label,
-        output_file_name):
+        full_grid_name, full_grid_row_limits, full_grid_column_limits,
+        title_string, letter_label, output_file_name):
     """Plots predictors at one time.
 
     M = number of rows in grid
@@ -202,10 +202,11 @@ def _plot_one_time(
         `wpc_bulletin_input.read_highs_and_lows`.
     :param thermal_colour_map_object: See documentation at top of file.
     :param max_thermal_prctile_for_colours: Same.
-    :param narr_row_limits: length-2 numpy array, indicating the first and last
-        NARR rows in `predictor_matrix`.  If narr_row_limits = [i, k],
-        `predictor_matrix` spans rows i...k of the full NARR grid.
-    :param narr_column_limits: Same but for columns.
+    :param full_grid_name: Name of full grid.
+    :param full_grid_row_limits: length-2 numpy array with first and last
+        full-grid rows in `predictor_matrix`.  If full_grid_row_limits = [i, k],
+        `predictor_matrix` spans rows i...k of the full grid.
+    :param full_grid_column_limits: Same but for columns.
     :param title_string: Title (will be placed above figure).
     :param letter_label: Letter label.  If this is "a", the label "(a)" will be
         printed at the top left of the figure.
@@ -213,11 +214,11 @@ def _plot_one_time(
     """
 
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
-        model_name=nwp_model_utils.NARR_MODEL_NAME,
-        first_row_in_full_grid=narr_row_limits[0],
-        last_row_in_full_grid=narr_row_limits[1],
-        first_column_in_full_grid=narr_column_limits[0],
-        last_column_in_full_grid=narr_column_limits[1]
+        model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
+        first_row_in_full_grid=full_grid_row_limits[0],
+        last_row_in_full_grid=full_grid_row_limits[1],
+        first_column_in_full_grid=full_grid_column_limits[0],
+        last_column_in_full_grid=full_grid_column_limits[1]
     )
 
     parallel_spacing_deg = numpy.round(
@@ -261,12 +262,13 @@ def _plot_one_time(
 
         nwp_plotting.plot_subgrid(
             field_matrix=predictor_matrix[..., j],
-            model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
-            basemap_object=basemap_object, colour_map=thermal_colour_map_object,
+            model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
+            axes_object=axes_object, basemap_object=basemap_object,
+            colour_map=thermal_colour_map_object,
             min_value_in_colour_map=min_colour_value,
             max_value_in_colour_map=max_colour_value,
-            first_row_in_full_grid=narr_row_limits[0],
-            first_column_in_full_grid=narr_column_limits[0]
+            first_row_in_full_grid=full_grid_row_limits[0],
+            first_column_in_full_grid=full_grid_column_limits[0]
         )
 
         plotting_utils.add_linear_colour_bar(
@@ -284,10 +286,10 @@ def _plot_one_time(
     nwp_plotting.plot_wind_barbs_on_subgrid(
         u_wind_matrix_m_s01=predictor_matrix[..., u_wind_index],
         v_wind_matrix_m_s01=predictor_matrix[..., v_wind_index],
-        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
         axes_object=axes_object, basemap_object=basemap_object,
-        first_row_in_full_grid=narr_row_limits[0],
-        first_column_in_full_grid=narr_column_limits[0],
+        first_row_in_full_grid=full_grid_row_limits[0],
+        first_column_in_full_grid=full_grid_column_limits[0],
         plot_every_k_rows=PLOT_EVERY_KTH_WIND_BARB,
         plot_every_k_columns=PLOT_EVERY_KTH_WIND_BARB,
         barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
@@ -398,7 +400,6 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         raise ValueError(error_string)
 
     thermal_colour_map_object = pyplot.cm.get_cmap(thermal_colour_map_name)
-
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
@@ -407,15 +408,38 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, DEFAULT_TIME_FORMAT)
 
-    valid_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_time_unix_sec,
-        end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+    # Find out full grid (either NCEP 221 or extended 221 grid).
+    predictor_names = [
+        thermal_field_name, predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME
+    ]
 
-    # Read metadata for NARR grid.
+    pressure_levels_mb = numpy.full(
+        len(predictor_names), pressure_level_mb, dtype=int
+    )
+
+    this_file_name = predictor_io.find_file(
+        top_directory_name=top_predictor_dir_name,
+        valid_time_unix_sec=first_time_unix_sec)
+
+    this_predictor_dict = predictor_io.read_file(
+        netcdf_file_name=this_file_name,
+        pressure_levels_to_keep_mb=pressure_levels_mb,
+        field_names_to_keep=predictor_names)
+
+    num_grid_rows = this_predictor_dict[
+        predictor_utils.DATA_MATRIX_KEY].shape[1]
+    num_grid_columns = this_predictor_dict[
+        predictor_utils.DATA_MATRIX_KEY].shape[2]
+
+    full_grid_name = nwp_model_utils.dimensions_to_grid(
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
+
+    # Read metadata for full grid.
     latitude_matrix_deg, longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=full_grid_name)
     )
 
     rotation_cosine_matrix, rotation_sine_matrix = (
@@ -425,34 +449,30 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    narr_row_limits, narr_column_limits = (
+    full_grid_row_limits, full_grid_column_limits = (
         nwp_plotting.latlng_limits_to_rowcol_limits(
             min_latitude_deg=MIN_LATITUDE_DEG,
             max_latitude_deg=MAX_LATITUDE_DEG,
             min_longitude_deg=MIN_LONGITUDE_DEG,
             max_longitude_deg=MAX_LONGITUDE_DEG,
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name)
     )
 
     rotation_cosine_matrix = rotation_cosine_matrix[
-        narr_row_limits[0]:(narr_row_limits[1] + 1),
-        narr_column_limits[0]:(narr_column_limits[1] + 1)
+        full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+        full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
 
     rotation_sine_matrix = rotation_sine_matrix[
-        narr_row_limits[0]:(narr_row_limits[1] + 1),
-        narr_column_limits[0]:(narr_column_limits[1] + 1)
+        full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+        full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
 
     # Do plotting.
-    predictor_names = [
-        thermal_field_name, predictor_utils.U_WIND_GRID_RELATIVE_NAME,
-        predictor_utils.V_WIND_GRID_RELATIVE_NAME
-    ]
-
-    pressure_levels_mb = numpy.full(
-        len(predictor_names), pressure_level_mb, dtype=int
-    )
+    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_time_unix_sec,
+        end_time_unix_sec=last_time_unix_sec,
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
     this_letter_label = None
 
@@ -497,8 +517,8 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         #     )
 
         this_predictor_matrix = this_predictor_matrix[
-            narr_row_limits[0]:(narr_row_limits[1] + 1),
-            narr_column_limits[0]:(narr_column_limits[1] + 1),
+            full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+            full_grid_column_limits[0]:(full_grid_column_limits[1] + 1),
             ...
         ]
 
@@ -550,8 +570,9 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             high_low_table=this_high_low_table,
             thermal_colour_map_object=thermal_colour_map_object,
             max_thermal_prctile_for_colours=max_thermal_prctile_for_colours,
-            narr_row_limits=narr_row_limits,
-            narr_column_limits=narr_column_limits,
+            full_grid_name=full_grid_name,
+            full_grid_row_limits=full_grid_row_limits,
+            full_grid_column_limits=full_grid_column_limits,
             title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name)
 

@@ -118,21 +118,32 @@ def _plot_one_time(
         cold-front probability.
     """
 
-    narr_row_limits, narr_column_limits = (
+    if class_probability_matrix is None:
+        num_grid_rows = predicted_label_matrix.shape[0]
+        num_grid_columns = predicted_label_matrix.shape[1]
+    else:
+        num_grid_rows = class_probability_matrix.shape[0]
+        num_grid_columns = class_probability_matrix.shape[1]
+
+    full_grid_name = nwp_model_utils.dimensions_to_grid(
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
+
+    full_grid_row_limits, full_grid_column_limits = (
         nwp_plotting.latlng_limits_to_rowcol_limits(
             min_latitude_deg=MIN_LATITUDE_DEG,
             max_latitude_deg=MAX_LATITUDE_DEG,
             min_longitude_deg=MIN_LONGITUDE_DEG,
             max_longitude_deg=MAX_LONGITUDE_DEG,
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name)
     )
 
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
-        model_name=nwp_model_utils.NARR_MODEL_NAME,
-        first_row_in_full_grid=narr_row_limits[0],
-        last_row_in_full_grid=narr_row_limits[1],
-        first_column_in_full_grid=narr_column_limits[0],
-        last_column_in_full_grid=narr_column_limits[1])
+        model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
+        first_row_in_full_grid=full_grid_row_limits[0],
+        last_row_in_full_grid=full_grid_row_limits[1],
+        first_column_in_full_grid=full_grid_column_limits[0],
+        last_column_in_full_grid=full_grid_column_limits[1]
+    )
 
     parallel_spacing_deg = numpy.round(
         (MAX_LATITUDE_DEG - MIN_LATITUDE_DEG) / (NUM_PARALLELS - 1)
@@ -164,45 +175,48 @@ def _plot_one_time(
 
     if class_probability_matrix is None:
         this_matrix = predicted_label_matrix[
-            narr_row_limits[0]:(narr_row_limits[1] + 1),
-            narr_column_limits[0]:(narr_column_limits[1] + 1)
+            full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+            full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
         ]
 
-        front_plotting.plot_narr_grid(
-            frontal_grid_matrix=this_matrix, axes_object=axes_object,
+        front_plotting.plot_gridded_labels(
+            gridded_front_matrix=this_matrix, axes_object=axes_object,
             basemap_object=basemap_object,
-            first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0], opacity=1.)
+            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            first_row_in_full_grid=full_grid_row_limits[0],
+            first_column_in_full_grid=full_grid_column_limits[0], opacity=1.)
     else:
         this_wf_probability_matrix = class_probability_matrix[
-            narr_row_limits[0]:(narr_row_limits[1] + 1),
-            narr_column_limits[0]:(narr_column_limits[1] + 1),
+            full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+            full_grid_column_limits[0]:(full_grid_column_limits[1] + 1),
             front_utils.WARM_FRONT_ENUM
         ]
 
         this_wf_probability_matrix[numpy.isnan(this_wf_probability_matrix)] = 0.
 
-        prediction_plotting.plot_narr_grid(
+        prediction_plotting.plot_gridded_probs(
             probability_matrix=this_wf_probability_matrix,
             front_string_id=front_utils.WARM_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
-            first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
+            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            first_row_in_full_grid=full_grid_row_limits[0],
+            first_column_in_full_grid=full_grid_column_limits[0], opacity=0.5)
 
         this_cf_probability_matrix = class_probability_matrix[
-            narr_row_limits[0]:(narr_row_limits[1] + 1),
-            narr_column_limits[0]:(narr_column_limits[1] + 1),
+            full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+            full_grid_column_limits[0]:(full_grid_column_limits[1] + 1),
             front_utils.COLD_FRONT_ENUM
         ]
 
         this_cf_probability_matrix[numpy.isnan(this_cf_probability_matrix)] = 0.
 
-        prediction_plotting.plot_narr_grid(
+        prediction_plotting.plot_gridded_probs(
             probability_matrix=this_cf_probability_matrix,
             front_string_id=front_utils.COLD_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
-            first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0], opacity=0.5)
+            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            first_row_in_full_grid=full_grid_row_limits[0],
+            first_column_in_full_grid=full_grid_column_limits[0], opacity=0.5)
 
         if plot_wf_colour_bar:
             this_colour_map_object, this_colour_norm_object = (
