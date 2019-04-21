@@ -185,11 +185,13 @@ def _run(use_ensembled_predictions, input_prediction_dir_name,
     """
 
     grid_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID
     )[0]
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)

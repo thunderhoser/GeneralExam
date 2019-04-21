@@ -3,6 +3,7 @@
 import numpy
 from gewittergefahr.gg_utils import error_checking
 
+ERA5_GRID_NAME = 'era5_grid'
 DUMMY_SURFACE_PRESSURE_MB = 1013
 
 TEMPERATURE_NAME = 'temperature_kelvins'
@@ -78,12 +79,12 @@ def check_predictor_dict(predictor_dict):
     for j in range(num_predictors):
         check_field_name(predictor_dict[FIELD_NAMES_KEY][j])
 
-    on_narr_grid = (
-        predictor_dict[LATITUDES_KEY] is None and
+    on_era5_grid = not (
+        predictor_dict[LATITUDES_KEY] is None or
         predictor_dict[LONGITUDES_KEY] is None
     )
 
-    if not on_narr_grid:
+    if on_era5_grid:
         error_checking.assert_is_valid_lat_numpy_array(
             predictor_dict[LATITUDES_KEY])
         error_checking.assert_is_numpy_array(
@@ -99,7 +100,8 @@ def check_predictor_dict(predictor_dict):
     error_checking.assert_is_leq(this_num_dimensions, 4)
 
     num_times = len(predictor_dict[VALID_TIMES_KEY])
-    if on_narr_grid:
+
+    if on_era5_grid:
         num_grid_rows = predictor_dict[DATA_MATRIX_KEY].shape[1]
         num_grid_columns = predictor_dict[DATA_MATRIX_KEY].shape[2]
     else:

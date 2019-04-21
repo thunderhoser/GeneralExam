@@ -21,9 +21,11 @@ NUM_COLUMNS_FOR_FCN_INPUT = (
     ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1
 )
 
-NARR_MASK_MATRIX = numpy.full(
-    nwp_model_utils.get_grid_dimensions(
-        nwp_model_utils.NARR_MODEL_NAME), 0, dtype=int)
+NUM_GRID_ROWS, NUM_GRID_COLUMNS = nwp_model_utils.get_grid_dimensions(
+    model_name=nwp_model_utils.NARR_MODEL_NAME,
+    grid_name=nwp_model_utils.NAME_OF_221GRID)
+
+NARR_MASK_MATRIX = numpy.full((NUM_GRID_ROWS, NUM_GRID_COLUMNS), 0, dtype=int)
 
 FIRST_UNMASKED_ROW = 20
 LAST_UNMASKED_ROW = 200

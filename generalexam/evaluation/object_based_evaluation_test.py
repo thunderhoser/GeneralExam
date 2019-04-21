@@ -59,7 +59,8 @@ ROW_INDICES_ONE_SKELETON, COLUMN_INDICES_ONE_SKELETON = (
 
 X_GRID_SPACING_METRES, Y_GRID_SPACING_METRES = (
     nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 )
 
 ENDPOINT_LENGTH_METRES = numpy.sqrt(37.) * X_GRID_SPACING_METRES

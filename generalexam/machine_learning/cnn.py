@@ -397,6 +397,8 @@ def apply_model_to_full_grid(
     # Currently, if `top_gridded_front_dir_name is None`, returns 0 (no front)
     # for all true labels.
 
+    # TODO(thunderhoser): Allow extended NARR grid.
+
     num_classes = model_to_num_classes(model_object)
     num_half_patch_rows, num_half_patch_columns = model_to_grid_dimensions(
         model_object)

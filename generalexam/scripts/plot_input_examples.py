@@ -195,7 +195,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
 
     latitude_matrix_deg, longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_221GRID)
     )
 
     rotation_cosine_matrix, rotation_sine_matrix = (
@@ -255,6 +256,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
 
         _, axes_object, basemap_object = nwp_plotting.init_basemap(
             model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_id=nwp_model_utils.NAME_OF_221GRID,
             first_row_in_full_grid=this_first_row_index,
             last_row_in_full_grid=this_last_row_index,
             first_column_in_full_grid=this_first_column_index,
@@ -301,7 +303,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
 
         nwp_plotting.plot_subgrid(
             field_matrix=this_thetaw_matrix_kelvins,
-            model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_id=nwp_model_utils.NAME_OF_221GRID, axes_object=axes_object,
             basemap_object=basemap_object, colour_map=thetaw_colour_map_object,
             min_value_in_colour_map=this_min_value,
             max_value_in_colour_map=this_max_value,
@@ -321,7 +324,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
             v_wind_matrix_m_s01=this_v_wind_matrix_m_s01,
-            model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_id=nwp_model_utils.NAME_OF_221GRID, axes_object=axes_object,
             basemap_object=basemap_object,
             first_row_in_full_grid=this_first_row_index,
             first_column_in_full_grid=this_first_column_index,

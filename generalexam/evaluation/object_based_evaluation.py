@@ -665,7 +665,8 @@ def project_polylines_latlng_to_narr(polyline_table):
                     front_utils.LATITUDES_COLUMN].values[i],
                 longitudes_deg=polyline_table[
                     front_utils.LONGITUDES_COLUMN].values[i],
-                model_name=nwp_model_utils.NARR_MODEL_NAME)
+                model_name=nwp_model_utils.NARR_MODEL_NAME,
+                grid_name=nwp_model_utils.NAME_OF_221GRID)
         )
 
     argument_dict = {
@@ -709,7 +710,8 @@ def convert_regions_rowcol_to_narr_xy(
 
     grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
         nwp_model_utils.get_xy_grid_point_matrices(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_221GRID)
     )
 
     num_regions = len(predicted_region_table.index)

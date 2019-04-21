@@ -24,7 +24,8 @@ from generalexam.ge_utils import front_utils
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
 
 NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
-    model_name=nwp_model_utils.NARR_MODEL_NAME
+    model_name=nwp_model_utils.NARR_MODEL_NAME,
+    grid_name=nwp_model_utils.NAME_OF_221GRID
 )[0]
 
 # Subset of NARR grid for FCN (fully convolutional net).  This gives dimensions
@@ -63,7 +64,8 @@ def _check_full_narr_matrix(full_narr_matrix):
     error_checking.assert_is_leq(num_dimensions, 5)
 
     num_rows_in_narr, num_columns_in_narr = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     expected_dimensions = (
         full_narr_matrix.shape[0], num_rows_in_narr, num_columns_in_narr)
@@ -363,7 +365,8 @@ def check_narr_mask(mask_matrix):
     """
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     error_checking.assert_is_integer_numpy_array(mask_matrix)
     error_checking.assert_is_geq_numpy_array(mask_matrix, 0)

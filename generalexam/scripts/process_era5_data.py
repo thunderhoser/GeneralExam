@@ -20,6 +20,7 @@ MB_TO_PASCALS = 100.
 TIME_INTERVAL_SECONDS = 10800
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
+GRID_NAME_ARG_NAME = 'grid_name'
 RAW_FIELDS_ARG_NAME = 'raw_field_names'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 FIRST_TIME_ARG_NAME = 'first_time_string'
@@ -30,6 +31,12 @@ INPUT_DIR_HELP_STRING = (
     'Name of top-level input directory, containing raw files from John Allen.  '
     'Files therein will be found by `era5_input.find_file` and read by '
     '`era5_input.read_file`.')
+
+GRID_NAME_HELP_STRING = (
+    'ERA5 data will be interpolated to this grid.  Valid options are "{0:s}" '
+    'and "{1:s}".'
+).format(nwp_model_utils.NAME_OF_221GRID,
+         nwp_model_utils.NAME_OF_EXTENDED_221GRID)
 
 RAW_FIELDS_HELP_STRING = (
     'List of fields to process.  Each field name must be accepted by '
@@ -65,6 +72,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=False,
     default=TOP_INPUT_DIR_NAME_DEFAULT, help=INPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + GRID_NAME_ARG_NAME, type=str, required=True,
+    help=GRID_NAME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RAW_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
@@ -112,13 +123,14 @@ def _add_required_fields(raw_field_names, pressure_level_mb):
     return raw_field_names
 
 
-def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
+def _run(top_input_dir_name, grid_name, raw_field_names, pressure_level_mb,
          first_time_string, last_time_string, top_output_dir_name):
     """Processes ERA5 data (this includes interpolating to NARR grid).
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
+    :param grid_name: Same.
     :param raw_field_names: Same.
     :param pressure_level_mb: Same.
     :param first_time_string: Same.
@@ -157,7 +169,7 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
             era5_input.V_WIND_NAME_RAW in raw_field_names):
         narr_latitude_matrix_deg, narr_longitude_matrix_deg = (
             nwp_model_utils.get_latlng_grid_point_matrices(
-                model_name=nwp_model_utils.NARR_MODEL_NAME)
+                model_name=nwp_model_utils.NARR_MODEL_NAME, grid_name=grid_name)
         )
 
         narr_rotation_cos_matrix, narr_rotation_sin_matrix = (
@@ -268,7 +280,7 @@ def _run(top_input_dir_name, raw_field_names, pressure_level_mb,
 
         print '\n'
         one_time_predictor_dict = era5_input.interp_to_narr_grid(
-            predictor_dict=one_time_predictor_dict,
+            predictor_dict=one_time_predictor_dict, grid_name=grid_name,
             era5_x_matrix_metres=era5_x_matrix_metres,
             era5_y_matrix_metres=era5_y_matrix_metres)
         print '\n'
@@ -310,6 +322,7 @@ if __name__ == '__main__':
 
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        grid_name=getattr(INPUT_ARG_OBJECT, GRID_NAME_ARG_NAME),
         raw_field_names=getattr(INPUT_ARG_OBJECT, RAW_FIELDS_ARG_NAME),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),

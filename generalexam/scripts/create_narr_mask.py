@@ -111,7 +111,8 @@ def _run(top_gridded_front_dir_name, first_time_string, last_time_string,
 
     num_times = len(valid_times_unix_sec)
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     num_cold_fronts_matrix = None
     num_warm_fronts_matrix = None

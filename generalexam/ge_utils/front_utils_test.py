@@ -10,7 +10,8 @@ from generalexam.ge_utils import front_utils
 TOLERANCE = 1e-6
 
 NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
-    model_name=nwp_model_utils.NARR_MODEL_NAME
+    model_name=nwp_model_utils.NARR_MODEL_NAME,
+    grid_name=nwp_model_utils.NAME_OF_221GRID
 )[0]
 
 # The following constants are used to test _vertex_arrays_to_list.
@@ -287,7 +288,8 @@ POLYLINE_TABLE_UNMASKED = pandas.DataFrame.from_dict(THIS_DICT)
 
 THIS_LATITUDE_MATRIX_DEG, THIS_LONGITUDE_MATRIX_DEG = (
     nwp_model_utils.get_latlng_grid_point_matrices(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 )
 
 THIS_LATITUDE_FLAG_MATRIX = numpy.logical_and(

@@ -148,7 +148,8 @@ def _get_random_sample_points(
 
     if for_downsized_examples:
         num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_221GRID)
     else:
         num_grid_rows = (
             ml_utils.LAST_NARR_ROW_FOR_FCN_INPUT -

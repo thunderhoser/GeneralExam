@@ -228,7 +228,9 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
 
     if mask_file_name is None:
         num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_221GRID)
+
         mask_matrix = numpy.full(
             (num_grid_rows, num_grid_columns), 1, dtype=int)
     else:
@@ -236,7 +238,8 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     num_times = len(valid_times_unix_sec)
 

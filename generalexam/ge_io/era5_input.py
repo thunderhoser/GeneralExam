@@ -315,7 +315,7 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
     }
 
 
-def interp_to_narr_grid(predictor_dict, era5_x_matrix_metres=None,
+def interp_to_narr_grid(predictor_dict, grid_name, era5_x_matrix_metres=None,
                         era5_y_matrix_metres=None):
     """Interpolates ERA5 data to NARR (North American Regional Reanalysis) grid.
 
@@ -328,10 +328,12 @@ def interp_to_narr_grid(predictor_dict, era5_x_matrix_metres=None,
     matrices will be created on the fly.
 
     :param predictor_dict: See doc for `predictor_utils.check_predictor_dict`.
+    :param grid_name: Grid name (must be accepted by
+        `nwp_model_utils.check_grid_name`).
     :param era5_x_matrix_metres: M-by-N numpy array with x-coordinates of ERA5
         grid points.
     :param era5_y_matrix_metres: Same but for y-coordinates.
-    :return: predictor_dict: Same as input, with 3 exceptions.
+    :return: predictor_dict: Same as input but with the following exceptions.
     predictor_dict['data_matrix']: Different spatial dimensions.
     predictor_dict['latitudes_deg']: None
     predictor_dict['longitudes_deg']: None
@@ -341,7 +343,7 @@ def interp_to_narr_grid(predictor_dict, era5_x_matrix_metres=None,
 
     narr_x_matrix_metres, narr_y_matrix_metres = (
         nwp_model_utils.get_xy_grid_point_matrices(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME, grid_name=grid_name)
     )
 
     num_narr_grid_points = narr_x_matrix_metres.size
@@ -363,7 +365,7 @@ def interp_to_narr_grid(predictor_dict, era5_x_matrix_metres=None,
             nwp_model_utils.project_latlng_to_xy(
                 latitudes_deg=era5_latitude_matrix_deg,
                 longitudes_deg=era5_longitude_matrix_deg,
-                model_name=nwp_model_utils.NARR_MODEL_NAME)
+                model_name=nwp_model_utils.NARR_MODEL_NAME, grid_name=grid_name)
         )
 
     num_era5_grid_points = era5_x_matrix_metres.size

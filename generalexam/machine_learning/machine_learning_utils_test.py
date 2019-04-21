@@ -13,9 +13,12 @@ TOLERANCE_FOR_CLASS_WEIGHT = 1e-3
 
 # The following constants are used to test _check_full_narr_matrix.
 NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR = nwp_model_utils.get_grid_dimensions(
-    model_name=nwp_model_utils.NARR_MODEL_NAME)
+    model_name=nwp_model_utils.NARR_MODEL_NAME,
+    grid_name=nwp_model_utils.NAME_OF_221GRID)
+
 FULL_NARR_MATRIX_2D = numpy.random.uniform(
-    low=0., high=1., size=(NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR))
+    low=0., high=1., size=(NUM_ROWS_IN_NARR, NUM_COLUMNS_IN_NARR)
+)
 
 FULL_NARR_MATRIX_3D = numpy.stack(
     (FULL_NARR_MATRIX_2D, FULL_NARR_MATRIX_2D), axis=0)

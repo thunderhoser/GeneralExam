@@ -857,12 +857,14 @@ def polyline_to_narr_grid(vertex_latitudes_deg, vertex_longitudes_deg,
         nwp_model_utils.project_latlng_to_xy(
             latitudes_deg=vertex_latitudes_deg,
             longitudes_deg=vertex_longitudes_deg,
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_221GRID)
     )
 
     grid_point_x_coords_metres, grid_point_y_coords_metres = (
         nwp_model_utils.get_xy_grid_points(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_name=nwp_model_utils.NAME_OF_221GRID)
     )
 
     rows_in_front, columns_in_front = _polyline_to_grid_points(
@@ -872,14 +874,16 @@ def polyline_to_narr_grid(vertex_latitudes_deg, vertex_longitudes_deg,
         grid_point_y_coords_metres=grid_point_y_coords_metres)
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     binary_label_matrix = _grid_points_to_boolean_matrix(
         rows_in_front=rows_in_front, columns_in_front=columns_in_front,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns)
 
     grid_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
-        model_name=nwp_model_utils.NARR_MODEL_NAME
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID
     )[0]
 
     return dilate_binary_label_matrix(
@@ -917,7 +921,8 @@ def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
     """
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     valid_times_unix_sec = numpy.unique(polyline_table[TIME_COLUMN].values)
     valid_time_strings = [
@@ -1021,7 +1026,8 @@ def remove_fronts_in_masked_area(
     error_checking.assert_is_boolean(verbose)
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name=nwp_model_utils.NARR_MODEL_NAME)
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_name=nwp_model_utils.NAME_OF_221GRID)
 
     these_expected_dim = numpy.array(
         [num_grid_rows, num_grid_columns], dtype=int)
