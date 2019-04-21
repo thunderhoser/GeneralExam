@@ -132,7 +132,7 @@ OUTPUT_DIR_HELP_STRING = (
 
 TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
 TOP_FRONT_DIR_NAME_DEFAULT = (
-    '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation')
+    '/condo/swatwork/ralager/fronts_netcdf/polylines')
 # TOP_BULLETIN_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/wpc_bulletins/hires'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
