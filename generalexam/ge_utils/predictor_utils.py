@@ -102,11 +102,11 @@ def check_predictor_dict(predictor_dict):
     num_times = len(predictor_dict[VALID_TIMES_KEY])
 
     if on_era5_grid:
-        num_grid_rows = predictor_dict[DATA_MATRIX_KEY].shape[1]
-        num_grid_columns = predictor_dict[DATA_MATRIX_KEY].shape[2]
-    else:
         num_grid_rows = len(predictor_dict[LATITUDES_KEY])
         num_grid_columns = len(predictor_dict[LONGITUDES_KEY])
+    else:
+        num_grid_rows = predictor_dict[DATA_MATRIX_KEY].shape[1]
+        num_grid_columns = predictor_dict[DATA_MATRIX_KEY].shape[2]
 
     these_expected_dim = numpy.array(
         [num_times, num_grid_rows, num_grid_columns, num_predictors], dtype=int
