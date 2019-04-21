@@ -181,8 +181,7 @@ def _plot_one_time(
 
         front_plotting.plot_gridded_labels(
             gridded_front_matrix=this_matrix, axes_object=axes_object,
-            basemap_object=basemap_object,
-            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            basemap_object=basemap_object, full_grid_name=full_grid_name,
             first_row_in_full_grid=full_grid_row_limits[0],
             first_column_in_full_grid=full_grid_column_limits[0], opacity=1.)
     else:
@@ -198,7 +197,7 @@ def _plot_one_time(
             probability_matrix=this_wf_probability_matrix,
             front_string_id=front_utils.WARM_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
-            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            full_grid_name=full_grid_name,
             first_row_in_full_grid=full_grid_row_limits[0],
             first_column_in_full_grid=full_grid_column_limits[0], opacity=0.5)
 
@@ -214,7 +213,7 @@ def _plot_one_time(
             probability_matrix=this_cf_probability_matrix,
             front_string_id=front_utils.COLD_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
-            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            full_grid_name=full_grid_name,
             first_row_in_full_grid=full_grid_row_limits[0],
             first_column_in_full_grid=full_grid_column_limits[0], opacity=0.5)
 
