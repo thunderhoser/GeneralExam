@@ -205,10 +205,6 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     print SEPARATOR_STRING
 
     for i in range(num_times):
-        # TODO(thunderhoser): Allow this script to ignore true labels.
-        # Currently, if `top_gridded_front_dir_name is None`, assumes 0 (no
-        # front for all true labels.
-
         this_class_probability_matrix, this_target_matrix = (
             cnn.apply_model_to_full_grid(
                 model_object=model_object,
@@ -224,7 +220,9 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
                 mask_matrix=mask_matrix)
         )
 
-        this_target_matrix[this_target_matrix == -1] = 0
+        if top_gridded_front_dir_name is not None:
+            this_target_matrix[this_target_matrix == -1] = 0
+
         print MINOR_SEPARATOR_STRING
 
         this_output_file_name = prediction_io.find_file(

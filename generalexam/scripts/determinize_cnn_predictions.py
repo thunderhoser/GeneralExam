@@ -228,9 +228,10 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
                 front_utils.NO_FRONT_ENUM
             )
 
-            this_prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...][
-                mask_matrix == 0
-            ] = front_utils.NO_FRONT_ENUM
+            if prediction_io.TARGET_MATRIX_KEY in this_prediction_dict:
+                this_prediction_dict[prediction_io.TARGET_MATRIX_KEY][0, ...][
+                    mask_matrix == 0
+                ] = front_utils.NO_FRONT_ENUM
 
         this_output_file_name = prediction_io.find_file(
             directory_name=output_prediction_dir_name,
@@ -241,16 +242,23 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
         print 'Writing deterministic predictions to: "{0:s}"...'.format(
             this_output_file_name)
 
+        if prediction_io.TARGET_MATRIX_KEY in this_prediction_dict:
+            target_matrix = this_prediction_dict[
+                prediction_io.TARGET_MATRIX_KEY]
+            dilation_distance_metres = this_prediction_dict[
+                prediction_io.DILATION_DISTANCE_KEY]
+        else:
+            target_matrix = None
+            dilation_distance_metres = None
+
         prediction_io.write_probabilities(
             netcdf_file_name=this_output_file_name,
             class_probability_matrix=this_prediction_dict[
                 prediction_io.CLASS_PROBABILITIES_KEY],
-            target_matrix=this_prediction_dict[
-                prediction_io.TARGET_MATRIX_KEY],
+            target_matrix=target_matrix,
             valid_times_unix_sec=valid_times_unix_sec[[i]],
             model_file_name=this_prediction_dict[prediction_io.MODEL_FILE_KEY],
-            target_dilation_distance_metres=this_prediction_dict[
-                prediction_io.DILATION_DISTANCE_KEY],
+            target_dilation_distance_metres=dilation_distance_metres,
             used_isotonic=this_prediction_dict[prediction_io.USED_ISOTONIC_KEY]
         )
 

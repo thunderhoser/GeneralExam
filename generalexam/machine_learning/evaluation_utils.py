@@ -292,7 +292,7 @@ def create_eval_pairs_for_cnn(
     :param model_object: Trained CNN (instance of `keras.models.Model` or
         `keras.models.Sequential`).
     :param top_predictor_dir_name: See doc for
-        `testing_io.create_downsized_examples`.
+        `testing_io.create_downsized_examples_with_targets`.
     :param top_gridded_front_dir_name: Same.
     :param first_time_unix_sec: First time in period.  Evaluation pairs will be
         drawn randomly from the period
@@ -302,7 +302,7 @@ def create_eval_pairs_for_cnn(
     :param num_examples_per_time: Number of examples (grid cells) to draw
         randomly from each time.
     :param pressure_levels_mb: See doc for
-        `testing_io.create_downsized_examples`.
+        `testing_io.create_downsized_examples_with_targets`.
     :param predictor_names: Same.
     :param normalization_type_string: Same.
     :param dilation_distance_metres: Same.
@@ -357,7 +357,7 @@ def create_eval_pairs_for_cnn(
             num_points=num_examples_per_time, for_downsized_examples=True,
             narr_mask_matrix=mask_matrix, random_seed=this_random_seed)
 
-        this_dict = testing_io.create_downsized_examples(
+        this_dict = testing_io.create_downsized_examples_with_targets(
             center_row_indices=these_row_indices,
             center_column_indices=these_column_indices,
             num_half_rows=num_half_rows, num_half_columns=num_half_columns,

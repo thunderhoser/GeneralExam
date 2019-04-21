@@ -12,9 +12,10 @@ import os.path
 import numpy
 import keras.callbacks
 from keras.models import load_model
-from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_io import predictor_io
+from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import isotonic_regression
@@ -352,9 +353,9 @@ def train_cnn(
 
 
 def apply_model_to_full_grid(
-        model_object, top_predictor_dir_name, top_gridded_front_dir_name,
-        valid_time_unix_sec, pressure_levels_mb, predictor_names,
-        normalization_type_string, dilation_distance_metres,
+        model_object, top_predictor_dir_name, valid_time_unix_sec,
+        pressure_levels_mb, predictor_names, normalization_type_string,
+        top_gridded_front_dir_name=None, dilation_distance_metres=None,
         isotonic_model_object_by_class=None, mask_matrix=None):
     """Applies CNN independently to each grid cell in a full grid.
 
@@ -363,15 +364,14 @@ def apply_model_to_full_grid(
     C = number of predictors
     K = number of classes
 
+    If `top_gridded_front_dir_name is None`, this method will return None for
+    `target_matrix`.
+
     :param model_object: Trained CNN (instance of `keras.models.Model` or
         `keras.models.Sequential`).
     :param top_predictor_dir_name: Name of top-level directory with predictors.
         Files therein will be found by `predictor_io.find_file` and read by
         `predictor_io.read_file`.
-    :param top_gridded_front_dir_name: Name of top-level directory with gridded
-        front labels.  Files therein will be found by
-        `fronts_io.find_gridded_file` and read by
-        `fronts_io.read_grid_from_file`.
     :param valid_time_unix_sec: Valid time.
     :param pressure_levels_mb: length-C numpy array of pressure levels
         (millibars).
@@ -379,6 +379,10 @@ def apply_model_to_full_grid(
         accepted by `predictor_utils.check_field_name`).
     :param normalization_type_string: Normalization method for predictors (see
         doc for `machine_learning_utils.normalize_predictors`).
+    :param top_gridded_front_dir_name: Name of top-level directory with gridded
+        front labels.  Files therein will be found by
+        `fronts_io.find_gridded_file` and read by
+        `fronts_io.read_grid_from_file`.
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param isotonic_model_object_by_class: length-K list of trained isotonic-
@@ -393,37 +397,51 @@ def apply_model_to_full_grid(
         cell [i, j] is masked out, target_matrix[0, i, j] = -1.
     """
 
-    # TODO(thunderhoser): Allow this method to return no true labels.
-    # Currently, if `top_gridded_front_dir_name is None`, returns 0 (no front)
-    # for all true labels.
+    return_targets = top_gridded_front_dir_name is not None
 
-    # TODO(thunderhoser): Allow extended NARR grid.
+    predictor_file_name = predictor_io.find_file(
+        top_directory_name=top_predictor_dir_name,
+        valid_time_unix_sec=valid_time_unix_sec)
 
-    num_classes = model_to_num_classes(model_object)
-    num_half_patch_rows, num_half_patch_columns = model_to_grid_dimensions(
-        model_object)
+    predictor_dict = predictor_io.read_file(
+        netcdf_file_name=predictor_file_name, metadata_only=False)
 
-    num_full_grid_rows, num_full_grid_columns = (
-        nwp_model_utils.get_grid_dimensions(
-            model_name=nwp_model_utils.NARR_MODEL_NAME)
-    )
+    num_full_grid_rows = predictor_dict[
+        predictor_utils.DATA_MATRIX_KEY].shape[1]
+    num_full_grid_columns = predictor_dict[
+        predictor_utils.DATA_MATRIX_KEY].shape[2]
 
     if mask_matrix is None:
         mask_matrix = numpy.full(
             (num_full_grid_rows, num_full_grid_columns), 1, dtype=int
         )
 
-    ml_utils.check_narr_mask(mask_matrix)
+    error_checking.assert_is_integer_numpy_array(mask_matrix)
+    error_checking.assert_is_geq_numpy_array(mask_matrix, 0)
+    error_checking.assert_is_leq_numpy_array(mask_matrix, 1)
 
+    these_expected_dim = numpy.array(
+        [num_full_grid_rows, num_full_grid_columns], dtype=int
+    )
+    error_checking.assert_is_numpy_array(
+        mask_matrix, exact_dimensions=these_expected_dim)
+
+    num_classes = model_to_num_classes(model_object)
+    num_half_patch_rows, num_half_patch_columns = model_to_grid_dimensions(
+        model_object)
+
+    full_size_predictor_matrix = None
     class_probability_matrix = numpy.full(
         (1, num_full_grid_rows, num_full_grid_columns, num_classes), numpy.nan
     )
-    target_matrix = numpy.full(
-        (1, num_full_grid_rows, num_full_grid_columns), -1, dtype=int
-    )
 
-    full_size_predictor_matrix = None
-    full_size_target_matrix = None
+    if return_targets:
+        full_size_target_matrix = None
+        target_matrix = numpy.full(
+            (1, num_full_grid_rows, num_full_grid_columns), -1, dtype=int
+        )
+    else:
+        target_matrix = None
 
     for i in range(num_full_grid_rows):
         these_column_indices = numpy.where(mask_matrix[i, :] == 1)[0]
@@ -433,40 +451,59 @@ def apply_model_to_full_grid(
         these_row_indices = numpy.full(len(these_column_indices), i, dtype=int)
 
         if full_size_predictor_matrix is None:
-            this_dict = testing_io.create_downsized_examples(
-                center_row_indices=these_row_indices,
-                center_column_indices=these_column_indices,
-                num_half_rows=num_half_patch_rows,
-                num_half_columns=num_half_patch_columns,
-                top_predictor_dir_name=top_predictor_dir_name,
-                top_gridded_front_dir_name=top_gridded_front_dir_name,
-                valid_time_unix_sec=valid_time_unix_sec,
-                pressure_levels_mb=pressure_levels_mb,
-                predictor_names=predictor_names,
-                normalization_type_string=normalization_type_string,
-                dilation_distance_metres=dilation_distance_metres,
-                num_classes=num_classes)
-
-            this_predictor_matrix = this_dict[testing_io.PREDICTOR_MATRIX_KEY]
-            target_matrix[:, these_row_indices, these_column_indices] = (
-                this_dict[testing_io.TARGET_VALUES_KEY]
-            )
+            if return_targets:
+                this_dict = testing_io.create_downsized_examples_with_targets(
+                    center_row_indices=these_row_indices,
+                    center_column_indices=these_column_indices,
+                    num_half_rows=num_half_patch_rows,
+                    num_half_columns=num_half_patch_columns,
+                    top_predictor_dir_name=top_predictor_dir_name,
+                    top_gridded_front_dir_name=top_gridded_front_dir_name,
+                    valid_time_unix_sec=valid_time_unix_sec,
+                    pressure_levels_mb=pressure_levels_mb,
+                    predictor_names=predictor_names,
+                    normalization_type_string=normalization_type_string,
+                    dilation_distance_metres=dilation_distance_metres,
+                    num_classes=num_classes)
+            else:
+                this_dict = testing_io.create_downsized_examples_no_targets(
+                    center_row_indices=these_row_indices,
+                    center_column_indices=these_column_indices,
+                    num_half_rows=num_half_patch_rows,
+                    num_half_columns=num_half_patch_columns,
+                    top_predictor_dir_name=top_predictor_dir_name,
+                    valid_time_unix_sec=valid_time_unix_sec,
+                    pressure_levels_mb=pressure_levels_mb,
+                    predictor_names=predictor_names,
+                    normalization_type_string=normalization_type_string)
 
             full_size_predictor_matrix = this_dict[
                 testing_io.FULL_PREDICTOR_MATRIX_KEY]
-            full_size_target_matrix = this_dict[
-                testing_io.FULL_TARGET_MATRIX_KEY]
+
+            if return_targets:
+                full_size_target_matrix = this_dict[
+                    testing_io.FULL_TARGET_MATRIX_KEY]
 
         else:
-            this_dict = testing_io.create_downsized_examples(
-                center_row_indices=these_row_indices,
-                center_column_indices=these_column_indices,
-                num_half_rows=num_half_patch_rows,
-                num_half_columns=num_half_patch_columns,
-                full_size_predictor_matrix=full_size_predictor_matrix,
-                full_size_target_matrix=full_size_target_matrix)
+            if return_targets:
+                this_dict = testing_io.create_downsized_examples_with_targets(
+                    center_row_indices=these_row_indices,
+                    center_column_indices=these_column_indices,
+                    num_half_rows=num_half_patch_rows,
+                    num_half_columns=num_half_patch_columns,
+                    full_size_predictor_matrix=full_size_predictor_matrix,
+                    full_size_target_matrix=full_size_target_matrix)
+            else:
+                this_dict = testing_io.create_downsized_examples_no_targets(
+                    center_row_indices=these_row_indices,
+                    center_column_indices=these_column_indices,
+                    num_half_rows=num_half_patch_rows,
+                    num_half_columns=num_half_patch_columns,
+                    full_size_predictor_matrix=full_size_predictor_matrix)
 
-            this_predictor_matrix = this_dict[testing_io.PREDICTOR_MATRIX_KEY]
+        this_predictor_matrix = this_dict[testing_io.PREDICTOR_MATRIX_KEY]
+
+        if return_targets:
             target_matrix[:, these_row_indices, these_column_indices] = (
                 this_dict[testing_io.TARGET_VALUES_KEY]
             )

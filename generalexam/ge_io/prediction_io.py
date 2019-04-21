@@ -90,27 +90,29 @@ def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
 
 
 def write_probabilities(
-        netcdf_file_name, class_probability_matrix, target_matrix,
-        valid_times_unix_sec, model_file_name, target_dilation_distance_metres,
-        used_isotonic):
+        netcdf_file_name, class_probability_matrix, valid_times_unix_sec,
+        model_file_name, used_isotonic, target_matrix=None,
+        target_dilation_distance_metres=None):
     """Writes gridded probabilities to NetCDF file.
 
     T = number of time steps
     M = number of rows in grid
     N = number of columns in grid
 
+    If `target_matrix is None`, this method will NOT write target values.
+
     :param netcdf_file_name: Path to output file.
     :param class_probability_matrix: T-by-M-by-N-by-3 numpy array of gridded
         class probabilities.
-    :param target_matrix: T-by-M-by-N numpy array of true labels (all in range
-        0...2).
     :param valid_times_unix_sec: length-T numpy array of valid times.
     :param model_file_name: Path to model that generated the predictions
         (readable by `cnn.read_model`).
-    :param target_dilation_distance_metres: Dilation distance for
-        `target_matrix`.
     :param used_isotonic: Boolean flag.  True means that isotonic regression was
         used for probability calibration.
+    :param target_matrix: T-by-M-by-N numpy array of true labels (all in range
+        0...2).
+    :param target_dilation_distance_metres: Dilation distance for
+        `target_matrix`.
     """
 
     error_checking.assert_is_numpy_array(class_probability_matrix)
@@ -119,17 +121,19 @@ def write_probabilities(
     # Check input args.
     neigh_evaluation.check_gridded_predictions(
         prediction_matrix=class_probability_matrix, expect_probs=True)
-    neigh_evaluation.check_gridded_predictions(
-        prediction_matrix=target_matrix, expect_probs=False)
 
-    error_checking.assert_is_numpy_array(
-        target_matrix,
-        exact_dimensions=numpy.array(
-            class_probability_matrix.shape[:-1], dtype=int
+    if target_matrix is not None:
+        neigh_evaluation.check_gridded_predictions(
+            prediction_matrix=target_matrix, expect_probs=False)
+
+        error_checking.assert_is_numpy_array(
+            target_matrix,
+            exact_dimensions=numpy.array(
+                class_probability_matrix.shape[:-1], dtype=int
+            )
         )
-    )
 
-    num_times = target_matrix.shape[0]
+    num_times = class_probability_matrix.shape[0]
 
     error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
     error_checking.assert_is_numpy_array(
@@ -145,9 +149,11 @@ def write_probabilities(
     # Set global attributes.
     dataset_object.setncattr(MODEL_FILE_KEY, str(model_file_name))
     dataset_object.setncattr(USED_ISOTONIC_KEY, int(used_isotonic))
-    dataset_object.setncattr(
-        DILATION_DISTANCE_KEY, float(target_dilation_distance_metres)
-    )
+
+    if target_matrix is not None:
+        dataset_object.setncattr(
+            DILATION_DISTANCE_KEY, float(target_dilation_distance_metres)
+        )
 
     # Set dimensions.
     dataset_object.createDimension(TIME_DIMENSION_KEY, num_times)
@@ -167,11 +173,13 @@ def write_probabilities(
     )
     dataset_object.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
 
-    dataset_object.createVariable(
-        TARGET_MATRIX_KEY, datatype=numpy.int32,
-        dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
-    )
-    dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
+    if target_matrix is not None:
+        dataset_object.createVariable(
+            TARGET_MATRIX_KEY, datatype=numpy.int32, dimensions=(
+                TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        )
+
+        dataset_object.variables[TARGET_MATRIX_KEY][:] = target_matrix
 
     dataset_object.createVariable(
         CLASS_PROBABILITIES_KEY, datatype=numpy.float32,
@@ -237,9 +245,9 @@ def append_deterministic_labels(
     dataset_object = netCDF4.Dataset(
         probability_file_name, 'a', format='NETCDF3_64BIT_OFFSET')
 
-    # TODO(thunderhoser): This might not work.
     these_expected_dim = numpy.array(
-        dataset_object.variables[TARGET_MATRIX_KEY][:].shape, dtype=int
+        dataset_object.variables[CLASS_PROBABILITIES_KEY][:].shape[:-1],
+        dtype=int
     )
     error_checking.assert_is_numpy_array(
         predicted_label_matrix, exact_dimensions=these_expected_dim)
@@ -275,11 +283,11 @@ def read_file(netcdf_file_name, read_deterministic=False):
     :return: prediction_dict: Dictionary with the following keys.
     prediction_dict['class_probability_matrix']: See doc for
         `write_probabilities`.
-    prediction_dict['target_matrix']: Same.
     prediction_dict['valid_times_unix_sec']: Same.
     prediction_dict['model_file_name']: Same.
-    prediction_dict['target_dilation_distance_metres']: Same.
     prediction_dict['used_isotonic']: Same.
+    prediction_dict['target_matrix']: Same.
+    prediction_dict['target_dilation_distance_metres']: Same.
 
     If `read_deterministic == True`, will also have the following keys.
 
@@ -297,17 +305,21 @@ def read_file(netcdf_file_name, read_deterministic=False):
         CLASS_PROBABILITIES_KEY: numpy.array(
             dataset_object.variables[CLASS_PROBABILITIES_KEY][:]
         ),
-        TARGET_MATRIX_KEY: numpy.array(
-            dataset_object.variables[TARGET_MATRIX_KEY][:], dtype=int
-        ),
         VALID_TIMES_KEY: numpy.array(
             dataset_object.variables[VALID_TIMES_KEY][:], dtype=int
         ),
         MODEL_FILE_KEY: str(getattr(dataset_object, MODEL_FILE_KEY)),
         USED_ISOTONIC_KEY: bool(getattr(dataset_object, USED_ISOTONIC_KEY)),
-        DILATION_DISTANCE_KEY:
-            float(getattr(dataset_object, DILATION_DISTANCE_KEY))
     }
+
+    if TARGET_MATRIX_KEY in dataset_object.variables:
+        prediction_dict.update({
+            TARGET_MATRIX_KEY: numpy.array(
+                dataset_object.variables[TARGET_MATRIX_KEY][:], dtype=int
+            ),
+            DILATION_DISTANCE_KEY:
+                float(getattr(dataset_object, DILATION_DISTANCE_KEY))
+        })
 
     if not read_deterministic:
         dataset_object.close()
