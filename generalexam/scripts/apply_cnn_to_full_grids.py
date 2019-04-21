@@ -5,6 +5,7 @@ import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_io import predictor_io
 from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import predictor_utils
@@ -28,6 +29,7 @@ FRONT_DIR_ARG_NAME = 'input_gridded_front_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_TIMES_ARG_NAME = 'num_times'
+EXTEND_ARG_NAME = 'extend_main_grid'
 USE_MASK_ARG_NAME = 'use_mask'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 USE_ISOTONIC_ARG_NAME = 'use_isotonic_regression'
@@ -56,6 +58,10 @@ NUM_TIMES_HELP_STRING = (
     'Number of times to draw randomly from `{0:s}`...`{1:s}`.  To use all times'
     ' in the period, leave this argument alone.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
+
+EXTEND_HELP_STRING = (
+    'Boolean flag.  If 1, the CNN will be applied only to grid cells on the '
+    'outside of the extended NARR grid (those not in the main NARR grid).')
 
 USE_MASK_HELP_STRING = (
     'Boolean flag.  If 1, the CNN will not be applied to masked grid cells '
@@ -104,6 +110,10 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + EXTEND_ARG_NAME, type=int, required=False, default=0,
+    help=EXTEND_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + USE_MASK_ARG_NAME, type=int, required=False, default=0,
     help=USE_MASK_HELP_STRING)
 
@@ -121,8 +131,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
-         first_time_string, last_time_string, num_times, use_mask,
-         dilation_distance_metres, use_isotonic_regression, output_dir_name):
+         first_time_string, last_time_string, num_times, extend_main_grid,
+         use_mask, dilation_distance_metres, use_isotonic_regression,
+         output_dir_name):
     """Applies trained CNN to full grids.
 
     This is effectively the main method.
@@ -133,6 +144,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param num_times: Same.
+    :param extend_main_grid: Same.
     :param use_mask: Same.
     :param dilation_distance_metres: Same.
     :param use_isotonic_regression: Same.
@@ -183,6 +195,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         isotonic_model_object_by_class = None
 
     if use_mask:
+        extend_main_grid = False
         mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
     else:
         first_predictor_file_name = predictor_io.find_file(
@@ -200,6 +213,17 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         ][0, ..., 0]
 
         mask_matrix = numpy.invert(numpy.isnan(this_matrix)).astype(int)
+
+        # TODO(thunderhoser): This is a dirty old HACK.
+        if extend_main_grid:
+            grid_name = nwp_model_utils.dimensions_to_grid(
+                num_rows=mask_matrix.shape[0], num_columns=mask_matrix.shape[1]
+            )
+            assert grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID
+
+            mask_matrix[100:-100, 100:-100] = 0
+            print numpy.sum(mask_matrix)
+            print mask_matrix.size
 
     num_times = len(valid_times_unix_sec)
     print SEPARATOR_STRING
@@ -259,6 +283,7 @@ if __name__ == '__main__':
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
+        extend_main_grid=bool(getattr(INPUT_ARG_OBJECT, EXTEND_ARG_NAME)),
         use_mask=bool(getattr(INPUT_ARG_OBJECT, USE_MASK_ARG_NAME)),
         dilation_distance_metres=getattr(
             INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME),
