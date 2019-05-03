@@ -221,7 +221,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             )
             assert grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID
 
-            mask_matrix[100:-100, 100:-100] = 0
+            mask_matrix[120:-120, 120:-120] = 0
 
     num_times = len(valid_times_unix_sec)
     print SEPARATOR_STRING
