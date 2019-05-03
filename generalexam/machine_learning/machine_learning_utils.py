@@ -458,6 +458,16 @@ def normalize_predictors(
         predictor_matrix, allow_nan=True, min_num_dimensions=4,
         max_num_dimensions=5)
 
+    # TODO(thunderhoser): Everything in this method that involves `grid_name`
+    # is a HACK.
+    try:
+        grid_name = nwp_model_utils.dimensions_to_grid(
+            num_rows=predictor_matrix.shape[1],
+            num_columns=predictor_matrix.shape[2]
+        )
+    except:
+        grid_name = ''
+
     _check_normalization_type(normalization_type_string)
 
     num_examples = predictor_matrix.shape[0]
@@ -477,10 +487,20 @@ def normalize_predictors(
 
         for i in range(num_examples):
             for m in range(num_predictors):
-                min_value_matrix[i, m] = numpy.nanpercentile(
-                    predictor_matrix[i, ..., m], percentile_offset)
-                max_value_matrix[i, m] = numpy.nanpercentile(
-                    predictor_matrix[i, ..., m], 100. - percentile_offset)
+                if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
+                    min_value_matrix[i, m] = numpy.nanpercentile(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., m],
+                        percentile_offset
+                    )
+                    max_value_matrix[i, m] = numpy.nanpercentile(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., m],
+                        100. - percentile_offset
+                    )
+                else:
+                    min_value_matrix[i, m] = numpy.nanpercentile(
+                        predictor_matrix[i, ..., m], percentile_offset)
+                    max_value_matrix[i, m] = numpy.nanpercentile(
+                        predictor_matrix[i, ..., m], 100. - percentile_offset)
 
                 predictor_matrix[i, ..., m] = (
                     (predictor_matrix[i, ..., m] - min_value_matrix[i, m]) /
@@ -494,8 +514,16 @@ def normalize_predictors(
 
         for i in range(num_examples):
             for m in range(num_predictors):
-                mean_value_matrix[i, m] = numpy.nanmean(
-                    predictor_matrix[i, ..., m])
+                if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
+                    mean_value_matrix[i, m] = numpy.nanmean(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., m]
+                    )
+                    standard_deviation_matrix[i, m] = numpy.nanstd(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., m], ddof=1
+                    )
+                else:
+                    mean_value_matrix[i, m] = numpy.nanmean(
+                        predictor_matrix[i, ..., m])
                 standard_deviation_matrix[i, m] = numpy.nanstd(
                     predictor_matrix[i, ..., m], ddof=1)
 
