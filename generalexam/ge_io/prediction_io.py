@@ -325,13 +325,16 @@ def read_file(netcdf_file_name, read_deterministic=False):
         dataset_object.close()
         return prediction_dict
 
+    prob_threshold_by_class = numpy.array(
+        dataset_object.variables[THRESHOLDS_KEY][:]
+    )
+    prob_threshold_by_class[prob_threshold_by_class < 0.] = numpy.nan
+
     prediction_dict.update({
         PREDICTED_LABELS_KEY: numpy.array(
             dataset_object.variables[PREDICTED_LABELS_KEY][:], dtype=int
         ),
-        THRESHOLDS_KEY: numpy.array(
-            dataset_object.variables[THRESHOLDS_KEY][:]
-        ),
+        THRESHOLDS_KEY: prob_threshold_by_class,
         MIN_REGION_LENGTH_KEY:
             float(getattr(dataset_object, MIN_REGION_LENGTH_KEY)),
         REGION_BUFFER_DISTANCE_KEY:
