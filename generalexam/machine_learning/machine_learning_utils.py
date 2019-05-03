@@ -488,6 +488,8 @@ def normalize_predictors(
         for i in range(num_examples):
             for m in range(num_predictors):
                 if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
+                    print 'NORMALIZING WITH ONLY INNER GRID'
+
                     min_value_matrix[i, m] = numpy.nanpercentile(
                         predictor_matrix[i, 100:-100, 100:-100, ..., m],
                         percentile_offset
@@ -515,6 +517,8 @@ def normalize_predictors(
         for i in range(num_examples):
             for m in range(num_predictors):
                 if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
+                    print 'NORMALIZING WITH ONLY INNER GRID'
+
                     mean_value_matrix[i, m] = numpy.nanmean(
                         predictor_matrix[i, 100:-100, 100:-100, ..., m]
                     )
