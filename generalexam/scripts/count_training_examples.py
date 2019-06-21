@@ -41,7 +41,7 @@ def _run(first_batch_number, last_batch_number):
     num_examples = 0
 
     for this_file_name in example_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
 
         this_example_dict = examples_io.read_file(
             netcdf_file_name=this_file_name, metadata_only=True)
@@ -49,7 +49,7 @@ def _run(first_batch_number, last_batch_number):
         this_num_examples = len(this_example_dict[examples_io.VALID_TIMES_KEY])
         num_examples += this_num_examples
 
-        print 'Number of examples so far = {0:d}\n'.format(num_examples)
+        print('Number of examples so far = {0:d}\n'.format(num_examples))
 
 
 if __name__ == '__main__':

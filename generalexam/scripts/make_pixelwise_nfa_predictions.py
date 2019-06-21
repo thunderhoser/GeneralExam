@@ -234,7 +234,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
         mask_matrix = numpy.full(
             (num_grid_rows, num_grid_columns), 1, dtype=int)
     else:
-        print 'Reading mask from: "{0:s}"...\n'.format(mask_file_name)
+        print('Reading mask from: "{0:s}"...\n'.format(mask_file_name))
         mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
     x_spacing_metres, y_spacing_metres = nwp_model_utils.get_xy_grid_spacing(
@@ -248,7 +248,7 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             top_directory_name=top_predictor_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i])
 
-        print 'Reading predictors from: "{0:s}"...'.format(this_file_name)
+        print('Reading predictors from: "{0:s}"...'.format(this_file_name))
         this_predictor_dict = predictor_io.read_file(
             netcdf_file_name=this_file_name,
             pressure_levels_to_keep_mb=pressure_levels_to_read_mb,
@@ -319,8 +319,8 @@ def _run(first_time_string, last_time_string, randomize_times, num_times,
             last_valid_time_unix_sec=valid_times_unix_sec[i],
             ensembled=False, raise_error_if_missing=False)
 
-        print 'Writing gridded predictions to file: "{0:s}"...\n'.format(
-            this_prediction_file_name)
+        print('Writing gridded predictions to file: "{0:s}"...\n'.format(
+            this_prediction_file_name))
 
         nfa.write_gridded_predictions(
             pickle_file_name=this_prediction_file_name,

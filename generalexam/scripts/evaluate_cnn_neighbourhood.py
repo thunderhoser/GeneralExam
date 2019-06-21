@@ -84,25 +84,25 @@ def _do_eval_one_neigh_distance(
         actual_label_matrix=actual_label_matrix,
         neigh_distance_metres=neigh_distance_metres)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
-    print (
+    print((
         'Binary (2-class) contingency table for {0:f}-km neigh distance:\n'
-    ).format(neigh_distance_metres * METRES_TO_KM)
-    print binary_ct_as_dict
+    ).format(neigh_distance_metres * METRES_TO_KM))
+    print(binary_ct_as_dict)
 
-    print (
+    print((
         '\nPrediction-oriented 3-class contingency table for {0:f}-km neigh '
         'distance:\n'
-    ).format(neigh_distance_metres * METRES_TO_KM)
-    print prediction_oriented_ct_matrix
+    ).format(neigh_distance_metres * METRES_TO_KM))
+    print(prediction_oriented_ct_matrix)
 
-    print (
+    print((
         '\nActual-oriented 3-class contingency table for {0:f}-km neigh '
         'distance:\n'
-    ).format(neigh_distance_metres * METRES_TO_KM)
-    print actual_oriented_ct_matrix
-    print '\n'
+    ).format(neigh_distance_metres * METRES_TO_KM))
+    print(actual_oriented_ct_matrix)
+    print('\n')
 
     binary_pod = neigh_evaluation.get_binary_pod(binary_ct_as_dict)
     binary_success_ratio = neigh_evaluation.get_binary_success_ratio(
@@ -111,20 +111,20 @@ def _do_eval_one_neigh_distance(
     binary_frequency_bias = neigh_evaluation.get_binary_frequency_bias(
         binary_ct_as_dict)
 
-    print 'Binary POD for {0:f}-km neigh distance = {1:.4f}'.format(
+    print('Binary POD for {0:f}-km neigh distance = {1:.4f}'.format(
         neigh_distance_metres * METRES_TO_KM, binary_pod
-    )
-    print 'Binary success ratio for {0:f}-km neigh distance = {1:.4f}'.format(
+    ))
+    print('Binary success ratio for {0:f}-km neigh distance = {1:.4f}'.format(
         neigh_distance_metres * METRES_TO_KM, binary_success_ratio
-    )
-    print 'Binary CSI for {0:f}-km neigh distance = {1:.4f}'.format(
+    ))
+    print('Binary CSI for {0:f}-km neigh distance = {1:.4f}'.format(
         neigh_distance_metres * METRES_TO_KM, binary_csi
-    )
-    print (
+    ))
+    print((
         'Binary frequency bias for {0:f}-km neigh distance = {1:.4f}\n'
-    ).format(neigh_distance_metres * METRES_TO_KM, binary_frequency_bias)
+    ).format(neigh_distance_metres * METRES_TO_KM, binary_frequency_bias))
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     neigh_evaluation.write_results(
         pickle_file_name=output_file_name,
         prediction_file_names=prediction_file_names,
@@ -173,7 +173,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
         prediction_file_names.append(this_file_name)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=this_file_name, read_deterministic=True)
 
@@ -195,7 +195,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             )
 
     for this_neigh_distance_metres in neigh_distances_metres:
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         this_output_file_name = (
             '{0:s}/evaluation_neigh-distance-metres={1:06d}'

@@ -164,8 +164,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    print 'Reading normalized examples from: "{0:s}"...'.format(
-        example_file_name)
+    print('Reading normalized examples from: "{0:s}"...'.format(
+        example_file_name))
 
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name, num_half_rows_to_keep=NUM_HALF_ROWS,
@@ -368,7 +368,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         this_output_file_name = '{0:s}/example{1:06d}.jpg'.format(
             output_dir_name, i)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_output_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_output_file_name))
         pyplot.savefig(this_output_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 

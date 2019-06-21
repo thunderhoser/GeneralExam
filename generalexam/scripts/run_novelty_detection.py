@@ -152,10 +152,10 @@ def _get_cnn_predictions(cnn_model_object, predictor_matrix, target_class,
         )
 
         if verbose:
-            print (
+            print((
                 'Generating CNN predictions for examples {0:d}-{1:d} of '
                 '{2:d}...'
-            ).format(this_first_index, this_last_index, num_examples)
+            ).format(this_first_index, this_last_index, num_examples))
 
         these_indices = numpy.linspace(
             this_first_index, this_last_index,
@@ -170,8 +170,8 @@ def _get_cnn_predictions(cnn_model_object, predictor_matrix, target_class,
             (forecast_probabilities, these_probabilities), axis=0)
 
     if verbose:
-        print 'Generated CNN predictions for all {0:d} examples!'.format(
-            num_examples)
+        print('Generated CNN predictions for all {0:d} examples!'.format(
+            num_examples))
 
     return forecast_probabilities
 
@@ -213,7 +213,7 @@ def _find_baseline_and_test_examples(
     cold_front_probabilities = numpy.array([], dtype=float)
 
     for k in range(len(example_file_names)):
-        print 'Reading data from: "{0:s}"...'.format(example_file_names[k])
+        print('Reading data from: "{0:s}"...'.format(example_file_names[k]))
 
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[k], metadata_only=False,
@@ -238,7 +238,7 @@ def _find_baseline_and_test_examples(
             predictor_matrix=this_example_dict[
                 examples_io.PREDICTOR_MATRIX_KEY],
             target_class=front_utils.COLD_FRONT_ENUM, verbose=True)
-        print '\n'
+        print('\n')
 
         file_indices = numpy.concatenate((file_indices, these_file_indices))
         file_position_indices = numpy.concatenate((
@@ -246,7 +246,7 @@ def _find_baseline_and_test_examples(
         cold_front_probabilities = numpy.concatenate((
             cold_front_probabilities, these_cold_front_probs))
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # Find test set.
     test_indices = numpy.argsort(
@@ -256,11 +256,11 @@ def _find_baseline_and_test_examples(
     file_indices_for_test = file_indices[test_indices]
     file_position_indices_for_test = file_position_indices[test_indices]
 
-    print 'Cold-front probabilities for the {0:d} test examples are:'.format(
-        num_test_examples)
+    print('Cold-front probabilities for the {0:d} test examples are:'.format(
+        num_test_examples))
     for i in test_indices:
-        print cold_front_probabilities[i]
-    print SEPARATOR_STRING
+        print(cold_front_probabilities[i])
+    print(SEPARATOR_STRING)
 
     # Find baseline set.
     baseline_indices = numpy.linspace(
@@ -276,12 +276,12 @@ def _find_baseline_and_test_examples(
     file_indices_for_baseline = file_indices[baseline_indices]
     file_position_indices_for_baseline = file_position_indices[baseline_indices]
 
-    print (
+    print((
         'Cold-front probabilities for the {0:d} baseline examples are:'
-    ).format(num_baseline_examples)
+    ).format(num_baseline_examples))
     for i in baseline_indices:
-        print cold_front_probabilities[i]
-    print SEPARATOR_STRING
+        print(cold_front_probabilities[i])
+    print(SEPARATOR_STRING)
 
     # Read test and baseline sets.
     baseline_image_matrix = None
@@ -291,7 +291,7 @@ def _find_baseline_and_test_examples(
         if not (k in file_indices_for_test or k in file_indices_for_baseline):
             continue
 
-        print 'Reading data from: "{0:s}"...'.format(example_file_names[k])
+        print('Reading data from: "{0:s}"...'.format(example_file_names[k]))
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[k], metadata_only=False,
             predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
@@ -405,7 +405,7 @@ def _plot_results(
         top_output_dir_name, test_index)
     file_system_utils.mkdir_recursive_if_necessary(file_name=this_file_name)
 
-    print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+    print('Saving figure to file: "{0:s}"...'.format(this_file_name))
     pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -435,7 +435,7 @@ def _plot_results(
         top_output_dir_name, test_index)
     file_system_utils.mkdir_recursive_if_necessary(file_name=this_file_name)
 
-    print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+    print('Saving figure to file: "{0:s}"...'.format(this_file_name))
     pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -482,7 +482,7 @@ def _plot_results(
         top_output_dir_name, test_index)
     file_system_utils.mkdir_recursive_if_necessary(file_name=this_file_name)
 
-    print 'Saving figure to file: "{0:s}"...'.format(this_file_name)
+    print('Saving figure to file: "{0:s}"...'.format(this_file_name))
     pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -506,12 +506,12 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
     ucn_metafile_name = cnn.find_metafile(
         model_file_name=upconvnet_file_name, raise_error_if_missing=True)
 
-    print 'Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name)
+    print('Reading trained upconvnet from: "{0:s}"...'.format(
+        upconvnet_file_name))
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
 
-    print 'Reading upconvnet metadata from: "{0:s}"...'.format(
-        ucn_metafile_name)
+    print('Reading upconvnet metadata from: "{0:s}"...'.format(
+        ucn_metafile_name))
     ucn_metadata_dict = upconvnet.read_model_metadata(ucn_metafile_name)
 
     # Read CNN and metadata.
@@ -519,12 +519,12 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
     cnn_metafile_name = cnn.find_metafile(
         model_file_name=cnn_file_name, raise_error_if_missing=True)
 
-    print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
+    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
     cnn_model_object = cnn.read_model(cnn_file_name)
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     baseline_image_matrix, test_image_matrix = _find_baseline_and_test_examples(
         top_example_dir_name=top_example_dir_name,
@@ -532,7 +532,7 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
         num_baseline_examples=num_baseline_examples,
         num_test_examples=num_test_examples, cnn_model_object=cnn_model_object,
         cnn_metadata_dict=cnn_metadata_dict)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     novelty_dict = novelty_detection.do_novelty_detection(
         list_of_baseline_input_matrices=[baseline_image_matrix],
@@ -542,12 +542,12 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
         upconvnet_model_object=upconvnet_model_object,
         num_novel_examples=num_test_examples,
         percent_svd_variance_to_keep=percent_svd_variance_to_keep)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     novelty_dict[novelty_detection.UPCONVNET_FILE_KEY] = upconvnet_file_name
     novelty_file_name = '{0:s}/novelty_results.p'.format(top_output_dir_name)
 
-    print 'Writing results to: "{0:s}"...\n'.format(novelty_file_name)
+    print('Writing results to: "{0:s}"...\n'.format(novelty_file_name))
     novelty_detection.write_standard_file(
         novelty_dict=novelty_dict, pickle_file_name=novelty_file_name)
 
@@ -557,7 +557,7 @@ def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
             predictor_names=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
             test_index=i, top_output_dir_name=top_output_dir_name)
 
-        print '\n'
+        print('\n')
 
 
 if __name__ == '__main__':

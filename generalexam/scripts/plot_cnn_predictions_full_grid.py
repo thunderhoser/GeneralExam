@@ -261,7 +261,7 @@ def _plot_one_time(
             annotation_string='({0:s})'.format(letter_label)
         )
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -319,7 +319,7 @@ def _run(prediction_dir_name, plot_deterministic, first_time_string,
         if not os.path.isfile(this_file_name):
             continue
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=this_file_name,
             read_deterministic=plot_deterministic)
@@ -370,7 +370,7 @@ def _run(prediction_dir_name, plot_deterministic, first_time_string,
             predicted_label_matrix=this_predicted_label_matrix,
             plot_wf_colour_bar=True, plot_cf_colour_bar=True)
 
-        print '\n'
+        print('\n')
 
 
 if __name__ == '__main__':

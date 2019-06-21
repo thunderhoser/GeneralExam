@@ -570,8 +570,8 @@ def find_main_skeletons(
     rows_to_drop = []
 
     for i in range(num_regions):
-        print 'Finding main skeleton for region {0:d} of {1:d}...'.format(
-            i + 1, num_regions)
+        print('Finding main skeleton for region {0:d} of {1:d}...'.format(
+            i + 1, num_regions))
 
         this_binary_region_matrix = _one_region_to_binary_image(
             row_indices_in_region=predicted_region_table[
@@ -796,10 +796,10 @@ def get_binary_contingency_table(
                     predicted_region_table[Y_COORDS_COLUMN].values[j]
                 )
             except:
-                print actual_polyline_table[X_COORDS_COLUMN].values[i]
-                print actual_polyline_table[Y_COORDS_COLUMN].values[i]
-                print predicted_region_table[X_COORDS_COLUMN].values[j]
-                print predicted_region_table[Y_COORDS_COLUMN].values[j]
+                print(actual_polyline_table[X_COORDS_COLUMN].values[i])
+                print(actual_polyline_table[Y_COORDS_COLUMN].values[i])
+                print(predicted_region_table[X_COORDS_COLUMN].values[j])
+                print(predicted_region_table[Y_COORDS_COLUMN].values[j])
 
             if this_distance_metres < neigh_distance_metres:
                 found_match = True
@@ -1226,7 +1226,9 @@ def read_evaluation_results(pickle_file_name):
             '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
             '("{1:s}") are listed below.  Some expected keys were not found.'
             '\n{2:s}\n'
-        ).format(EVALUATION_DICT_KEYS, pickle_file_name, evaluation_dict.keys())
+        ).format(
+            EVALUATION_DICT_KEYS, pickle_file_name, list(evaluation_dict.keys())
+        )
 
         raise ValueError(error_string)
 

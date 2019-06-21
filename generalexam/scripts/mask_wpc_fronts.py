@@ -88,10 +88,10 @@ def _run(top_input_dir_name, mask_file_name, first_time_string,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
-    print 'Reading mask from: "{0:s}"...'.format(mask_file_name)
+    print('Reading mask from: "{0:s}"...'.format(mask_file_name))
     mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for this_time_unix_sec in valid_times_unix_sec:
         this_unmasked_file_name = fronts_io.find_polyline_file(
@@ -107,32 +107,32 @@ def _run(top_input_dir_name, mask_file_name, first_time_string,
             warnings.warn(warning_string)
             continue
 
-        print 'Reading unmasked polylines from: "{0:s}"...'.format(
-            this_unmasked_file_name)
+        print('Reading unmasked polylines from: "{0:s}"...'.format(
+            this_unmasked_file_name))
         this_polyline_table = fronts_io.read_polylines_from_file(
             this_unmasked_file_name
         )[0]
 
-        print MINOR_SEPARATOR_STRING
+        print(MINOR_SEPARATOR_STRING)
         this_polyline_table = front_utils.remove_fronts_in_masked_area(
             polyline_table=this_polyline_table, narr_mask_matrix=mask_matrix,
             verbose=True)
-        print MINOR_SEPARATOR_STRING
+        print(MINOR_SEPARATOR_STRING)
 
         this_masked_file_name = fronts_io.find_polyline_file(
             top_directory_name=top_output_dir_name,
             valid_time_unix_sec=this_time_unix_sec,
             raise_error_if_missing=False)
 
-        print 'Writing masked polylines to: "{0:s}"...'.format(
-            this_masked_file_name)
+        print('Writing masked polylines to: "{0:s}"...'.format(
+            this_masked_file_name))
         fronts_io.write_polylines_to_file(
             netcdf_file_name=this_masked_file_name,
             polyline_table=this_polyline_table,
             valid_time_unix_sec=this_time_unix_sec)
 
         if this_time_unix_sec != valid_times_unix_sec[-1]:
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

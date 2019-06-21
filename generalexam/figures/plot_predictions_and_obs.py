@@ -128,7 +128,7 @@ def _plot_observations_one_time(
         file_type=fronts_io.POLYLINE_FILE_TYPE,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(front_file_name)
+    print('Reading data from: "{0:s}"...'.format(front_file_name))
     front_line_table = fronts_io.read_polylines_from_file(front_file_name)
 
     num_narr_fields = len(NARR_FIELD_NAMES)
@@ -145,7 +145,7 @@ def _plot_observations_one_time(
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
             valid_time_unix_sec=valid_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         narr_matrix_by_field[j] = processed_narr_io.read_fields_from_file(
             this_file_name)[0][0, ...]
 
@@ -253,7 +253,7 @@ def _plot_observations_one_time(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -381,7 +381,7 @@ def _plot_predictions_one_time(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -411,7 +411,7 @@ def _run(valid_time_strings):
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME)
 
-    print 'Reading data from: "{0:s}"...'.format(OBJECT_PREDICTION_FILE_NAME)
+    print('Reading data from: "{0:s}"...'.format(OBJECT_PREDICTION_FILE_NAME))
     predicted_region_table = object_eval.read_predictions_and_obs(
         OBJECT_PREDICTION_FILE_NAME)[0]
 
@@ -423,7 +423,7 @@ def _run(valid_time_strings):
             first_target_time_unix_sec=valid_times_unix_sec[i],
             last_target_time_unix_sec=valid_times_unix_sec[i])
 
-        print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_prediction_file_name))
         this_prediction_dict = ml_utils.read_gridded_predictions(
             this_prediction_file_name)
         this_probability_matrix = this_prediction_dict[
@@ -478,9 +478,9 @@ def _run(valid_time_strings):
             title_string=this_title_string,
             annotation_string=OBSERVATION_PANEL_LABELS[i],
             output_file_name=figure_file_names[2, i])
-        print '\n'
+        print('\n')
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
     imagemagick_utils.concatenate_images(
         input_file_names=numpy.ravel(figure_file_names).tolist(),
         output_file_name=CONCAT_FILE_NAME,

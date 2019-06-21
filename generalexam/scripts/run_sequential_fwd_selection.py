@@ -311,7 +311,7 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
     target_matrix = None
 
     for this_example_file_name in example_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_example_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_example_file_name))
 
         this_example_dict = examples_io.read_file(
             netcdf_file_name=this_example_file_name,
@@ -343,8 +343,8 @@ def _read_examples(top_example_dir_name, first_time_string, last_time_string,
             target_matrix = target_matrix[:num_examples, ...]
 
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
-        print 'Number of examples in each class: {0:s}\n'.format(
-            str(num_examples_by_class))
+        print('Number of examples in each class: {0:s}\n'.format(
+            str(num_examples_by_class)))
 
         if predictor_matrix.shape[0] >= num_examples:
             break
@@ -381,23 +381,23 @@ def _run(orig_model_file_name, top_training_dir_name,
     :param output_file_name: Same.
     """
 
-    print 'Reading original model from: "{0:s}"...'.format(orig_model_file_name)
+    print('Reading original model from: "{0:s}"...'.format(orig_model_file_name))
     orig_model_object = cnn.read_model(orig_model_file_name)
 
     model_metafile_name = cnn.find_metafile(
         model_file_name=orig_model_file_name)
 
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     training_predictor_matrix, training_target_values = _read_examples(
         top_example_dir_name=top_training_dir_name,
         first_time_string=first_training_time_string,
         last_time_string=last_training_time_string,
         num_examples=num_training_examples, orig_model_object=orig_model_object,
         model_metadata_dict=model_metadata_dict)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     validn_predictor_matrix, validn_target_values = _read_examples(
         top_example_dir_name=top_validn_dir_name,
@@ -405,7 +405,7 @@ def _run(orig_model_file_name, top_training_dir_name,
         last_time_string=last_validn_time_string,
         num_examples=num_validn_examples, orig_model_object=orig_model_object,
         model_metadata_dict=model_metadata_dict)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # TODO(thunderhoser): I could make the code more efficient by making
     # `predictor_names` an input arg to `_read_examples`.
@@ -427,7 +427,7 @@ def _run(orig_model_file_name, top_training_dir_name,
         min_loss_decrease=min_loss_decrease,
         min_percentage_loss_decrease=min_percentage_loss_decrease,
         num_steps_for_loss_decrease=num_steps_for_loss_decrease)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     result_dict.update({
         ORIG_MODEL_FILE_ARG_NAME: orig_model_file_name,
@@ -441,7 +441,7 @@ def _run(orig_model_file_name, top_training_dir_name,
         NUM_VALIDN_EXAMPLES_ARG_NAME: num_validn_examples
     })
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     sequential_selection.write_results(
         result_dict=result_dict, pickle_file_name=output_file_name)
 

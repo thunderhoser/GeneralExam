@@ -110,7 +110,7 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             warnings.warn(warning_string)
             continue
 
-        print 'Reading data from: "{0:s}"...'.format(this_bulletin_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_bulletin_file_name))
         this_polyline_table = wpc_bulletin_input.read_fronts_from_file(
             this_bulletin_file_name)
 
@@ -119,8 +119,8 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        print 'Writing polylines to file: "{0:s}"...'.format(
-            this_polyline_file_name)
+        print('Writing polylines to file: "{0:s}"...'.format(
+            this_polyline_file_name))
         fronts_io.write_polylines_to_file(
             polyline_table=this_polyline_table,
             valid_time_unix_sec=valid_times_unix_sec[i],
@@ -159,8 +159,8 @@ def _run(first_time_string, last_time_string, top_bulletin_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        print 'Writing NARR grids to file: "{0:s}"...\n'.format(
-            this_gridded_file_name)
+        print('Writing NARR grids to file: "{0:s}"...\n'.format(
+            this_gridded_file_name))
         fronts_io.write_grid_to_file(
             gridded_label_table=this_gridded_front_table,
             netcdf_file_name=this_gridded_file_name)

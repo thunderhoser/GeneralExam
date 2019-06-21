@@ -124,7 +124,7 @@ def _plot_fronts(front_line_table, ternary_front_matrix, title_string,
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -139,10 +139,10 @@ def _run():
     This is effectively the main method.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(FRONT_LINE_FILE_NAME)
+    print('Reading data from: "{0:s}"...'.format(FRONT_LINE_FILE_NAME))
     front_line_table = fronts_io.read_polylines_from_file(FRONT_LINE_FILE_NAME)
 
-    print 'Reading data from: "{0:s}"...'.format(FRONTAL_GRID_FILE_NAME)
+    print('Reading data from: "{0:s}"...'.format(FRONTAL_GRID_FILE_NAME))
     frontal_grid_table = fronts_io.read_narr_grids_from_file(
         FRONTAL_GRID_FILE_NAME)
 
@@ -170,7 +170,7 @@ def _run():
         title_string='Observed fronts after dilation', annotation_string='(b)',
         output_file_name=AFTER_FILE_NAME)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
 
     imagemagick_utils.concatenate_images(
         input_file_names=[BEFORE_FILE_NAME, AFTER_FILE_NAME],

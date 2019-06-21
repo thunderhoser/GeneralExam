@@ -271,7 +271,7 @@ def _plot_narr_fields(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -325,7 +325,7 @@ def _plot_tfp(tfp_matrix_kelvins_m02, title_string, annotation_string,
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -382,7 +382,7 @@ def _plot_locating_variable(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -424,7 +424,7 @@ def _plot_front_types(predicted_label_matrix, title_string, annotation_string,
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -461,7 +461,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         narr_mask_matrix = numpy.full(
             (num_grid_rows, num_grid_columns), 1, dtype=int)
     else:
-        print 'Reading mask from: "{0:s}"...\n'.format(narr_mask_file_name)
+        print('Reading mask from: "{0:s}"...\n'.format(narr_mask_file_name))
         narr_mask_matrix = ml_utils.read_narr_mask(narr_mask_file_name)[0]
 
     wet_bulb_theta_file_name = processed_narr_io.find_file_for_one_time(
@@ -470,7 +470,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         pressure_level_mb=pressure_level_mb,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(wet_bulb_theta_file_name)
+    print('Reading data from: "{0:s}"...'.format(wet_bulb_theta_file_name))
     wet_bulb_theta_matrix_kelvins = processed_narr_io.read_fields_from_file(
         wet_bulb_theta_file_name)[0][0, ...]
     wet_bulb_theta_matrix_kelvins = general_utils.fill_nans(
@@ -482,7 +482,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         pressure_level_mb=pressure_level_mb,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(u_wind_file_name)
+    print('Reading data from: "{0:s}"...'.format(u_wind_file_name))
     u_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
         u_wind_file_name)[0][0, ...]
     u_wind_matrix_m_s01 = general_utils.fill_nans(u_wind_matrix_m_s01)
@@ -493,7 +493,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         pressure_level_mb=pressure_level_mb,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(v_wind_file_name)
+    print('Reading data from: "{0:s}"...'.format(v_wind_file_name))
     v_wind_matrix_m_s01 = processed_narr_io.read_fields_from_file(
         v_wind_file_name)[0][0, ...]
     v_wind_matrix_m_s01 = general_utils.fill_nans(v_wind_matrix_m_s01)
@@ -588,7 +588,7 @@ def _run(valid_time_string, smoothing_radius_pixels, front_percentile,
         output_file_name=closed_fronts_file_name)
 
     concat_file_name = '{0:s}/nfa_procedure.jpg'.format(output_dir_name)
-    print 'Concatenating figures to: "{0:s}"...'.format(concat_file_name)
+    print('Concatenating figures to: "{0:s}"...'.format(concat_file_name))
 
     panel_file_names = [
         unsmoothed_narr_file_name, smoothed_narr_file_name, tfp_file_name,

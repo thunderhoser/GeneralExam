@@ -164,7 +164,7 @@ def _read_examples(
     this_random_seed = RANDOM_SEED + 0
 
     for i in range(num_times):
-        print 'Reading data from: "{0:s}"...'.format(example_file_names[i])
+        print('Reading data from: "{0:s}"...'.format(example_file_names[i]))
 
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[i],
@@ -208,8 +208,8 @@ def _read_examples(
                 (target_matrix, this_target_matrix), axis=0)
 
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
-        print 'Number of examples in each class: {0:s}\n'.format(
-            str(num_examples_by_class))
+        print('Number of examples in each class: {0:s}\n'.format(
+            str(num_examples_by_class)))
 
     return predictor_matrix, numpy.argmax(target_matrix, axis=1)
 
@@ -229,20 +229,20 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
     :param output_file_name: Same.
     """
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     predictor_matrix, target_values = _read_examples(
         top_example_dir_name=top_example_dir_name,
         first_time_string=first_time_string, last_time_string=last_time_string,
         num_times=num_times, num_examples_per_time=num_examples_per_time,
         model_object=model_object, model_metadata_dict=model_metadata_dict)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     result_dict = permutation.run_permutation_test(
@@ -251,8 +251,8 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
         target_values=target_values, prediction_function=_prediction_function,
         cost_function=permutation.cross_entropy_function)
 
-    print SEPARATOR_STRING
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print(SEPARATOR_STRING)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     permutation.write_results(
         result_dict=result_dict, pickle_file_name=output_file_name)
 

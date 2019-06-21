@@ -144,7 +144,7 @@ def _run(input_file_name, predictor_colour_map_name,
     predictor_colour_map_object = pyplot.cm.get_cmap(predictor_colour_map_name)
     saliency_colour_map_object = pyplot.cm.get_cmap(saliency_colour_map_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
     predictor_matrix, saliency_matrix, saliency_metadata_dict = (
         saliency_maps.read_file(input_file_name)
     )
@@ -154,7 +154,7 @@ def _run(input_file_name, predictor_colour_map_name,
             saliency_maps.MODEL_FILE_NAME_KEY]
     )
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
@@ -198,7 +198,7 @@ def _run(input_file_name, predictor_colour_map_name,
         this_figure_file_name = '{0:s}/example{1:06d}_saliency.jpg'.format(
             output_dir_name, i)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 

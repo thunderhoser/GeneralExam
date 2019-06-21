@@ -136,7 +136,7 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
     if mask_file_name in ['', 'None']:
         mask_matrix = None
     else:
-        print 'Reading mask from: "{0:s}"...'.format(mask_file_name)
+        print('Reading mask from: "{0:s}"...'.format(mask_file_name))
         mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
 
     if nf_prob_threshold < 0:
@@ -167,7 +167,7 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
         if not os.path.isfile(this_input_file_name):
             continue
 
-        print '\nReading data from: "{0:s}"...'.format(this_input_file_name)
+        print('\nReading data from: "{0:s}"...'.format(this_input_file_name))
         this_prediction_dict = prediction_io.read_file(this_input_file_name)
 
         this_class_probability_matrix = (
@@ -175,10 +175,10 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
         )
 
         if numpy.isnan(nf_prob_threshold):
-            print (
+            print((
                 'Determinizing probabilities with WF threshold = {0:f}, CF '
                 'threshold = {1:f}...'
-            ).format(wf_prob_threshold, cf_prob_threshold)
+            ).format(wf_prob_threshold, cf_prob_threshold))
 
             this_predicted_label_matrix = (
                 neigh_evaluation.determinize_predictions_2thresholds(
@@ -187,8 +187,8 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
                     cf_threshold=cf_prob_threshold)
             )
         else:
-            print 'Determinizing probabilities with NF threshold = {0:f}...'.format(
-                nf_prob_threshold)
+            print('Determinizing probabilities with NF threshold = {0:f}...'.format(
+                nf_prob_threshold))
 
             this_predicted_label_matrix = (
                 neigh_evaluation.determinize_predictions_1threshold(
@@ -196,9 +196,9 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
                     binarization_threshold=nf_prob_threshold)
             )
 
-        print (
+        print((
             'Removing small frontal regions (major axis < {0:f} metres)...'
-        ).format(min_region_length_metres)
+        ).format(min_region_length_metres))
 
         this_orig_num_frontal = numpy.sum(
             this_predicted_label_matrix > front_utils.NO_FRONT_ENUM
@@ -215,14 +215,14 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
             this_predicted_label_matrix > front_utils.NO_FRONT_ENUM
         )
 
-        print 'Removed {0:d} of {1:d} frontal grid cells.'.format(
+        print('Removed {0:d} of {1:d} frontal grid cells.'.format(
             this_orig_num_frontal - this_new_num_frontal, this_orig_num_frontal
-        )
+        ))
 
         if mask_matrix is not None:
-            print 'Masking out {0:d} of {1:d} grid cells...'.format(
+            print('Masking out {0:d} of {1:d} grid cells...'.format(
                 numpy.sum(mask_matrix == 0), mask_matrix.size
-            )
+            ))
 
             this_predicted_label_matrix[0, ...][mask_matrix == 0] = (
                 front_utils.NO_FRONT_ENUM
@@ -239,8 +239,8 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
             last_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        print 'Writing deterministic predictions to: "{0:s}"...'.format(
-            this_output_file_name)
+        print('Writing deterministic predictions to: "{0:s}"...'.format(
+            this_output_file_name))
 
         if prediction_io.TARGET_MATRIX_KEY in this_prediction_dict:
             target_matrix = this_prediction_dict[

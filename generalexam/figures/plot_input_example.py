@@ -127,7 +127,7 @@ def _run():
         file_type=fronts_io.POLYLINE_FILE_TYPE,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(front_file_name)
+    print('Reading data from: "{0:s}"...'.format(front_file_name))
     front_line_table = fronts_io.read_polylines_from_file(front_file_name)
 
     num_narr_fields = len(NARR_FIELD_NAMES)
@@ -145,7 +145,7 @@ def _run():
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=PRESSURE_LEVEL_MB,
             valid_time_unix_sec=valid_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         narr_matrix_by_field[j] = processed_narr_io.read_fields_from_file(
             this_file_name)[0][0, ...]
         narr_matrix_by_field[j] = utils.fill_nans(narr_matrix_by_field[j])
@@ -282,7 +282,7 @@ def _run():
         #         front_utils.FRONT_TYPE_COLUMN].values[i],
         #     line_width=FRONT_LINE_WIDTH, line_colour=this_colour)
 
-    print 'Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(file_name=OUTPUT_FILE_NAME)
     pyplot.savefig(OUTPUT_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
     pyplot.close()

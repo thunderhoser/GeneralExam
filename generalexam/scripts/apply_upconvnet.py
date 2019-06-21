@@ -97,8 +97,8 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
         images (input examples to CNN).
     """
 
-    print 'Reading input examples (images) from: "{0:s}"...'.format(
-        example_file_name)
+    print('Reading input examples (images) from: "{0:s}"...'.format(
+        example_file_name))
 
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
@@ -188,7 +188,7 @@ def _plot_examples(actual_image_matrix, reconstructed_image_matrix,
                 min_colour_value_by_predictor=these_min_colour_values,
                 max_colour_value_by_predictor=these_max_colour_values)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -210,7 +210,7 @@ def _plot_examples(actual_image_matrix, reconstructed_image_matrix,
                 min_colour_value_by_predictor=these_min_colour_values,
                 max_colour_value_by_predictor=these_max_colour_values)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -241,12 +241,12 @@ def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
     ucn_metafile_name = cnn.find_metafile(
         model_file_name=upconvnet_file_name, raise_error_if_missing=True)
 
-    print('Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name))
+    print(('Reading trained upconvnet from: "{0:s}"...'.format(
+        upconvnet_file_name)))
     ucn_model_object = cnn.read_model(upconvnet_file_name)
 
-    print('Reading upconvnet metadata from: "{0:s}"...'.format(
-        ucn_metafile_name))
+    print(('Reading upconvnet metadata from: "{0:s}"...'.format(
+        ucn_metafile_name)))
     ucn_metadata_dict = upconvnet.read_model_metadata(ucn_metafile_name)
 
     # Read CNN and metadata.
@@ -254,23 +254,23 @@ def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
     cnn_metafile_name = cnn.find_metafile(
         model_file_name=cnn_file_name, raise_error_if_missing=True)
 
-    print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
+    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
     cnn_model_object = cnn.read_model(cnn_file_name)
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     actual_image_matrix = _read_input_examples(
         example_file_name=example_file_name,
         cnn_metadata_dict=cnn_metadata_dict, num_examples=num_examples,
         example_indices=example_indices)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     reconstructed_image_matrix = upconvnet.apply_upconvnet(
         actual_image_matrix=actual_image_matrix,
         cnn_model_object=cnn_model_object, ucn_model_object=ucn_model_object)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     _plot_examples(
         actual_image_matrix=actual_image_matrix,

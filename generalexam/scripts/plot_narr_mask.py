@@ -188,7 +188,7 @@ def _make_one_plot(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=label_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -213,7 +213,7 @@ def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_mask_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_mask_file_name))
     mask_matrix, num_warm_fronts_matrix, num_cold_fronts_matrix = (
         ml_utils.read_narr_mask(input_mask_file_name)
     )
@@ -245,7 +245,7 @@ def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
         warm_front_file_name, cold_front_file_name, mask_file_name
     ]
 
-    print 'Concatenating panels to: "{0:s}"...'.format(concat_file_name)
+    print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,

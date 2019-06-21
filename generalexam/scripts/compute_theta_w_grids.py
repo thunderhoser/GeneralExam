@@ -96,7 +96,7 @@ def _read_inputs_one_time(
         top_directory_name=top_input_dir_name,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
     predictor_dict = predictor_io.read_file(netcdf_file_name=input_file_name)
 
     num_times_in_file = len(predictor_dict[predictor_utils.VALID_TIMES_KEY])
@@ -184,7 +184,7 @@ def _write_output_one_time(
         valid_time_unix_sec=predictor_dict[predictor_utils.VALID_TIMES_KEY][0],
         raise_error_if_missing=False)
 
-    print 'Writing theta_w field to: "{0:s}"...'.format(output_file_name)
+    print('Writing theta_w field to: "{0:s}"...'.format(output_file_name))
     predictor_io.write_file(
         netcdf_file_name=output_file_name, predictor_dict=predictor_dict)
 
@@ -249,7 +249,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
             predictor_dict=this_predictor_dict,
             top_output_dir_name=top_output_dir_name)
 
-        print '\n'
+        print('\n')
 
 
 if __name__ == '__main__':

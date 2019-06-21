@@ -73,7 +73,9 @@ DILATION_DISTANCE_HELP_STRING = 'Dilation distance for labels (true fronts).'
 CRITERION_FUNCTION_HELP_STRING = (
     'Name of criterion function used to determine best binarization threshold.'
     '  Must be in the following list:\n{0:s}'
-).format(str(NAME_TO_CRITERION_FUNCTION_DICT.keys()))
+).format(
+    str(list(NAME_TO_CRITERION_FUNCTION_DICT.keys()))
+)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be saved here.')
@@ -188,7 +190,7 @@ def _run(top_prediction_dir_name, top_gridded_front_dir_name,
             continue
 
         num_times_read += 1
-        print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_prediction_file_name))
 
         if use_ensembled_predictions:
             this_ensemble_dict = nfa.read_ensembled_predictions(
@@ -231,7 +233,7 @@ def _run(top_prediction_dir_name, top_gridded_front_dir_name,
             top_directory_name=top_gridded_front_dir_name,
             valid_time_unix_sec=this_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_front_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_front_file_name))
         this_gridded_front_table = fronts_io.read_grid_from_file(
             this_front_file_name)
 
@@ -262,7 +264,7 @@ def _run(top_prediction_dir_name, top_gridded_front_dir_name,
             observed_labels, these_observed_labels
         ))
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     model_eval_helper.run_evaluation(
         class_probability_matrix=class_probability_matrix,

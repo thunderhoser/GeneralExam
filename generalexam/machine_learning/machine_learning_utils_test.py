@@ -629,8 +629,8 @@ def _compare_target_point_dicts(
     :return: are_dicts_equal: Boolean flag.
     """
 
-    first_keys = first_target_point_dict.keys()
-    second_keys = second_target_point_dict.keys()
+    first_keys = list(first_target_point_dict.keys())
+    second_keys = list(second_target_point_dict.keys())
     if set(first_keys) != set(second_keys):
         return False
 
@@ -1138,7 +1138,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(CLASS_WEIGHT_DICT_BINARY.keys()))
 
-        for this_key in this_class_weight_dict.keys():
+        for this_key in list(this_class_weight_dict.keys()):
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
                 CLASS_WEIGHT_DICT_BINARY[this_key],
@@ -1156,7 +1156,7 @@ class MachineLearningUtilsTests(unittest.TestCase):
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(CLASS_WEIGHT_DICT_TERNARY.keys()))
 
-        for this_key in this_class_weight_dict.keys():
+        for this_key in list(this_class_weight_dict.keys()):
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
                 CLASS_WEIGHT_DICT_TERNARY[this_key],

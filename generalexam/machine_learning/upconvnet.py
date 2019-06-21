@@ -111,8 +111,8 @@ def _trainval_generator(
 
     while True:
         while num_examples_in_memory < num_examples_per_batch:
-            print 'Reading data from: "{0:s}"...'.format(
-                example_file_names[file_index])
+            print('Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index]))
 
             this_example_dict = examples_io.read_file(
                 netcdf_file_name=example_file_names[file_index],
@@ -475,9 +475,9 @@ def apply_upconvnet(actual_image_matrix, cnn_model_object, ucn_model_object):
             [i + num_examples_per_batch - 1, num_examples - 1]
         )
 
-        print (
+        print((
             'Using upconvnet to reconstruct examples {0:d}-{1:d} of {2:d}...'
-        ).format(this_first_index, this_last_index, num_examples)
+        ).format(this_first_index, this_last_index, num_examples))
 
         these_indices = numpy.linspace(
             this_first_index, this_last_index,
@@ -496,8 +496,8 @@ def apply_upconvnet(actual_image_matrix, cnn_model_object, ucn_model_object):
             reconstructed_image_matrix = numpy.concatenate(
                 (reconstructed_image_matrix, this_reconstructed_matrix), axis=0)
 
-    print 'Used upconvnet to reconstruct all {0:d} examples!'.format(
-        num_examples)
+    print('Used upconvnet to reconstruct all {0:d} examples!'.format(
+        num_examples))
 
     for i in range(num_examples):
         for m in range(num_predictors):

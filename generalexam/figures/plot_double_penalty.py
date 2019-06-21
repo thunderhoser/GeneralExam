@@ -167,7 +167,7 @@ def _plot_fronts(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -182,7 +182,7 @@ def _run():
     This is effectively the main method.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(INPUT_FILE_NAME)
+    print('Reading data from: "{0:s}"...'.format(INPUT_FILE_NAME))
     actual_grid_point_table = fronts_io.read_narr_grids_from_file(
         INPUT_FILE_NAME)
 
@@ -235,7 +235,7 @@ def _run():
         title_string='Observed and predicted front\nwith dilation',
         annotation_string='(d)', output_file_name=WITH_DILATION_FILE_NAME)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
 
     imagemagick_utils.concatenate_images(
         input_file_names=[NO_DILATION_FILE_NAME, WITH_DILATION_FILE_NAME],

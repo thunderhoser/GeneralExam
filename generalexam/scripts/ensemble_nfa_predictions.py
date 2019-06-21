@@ -120,8 +120,8 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
         this_class_probability_matrix = None
 
         for j in range(num_models):
-            print 'Reading data from: "{0:s}"...'.format(
-                these_prediction_file_names[j])
+            print('Reading data from: "{0:s}"...'.format(
+                these_prediction_file_names[j]))
 
             this_predicted_label_matrix, this_metadata_dict = (
                 nfa.read_gridded_predictions(these_prediction_file_names[j])
@@ -153,8 +153,8 @@ def _run(prediction_dir_name_by_model, model_weights, first_time_string,
             last_valid_time_unix_sec=this_time_unix_sec, ensembled=True,
             raise_error_if_missing=False)
 
-        print 'Writing ensembled predictions to: "{0:s}"...\n'.format(
-            this_output_file_name)
+        print('Writing ensembled predictions to: "{0:s}"...\n'.format(
+            this_output_file_name))
 
         nfa.write_ensembled_predictions(
             pickle_file_name=this_output_file_name,

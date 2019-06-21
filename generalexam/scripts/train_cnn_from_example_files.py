@@ -62,7 +62,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         last_validation_time_string, ml_helper.TIME_FORMAT)
 
     # Read architecture.
-    print 'Reading architecture from: "{0:s}"...'.format(input_model_file_name)
+    print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))
     model_object = cnn.read_model(input_model_file_name)
     model_object = keras.models.clone_model(model_object)
 
@@ -72,9 +72,9 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         optimizer=keras.optimizers.Adam(),
         metrics=cnn.LIST_OF_METRIC_FUNCTIONS)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     model_object.summary()
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     # Read metadata from one training file.
     training_file_names = examples_io.find_many_files(
@@ -82,7 +82,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         first_batch_number=0, last_batch_number=int(1e11)
     )
 
-    print 'Reading metadata from: "{0:s}"...'.format(training_file_names[0])
+    print('Reading metadata from: "{0:s}"...'.format(training_file_names[0]))
     this_example_dict = examples_io.read_file(
         netcdf_file_name=training_file_names[0], metadata_only=True)
 
@@ -97,7 +97,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
 
     model_metafile_name = cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
-    print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
+    print('Writing metadata to: "{0:s}"...'.format(model_metafile_name))
 
     cnn.write_metadata(
         pickle_file_name=model_metafile_name, num_epochs=num_epochs,
@@ -116,7 +116,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         first_validation_time_unix_sec=first_validation_time_unix_sec,
         last_validation_time_unix_sec=last_validation_time_unix_sec,
         mask_matrix=mask_matrix)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     training_generator = trainval_io.downsized_generator_from_example_files(
         top_input_dir_name=top_training_dir_name,

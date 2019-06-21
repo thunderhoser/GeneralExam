@@ -39,10 +39,10 @@ def _run(input_eval_file_name, output_dir_name):
     :param output_dir_name: Same.
     """
 
-    print 'Reading data from: "{0:s}"...'.format(input_eval_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_eval_file_name))
     input_evaluation_dict = evaluation_utils.read_file(input_eval_file_name)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     model_eval_helper.run_evaluation(
         class_probability_matrix=input_evaluation_dict[

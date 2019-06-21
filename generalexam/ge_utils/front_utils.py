@@ -937,8 +937,8 @@ def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
     cold_front_columns_by_time = [[]] * num_times
 
     for i in range(num_times):
-        print 'Converting polylines to NARR grid for {0:s}...'.format(
-            valid_time_strings[i])
+        print('Converting polylines to NARR grid for {0:s}...'.format(
+            valid_time_strings[i]))
 
         these_polyline_indices = numpy.where(
             polyline_table[TIME_COLUMN].values == valid_times_unix_sec[i]
@@ -958,9 +958,9 @@ def many_polylines_to_narr_grid(polyline_table, dilation_distance_metres):
                     polyline_table[LATITUDES_COLUMN].values[j]
                 )
 
-                print (
+                print((
                     'SKIPPING front with {0:d} points (closed polyline).'
-                ).format(this_num_points)
+                ).format(this_num_points))
 
                 continue
 
@@ -1061,10 +1061,10 @@ def remove_fronts_in_masked_area(
             bad_indices.append(i)
 
     if verbose:
-        print (
+        print((
             'Removed {0:d} of {1:d} polylines (because they touch only masked '
             'grid cells).'
-        ).format(len(bad_indices), num_fronts)
+        ).format(len(bad_indices), num_fronts))
 
     if len(bad_indices) == 0:
         return polyline_table

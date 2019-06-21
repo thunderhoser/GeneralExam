@@ -476,9 +476,9 @@ def make_contingency_tables(
     num_times = predicted_label_matrix.shape[0]
 
     for i in range(num_times):
-        print (
+        print((
             'Matching actual WF grid cells at {0:d}th of {1:d} times...'
-        ).format(i + 1, num_times)
+        ).format(i + 1, num_times))
 
         this_num_predicted_by_class = _match_actual_wf_grid_cells(
             predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
@@ -499,9 +499,9 @@ def make_contingency_tables(
             this_num_predicted_by_class[front_utils.WARM_FRONT_ENUM]
         )
 
-        print (
+        print((
             'Matching actual CF grid cells at {0:d}th of {1:d} times...'
-        ).format(i + 1, num_times)
+        ).format(i + 1, num_times))
 
         this_num_predicted_by_class = _match_actual_cf_grid_cells(
             predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
@@ -522,9 +522,9 @@ def make_contingency_tables(
             this_num_predicted_by_class[front_utils.COLD_FRONT_ENUM]
         )
 
-        print (
+        print((
             'Matching predicted WF grid cells at {0:d}th of {1:d} times...'
-        ).format(i + 1, num_times)
+        ).format(i + 1, num_times))
 
         this_num_actual_by_class = _match_predicted_wf_grid_cells(
             predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
@@ -545,9 +545,9 @@ def make_contingency_tables(
             this_num_actual_by_class[front_utils.WARM_FRONT_ENUM]
         )
 
-        print (
+        print((
             'Matching predicted CF grid cells at {0:d}th of {1:d} times...\n'
-        ).format(i + 1, num_times)
+        ).format(i + 1, num_times))
 
         this_num_actual_by_class = _match_predicted_cf_grid_cells(
             predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,

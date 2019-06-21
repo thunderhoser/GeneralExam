@@ -171,11 +171,11 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         numpy.random.shuffle(valid_times_unix_sec)
         valid_times_unix_sec = valid_times_unix_sec[:num_times]
 
-    print 'Reading CNN from: "{0:s}"...'.format(model_file_name)
+    print('Reading CNN from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
 
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
-    print 'Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     if dilation_distance_metres < 0:
@@ -186,8 +186,8 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         isotonic_file_name = isotonic_regression.find_model_file(
             base_model_file_name=model_file_name)
 
-        print 'Reading isotonic-regression models from: "{0:s}"...'.format(
-            isotonic_file_name)
+        print('Reading isotonic-regression models from: "{0:s}"...'.format(
+            isotonic_file_name))
         isotonic_model_object_by_class = (
             isotonic_regression.read_model_for_each_class(isotonic_file_name)
         )
@@ -203,8 +203,8 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             valid_time_unix_sec=valid_times_unix_sec[0]
         )
 
-        print 'Reading first predictor file: "{0:s}"...'.format(
-            first_predictor_file_name)
+        print('Reading first predictor file: "{0:s}"...'.format(
+            first_predictor_file_name))
         first_predictor_dict = predictor_io.read_file(
             netcdf_file_name=first_predictor_file_name)
 
@@ -224,7 +224,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             mask_matrix[120:-120, 120:-120] = 0
 
     num_times = len(valid_times_unix_sec)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for i in range(num_times):
         this_class_probability_matrix, this_target_matrix = (
@@ -245,7 +245,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         if top_gridded_front_dir_name is not None:
             this_target_matrix[this_target_matrix == -1] = 0
 
-        print MINOR_SEPARATOR_STRING
+        print(MINOR_SEPARATOR_STRING)
 
         this_output_file_name = prediction_io.find_file(
             directory_name=output_dir_name,
@@ -253,8 +253,8 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             last_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        print 'Writing gridded probabilities and labels to: "{0:s}"...'.format(
-            this_output_file_name)
+        print('Writing gridded probabilities and labels to: "{0:s}"...'.format(
+            this_output_file_name))
 
         prediction_io.write_probabilities(
             netcdf_file_name=this_output_file_name,
@@ -266,7 +266,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             used_isotonic=use_isotonic_regression)
 
         if i != num_times - 1:
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

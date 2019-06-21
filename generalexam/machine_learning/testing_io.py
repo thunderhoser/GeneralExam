@@ -70,7 +70,7 @@ def create_downsized_examples_no_targets(
             valid_time_unix_sec=valid_time_unix_sec,
             raise_error_if_missing=True)
 
-        print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
+        print('Reading data from: "{0:s}"...'.format(predictor_file_name))
         predictor_dict = predictor_io.read_file(
             netcdf_file_name=predictor_file_name,
             pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -101,7 +101,7 @@ def create_downsized_examples_no_targets(
     error_checking.assert_is_numpy_array(
         center_column_indices, exact_dimensions=these_expected_dim)
 
-    print 'Creating {0:d} downsized learning examples...'.format(num_examples)
+    print('Creating {0:d} downsized learning examples...'.format(num_examples))
 
     target_point_dict = {
         ml_utils.ROW_INDICES_BY_TIME_KEY: [center_row_indices],
@@ -188,7 +188,7 @@ def create_downsized_examples_with_targets(
             valid_time_unix_sec=valid_time_unix_sec,
             raise_error_if_missing=True)
 
-        print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
+        print('Reading data from: "{0:s}"...'.format(predictor_file_name))
         predictor_dict = predictor_io.read_file(
             netcdf_file_name=predictor_file_name,
             pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -222,8 +222,8 @@ def create_downsized_examples_with_targets(
             warnings.warn(warning_string)
             return None
 
-        print 'Reading data from: "{0:s}"...'.format(
-            gridded_front_file_name)
+        print('Reading data from: "{0:s}"...'.format(
+            gridded_front_file_name))
         gridded_front_table = fronts_io.read_grid_from_file(
             gridded_front_file_name)
 
@@ -258,7 +258,7 @@ def create_downsized_examples_with_targets(
     error_checking.assert_is_numpy_array(
         center_column_indices, exact_dimensions=these_expected_dim)
 
-    print 'Creating {0:d} downsized learning examples...'.format(num_examples)
+    print('Creating {0:d} downsized learning examples...'.format(num_examples))
 
     target_point_dict = {
         ml_utils.ROW_INDICES_BY_TIME_KEY: [center_row_indices],
@@ -281,9 +281,9 @@ def create_downsized_examples_with_targets(
         [numpy.sum(target_values == k) for k in range(num_classes)], dtype=int
     )
 
-    print 'Number of examples in each class: {0:s}'.format(
+    print('Number of examples in each class: {0:s}'.format(
         str(num_examples_by_class)
-    )
+    ))
 
     return {
         PREDICTOR_MATRIX_KEY: predictor_matrix,
@@ -342,7 +342,7 @@ def create_full_size_example(
         valid_time_unix_sec=valid_time_unix_sec,
         raise_error_if_missing=True)
 
-    print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
+    print('Reading data from: "{0:s}"...'.format(predictor_file_name))
     predictor_dict = predictor_io.read_file(
         netcdf_file_name=predictor_file_name,
         pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -360,7 +360,7 @@ def create_full_size_example(
         predictor_matrix=predictor_matrix,
         normalization_type_string=normalization_type_string)
 
-    print 'Reading data from: "{0:s}"...'.format(gridded_front_file_name)
+    print('Reading data from: "{0:s}"...'.format(gridded_front_file_name))
     gridded_front_table = fronts_io.read_grid_from_file(
         gridded_front_file_name)
 
@@ -389,8 +389,8 @@ def create_full_size_example(
         dtype=int
     )
 
-    print 'Number of instances of each class: {0:s}'.format(
+    print('Number of instances of each class: {0:s}'.format(
         str(num_instances_by_class)
-    )
+    ))
 
     return predictor_matrix, target_matrix

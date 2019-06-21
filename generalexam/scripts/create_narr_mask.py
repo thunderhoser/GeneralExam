@@ -131,7 +131,7 @@ def _run(top_gridded_front_dir_name, first_time_string, last_time_string,
             warnings.warn(warning_string)
             continue
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_gridded_front_table = fronts_io.read_grid_from_file(this_file_name)
 
         this_gridded_front_matrix = ml_utils.front_table_to_images(
@@ -162,19 +162,19 @@ def _run(top_gridded_front_dir_name, first_time_string, last_time_string,
                 num_warm_fronts_matrix + this_num_warm_fronts_matrix
             )
 
-    print SEPARATOR_STRING
-    print 'Masking out grid cells with < {0:d} fronts...'.format(
-        min_num_fronts)
+    print(SEPARATOR_STRING)
+    print('Masking out grid cells with < {0:d} fronts...'.format(
+        min_num_fronts))
 
     mask_matrix = (
         num_warm_fronts_matrix + num_cold_fronts_matrix >= min_num_fronts
     ).astype(int)
 
-    print 'Number of mask grid cells = {0:d} out of {1:d}'.format(
+    print('Number of mask grid cells = {0:d} out of {1:d}'.format(
         numpy.sum(mask_matrix == 0), mask_matrix.size
-    )
+    ))
 
-    print 'Writing mask to: "{0:s}"...'.format(output_file_name)
+    print('Writing mask to: "{0:s}"...'.format(output_file_name))
     ml_utils.write_narr_mask(
         mask_matrix=mask_matrix, num_warm_fronts_matrix=num_warm_fronts_matrix,
         num_cold_fronts_matrix=num_cold_fronts_matrix,

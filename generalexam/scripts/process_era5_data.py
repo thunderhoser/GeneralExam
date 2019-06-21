@@ -216,8 +216,8 @@ def _run(top_input_dir_name, grid_name, raw_field_names, pressure_level_mb,
                                   predictor_utils.DUMMY_SURFACE_PRESSURE_MB)
             )
 
-            print 'Reading data at {0:s} from file: "{1:s}"...'.format(
-                this_time_string, this_raw_file_name)
+            print('Reading data at {0:s} from file: "{1:s}"...'.format(
+                this_time_string, this_raw_file_name))
 
             this_predictor_dict = era5_input.read_file(
                 netcdf_file_name=this_raw_file_name,
@@ -236,15 +236,15 @@ def _run(top_input_dir_name, grid_name, raw_field_names, pressure_level_mb,
                     numpy.nan
                 )
 
-            print this_predictor_dict[
+            print(this_predictor_dict[
                 predictor_utils.DATA_MATRIX_KEY
-            ].shape
+            ].shape)
 
             one_time_data_matrix[0, ..., j] = this_predictor_dict[
                 predictor_utils.DATA_MATRIX_KEY][0, ..., 0]
 
         if era5_input.DEWPOINT_NAME_RAW in raw_field_names:
-            print 'Converting dewpoint to specific humidity...'
+            print('Converting dewpoint to specific humidity...')
             dewpoint_index = raw_field_names.index(era5_input.DEWPOINT_NAME_RAW)
 
             if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
@@ -278,18 +278,18 @@ def _run(top_input_dir_name, grid_name, raw_field_names, pressure_level_mb,
             predictor_utils.FIELD_NAMES_KEY: field_names
         }
 
-        print '\n'
+        print('\n')
         one_time_predictor_dict = era5_input.interp_to_narr_grid(
             predictor_dict=one_time_predictor_dict, grid_name=grid_name,
             era5_x_matrix_metres=era5_x_matrix_metres,
             era5_y_matrix_metres=era5_y_matrix_metres)
-        print '\n'
+        print('\n')
 
         if era5_input.U_WIND_NAME_RAW in raw_field_names:
             u_wind_index = raw_field_names.index(era5_input.U_WIND_NAME_RAW)
             v_wind_index = raw_field_names.index(era5_input.V_WIND_NAME_RAW)
 
-            print 'Rotating winds from Earth-relative to grid-relative...'
+            print('Rotating winds from Earth-relative to grid-relative...')
 
             (one_time_predictor_dict[predictor_utils.DATA_MATRIX_KEY][
                  0, ..., u_wind_index],
@@ -308,13 +308,13 @@ def _run(top_input_dir_name, grid_name, raw_field_names, pressure_level_mb,
             valid_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        print 'Writing processed ERA5 data on NARR grid to: "{0:s}"...'.format(
-            this_processed_file_name)
+        print('Writing processed ERA5 data on NARR grid to: "{0:s}"...'.format(
+            this_processed_file_name))
 
         predictor_io.write_file(netcdf_file_name=this_processed_file_name,
                                 predictor_dict=one_time_predictor_dict)
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

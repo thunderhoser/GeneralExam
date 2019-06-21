@@ -104,7 +104,7 @@ def _plot_feature_map_before_conv():
         axes_object=axes_object, annotation_string='(a)',
         font_colour=ANNOTATION_COLOUR)
 
-    print 'Saving figure to: "{0:s}"...'.format(BEFORE_CONV_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(BEFORE_CONV_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=BEFORE_CONV_FILE_NAME)
     pyplot.savefig(BEFORE_CONV_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
@@ -151,7 +151,7 @@ def _plot_kernel():
         axes_object=axes_object, annotation_string='(b)',
         font_colour=ANNOTATION_COLOUR)
 
-    print 'Saving figure to: "{0:s}"...'.format(KERNEL_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(KERNEL_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(file_name=KERNEL_FILE_NAME)
     pyplot.savefig(KERNEL_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
     pyplot.close()
@@ -229,7 +229,7 @@ def _plot_feature_map_after_conv(feature_matrix):
         axes_object=axes_object, annotation_string='(c)',
         font_colour=ANNOTATION_COLOUR)
 
-    print 'Saving figure to: "{0:s}"...'.format(AFTER_CONV_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(AFTER_CONV_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=AFTER_CONV_FILE_NAME)
     pyplot.savefig(AFTER_CONV_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
@@ -298,7 +298,7 @@ def _plot_feature_map_after_pooling(feature_matrix):
         axes_object=axes_object, annotation_string='(d)',
         font_colour=ANNOTATION_COLOUR)
 
-    print 'Saving figure to: "{0:s}"...'.format(AFTER_POOLING_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(AFTER_POOLING_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=AFTER_POOLING_FILE_NAME)
     pyplot.savefig(AFTER_POOLING_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
@@ -321,7 +321,7 @@ if __name__ == '__main__':
     FEATURE_MATRIX = _do_max_pooling(FEATURE_MATRIX)
     _plot_feature_map_after_pooling(FEATURE_MATRIX)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
     imagemagick_utils.concatenate_images(
         input_file_names=[BEFORE_CONV_FILE_NAME, KERNEL_FILE_NAME,
                           AFTER_POOLING_FILE_NAME, AFTER_CONV_FILE_NAME],

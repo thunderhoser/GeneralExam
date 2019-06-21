@@ -40,8 +40,8 @@ def _run():
     small_dilation_file_name = DILATION_FILE_NAME.replace(
         '.jpg', '_resized.jpg')
 
-    print 'Resizing dilation figure to: "{0:s}"...'.format(
-        small_dilation_file_name)
+    print('Resizing dilation figure to: "{0:s}"...'.format(
+        small_dilation_file_name))
 
     command_string = (
         '/usr/bin/convert "{0:s}" -resize {1:d}x{2:d} "{3:s}"'
@@ -50,9 +50,9 @@ def _run():
 
     os.system(command_string)
 
-    print (
+    print((
         'Concatenating dilation and double-penalty figures to: "{0:s}"...'
-    ).format(CONCAT_FILE_NAME)
+    ).format(CONCAT_FILE_NAME))
 
     imagemagick_utils.concatenate_images(
         input_file_names=[small_dilation_file_name, DOUBLE_PENALTY_FILE_NAME],

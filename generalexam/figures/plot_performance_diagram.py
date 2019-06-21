@@ -74,7 +74,7 @@ def _run():
             MATCHING_DIST_BY_DATASET_KM[i]
         )
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_evaluation_dict = object_eval.read_evaluation_results(
             this_file_name)
 
@@ -87,7 +87,7 @@ def _run():
             MATCHING_DIST_BY_DATASET_KM[i]
         )
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_evaluation_dict = object_eval.read_evaluation_results(
             this_file_name)
 
@@ -100,7 +100,7 @@ def _run():
             MATCHING_DIST_BY_DATASET_KM[i]
         )
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_evaluation_dict = object_eval.read_evaluation_results(
             this_file_name)
 
@@ -153,7 +153,7 @@ def _run():
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=OUTPUT_FILE_NAME)
 
-    print 'Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME))
     pyplot.savefig(OUTPUT_FILE_NAME, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 

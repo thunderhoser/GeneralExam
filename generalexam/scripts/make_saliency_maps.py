@@ -164,16 +164,16 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
     else:
         error_checking.assert_is_greater(num_examples, 0)
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
     num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
 
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
-    print 'Reading normalized examples from: "{0:s}"...'.format(
-        example_file_name)
+    print('Reading normalized examples from: "{0:s}"...'.format(
+        example_file_name))
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
@@ -196,8 +196,8 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
     predictor_matrix = predictor_matrix[example_indices, ...]
 
     if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        print 'Computing saliency maps for target class {0:d}...'.format(
-            target_class)
+        print('Computing saliency maps for target class {0:d}...'.format(
+            target_class))
 
         saliency_matrix = (
             gg_saliency_maps.get_saliency_maps_for_class_activation(
@@ -207,9 +207,9 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         )
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        print (
+        print((
             'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
-        ).format(str(neuron_indices), layer_name)
+        ).format(str(neuron_indices), layer_name))
 
         saliency_matrix = (
             gg_saliency_maps.get_saliency_maps_for_neuron_activation(
@@ -221,9 +221,9 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         )
 
     else:
-        print (
+        print((
             'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
-        ).format(channel_index, layer_name)
+        ).format(channel_index, layer_name))
 
         saliency_matrix = (
             gg_saliency_maps.get_saliency_maps_for_channel_activation(
@@ -235,7 +235,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             )[0]
         )
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     ge_saliency_maps.write_file(
         pickle_file_name=output_file_name,
         normalized_predictor_matrix=predictor_matrix,

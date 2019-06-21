@@ -349,8 +349,8 @@ def create_eval_pairs_for_cnn(
     this_random_seed = random_seed + 0
 
     for i in range(num_times):
-        print 'Creating {0:d} evaluation pairs for {1:s}...'.format(
-            num_examples_per_time, valid_time_strings[i])
+        print('Creating {0:d} evaluation pairs for {1:s}...'.format(
+            num_examples_per_time, valid_time_strings[i]))
 
         this_random_seed += 1
         these_row_indices, these_column_indices = _get_random_sample_points(
@@ -469,7 +469,7 @@ def find_best_binarization_threshold(
     #         this_contingency_table_as_dict)
 
     for i in range(num_thresholds):
-        print i
+        print(i)
 
         these_predicted_labels = determinize_probabilities(
             class_probability_matrix=class_probability_matrix,

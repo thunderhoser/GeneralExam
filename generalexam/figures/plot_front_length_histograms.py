@@ -76,9 +76,9 @@ def _project_fronts_latlng_to_narr(front_line_table):
 
     for i in range(num_fronts):
         if numpy.mod(i, 1000) == 0:
-            print (
+            print((
                 'Have projected {0:d} of {1:d} fronts to NARR coordinates...'
-            ).format(i, num_fronts)
+            ).format(i, num_fronts))
 
         (x_coords_by_front_metres[i], y_coords_by_front_metres[i]
         ) = nwp_model_utils.project_latlng_to_xy(
@@ -89,7 +89,7 @@ def _project_fronts_latlng_to_narr(front_line_table):
             projection_object=projection_object,
             model_name=nwp_model_utils.NARR_MODEL_NAME)
 
-    print 'Projected all {0:d} fronts to NARR coordinates!'.format(num_fronts)
+    print('Projected all {0:d} fronts to NARR coordinates!'.format(num_fronts))
     return front_line_table.assign(**{
         X_COORDS_COLUMN: x_coords_by_front_metres,
         Y_COORDS_COLUMN: y_coords_by_front_metres
@@ -111,8 +111,8 @@ def _get_front_lengths(front_line_table):
 
     for i in range(num_fronts):
         if numpy.mod(i, 1000) == 0:
-            print 'Have computed length for {0:d} of {1:d} fronts...'.format(
-                i, num_fronts)
+            print('Have computed length for {0:d} of {1:d} fronts...'.format(
+                i, num_fronts))
 
         this_closed_flag = front_utils._is_polyline_closed(
             latitudes_deg=front_line_table[
@@ -128,7 +128,7 @@ def _get_front_lengths(front_line_table):
             y_coords_metres=front_line_table[Y_COORDS_COLUMN].values[i])
         front_lengths_metres[i] = this_linestring_object.length
 
-    print 'Computed lengths of all {0:d} fronts!'.format(num_fronts)
+    print('Computed lengths of all {0:d} fronts!'.format(num_fronts))
     return front_lengths_metres
 
 
@@ -200,7 +200,7 @@ def _plot_histogram(num_fronts_by_bin, front_type_string, title_string,
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=OUTPUT_RESOLUTION_DPI)
     pyplot.close()
@@ -220,7 +220,7 @@ def _run():
     list_of_front_line_tables = [pandas.DataFrame()] * num_files
 
     for i in range(num_files):
-        print 'Reading data from: "{0:s}"...'.format(input_file_names[i])
+        print('Reading data from: "{0:s}"...'.format(input_file_names[i]))
 
         list_of_front_line_tables[i] = fronts_io.read_polylines_from_file(
             input_file_names[i])
@@ -231,15 +231,15 @@ def _run():
             list_of_front_line_tables[0], axis=1
         )[0]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     front_line_table = pandas.concat(
         list_of_front_line_tables, axis=0, ignore_index=True)
 
     front_line_table = _project_fronts_latlng_to_narr(front_line_table)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     front_lengths_metres = _get_front_lengths(front_line_table)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     nan_flags = numpy.isnan(front_lengths_metres)
     warm_front_flags = numpy.array(
@@ -261,18 +261,18 @@ def _run():
     warm_front_lengths_metres = front_lengths_metres[warm_front_indices]
     cold_front_lengths_metres = front_lengths_metres[cold_front_indices]
 
-    print (
+    print((
         'Number of fronts = {0:d} ... warm fronts with defined length = {1:d} '
         '... cold fronts with defined length = {2:d}'
     ).format(len(front_lengths_metres), len(warm_front_lengths_metres),
-             len(cold_front_lengths_metres))
+             len(cold_front_lengths_metres)))
 
     _, num_warm_fronts_by_bin = histograms.create_histogram(
         input_values=warm_front_lengths_metres, num_bins=NUM_BINS,
         min_value=MIN_HISTOGRAM_LENGTH_METRES,
         max_value=MAX_HISTOGRAM_LENGTH_METRES)
-    print 'Sum of bin counts for warm fronts = {0:d}'.format(
-        numpy.sum(num_warm_fronts_by_bin))
+    print('Sum of bin counts for warm fronts = {0:d}'.format(
+        numpy.sum(num_warm_fronts_by_bin)))
 
     _plot_histogram(
         num_fronts_by_bin=num_warm_fronts_by_bin,
@@ -284,8 +284,8 @@ def _run():
         input_values=cold_front_lengths_metres, num_bins=NUM_BINS,
         min_value=MIN_HISTOGRAM_LENGTH_METRES,
         max_value=MAX_HISTOGRAM_LENGTH_METRES)
-    print 'Sum of bin counts for cold fronts = {0:d}'.format(
-        numpy.sum(num_cold_fronts_by_bin))
+    print('Sum of bin counts for cold fronts = {0:d}'.format(
+        numpy.sum(num_cold_fronts_by_bin)))
 
     _plot_histogram(
         num_fronts_by_bin=num_cold_fronts_by_bin,
@@ -293,7 +293,7 @@ def _run():
         title_string='Cold fronts', annotation_string='(b)',
         output_file_name=COLD_FRONT_FILE_NAME)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
     imagemagick_utils.concatenate_images(
         input_file_names=[WARM_FRONT_FILE_NAME, COLD_FRONT_FILE_NAME],
         output_file_name=CONCAT_FILE_NAME, num_panel_rows=1,

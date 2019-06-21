@@ -139,7 +139,7 @@ def _plot_scores_as_grid(
 
     pyplot.title(title_string, verticalalignment='bottom')
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -168,7 +168,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
     )
 
     if os.path.isfile(all_scores_file_name):
-        print 'Reading data from: "{0:s}"...\n'.format(all_scores_file_name)
+        print('Reading data from: "{0:s}"...\n'.format(all_scores_file_name))
         pickle_file_handle = open(all_scores_file_name, 'rb')
         score_dict = pickle.load(pickle_file_handle)
         pickle_file_handle.close()
@@ -208,7 +208,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                         warnings.warn(warning_string)
                         continue
 
-                    print 'Reading data from: "{0:s}"...'.format(this_file_name)
+                    print('Reading data from: "{0:s}"...'.format(this_file_name))
                     this_evaluation_dict = object_eval.read_evaluation_results(
                         this_file_name)
 
@@ -221,7 +221,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
                     frequency_bias_matrix[i, j, k] = this_evaluation_dict[
                         object_eval.BINARY_FREQUENCY_BIAS_KEY]
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         score_dict = {
             'csi_matrix': csi_matrix,
@@ -230,7 +230,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
             'frequency_bias_matrix': frequency_bias_matrix
         }
 
-        print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
+        print('Writing scores to: "{0:s}"...'.format(all_scores_file_name))
         pickle_file_handle = open(all_scores_file_name, 'wb')
         pickle.dump(score_dict, pickle_file_handle)
         pickle_file_handle.close()
@@ -338,24 +338,24 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
             title_string=this_title_string,
             output_file_name=frequency_bias_file_names[-1])
 
-        print '\n'
+        print('\n')
 
     this_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=csi_file_names, output_file_name=this_file_name,
         num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
         output_size_pixels=FIGURE_SIZE_PIXELS)
 
     this_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=pod_file_names, output_file_name=this_file_name,
         num_panel_rows=NUM_PANEL_ROWS, num_panel_columns=NUM_PANEL_COLUMNS,
         output_size_pixels=FIGURE_SIZE_PIXELS)
 
     this_file_name = '{0:s}/success_ratio.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=success_ratio_file_names,
         output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,
@@ -363,7 +363,7 @@ def _run(experiment_dir_name, matching_distance_metres, output_dir_name):
         output_size_pixels=FIGURE_SIZE_PIXELS)
 
     this_file_name = '{0:s}/frequency_bias.jpg'.format(output_dir_name)
-    print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+    print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=frequency_bias_file_names,
         output_file_name=this_file_name, num_panel_rows=NUM_PANEL_ROWS,

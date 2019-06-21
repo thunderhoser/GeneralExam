@@ -66,7 +66,9 @@ USE_ISOTONIC_HELP_STRING = (
 CRITERION_FUNCTION_HELP_STRING = (
     'Name of criterion function used to determine best binarization threshold.'
     '  Must be in the following list:\n{0:s}'
-).format(str(NAME_TO_CRITERION_FUNCTION_DICT.keys()))
+).format(
+    str(list(NAME_TO_CRITERION_FUNCTION_DICT.keys()))
+)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be saved here.')
@@ -133,7 +135,7 @@ def _create_evaluation_pairs(
     observed_labels = numpy.array([], dtype=int)
 
     for this_file_name in example_file_names:
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
 
         this_example_dict = examples_io.read_file(
             netcdf_file_name=this_file_name,
@@ -156,7 +158,7 @@ def _create_evaluation_pairs(
         ))
 
         this_num_examples = len(these_observed_labels)
-        print 'Applying CNN to {0:d} examples...\n'.format(this_num_examples)
+        print('Applying CNN to {0:d} examples...\n'.format(this_num_examples))
 
         this_class_probability_matrix = model_object.predict(
             this_example_dict[examples_io.PREDICTOR_MATRIX_KEY],
@@ -206,27 +208,27 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT)
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
     model_metafile_name = cnn.find_metafile(
         model_file_name=model_file_name, raise_error_if_missing=True)
 
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     if use_isotonic_regression:
         isotonic_file_name = isotonic_regression.find_model_file(
             base_model_file_name=model_file_name, raise_error_if_missing=True)
 
-        print 'Reading isotonic-regression models from: "{0:s}"...'.format(
-            isotonic_file_name)
+        print('Reading isotonic-regression models from: "{0:s}"...'.format(
+            isotonic_file_name))
         isotonic_model_object_by_class = (
             isotonic_regression.read_model_for_each_class(isotonic_file_name)
         )
     else:
         isotonic_model_object_by_class = None
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     example_file_names = examples_io.find_many_files(
         top_directory_name=top_example_dir_name, shuffled=False,
@@ -246,7 +248,7 @@ def _run(model_file_name, top_example_dir_name, first_time_string,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     model_eval_helper.run_evaluation(
         class_probability_matrix=class_probability_matrix,

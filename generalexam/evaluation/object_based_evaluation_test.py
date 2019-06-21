@@ -605,8 +605,8 @@ class ObjectBasedEvaluationTests(unittest.TestCase):
                 neigh_distance_metres=NEIGH_DISTANCE_METRES)
         )
 
-        actual_keys = this_contingency_table_as_dict.keys()
-        expected_keys = BINARY_CONTINGENCY_TABLE_AS_DICT.keys()
+        actual_keys = list(this_contingency_table_as_dict.keys())
+        expected_keys = list(BINARY_CONTINGENCY_TABLE_AS_DICT.keys())
         self.assertTrue(set(actual_keys) == set(expected_keys))
 
         for this_key in actual_keys:

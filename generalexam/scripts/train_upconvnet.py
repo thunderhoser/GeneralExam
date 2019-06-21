@@ -221,13 +221,13 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
     if smoothing_radius_px <= 0:
         smoothing_radius_px = None
 
-    print 'Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name)
+    print('Reading trained CNN from: "{0:s}"...'.format(input_cnn_file_name))
     cnn_model_object = cnn.read_model(input_cnn_file_name)
 
     cnn_metafile_name = cnn.find_metafile(
         model_file_name=input_cnn_file_name, raise_error_if_missing=True)
 
-    print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
+    print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
 
     cnn_feature_layer_name = cnn.get_flattening_layer(cnn_model_object)
@@ -246,7 +246,7 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
     ucn_metafile_name = cnn.find_metafile(
         model_file_name=output_model_file_name, raise_error_if_missing=False)
 
-    print 'Writing upconvnet metadata to: "{0:s}"...'.format(ucn_metafile_name)
+    print('Writing upconvnet metadata to: "{0:s}"...'.format(ucn_metafile_name))
     upconvnet.write_model_metadata(
         pickle_file_name=ucn_metafile_name,
         top_training_dir_name=top_training_dir_name,
@@ -260,7 +260,7 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
         top_validation_dir_name=top_validation_dir_name,
         first_validation_time_unix_sec=first_validation_time_unix_sec,
         last_validation_time_unix_sec=last_validation_time_unix_sec)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     ucn_model_object = upconvnet.create_net(
         num_input_features=num_input_features, first_num_rows=first_num_rows,
@@ -272,7 +272,7 @@ def _run(input_cnn_file_name, use_batch_norm_for_out_layer, use_transposed_conv,
         use_transposed_conv=use_transposed_conv,
         use_conv_for_out_layer=use_conv_for_out_layer,
         smoothing_radius_px=smoothing_radius_px)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     upconvnet.train_upconvnet(
         ucn_model_object=ucn_model_object,

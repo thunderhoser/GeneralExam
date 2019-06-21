@@ -579,11 +579,11 @@ class FrontUtilsTests(unittest.TestCase):
         this_gridded_label_dict = front_utils.gridded_labels_to_points(
             TERNARY_LABEL_MATRIX)
 
-        these_keys = this_gridded_label_dict.keys()
-        expected_keys = GRIDDED_LABEL_DICT.keys()
+        these_keys = list(this_gridded_label_dict.keys())
+        expected_keys = list(GRIDDED_LABEL_DICT.keys())
         self.assertTrue(set(these_keys) == set(expected_keys))
 
-        for this_key in GRIDDED_LABEL_DICT.keys():
+        for this_key in list(GRIDDED_LABEL_DICT.keys()):
             self.assertTrue(numpy.array_equal(
                 this_gridded_label_dict[this_key],
                 GRIDDED_LABEL_DICT[this_key]

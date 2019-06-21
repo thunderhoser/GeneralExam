@@ -149,7 +149,7 @@ def _run():
 
     axes_object.legend(legend_handles, legend_strings, loc='lower right')
 
-    print 'Saving figure to file: "{0:s}"...'.format(OUTPUT_FILE_NAME)
+    print('Saving figure to file: "{0:s}"...'.format(OUTPUT_FILE_NAME))
     pyplot.savefig(OUTPUT_FILE_NAME, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 

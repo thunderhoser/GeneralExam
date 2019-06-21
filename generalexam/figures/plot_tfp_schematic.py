@@ -235,7 +235,7 @@ if __name__ == '__main__':
     AXES_OBJECT = _plot_temperature_grid(TEMPERATURE_MATRIX_KELVINS)
     _overlay_text(AXES_OBJECT)
 
-    print 'Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(OUTPUT_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(file_name=OUTPUT_FILE_NAME)
     pyplot.savefig(OUTPUT_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
     pyplot.close()

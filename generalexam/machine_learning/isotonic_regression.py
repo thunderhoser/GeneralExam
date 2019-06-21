@@ -65,7 +65,7 @@ def train_model_for_each_class(orig_class_probability_matrix, observed_labels):
     model_object_by_class = [None] * num_classes
 
     for k in range(num_classes):
-        print 'Training isotonic-regression model for class {0:d}...'.format(k)
+        print('Training isotonic-regression model for class {0:d}...'.format(k))
 
         model_object_by_class[k] = IsotonicRegression(
             y_min=0., y_max=1., increasing=True, out_of_bounds='clip')
@@ -108,7 +108,7 @@ def apply_model_for_each_class(
         (num_examples, num_classes), numpy.nan)
 
     for k in range(num_classes):
-        print 'Applying isotonic-regression model for class {0:d}...'.format(k)
+        print('Applying isotonic-regression model for class {0:d}...'.format(k))
         new_class_probability_matrix[:, k] = model_object_by_class[k].predict(
             orig_class_probability_matrix[:, k])
 

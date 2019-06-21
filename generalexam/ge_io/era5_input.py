@@ -400,13 +400,13 @@ def interp_to_narr_grid(predictor_dict, grid_name, era5_x_matrix_metres=None,
             predictor_dict[predictor_utils.VALID_TIMES_KEY][i], TIME_FORMAT)
 
         for k in range(num_fields):
-            print (
+            print((
                 'Interpolating field "{0:s}" at {1:d} mb and {2:s}...'
             ).format(
                 predictor_dict[predictor_utils.FIELD_NAMES_KEY][k],
                 predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY][k],
                 this_time_string
-            )
+            ))
 
             this_interp_object = griddata(
                 era5_xy_matrix_metres,

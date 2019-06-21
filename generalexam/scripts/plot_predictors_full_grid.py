@@ -357,7 +357,7 @@ def _plot_one_time(
             annotation_string='({0:s})'.format(letter_label)
         )
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -487,7 +487,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             top_directory_name=top_front_line_dir_name,
             valid_time_unix_sec=this_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_polyline_table = fronts_io.read_polylines_from_file(
             this_file_name
         )[0]
@@ -499,7 +499,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
                 top_directory_name=top_wpc_bulletin_dir_name,
                 valid_time_unix_sec=this_time_unix_sec)
 
-            print 'Reading data from: "{0:s}"...'.format(this_file_name)
+            print('Reading data from: "{0:s}"...'.format(this_file_name))
             this_high_low_table = wpc_bulletin_input.read_highs_and_lows(
                 this_file_name)
 
@@ -507,7 +507,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             top_directory_name=top_predictor_dir_name,
             valid_time_unix_sec=this_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         this_predictor_dict = predictor_io.read_file(
             netcdf_file_name=this_file_name,
             pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -582,7 +582,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name)
 
-        print '\n'
+        print('\n')
 
 
 if __name__ == '__main__':

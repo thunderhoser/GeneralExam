@@ -1,6 +1,6 @@
 """Search algorithms."""
 
-import Queue
+import queue
 
 WHITE_COLOUR = 'white'
 GREY_COLOUR = 'grey'
@@ -116,7 +116,7 @@ def run_bfs(bfs_node_dict, start_node_key, end_node_key):
     bfs_node_dict[start_node_key].set_colour(GREY_COLOUR)
     bfs_node_dict[start_node_key].set_distance_from_root(0)
 
-    node_queue = Queue.Queue()
+    node_queue = queue.Queue()
     node_queue.put(start_node_key)
 
     while (bfs_node_dict[end_node_key].get_parent() is None

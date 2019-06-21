@@ -125,7 +125,7 @@ def _plot_scores_as_grid(
         colour_max=max_colour_value, orientation='vertical',
         extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -180,8 +180,8 @@ def _run():
                     warnings.warn(warning_string)
                     continue
 
-                print 'Reading data from: "{0:s}"...'.format(
-                    this_eval_file_name)
+                print('Reading data from: "{0:s}"...'.format(
+                    this_eval_file_name))
                 this_evaluation_dict = eval_utils.read_evaluation_results(
                     this_eval_file_name)
 
@@ -194,7 +194,7 @@ def _run():
                 accuracy_matrix[i, j, k] = this_evaluation_dict[
                     eval_utils.ACCURACY_KEY]
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     panel_file_names = numpy.full((4, num_dropout_fractions), '', dtype=object)
 
     for k in range(num_dropout_fractions):
@@ -209,7 +209,7 @@ def _run():
             '{0:s}/gerrity_score_dropout-fraction={1:.2f}.jpg'
         ).format(TOP_EXPERIMENT_DIR_NAME, UNIQUE_DROPOUT_FRACTIONS[k])
 
-        print gerrity_score_matrix[..., k]
+        print(gerrity_score_matrix[..., k])
 
         _plot_scores_as_grid(
             score_matrix=gerrity_score_matrix[..., k],
@@ -299,14 +299,14 @@ def _run():
             imagemagick_utils.DEFAULT_CONVERT_EXE_NAME, panel_file_names[m, 0],
             second_image_object.size[0], second_image_object.size[1])
 
-        print 'Resizing image: "{0:s}"...'.format(panel_file_names[m, 0])
+        print('Resizing image: "{0:s}"...'.format(panel_file_names[m, 0]))
         exit_code = os.system(command_string)
         if exit_code != 0:
             raise ValueError('\nUnix command failed (log messages shown '
                              'above should explain why).')
 
     concat_file_name = '{0:s}/validation.jpg'.format(TOP_EXPERIMENT_DIR_NAME)
-    print 'Concatenating panels to: "{0:s}"...'.format(concat_file_name)
+    print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
 
     imagemagick_utils.concatenate_images(
         input_file_names=numpy.ravel(panel_file_names).tolist(),

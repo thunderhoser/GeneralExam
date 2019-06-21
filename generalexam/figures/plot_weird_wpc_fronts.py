@@ -127,7 +127,7 @@ def _plot_one_time(
         file_type=fronts_io.POLYLINE_FILE_TYPE,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    print 'Reading data from: "{0:s}"...'.format(front_file_name)
+    print('Reading data from: "{0:s}"...'.format(front_file_name))
     front_line_table = fronts_io.read_polylines_from_file(front_file_name)
 
     num_narr_fields = len(NARR_FIELD_NAMES)
@@ -139,7 +139,7 @@ def _plot_one_time(
             field_name=NARR_FIELD_NAMES[j], pressure_level_mb=pressure_level_mb,
             valid_time_unix_sec=valid_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         narr_matrix_by_field[j] = processed_narr_io.read_fields_from_file(
             this_file_name)[0][0, ...]
 
@@ -271,7 +271,7 @@ def _plot_one_time(
     figure_file_name = '{0:s}/fronts_{1:04d}mb_{2:s}.jpg'.format(
         OUTPUT_DIR_NAME, pressure_level_mb, valid_time_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(figure_file_name)
+    print('Saving figure to: "{0:s}"...'.format(figure_file_name))
     pyplot.savefig(figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
 
@@ -329,11 +329,11 @@ def _run():
             narr_rotation_sin_matrix=narr_rotation_sin_matrix)
 
         panel_file_names[i] = this_file_name
-        print '\n'
+        print('\n')
 
     concat_file_name = '{0:s}/weird_fronts.jpg'.format(OUTPUT_DIR_NAME)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(concat_file_name)
+    print('Concatenating figures to: "{0:s}"...'.format(concat_file_name))
 
     num_panels = len(panel_file_names)
     num_panel_columns = int(numpy.ceil(float(num_panels) / 2))

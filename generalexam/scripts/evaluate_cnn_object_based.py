@@ -86,7 +86,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
     if num_bootstrap_replicates < 2:
         num_bootstrap_replicates = 0
 
-    print 'Reading data from: "{0:s}"...'.format(input_prediction_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_prediction_file_name))
     predicted_region_table, actual_polyline_table = (
         object_eval.read_predictions_and_obs(input_prediction_file_name)
     )
@@ -96,10 +96,10 @@ def _run(input_prediction_file_name, matching_distance_metres,
         actual_polyline_table=actual_polyline_table,
         neigh_distance_metres=matching_distance_metres)
 
-    print (
+    print((
         'Binary contingency table (matching distance = {0:f} km):\n{1:s}\n'
     ).format(METRES_TO_KM * matching_distance_metres,
-             binary_contingency_table_as_dict)
+             binary_contingency_table_as_dict))
 
     binary_pod = object_eval.get_binary_pod(binary_contingency_table_as_dict)
     binary_success_ratio = object_eval.get_binary_success_ratio(
@@ -108,11 +108,11 @@ def _run(input_prediction_file_name, matching_distance_metres,
     binary_frequency_bias = object_eval.get_binary_frequency_bias(
         binary_contingency_table_as_dict)
 
-    print (
+    print((
         'Binary POD = {0:.4f} ... success ratio = {1:.4f} ... CSI = {2:.4f} ...'
         ' frequency bias = {3:.4f}\n'
     ).format(binary_pod, binary_success_ratio, binary_csi,
-             binary_frequency_bias)
+             binary_frequency_bias))
 
     row_normalized_ct_as_matrix = (
         object_eval.get_row_normalized_contingency_table(
@@ -121,8 +121,8 @@ def _run(input_prediction_file_name, matching_distance_metres,
             neigh_distance_metres=matching_distance_metres)
     )
 
-    print 'Row-normalized contingency table:\n{0:s}\n'.format(
-        row_normalized_ct_as_matrix)
+    print('Row-normalized contingency table:\n{0:s}\n'.format(
+        row_normalized_ct_as_matrix))
 
     column_normalized_ct_as_matrix = (
         object_eval.get_column_normalized_contingency_table(
@@ -131,10 +131,10 @@ def _run(input_prediction_file_name, matching_distance_metres,
             neigh_distance_metres=matching_distance_metres)
     )
 
-    print 'Column-normalized contingency table:\n{0:s}\n'.format(
-        column_normalized_ct_as_matrix)
+    print('Column-normalized contingency table:\n{0:s}\n'.format(
+        column_normalized_ct_as_matrix))
 
-    print 'Writing results to: "{0:s}"...'.format(output_eval_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_eval_file_name))
     object_eval.write_evaluation_results(
         predicted_region_table=predicted_region_table,
         actual_polyline_table=actual_polyline_table,
@@ -158,10 +158,10 @@ def _run(input_prediction_file_name, matching_distance_metres,
 
     num_unique_times = len(unique_times_unix_sec)
 
-    print (
+    print((
         '\nNumber of unique times between predicted and actual fronts = {0:d}'
-    ).format(num_unique_times)
-    print SEPARATOR_STRING
+    ).format(num_unique_times))
+    print(SEPARATOR_STRING)
 
     binary_pod_values = numpy.full(num_bootstrap_replicates, numpy.nan)
     binary_success_ratios = numpy.full(num_bootstrap_replicates, numpy.nan)
@@ -216,21 +216,21 @@ def _run(input_prediction_file_name, matching_distance_metres,
         this_actual_polyline_table = pandas.concat(
             these_actual_polyline_tables, axis=0, ignore_index=True)
 
-        print (
+        print((
             'Number of unique predicted fronts = {0:d} ... number of '
             'predicted fronts in bootstrap replicate {1:d} of {2:d} = {3:d}'
         ).format(
             len(predicted_region_table.index), i + 1, num_bootstrap_replicates,
             len(this_predicted_region_table.index)
-        )
+        ))
 
-        print (
+        print((
             'Number of unique actual fronts = {0:d} ... number of actual '
             'fronts in bootstrap replicate {1:d} of {2:d} = {3:d}'
         ).format(
             len(actual_polyline_table.index), i + 1, num_bootstrap_replicates,
             len(this_actual_polyline_table.index)
-        )
+        ))
 
         this_binary_ct_as_dict = object_eval.get_binary_contingency_table(
             predicted_region_table=this_predicted_region_table,
@@ -246,16 +246,16 @@ def _run(input_prediction_file_name, matching_distance_metres,
         binary_frequency_biases[i] = object_eval.get_binary_frequency_bias(
             this_binary_ct_as_dict)
 
-        print (
+        print((
             'This binary POD = {0:.4f} ... success ratio = {1:.4f} ... '
             'CSI = {2:.4f} ... frequency bias = {3:.4f}'
         ).format(binary_pod_values[i], binary_success_ratios[i],
-                 binary_csi_values[i], binary_frequency_biases[i])
+                 binary_csi_values[i], binary_frequency_biases[i]))
 
         if i == num_bootstrap_replicates - 1:
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
         else:
-            print '\n'
+            print('\n')
 
     min_percentile_level = 100 * (1. - confidence_level) / 2
     max_percentile_level = min_percentile_level + 100 * confidence_level
@@ -263,42 +263,42 @@ def _run(input_prediction_file_name, matching_distance_metres,
     min_binary_pod = numpy.percentile(binary_pod_values, min_percentile_level)
     max_binary_pod = numpy.percentile(binary_pod_values, max_percentile_level)
 
-    print (
+    print((
         '{0:.2f}th and {1:.2f}th percentiles of binary POD = '
         '[{2:.4f}, {3:.4f}]'
     ).format(min_percentile_level, max_percentile_level, min_binary_pod,
-             max_binary_pod)
+             max_binary_pod))
 
     min_binary_success_ratio = numpy.percentile(
         binary_success_ratios, min_percentile_level)
     max_binary_success_ratio = numpy.percentile(
         binary_success_ratios, max_percentile_level)
 
-    print (
+    print((
         '{0:.2f}th and {1:.2f}th percentiles of binary success ratio = '
         '[{2:.4f}, {3:.4f}]'
     ).format(min_percentile_level, max_percentile_level,
-             min_binary_success_ratio, max_binary_success_ratio)
+             min_binary_success_ratio, max_binary_success_ratio))
 
     min_binary_csi = numpy.percentile(binary_csi_values, min_percentile_level)
     max_binary_csi = numpy.percentile(binary_csi_values, max_percentile_level)
 
-    print (
+    print((
         '{0:.2f}th and {1:.2f}th percentiles of binary CSI = '
         '[{2:.4f}, {3:.4f}]'
     ).format(min_percentile_level, max_percentile_level, min_binary_csi,
-             max_binary_csi)
+             max_binary_csi))
 
     min_binary_frequency_bias = numpy.percentile(
         binary_frequency_biases, min_percentile_level)
     max_binary_frequency_bias = numpy.percentile(
         binary_frequency_biases, max_percentile_level)
 
-    print (
+    print((
         '{0:.2f}th and {1:.2f}th percentiles of binary frequency bias = '
         '[{2:.4f}, {3:.4f}]'
     ).format(min_percentile_level, max_percentile_level,
-             min_binary_frequency_bias, max_binary_frequency_bias)
+             min_binary_frequency_bias, max_binary_frequency_bias))
 
     output_dir_name, pathless_eval_file_name = os.path.split(
         output_eval_file_name)
@@ -308,7 +308,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
     max_percentile_eval_file_name = '{0:s}/{1:s}_percentile={2:09.6f}.p'.format(
         output_dir_name, extensionless_eval_file_name, max_percentile_level)
 
-    print 'Writing results to: "{0:s}"...'.format(min_percentile_eval_file_name)
+    print('Writing results to: "{0:s}"...'.format(min_percentile_eval_file_name))
     object_eval.write_evaluation_results(
         predicted_region_table=predicted_region_table,
         actual_polyline_table=actual_polyline_table,
@@ -322,7 +322,7 @@ def _run(input_prediction_file_name, matching_distance_metres,
         column_normalized_ct_as_matrix=column_normalized_ct_as_matrix,
         pickle_file_name=min_percentile_eval_file_name)
 
-    print 'Writing results to: "{0:s}"...'.format(max_percentile_eval_file_name)
+    print('Writing results to: "{0:s}"...'.format(max_percentile_eval_file_name))
     object_eval.write_evaluation_results(
         predicted_region_table=predicted_region_table,
         actual_polyline_table=actual_polyline_table,

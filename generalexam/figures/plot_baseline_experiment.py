@@ -146,7 +146,7 @@ def _plot_scores_as_grid(
         colour_max=max_colour_value, orientation='vertical',
         extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -177,7 +177,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
     ).format(output_dir_name, matching_distance_metres)
 
     if os.path.isfile(all_scores_file_name):
-        print 'Reading data from: "{0:s}"...\n'.format(all_scores_file_name)
+        print('Reading data from: "{0:s}"...\n'.format(all_scores_file_name))
         pickle_file_handle = open(all_scores_file_name, 'rb')
         score_dict = pickle.load(pickle_file_handle)
         pickle_file_handle.close()
@@ -223,8 +223,8 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                                     matching_distance_metres
                                 )
 
-                                print 'Reading data from: "{0:s}"...'.format(
-                                    this_file_name)
+                                print('Reading data from: "{0:s}"...'.format(
+                                    this_file_name))
                                 this_evaluation_dict = (
                                     object_eval.read_evaluation_results(
                                         this_file_name)
@@ -247,7 +247,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                                         object_eval.BINARY_FREQUENCY_BIAS_KEY]
                                 )
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
         score_dict = {
             'csi_matrix': csi_matrix,
@@ -256,7 +256,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
             'frequency_bias_matrix': frequency_bias_matrix
         }
 
-        print 'Writing scores to: "{0:s}"...'.format(all_scores_file_name)
+        print('Writing scores to: "{0:s}"...'.format(all_scores_file_name))
         pickle_file_handle = open(all_scores_file_name, 'wb')
         pickle.dump(score_dict, pickle_file_handle)
         pickle_file_handle.close()
@@ -377,7 +377,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
                         title_string=this_title_string,
                         output_file_name=these_fb_file_names[-1])
 
-                    print '\n'
+                    print('\n')
 
             this_file_name_suffix = (
                 'matching-distance-metres={0:06d}_smoothing-radius-px={1:d}_'
@@ -389,7 +389,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             this_file_name = '{0:s}/csi_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
-            print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+            print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_csi_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
@@ -398,7 +398,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             this_file_name = '{0:s}/pod_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
-            print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+            print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_pod_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
@@ -407,7 +407,7 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             this_file_name = '{0:s}/success_ratio_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
-            print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+            print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_sr_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
@@ -416,14 +416,14 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             this_file_name = '{0:s}/frequency_bias_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
-            print 'Concatenating panels to: "{0:s}"...'.format(this_file_name)
+            print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_fb_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
                 num_panel_columns=num_closing_iter_counts,
                 output_size_pixels=FIGURE_SIZE_PIXELS)
 
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

@@ -118,7 +118,7 @@ def _plot_predictions(
     plotting_utils.annotate_axes(
         axes_object=axes_object, annotation_string=annotation_string)
 
-    print 'Saving figure to: "{0:s}"...'.format(output_file_name)
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
     pyplot.close()
@@ -211,7 +211,7 @@ def _run():
         title_string='Main skeleton lines', annotation_string='(e)',
         output_file_name=MAIN_SKELETONS_FILE_NAME)
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
 
     panel_file_names = [
         PROBABILITY_FILE_NAME, ALL_REGIONS_FILE_NAME, LARGE_REGIONS_FILE_NAME,

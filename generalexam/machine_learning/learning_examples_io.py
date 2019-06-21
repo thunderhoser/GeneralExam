@@ -244,7 +244,7 @@ def create_examples(
         top_directory_name=top_predictor_dir_name,
         valid_time_unix_sec=valid_time_unix_sec, raise_error_if_missing=True)
 
-    print 'Reading data from: "{0:s}"...'.format(predictor_file_name)
+    print('Reading data from: "{0:s}"...'.format(predictor_file_name))
     predictor_dict = predictor_io.read_file(
         netcdf_file_name=predictor_file_name,
         pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -264,7 +264,7 @@ def create_examples(
         predictor_matrix=predictor_matrix,
         normalization_type_string=normalization_type_string)
 
-    print 'Reading data from: "{0:s}"...'.format(gridded_front_file_name)
+    print('Reading data from: "{0:s}"...'.format(gridded_front_file_name))
     gridded_front_table = fronts_io.read_grid_from_file(
         gridded_front_file_name)
 
@@ -310,9 +310,9 @@ def create_examples(
 
     target_matrix = to_categorical(target_values, 3)
     actual_class_fractions = numpy.sum(target_matrix, axis=0)
-    print 'Fraction of examples in each class: {0:s}'.format(
+    print('Fraction of examples in each class: {0:s}'.format(
         str(actual_class_fractions)
-    )
+    ))
 
     example_dict = {
         PREDICTOR_MATRIX_KEY: predictor_matrix,

@@ -106,7 +106,7 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
 
-    print 'Reading data from: "{0:s}"...'.format(input_file_name)
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
     bwo_dictionary = bwo.read_standard_file(input_file_name)
 
     optimized_predictor_matrix = bwo_dictionary.pop(bwo.OPTIMIZED_MATRICES_KEY)
@@ -118,7 +118,7 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
         model_file_name=bwo_dictionary[bwo.MODEL_FILE_NAME_KEY]
     )
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
     predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
@@ -174,7 +174,7 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
                 min_colour_value_by_predictor=this_min_cval_by_predictor,
                 max_colour_value_by_predictor=this_max_cval_by_predictor)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -196,7 +196,7 @@ def _run(input_file_name, colour_map_name, min_colour_percentile,
                 min_colour_value_by_predictor=this_min_cval_by_predictor,
                 max_colour_value_by_predictor=this_max_cval_by_predictor)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 

@@ -180,16 +180,16 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
     if num_examples <= 0:
         num_examples = None
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
     num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
 
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
-    print 'Reading normalized examples from: "{0:s}"...'.format(
-        example_file_name)
+    print('Reading normalized examples from: "{0:s}"...'.format(
+        example_file_name))
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
@@ -217,13 +217,13 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
     predictor_matrix = predictor_matrix[example_indices, ...]
     optimized_predictor_matrix = numpy.full(predictor_matrix.shape, numpy.nan)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for i in range(num_examples):
         if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-            print (
+            print((
                 'Optimizing {0:d}th of {1:d} images for target class {2:d}...'
-            ).format(i + 1, num_examples, target_class)
+            ).format(i + 1, num_examples, target_class))
 
             optimized_predictor_matrix[i, ...] = (
                 backwards_opt.optimize_input_for_class(
@@ -234,10 +234,10 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             )
 
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-            print (
+            print((
                 'Optimizing {0:d}th of {1:d} images for neuron {2:s} in layer '
                 '"{3:s}"...'
-            ).format(i + 1, num_examples, str(neuron_indices), layer_name)
+            ).format(i + 1, num_examples, str(neuron_indices), layer_name))
 
             optimized_predictor_matrix[i, ...] = (
                 backwards_opt.optimize_input_for_neuron(
@@ -250,10 +250,10 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
             )
 
         else:
-            print (
+            print((
                 'Optimizing {0:d}th of {1:d} images for channel {2:d} in layer '
                 '"{3:s}"...'
-            ).format(i + 1, num_examples, channel_index, layer_name)
+            ).format(i + 1, num_examples, channel_index, layer_name))
 
             optimized_predictor_matrix[i, ...] = (
                 backwards_opt.optimize_input_for_channel(
@@ -266,9 +266,9 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
                 )[0]
             )
 
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
-    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
         init_function_name_or_matrices=[predictor_matrix],

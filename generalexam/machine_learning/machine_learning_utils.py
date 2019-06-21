@@ -488,7 +488,7 @@ def normalize_predictors(
         for i in range(num_examples):
             for m in range(num_predictors):
                 if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
-                    print 'NORMALIZING WITH ONLY INNER GRID'
+                    print('NORMALIZING WITH ONLY INNER GRID')
 
                     min_value_matrix[i, m] = numpy.nanpercentile(
                         predictor_matrix[i, 100:-100, 100:-100, ..., m],
@@ -517,7 +517,7 @@ def normalize_predictors(
         for i in range(num_examples):
             for m in range(num_predictors):
                 if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
-                    print 'NORMALIZING WITH ONLY INNER GRID'
+                    print('NORMALIZING WITH ONLY INNER GRID')
 
                     mean_value_matrix[i, m] = numpy.nanmean(
                         predictor_matrix[i, 100:-100, 100:-100, ..., m]
@@ -766,10 +766,10 @@ def sample_target_points(
         this_num_examples_masked = numpy.sum(
             numpy.logical_and(target_matrix == i, mask_matrix == 1))
 
-        print (
+        print((
             'Number of examples for class {0:d} before mask = {1:d} ... after '
             'mask = {2:d}'
-        ).format(i, this_num_examples_unmasked, this_num_examples_masked)
+        ).format(i, this_num_examples_unmasked, this_num_examples_masked))
 
         (time_indices_by_class[i], row_indices_by_class[i],
          column_indices_by_class[i]
@@ -969,10 +969,10 @@ def dilate_ternary_target_images(
 
     for i in range(num_times):
         if verbose:
-            print (
+            print((
                 'Dilating 3-class target image at {0:d}th of {1:d} time '
                 'steps...'
-            ).format(i + 1, num_times)
+            ).format(i + 1, num_times))
 
         target_matrix[i, :, :] = front_utils.dilate_ternary_label_matrix(
             ternary_label_matrix=target_matrix[i, :, :],
@@ -1008,10 +1008,10 @@ def dilate_binary_target_images(
 
     for i in range(num_times):
         if verbose:
-            print (
+            print((
                 'Dilating 2-class target image at {0:d}th of {1:d} time '
                 'steps...'
-            ).format(i + 1, num_times)
+            ).format(i + 1, num_times))
 
         target_matrix[i, :, :] = front_utils.dilate_binary_label_matrix(
             binary_label_matrix=target_matrix[i, :, :],
@@ -1133,10 +1133,10 @@ def downsize_grids_around_selected_points(
 
     for i in range(num_full_examples):
         if verbose:
-            print (
+            print((
                 'Downsizing images around selected points for {0:d}th of {1:d} '
                 'full-size examples...'
-            ).format(i + 1, num_full_examples)
+            ).format(i + 1, num_full_examples))
 
         these_target_point_rows = target_point_dict[ROW_INDICES_BY_TIME_KEY][i]
         these_target_point_columns = target_point_dict[

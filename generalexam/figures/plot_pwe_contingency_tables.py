@@ -77,7 +77,7 @@ def _plot_binary_table():
         axes_object=axes_object, annotation_string='(a)',
         font_colour=ANNOTATION_COLOUR)
 
-    print 'Saving figure to: "{0:s}"...'.format(BINARY_CT_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(BINARY_CT_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=BINARY_CT_FILE_NAME)
     pyplot.savefig(BINARY_CT_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
@@ -114,7 +114,7 @@ def _plot_ternary_table():
     #     axes_object=axes_object, annotation_string='(b)',
     #     font_colour=ANNOTATION_COLOUR)
 
-    print 'Saving figure to: "{0:s}"...'.format(TERNARY_CT_FILE_NAME)
+    print('Saving figure to: "{0:s}"...'.format(TERNARY_CT_FILE_NAME))
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=TERNARY_CT_FILE_NAME)
     pyplot.savefig(TERNARY_CT_FILE_NAME, dpi=OUTPUT_RESOLUTION_DPI)
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     _plot_binary_table()
     _plot_ternary_table()
 
-    print 'Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME)
+    print('Concatenating figures to: "{0:s}"...'.format(CONCAT_FILE_NAME))
     imagemagick_utils.concatenate_images(
         input_file_names=[BINARY_CT_FILE_NAME, TERNARY_CT_FILE_NAME],
         output_file_name=CONCAT_FILE_NAME, num_panel_rows=1,

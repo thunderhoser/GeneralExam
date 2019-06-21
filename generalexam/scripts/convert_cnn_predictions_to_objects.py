@@ -155,7 +155,7 @@ def _read_actual_fronts(
             top_directory_name=top_polyline_dir_name,
             valid_time_unix_sec=this_time_unix_sec)
 
-        print 'Reading data from: "{0:s}"...'.format(this_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
         list_of_polyline_tables.append(
             fronts_io.read_polylines_from_file(this_file_name)[0]
         )
@@ -173,7 +173,7 @@ def _read_actual_fronts(
     if narr_mask_matrix is None:
         return polyline_table
 
-    print '\n'
+    print('\n')
     return front_utils.remove_fronts_in_masked_area(
         polyline_table=polyline_table, narr_mask_matrix=narr_mask_matrix,
         verbose=True)
@@ -240,7 +240,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         num_times_done += 1
         valid_times_unix_sec.append(possible_times_unix_sec[i])
 
-        print 'Reading data from: "{0:s}"...'.format(this_prediction_file_name)
+        print('Reading data from: "{0:s}"...'.format(this_prediction_file_name))
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=this_prediction_file_name,
             read_deterministic=False)
@@ -255,20 +255,20 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
 
         class_probability_matrix = _fill_probabilities(class_probability_matrix)
 
-        print 'Determinizing probabilities...'
+        print('Determinizing probabilities...')
         this_predicted_label_matrix = object_eval.determinize_probabilities(
             class_probability_matrix=class_probability_matrix,
             binarization_threshold=binarization_threshold)
 
-        print 'Converting image to frontal regions...'
+        print('Converting image to frontal regions...')
         list_of_predicted_region_tables.append(
             object_eval.images_to_regions(
                 predicted_label_matrix=this_predicted_label_matrix,
                 image_times_unix_sec=possible_times_unix_sec[[i]])
         )
 
-        print 'Throwing out frontal regions with area < {0:f} km^2...'.format(
-            METRES2_TO_KM2 * min_object_area_metres2)
+        print('Throwing out frontal regions with area < {0:f} km^2...'.format(
+            METRES2_TO_KM2 * min_object_area_metres2))
         list_of_predicted_region_tables[
             -1
         ] = object_eval.discard_regions_with_small_area(
@@ -277,7 +277,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
             y_grid_spacing_metres=grid_spacing_metres,
             min_area_metres2=min_object_area_metres2)
 
-        print 'Skeletonizing frontal regions...'
+        print('Skeletonizing frontal regions...')
         list_of_predicted_region_tables[
             -1
         ] = object_eval.skeletonize_frontal_regions(
@@ -293,7 +293,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
             min_endpoint_length_metres=min_endpoint_length_metres)
 
         if num_times_done != num_times:
-            print '\n'
+            print('\n')
 
         if len(list_of_predicted_region_tables) == 1:
             continue
@@ -304,7 +304,7 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
             )[0]
         )
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     valid_times_unix_sec = numpy.array(valid_times_unix_sec, dtype=int)
     predicted_region_table = pandas.concat(
@@ -318,13 +318,13 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
         top_polyline_dir_name=top_polyline_dir_name,
         valid_times_unix_sec=valid_times_unix_sec,
         narr_mask_matrix=narr_mask_matrix)
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     actual_polyline_table = object_eval.project_polylines_latlng_to_narr(
         actual_polyline_table)
 
-    print 'Writing predicted and observed objects to: "{0:s}"...'.format(
-        output_file_name)
+    print('Writing predicted and observed objects to: "{0:s}"...'.format(
+        output_file_name))
     object_eval.write_predictions_and_obs(
         predicted_region_table=predicted_region_table,
         actual_polyline_table=actual_polyline_table,

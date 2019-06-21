@@ -122,8 +122,8 @@ def downsized_generator_from_scratch(
 
             time_index = time_index + 1 if time_index + 1 < num_times else 0
 
-            print 'Reading data from: "{0:s}"...'.format(
-                this_predictor_file_name)
+            print('Reading data from: "{0:s}"...'.format(
+                this_predictor_file_name))
 
             this_predictor_dict = predictor_io.read_file(
                 netcdf_file_name=this_predictor_file_name,
@@ -144,7 +144,7 @@ def downsized_generator_from_scratch(
                 predictor_matrix=this_full_predictor_matrix,
                 normalization_type_string=normalization_type_string)
 
-            print 'Reading data from: "{0:s}"...'.format(this_front_file_name)
+            print('Reading data from: "{0:s}"...'.format(this_front_file_name))
             this_gridded_front_table = fronts_io.read_grid_from_file(
                 this_front_file_name)
 
@@ -182,8 +182,8 @@ def downsized_generator_from_scratch(
 
             num_times_in_memory = full_size_target_matrix.shape[0]
 
-        print 'Creating {0:d} downsized examples...'.format(
-            num_examples_per_batch)
+        print('Creating {0:d} downsized examples...'.format(
+            num_examples_per_batch))
 
         sampled_target_point_dict = ml_utils.sample_target_points(
             target_matrix=full_size_target_matrix,
@@ -209,9 +209,9 @@ def downsized_generator_from_scratch(
             target_values[batch_indices], num_classes)
 
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
-        print 'Number of examples in each class: {0:s}'.format(
+        print('Number of examples in each class: {0:s}'.format(
             str(num_examples_by_class)
-        )
+        ))
 
         full_size_predictor_matrix = None
         full_size_target_matrix = None
@@ -275,9 +275,9 @@ def downsized_generator_from_example_files(
         target_matrix = None
 
         while num_examples_in_memory < num_examples_per_batch:
-            print 'Reading data from: "{0:s}"...'.format(
+            print('Reading data from: "{0:s}"...'.format(
                 example_file_names[file_index]
-            )
+            ))
 
             this_example_dict = examples_io.read_file(
                 netcdf_file_name=example_file_names[file_index],
@@ -328,9 +328,9 @@ def downsized_generator_from_example_files(
             target_matrix = to_categorical(target_values, num_classes)
 
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
-        print 'Number of examples in each class: {0:s}'.format(
+        print('Number of examples in each class: {0:s}'.format(
             str(num_examples_by_class)
-        )
+        ))
 
         num_examples_in_memory = 0
         yield (predictor_matrix, target_matrix)
@@ -418,8 +418,8 @@ def full_size_generator_from_scratch(
 
             time_index = time_index + 1 if time_index + 1 < num_times else 0
 
-            print 'Reading data from: "{0:s}"...'.format(
-                this_predictor_file_name)
+            print('Reading data from: "{0:s}"...'.format(
+                this_predictor_file_name))
 
             this_predictor_dict = predictor_io.read_file(
                 netcdf_file_name=this_predictor_file_name,
@@ -442,7 +442,7 @@ def full_size_generator_from_scratch(
                 predictor_matrix=this_predictor_matrix,
                 normalization_type_string=normalization_type_string)
 
-            print 'Reading data from: "{0:s}"...'.format(this_front_file_name)
+            print('Reading data from: "{0:s}"...'.format(this_front_file_name))
             this_gridded_front_table = fronts_io.read_grid_from_file(
                 this_front_file_name)
 
@@ -492,9 +492,9 @@ def full_size_generator_from_scratch(
             dtype=int
         )
 
-        print 'Number of instances of each class: {0:s}'.format(
+        print('Number of instances of each class: {0:s}'.format(
             str(num_instances_by_class)
-        )
+        ))
 
         num_times_in_memory = 0
         yield (predictor_matrix, target_matrix)

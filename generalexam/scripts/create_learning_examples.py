@@ -204,7 +204,7 @@ def _write_example_file(
         last_valid_time_unix_sec=last_time_unix_sec,
         raise_error_if_missing=False)
 
-    print 'Writing examples to file: "{0:s}"...'.format(output_file_name)
+    print('Writing examples to file: "{0:s}"...'.format(output_file_name))
     examples_io.write_file(netcdf_file_name=output_file_name,
                            example_dict=example_dict)
 
@@ -244,7 +244,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
         mask_file_name = None
 
     if mask_file_name is not None:
-        print 'Reading mask from: "{0:s}"...\n'.format(mask_file_name)
+        print('Reading mask from: "{0:s}"...\n'.format(mask_file_name))
         mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
     else:
         mask_matrix = None
@@ -272,7 +272,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
                 last_time_unix_sec=valid_times_unix_sec[i - 1]
             )
 
-            print SEPARATOR_STRING
+            print(SEPARATOR_STRING)
             this_example_dict = None
             this_first_time_unix_sec = valid_times_unix_sec[i]
 
@@ -289,7 +289,7 @@ def _run(top_predictor_dir_name, first_time_string, last_time_string,
             normalization_type_string=normalization_type_string,
             narr_mask_matrix=mask_matrix)
 
-        print '\n'
+        print('\n')
         if this_new_example_dict is None:
             continue
 

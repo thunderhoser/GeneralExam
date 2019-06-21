@@ -134,7 +134,7 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
         this_figure_file_name = '{0:s}/example{1:06d}.jpg'.format(
             output_dir_name, i)
 
-        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
         pyplot.close()
 
@@ -161,17 +161,17 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
     else:
         error_checking.assert_is_greater(num_examples, 0)
 
-    print 'Reading model from: "{0:s}"...'.format(model_file_name)
+    print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = ge_cnn.read_model(model_file_name)
     num_half_rows, num_half_columns = ge_cnn.model_to_grid_dimensions(
         model_object)
 
     model_metafile_name = ge_cnn.find_metafile(model_file_name=model_file_name)
-    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = ge_cnn.read_metadata(model_metafile_name)
 
-    print 'Reading normalized examples from: "{0:s}"...'.format(
-        example_file_name)
+    print('Reading normalized examples from: "{0:s}"...'.format(
+        example_file_name))
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
@@ -180,7 +180,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         num_half_rows_to_keep=num_half_rows,
         num_half_columns_to_keep=num_half_columns)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
 
     if num_examples is not None:
@@ -201,17 +201,17 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
     feature_matrix_by_layer = [None] * num_layers
 
     for k in range(num_layers):
-        print 'Creating feature maps for layer "{0:s}"...'.format(
-            layer_names[k])
+        print('Creating feature maps for layer "{0:s}"...'.format(
+            layer_names[k]))
 
         this_partial_model_object = gg_cnn.model_to_feature_generator(
             model_object=model_object, feature_layer_name=layer_names[k])
 
         feature_matrix_by_layer[k] = this_partial_model_object.predict(
             predictor_matrix, batch_size=num_examples)
-        print feature_matrix_by_layer[k].shape
+        print(feature_matrix_by_layer[k].shape)
 
-    print SEPARATOR_STRING
+    print(SEPARATOR_STRING)
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(
@@ -222,7 +222,7 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         _plot_feature_maps_one_layer(
             feature_matrix=feature_matrix_by_layer[k],
             layer_name=layer_names[k], output_dir_name=this_output_dir_name)
-        print SEPARATOR_STRING
+        print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':
