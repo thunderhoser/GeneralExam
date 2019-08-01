@@ -247,7 +247,7 @@ def _plot_one_time(
                 extend_min=True, extend_max=False, fraction_of_axis_length=0.9)
 
     # pyplot.title(title_string)
-    # 
+    #
     # if letter_label is not None:
     #     plotting_utils.annotate_axes(
     #         axes_object=axes_object,
