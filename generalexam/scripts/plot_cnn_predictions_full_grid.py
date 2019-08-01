@@ -151,33 +151,25 @@ def _plot_one_time(
         last_column_in_full_grid=full_grid_column_limits[1]
     )
 
-    parallel_spacing_deg = numpy.round(
-        (MAX_LATITUDE_DEG - MIN_LATITUDE_DEG) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = numpy.round(
-        (MAX_LONGITUDE_DEG - MIN_LONGITUDE_DEG) / (NUM_MERIDIANS - 1)
-    )
-
-    parallel_spacing_deg = max([parallel_spacing_deg, 1.])
-    meridian_spacing_deg = max([meridian_spacing_deg, 1.])
-
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg)
+        num_parallels=NUM_PARALLELS)
+
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg)
+        num_meridians=NUM_MERIDIANS)
 
     if class_probability_matrix is None:
         this_matrix = predicted_label_matrix[
@@ -228,13 +220,13 @@ def _plot_one_time(
                 prediction_plotting.get_warm_front_colour_map()[:2]
             )
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=axes_object,
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=axes_object,
+                data_matrix=this_wf_probability_matrix,
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                values_to_colour=this_wf_probability_matrix,
-                orientation='horizontal', extend_min=True, extend_max=False,
-                fraction_of_axis_length=0.9)
+                orientation_string='horizontal',
+                extend_min=True, extend_max=False, fraction_of_axis_length=0.9)
 
         if plot_cf_colour_bar:
             this_colour_map_object, this_colour_norm_object = (
@@ -246,20 +238,21 @@ def _plot_one_time(
             else:
                 orientation_string = 'horizontal'
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=axes_object,
-                colour_map=this_colour_map_object,
+            plotting_utils.plot_colour_bar(
+                axes_object_or_matrix=axes_object,
+                data_matrix=this_cf_probability_matrix,
+                colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                values_to_colour=this_cf_probability_matrix,
-                orientation=orientation_string,
+                orientation_string=orientation_string,
                 extend_min=True, extend_max=False, fraction_of_axis_length=0.9)
 
     # pyplot.title(title_string)
-    if letter_label is not None:
-        plotting_utils.annotate_axes(
-            axes_object=axes_object,
-            annotation_string='({0:s})'.format(letter_label)
-        )
+    # 
+    # if letter_label is not None:
+    #     plotting_utils.annotate_axes(
+    #         axes_object=axes_object,
+    #         annotation_string='({0:s})'.format(letter_label)
+    #     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
