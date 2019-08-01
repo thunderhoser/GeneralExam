@@ -140,10 +140,10 @@ def _plot_scores_as_grid(
     pyplot.ylabel(y_axis_label, color=y_axis_text_colour)
 
     pyplot.title(title_string)
-    plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object, values_to_colour=score_matrix,
-        colour_map=colour_map_object, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='vertical',
+    plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=score_matrix,
+        colour_map_object=colour_map_object, min_value=min_colour_value,
+        max_value=max_colour_value, orientation_string='vertical',
         extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -389,38 +389,54 @@ def _run(input_experiment_dir_name, matching_distance_metres, output_dir_name):
 
             this_file_name = '{0:s}/csi_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
+
             print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_csi_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
-                num_panel_columns=num_closing_iter_counts,
+                num_panel_columns=num_closing_iter_counts)
+
+            imagemagick_utils.resize_image(
+                input_file_name=this_file_name, output_file_name=this_file_name,
                 output_size_pixels=FIGURE_SIZE_PIXELS)
 
             this_file_name = '{0:s}/pod_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
+
             print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_pod_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
-                num_panel_columns=num_closing_iter_counts,
+                num_panel_columns=num_closing_iter_counts)
+
+            imagemagick_utils.resize_image(
+                input_file_name=this_file_name, output_file_name=this_file_name,
                 output_size_pixels=FIGURE_SIZE_PIXELS)
 
             this_file_name = '{0:s}/success_ratio_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
+
             print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_sr_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
-                num_panel_columns=num_closing_iter_counts,
+                num_panel_columns=num_closing_iter_counts)
+
+            imagemagick_utils.resize_image(
+                input_file_name=this_file_name, output_file_name=this_file_name,
                 output_size_pixels=FIGURE_SIZE_PIXELS)
 
             this_file_name = '{0:s}/frequency_bias_{1:s}'.format(
                 output_dir_name, this_file_name_suffix)
+
             print('Concatenating panels to: "{0:s}"...'.format(this_file_name))
             imagemagick_utils.concatenate_images(
                 input_file_names=these_fb_file_names,
                 output_file_name=this_file_name, num_panel_rows=num_percentiles,
-                num_panel_columns=num_closing_iter_counts,
+                num_panel_columns=num_closing_iter_counts)
+
+            imagemagick_utils.resize_image(
+                input_file_name=this_file_name, output_file_name=this_file_name,
                 output_size_pixels=FIGURE_SIZE_PIXELS)
 
             print(SEPARATOR_STRING)

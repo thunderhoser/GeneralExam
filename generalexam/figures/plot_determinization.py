@@ -25,8 +25,8 @@ MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
 MAX_LATITUDE_DEG = 80.
 MAX_LONGITUDE_DEG = 290.
-PARALLEL_SPACING_DEG = 10.
-MERIDIAN_SPACING_DEG = 20.
+NUM_PARALLELS = 8
+NUM_MERIDIANS = 6
 
 BORDER_COLOUR = numpy.full(3, 0.)
 DETERMINISTIC_OPACITY = 1.
@@ -76,7 +76,8 @@ def _plot_predictions(
         first_row_in_full_grid=narr_row_limits[0],
         last_row_in_full_grid=narr_row_limits[1],
         first_column_in_full_grid=narr_column_limits[0],
-        last_column_in_full_grid=narr_column_limits[1])
+        last_column_in_full_grid=narr_column_limits[1]
+    )
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -89,12 +90,12 @@ def _plot_predictions(
         line_colour=BORDER_COLOUR)
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=PARALLEL_SPACING_DEG)
+        min_latitude_deg=-90., max_latitude_deg=90.,
+        num_parallels=NUM_PARALLELS)
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=MERIDIAN_SPACING_DEG)
+        min_longitude_deg=0., max_longitude_deg=360.,
+        num_meridians=NUM_MERIDIANS)
 
     if class_probability_matrix is None:
         this_matrix = predicted_label_matrix[
@@ -102,67 +103,72 @@ def _plot_predictions(
             narr_column_limits[0]:(narr_column_limits[1] + 1)
         ]
 
-        front_plotting.plot_narr_grid(
-            frontal_grid_matrix=this_matrix, axes_object=axes_object,
+        front_plotting.plot_gridded_labels(
+            gridded_front_matrix=this_matrix, axes_object=axes_object,
             basemap_object=basemap_object,
-            first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0],
+            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            first_row_in_full_grid=narr_row_limits[0],
+            first_column_in_full_grid=narr_column_limits[0],
             opacity=DETERMINISTIC_OPACITY)
     else:
         this_matrix = class_probability_matrix[
             0, narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
-            front_utils.WARM_FRONT_INTEGER_ID
+            front_utils.WARM_FRONT_ENUM
         ]
 
-        prediction_plotting.plot_narr_grid(
+        prediction_plotting.plot_gridded_probs(
             probability_matrix=this_matrix,
-            front_string_id=front_utils.WARM_FRONT_STRING_ID,
+            front_string_id=front_utils.WARM_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
-            first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0],
+            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            first_row_in_full_grid=narr_row_limits[0],
+            first_column_in_full_grid=narr_column_limits[0],
             opacity=PROBABILISTIC_OPACITY)
 
         this_matrix = class_probability_matrix[
             0, narr_row_limits[0]:(narr_row_limits[1] + 1),
             narr_column_limits[0]:(narr_column_limits[1] + 1),
-            front_utils.COLD_FRONT_INTEGER_ID
+            front_utils.COLD_FRONT_ENUM
         ]
 
-        prediction_plotting.plot_narr_grid(
+        prediction_plotting.plot_gridded_probs(
             probability_matrix=this_matrix,
-            front_string_id=front_utils.COLD_FRONT_STRING_ID,
+            front_string_id=front_utils.COLD_FRONT_STRING,
             axes_object=axes_object, basemap_object=basemap_object,
-            first_row_in_narr_grid=narr_row_limits[0],
-            first_column_in_narr_grid=narr_column_limits[0],
+            full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+            first_row_in_full_grid=narr_row_limits[0],
+            first_column_in_full_grid=narr_column_limits[0],
             opacity=PROBABILISTIC_OPACITY)
 
         this_colour_map_object, this_colour_norm_object = (
             prediction_plotting.get_warm_front_colour_map()[:2]
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object,
+            data_matrix=class_probability_matrix[
+                ..., front_utils.WARM_FRONT_ENUM],
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            values_to_colour=class_probability_matrix[
-                ..., front_utils.WARM_FRONT_INTEGER_ID],
-            orientation='vertical', extend_min=True, extend_max=False,
+            orientation_string='vertical', extend_min=True, extend_max=False,
             fraction_of_axis_length=AXIS_LENGTH_FRACTION_FOR_CBAR)
 
         this_colour_map_object, this_colour_norm_object = (
             prediction_plotting.get_cold_front_colour_map()[:2]
         )
 
-        plotting_utils.add_colour_bar(
-            axes_object_or_list=axes_object, colour_map=this_colour_map_object,
+        plotting_utils.plot_colour_bar(
+            axes_object_or_matrix=axes_object,
+            data_matrix=class_probability_matrix[
+                ..., front_utils.COLD_FRONT_ENUM],
+            colour_map_object=this_colour_map_object,
             colour_norm_object=this_colour_norm_object,
-            values_to_colour=class_probability_matrix[
-                ..., front_utils.COLD_FRONT_INTEGER_ID],
-            orientation='horizontal', extend_min=True, extend_max=False)
+            orientation_string='horizontal', extend_min=True, extend_max=False)
 
     pyplot.title(title_string)
-    plotting_utils.annotate_axes(
-        axes_object=axes_object, annotation_string=annotation_string)
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string=annotation_string)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -182,8 +188,8 @@ def _run():
     prediction_dict = ml_utils.read_gridded_predictions(PREDICTION_FILE_NAME)
     class_probability_matrix = prediction_dict[ml_utils.PROBABILITY_MATRIX_KEY]
 
-    for this_id in front_utils.VALID_INTEGER_IDS:
-        if this_id == front_utils.NO_FRONT_INTEGER_ID:
+    for this_id in front_utils.VALID_FRONT_TYPE_ENUMS:
+        if this_id == front_utils.NO_FRONT_ENUM:
             class_probability_matrix[
                 ..., this_id
             ][numpy.isnan(class_probability_matrix[..., this_id])] = 1.

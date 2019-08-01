@@ -118,11 +118,11 @@ def _plot_scores_as_grid(
     pyplot.ylabel(y_axis_label, color=y_axis_text_colour)
 
     pyplot.title(title_string)
-    plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object,
-        values_to_colour=score_matrix_to_plot,
-        colour_map=colour_map_object, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='vertical',
+
+    plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=score_matrix_to_plot,
+        colour_map_object=colour_map_object, min_value=min_colour_value,
+        max_value=max_colour_value, orientation_string='vertical',
         extend_min=True, extend_max=True, font_size=FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -202,7 +202,7 @@ def _run():
             this_y_axis_text_colour = BLACK_COLOUR + 0.
         else:
             this_y_axis_text_colour = WHITE_COLOUR + 0.
-        
+
         this_title_string = 'Gerrity score; dropout = {0:.2f}'.format(
             UNIQUE_DROPOUT_FRACTIONS[k])
         panel_file_names[0, k] = (
@@ -295,9 +295,11 @@ def _run():
 
     for m in range(4):
         second_image_object = Image.open(panel_file_names[m, 1])
+
         command_string = '"{0:s}" "{1:s}" -resize {2:d}x{3:d}\! "{1:s}"'.format(
             imagemagick_utils.DEFAULT_CONVERT_EXE_NAME, panel_file_names[m, 0],
-            second_image_object.size[0], second_image_object.size[1])
+            second_image_object.size[0], second_image_object.size[1]
+        )
 
         print('Resizing image: "{0:s}"...'.format(panel_file_names[m, 0]))
         exit_code = os.system(command_string)
