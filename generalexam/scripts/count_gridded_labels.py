@@ -173,19 +173,22 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
-            print((
-                'Applying {0:d}-second separation time to grid cell '
-                '[{1:d}, {2:d}]...'
-            ).format(
-                separation_time_sec, i, j
-            ))
-
             this_orig_num_wf = numpy.sum(
                 predicted_label_matrix[:, i, j] == front_utils.WARM_FRONT_ENUM
             )
             this_orig_num_cf = numpy.sum(
                 predicted_label_matrix[:, i, j] == front_utils.COLD_FRONT_ENUM
             )
+
+            if this_orig_num_wf == this_orig_num_cf == 0:
+                continue
+
+            print((
+                'Applying {0:d}-second separation time to grid cell '
+                '[{1:d}, {2:d}]...'
+            ).format(
+                separation_time_sec, i, j
+            ))
 
             predicted_label_matrix[:, i, j] = (
                 climatology_utils.apply_separation_time(
