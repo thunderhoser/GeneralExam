@@ -140,7 +140,7 @@ def _apply_sep_time_one_front_type(
 
             these_indices = numpy.where(numpy.logical_and(
                 front_type_enums == relevant_front_type_enum,
-                valid_times_unix_sec <=
+                valid_times_unix_sec <
                 valid_times_unix_sec[k] + separation_time_sec
             ))[0]
 
