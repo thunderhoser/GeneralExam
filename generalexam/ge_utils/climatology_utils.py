@@ -96,6 +96,66 @@ def _exact_times_to_months(exact_times_unix_sec):
     return numpy.array(months, dtype=int)
 
 
+def _apply_sep_time_one_front_type(
+        front_type_enums, valid_times_unix_sec, separation_time_sec,
+        relevant_front_type_enum):
+    """Applies separation time for one front type (warm or cold).
+
+    :param front_type_enums: Same as input arg for `apply_separation_time`,
+        except this method assumes the array is sorted by increasing time.
+    :param valid_times_unix_sec: Same as input arg for `apply_separation_time`,
+        except this method assumes the array is sorted by increasing time.
+    :param separation_time_sec: See doc for `apply_separation_time`.
+    :param relevant_front_type_enum: Will apply separation time only for this
+        front type (must be in `front_utils.VALID_FRONT_TYPE_ENUMS`).
+    :return: front_type_enums: Same as input, except that some labels of
+        `relevant_front_type_enum` may have been changed to "no front".
+    """
+
+    time_steps_sec = numpy.diff(valid_times_unix_sec)
+    smallest_time_step_sec = numpy.min(time_steps_sec)
+
+    while True:
+        orig_front_type_enums = front_type_enums + 0
+
+        frontal_flags = front_type_enums == relevant_front_type_enum
+
+        prev_non_frontal_flags = numpy.logical_or(
+            time_steps_sec > smallest_time_step_sec,
+            front_type_enums[:-1] != relevant_front_type_enum
+        )
+
+        prev_non_frontal_flags = numpy.concatenate((
+            numpy.array([1], dtype=bool),
+            prev_non_frontal_flags
+        ))
+
+        front_start_indices = numpy.where(
+            numpy.logical_and(frontal_flags, prev_non_frontal_flags)
+        )[0]
+
+        for k in front_start_indices:
+            if front_type_enums[k] != relevant_front_type_enum:
+                continue
+
+            these_indices = numpy.where(numpy.logical_and(
+                front_type_enums == relevant_front_type_enum,
+                valid_times_unix_sec <=
+                valid_times_unix_sec[k] + separation_time_sec
+            ))[0]
+
+            these_indices = these_indices[these_indices > k]
+            if len(these_indices) == 0:
+                continue
+
+            front_type_enums[these_indices] = front_utils.NO_FRONT_ENUM
+
+        if numpy.array_equal(front_type_enums, orig_front_type_enums):
+            break
+
+    return front_type_enums
+
+
 def season_to_months(season_string):
     """Returns months in season.
 
@@ -232,65 +292,6 @@ def hours_to_string(hours):
     verbose_string = '{0:s} UTC'.format(', '.join(hour_strings))
     abbrev_string = '{0:s}utc'.format('-'.join(hour_strings))
     return verbose_string, abbrev_string
-
-
-def _apply_sep_time_one_front_type(
-        front_type_enums, valid_times_unix_sec, separation_time_sec,
-        relevant_front_type_enum):
-    """Applies separation time for one front type (warm or cold).
-
-    :param front_type_enums: Same as input arg for `apply_separation_time`,
-        except this method assumes the array is sorted by increasing time.
-    :param valid_times_unix_sec: Same as input arg for `apply_separation_time`,
-        except this method assumes the array is sorted by increasing time.
-    :param separation_time_sec: See doc for `apply_separation_time`.
-    :param relevant_front_type_enum: Will apply separation time only for this
-        front type (must be in `front_utils.VALID_FRONT_TYPE_ENUMS`).
-    :return: front_type_enums: Same as input, except that some labels of
-        `relevant_front_type_enum` may have been changed to "no front".
-    """
-
-    time_steps_sec = numpy.diff(valid_times_unix_sec)
-    smallest_time_step_sec = numpy.min(time_steps_sec)
-
-    while True:
-        orig_front_type_enums = front_type_enums + 0
-
-        frontal_flags = front_type_enums == relevant_front_type_enum
-
-        prev_non_frontal_flags = numpy.logical_or(
-            time_steps_sec > smallest_time_step_sec,
-            front_type_enums[:-1] != relevant_front_type_enum
-        )
-
-        prev_non_frontal_flags = numpy.concatenate((
-            numpy.array([1], dtype=bool),
-            prev_non_frontal_flags
-        ))
-
-        front_start_indices = numpy.where(
-            numpy.logical_and(frontal_flags, prev_non_frontal_flags)
-        )[0]
-
-        for k in front_start_indices:
-            if front_type_enums[k] != relevant_front_type_enum:
-                continue
-
-            these_indices = numpy.where(
-                valid_times_unix_sec <=
-                valid_times_unix_sec[k] + separation_time_sec
-            )[0]
-
-            these_indices = these_indices[these_indices > k]
-            if len(these_indices) == 0:
-                continue
-
-            front_type_enums[these_indices] = front_utils.NO_FRONT_ENUM
-
-        if numpy.array_equal(front_type_enums, orig_front_type_enums):
-            break
-
-    return front_type_enums
 
 
 def apply_separation_time(front_type_enums, valid_times_unix_sec,
