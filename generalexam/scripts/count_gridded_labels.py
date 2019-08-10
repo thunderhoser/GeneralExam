@@ -20,7 +20,7 @@ LAST_TIME_ARG_NAME = 'last_time_string'
 HOURS_ARG_NAME = 'hours_to_keep'
 MONTHS_ARG_NAME = 'months_to_keep'
 SEPARATION_TIME_ARG_NAME = 'separation_time_sec'
-OUTPUT_FILE_ARG_NAME = 'output_file_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
@@ -48,8 +48,10 @@ SEPARATION_TIME_HELP_STRING = (
     'only one such label will count.'
 ).format(SEPARATION_TIME_ARG_NAME)
 
-# TODO(thunderhoser): Write IO methods for this file type.
-OUTPUT_FILE_HELP_STRING = 'Path to output file.'
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  File will be written by '
+    '`climatology_utils.write_gridded_counts`, to a location therein determined'
+    ' by `climatology_utils.find_gridded_count_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -75,12 +77,12 @@ INPUT_ARG_PARSER.add_argument(
     help=SEPARATION_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
-         hours_to_keep, months_to_keep, separation_time_sec, output_file_name):
+         hours_to_keep, months_to_keep, separation_time_sec, output_dir_name):
     """Counts WF and CF labels at each grid cell over a given time period.
 
     This is effectively the main method.
@@ -91,7 +93,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     :param hours_to_keep: Same.
     :param months_to_keep: Same.
     :param separation_time_sec: Same.
-    :param output_file_name: Same.
+    :param output_dir_name: Same.
     :raises: ValueError: if any value in `hours_to_keep` is not in the list
         `ACCEPTED_HOURS`.
     """
@@ -212,6 +214,27 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
                 this_new_num_cf
             ))
 
+    output_file_name = climatology_utils.find_gridded_count_file(
+        directory_name=output_dir_name,
+        first_time_unix_sec=valid_times_unix_sec[0],
+        last_time_unix_sec=valid_times_unix_sec[-1],
+        hours=hours_to_keep, months=months_to_keep,
+        raise_error_if_missing=False)
+
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+
+    num_warm_fronts_matrix = numpy.sum(
+        predicted_label_matrix == front_utils.WARM_FRONT_ENUM, axis=0)
+    num_cold_fronts_matrix = numpy.sum(
+        predicted_label_matrix == front_utils.COLD_FRONT_ENUM, axis=0)
+
+    climatology_utils.write_gridded_counts(
+        netcdf_file_name=output_file_name,
+        num_warm_fronts_matrix=num_warm_fronts_matrix,
+        num_cold_fronts_matrix=num_cold_fronts_matrix,
+        prediction_file_names=prediction_file_names,
+        separation_time_sec=separation_time_sec)
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
@@ -227,5 +250,5 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, MONTHS_ARG_NAME), dtype=int
         ),
         separation_time_sec=getattr(INPUT_ARG_OBJECT, SEPARATION_TIME_ARG_NAME),
-        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

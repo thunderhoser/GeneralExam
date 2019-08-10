@@ -1,7 +1,10 @@
 """Methods for creating climatology of fronts."""
 
+import os.path
 import numpy
+import netCDF4
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
@@ -13,6 +16,18 @@ FALL_STRING = 'fall'
 VALID_SEASON_STRINGS = [
     WINTER_STRING, SPRING_STRING, SUMMER_STRING, FALL_STRING
 ]
+
+FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+
+ROW_DIMENSION_KEY = 'row'
+COLUMN_DIMENSION_KEY = 'column'
+PREDICTION_FILE_DIM_KEY = 'prediction_file'
+PREDICTION_FILE_CHAR_DIM_KEY = 'prediction_file_char'
+
+NUM_WARM_FRONTS_KEY = 'num_warm_fronts_matrix'
+NUM_COLD_FRONTS_KEY = 'num_cold_fronts_matrix'
+PREDICTION_FILES_KEY = 'prediction_file_names'
+SEPARATION_TIME_KEY = 'separation_time_sec'
 
 
 def _check_season(season_string):
@@ -347,3 +362,181 @@ def apply_separation_time(front_type_enums, valid_times_unix_sec,
         relevant_front_type_enum=front_utils.COLD_FRONT_ENUM)
 
     return front_type_enums, valid_times_unix_sec
+
+
+def find_gridded_count_file(
+        directory_name, first_time_unix_sec, last_time_unix_sec, hours=None,
+        months=None, raise_error_if_missing=True):
+    """Locates file with gridded front counts.
+
+    :param directory_name: Directory name.
+    :param first_time_unix_sec: First time in period.
+    :param last_time_unix_sec: Last time in period.
+    :param hours: 1-D numpy array of hours for which fronts were counted.  If
+        all hours were used, leave this as None.
+    :param months: Same but for months.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: netcdf_file_name: Path to file with gridded counts.  If file is
+        missing and `raise_error_if_missing = False`, this is the *expected*
+        path.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_integer(first_time_unix_sec)
+    error_checking.assert_is_integer(last_time_unix_sec)
+    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if hours is None:
+        hour_string = 'all'
+    else:
+        hour_string = hours_to_string(hours)[-1]
+
+    if months is None:
+        month_string = 'all'
+    else:
+        month_string = months_to_string(months)[-1]
+
+    netcdf_file_name = (
+        '{0:s}/gridded-front-counts_{1:s}_{2:s}_hours={3:s}_months={4:s}.nc'
+    ).format(
+        directory_name,
+        time_conversion.unix_sec_to_string(
+            first_time_unix_sec, FILE_NAME_TIME_FORMAT),
+        time_conversion.unix_sec_to_string(
+            last_time_unix_sec, FILE_NAME_TIME_FORMAT),
+        hour_string, month_string
+    )
+
+    if raise_error_if_missing and not os.path.isfile(netcdf_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            netcdf_file_name)
+        raise ValueError(error_string)
+
+    return netcdf_file_name
+
+
+def write_gridded_counts(
+        netcdf_file_name, num_warm_fronts_matrix, num_cold_fronts_matrix,
+        prediction_file_names, separation_time_sec):
+    """Writes gridded front counts to NetCDF file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param netcdf_file_name: Path to output file.
+    :param num_warm_fronts_matrix: M-by-N numpy array with number of warm fronts
+        at each grid cell.
+    :param num_cold_fronts_matrix: Same but for cold fronts.
+    :param prediction_file_names: 1-D list of paths to input files (readable by
+        `prediction_io.read_file`).  This is metadata.
+    :param separation_time_sec: Separation time (for more details, see doc for
+        `apply_separation_time`).  This is metadata.
+    """
+
+    # Check input args.
+    error_checking.assert_is_integer_numpy_array(num_warm_fronts_matrix)
+    error_checking.assert_is_geq_numpy_array(num_warm_fronts_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_warm_fronts_matrix, num_dimensions=2)
+
+    error_checking.assert_is_integer_numpy_array(num_cold_fronts_matrix)
+    error_checking.assert_is_geq_numpy_array(num_cold_fronts_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_cold_fronts_matrix,
+        exact_dimensions=numpy.array(num_warm_fronts_matrix.shape, dtype=int)
+    )
+
+    error_checking.assert_is_string_list(prediction_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(prediction_file_names), num_dimensions=1
+    )
+
+    error_checking.assert_is_integer(separation_time_sec)
+    error_checking.assert_is_greater(separation_time_sec, 0)
+
+    # Open file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    # Set global attributes and dimensions.
+    dataset_object.setncattr(SEPARATION_TIME_KEY, separation_time_sec)
+
+    num_file_name_chars = max([
+        len(f) for f in prediction_file_names
+    ])
+
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, num_warm_fronts_matrix.shape[0]
+    )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, num_warm_fronts_matrix.shape[1]
+    )
+    dataset_object.createDimension(
+        PREDICTION_FILE_DIM_KEY, len(prediction_file_names)
+    )
+    dataset_object.createDimension(
+        PREDICTION_FILE_CHAR_DIM_KEY, num_file_name_chars
+    )
+
+    # Add variables.
+    dataset_object.createVariable(
+        NUM_WARM_FRONTS_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_WARM_FRONTS_KEY][:] = num_warm_fronts_matrix
+
+    dataset_object.createVariable(
+        NUM_COLD_FRONTS_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_COLD_FRONTS_KEY][:] = num_cold_fronts_matrix
+
+    this_string_type = 'S{0:d}'.format(num_file_name_chars)
+    file_names_char_array = netCDF4.stringtochar(numpy.array(
+        prediction_file_names, dtype=this_string_type
+    ))
+
+    dataset_object.createVariable(
+        PREDICTION_FILES_KEY, datatype='S1',
+        dimensions=(PREDICTION_FILE_DIM_KEY, PREDICTION_FILE_CHAR_DIM_KEY)
+    )
+    dataset_object.variables[PREDICTION_FILES_KEY][:] = numpy.array(
+        file_names_char_array)
+
+    dataset_object.close()
+
+
+def read_gridded_counts(netcdf_file_name):
+    """Reads gridded front counts from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: count_dict: Dictionary with the following keys.
+    count_dict["num_warm_fronts_matrix"]: See doc for `write_gridded_counts`.
+    count_dict["num_cold_fronts_matrix"]: Same.
+    count_dict["prediction_file_names"]: Same.
+    count_dict["separation_time_sec"]: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    count_dict = {
+        NUM_WARM_FRONTS_KEY: numpy.array(
+            dataset_object.variables[NUM_WARM_FRONTS_KEY][:], dtype=int
+        ),
+        NUM_COLD_FRONTS_KEY: numpy.array(
+            dataset_object.variables[NUM_COLD_FRONTS_KEY][:], dtype=int
+        ),
+        PREDICTION_FILES_KEY: [
+            str(s) for s in
+            netCDF4.chartostring(
+                dataset_object.variables[PREDICTION_FILES_KEY][:]
+            )
+        ],
+        SEPARATION_TIME_KEY: int(getattr(dataset_object, SEPARATION_TIME_KEY))
+    }
+
+    dataset_object.close()
+    return count_dict
