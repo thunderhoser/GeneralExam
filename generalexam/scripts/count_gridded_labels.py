@@ -192,7 +192,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
                     front_type_enums=predicted_label_matrix[:, i, j],
                     valid_times_unix_sec=valid_times_unix_sec,
                     separation_time_sec=separation_time_sec)
-            )
+            )[0]
 
             this_new_num_wf = numpy.sum(
                 predicted_label_matrix[:, i, j] == front_utils.WARM_FRONT_ENUM
