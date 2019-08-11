@@ -114,6 +114,9 @@ def _plot_one_front_type(
             model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name)
     )
 
+    print(full_grid_row_limits)
+    print(full_grid_column_limits)
+
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
         first_row_in_full_grid=full_grid_row_limits[0],
