@@ -114,9 +114,6 @@ def _plot_one_front_type(
             model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name)
     )
 
-    print(full_grid_row_limits)
-    print(full_grid_column_limits)
-
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
         first_row_in_full_grid=full_grid_row_limits[0],
@@ -145,13 +142,18 @@ def _plot_one_front_type(
         basemap_object=basemap_object, axes_object=axes_object,
         num_meridians=NUM_MERIDIANS)
 
+    this_matrix = count_or_frequency_matrix[
+        full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+        full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
+    ]
+
     colour_norm_object = pyplot.Normalize(
         vmin=0,
-        vmax=numpy.percentile(count_or_frequency_matrix, max_colour_percentile)
+        vmax=numpy.percentile(this_matrix, max_colour_percentile)
     )
 
     prediction_plotting.plot_gridded_counts(
-        count_or_frequency_matrix=count_or_frequency_matrix,
+        count_or_frequency_matrix=this_matrix,
         axes_object=axes_object, basemap_object=basemap_object,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object, full_grid_name=full_grid_name,
@@ -161,7 +163,7 @@ def _plot_one_front_type(
 
     plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
-        data_matrix=count_or_frequency_matrix,
+        data_matrix=this_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='horizontal', extend_min=False, extend_max=True,
