@@ -14,6 +14,12 @@ TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SEC = 10800
 ACCEPTED_HOURS = numpy.array([0, 3, 6, 9, 12, 15, 18, 21], dtype=int)
 
+NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
+NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
+NUM_UNIQUE_WF_KEY = 'num_unique_wf_matrix'
+NUM_UNIQUE_CF_KEY = 'num_unique_cf_matrix'
+SECOND_UNIQUE_LABELS_KEY = 'second_unique_label_matrix'
+
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
@@ -79,6 +85,109 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+
+def _update_counts(
+        first_label_matrix, first_unique_label_matrix, first_times_unix_sec,
+        second_label_matrix, second_times_unix_sec, separation_time_sec,
+        count_second_period):
+    """Updates WF and CF count at each grid cell.
+
+    F = number of time steps in first period
+    S = number of time steps in second period
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param first_label_matrix: F-by-M-by-N numpy array with integer front
+        labels.
+    :param first_unique_label_matrix: Same but after applying separation time.
+    :param first_times_unix_sec: length-F numpy array of valid times.
+    :param second_label_matrix: S-by-M-by-N numpy array with integer front
+        labels.  This may be None.
+    :param second_times_unix_sec: length-S numpy array of valid times.  This may
+        be None.
+    :param separation_time_sec: See documentation at top of file.
+    :param count_second_period: Boolean flag.  If True, will count number of
+        fronts in both periods.  If False, will count only in first period.
+    :return: count_dict: Dictionary with the following keys.
+    count_dict["num_wf_labels_matrix"]: M-by-N numpy array with number of
+        warm-front labels (before applying separation time).
+    count_dict["num_cf_labels_matrix"]: Same but for cold fronts.
+    count_dict["num_unique_wf_matrix"]: M-by-N numpy array with number of unique
+        warm fronts (after applying separation time).
+    count_dict["num_unique_cf_matrix"]: Same but for cold fronts.
+    count_dict["second_unique_label_matrix"]: Same as input
+        `second_label_matrix` but after applying separation time.
+    """
+
+    have_second_period = second_label_matrix is not None
+
+    if have_second_period and count_second_period:
+        this_label_matrix = numpy.concatenate(
+            (first_label_matrix, second_label_matrix), axis=0
+        )
+    else:
+        this_label_matrix = first_label_matrix + 0
+
+    num_wf_labels_matrix = numpy.sum(
+        this_label_matrix == front_utils.WARM_FRONT_ENUM, axis=0)
+    num_cf_labels_matrix = numpy.sum(
+        this_label_matrix == front_utils.COLD_FRONT_ENUM, axis=0)
+
+    if have_second_period:
+        unique_label_matrix = numpy.concatenate(
+            (first_unique_label_matrix, second_label_matrix), axis=0
+        )
+        valid_times_unix_sec = numpy.concatenate((
+            first_times_unix_sec, second_times_unix_sec))
+    else:
+        unique_label_matrix = first_unique_label_matrix + 0
+        valid_times_unix_sec = first_times_unix_sec + 0
+
+    num_grid_rows = unique_label_matrix.shape[1]
+    num_grid_columns = unique_label_matrix.shape[2]
+
+    for i in range(num_grid_rows):
+        for j in range(num_grid_columns):
+            unique_label_matrix[:, i, j] = (
+                climatology_utils.apply_separation_time(
+                    front_type_enums=unique_label_matrix[:, i, j],
+                    valid_times_unix_sec=valid_times_unix_sec,
+                    separation_time_sec=separation_time_sec)
+            )[0]
+
+    first_num_times = len(first_times_unix_sec)
+    if count_second_period:
+        this_label_matrix = unique_label_matrix + 0
+    else:
+        this_label_matrix = unique_label_matrix[:first_num_times, ...]
+
+    num_unique_wf_matrix = numpy.sum(
+        this_label_matrix == front_utils.WARM_FRONT_ENUM, axis=0)
+    num_unique_cf_matrix = numpy.sum(
+        this_label_matrix == front_utils.COLD_FRONT_ENUM, axis=0)
+
+    if have_second_period:
+        second_unique_label_matrix = unique_label_matrix[first_num_times:, ...]
+    else:
+        second_unique_label_matrix = None
+
+    num_front_labels = numpy.sum(num_wf_labels_matrix + num_cf_labels_matrix)
+    num_unique_fronts = numpy.sum(num_unique_wf_matrix + num_unique_cf_matrix)
+
+    print((
+        'Number of front labels (unique fronts) increased by {0:d} ({1:d})!'
+    ).format(
+        num_front_labels, num_unique_fronts
+    ))
+
+    return {
+        NUM_WF_LABELS_KEY: num_wf_labels_matrix,
+        NUM_CF_LABELS_KEY: num_cf_labels_matrix,
+        NUM_UNIQUE_WF_KEY: num_unique_wf_matrix,
+        NUM_UNIQUE_CF_KEY: num_unique_cf_matrix,
+        SECOND_UNIQUE_LABELS_KEY: second_unique_label_matrix
+    }
 
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
@@ -148,71 +257,145 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         for t in valid_times_unix_sec
     ]
 
-    predicted_label_matrix = None
+    if separation_time_sec <= 0:
+        num_times_per_block = 50
+    else:
+        smallest_time_step_sec = numpy.min(numpy.diff(valid_times_unix_sec))
+        num_times_per_block = 5 * int(
+            numpy.ceil(float(separation_time_sec) / smallest_time_step_sec)
+        )
 
-    for this_file_name in prediction_file_names:
+    first_label_matrix = None
+
+    for i in range(num_times_per_block):
         print('Reading deterministic labels from: "{0:s}"...'.format(
-            this_file_name
+            prediction_file_names[i]
         ))
 
         this_prediction_dict = prediction_io.read_file(
-            netcdf_file_name=this_file_name, read_deterministic=True)
+            netcdf_file_name=prediction_file_names[i], read_deterministic=True)
 
         this_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
 
-        if predicted_label_matrix is None:
-            predicted_label_matrix = this_label_matrix + 0
+        if first_label_matrix is None:
+            first_label_matrix = this_label_matrix + 0
         else:
-            predicted_label_matrix = numpy.concatenate(
-                (predicted_label_matrix, this_label_matrix), axis=0
+            first_label_matrix = numpy.concatenate(
+                (first_label_matrix, this_label_matrix), axis=0
             )
 
     print(SEPARATOR_STRING)
 
-    num_grid_rows = predicted_label_matrix.shape[1]
-    num_grid_columns = predicted_label_matrix.shape[2]
+    first_num_times = first_label_matrix.shape[0]
+    first_times_unix_sec = valid_times_unix_sec[:first_num_times]
+    first_unique_label_matrix = first_label_matrix + 0
+
+    num_times = len(prediction_file_names)
+    num_grid_rows = first_label_matrix.shape[1]
+    num_grid_columns = first_label_matrix.shape[2]
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
-            this_orig_num_wf = numpy.sum(
-                predicted_label_matrix[:, i, j] == front_utils.WARM_FRONT_ENUM
-            )
-            this_orig_num_cf = numpy.sum(
-                predicted_label_matrix[:, i, j] == front_utils.COLD_FRONT_ENUM
-            )
-
-            if this_orig_num_wf == this_orig_num_cf == 0:
-                continue
-
-            print((
-                'Applying {0:d}-second separation time to grid cell '
-                '[{1:d}, {2:d}]...'
-            ).format(
-                separation_time_sec, i, j
-            ))
-
-            predicted_label_matrix[:, i, j] = (
+            first_unique_label_matrix[:, i, j] = (
                 climatology_utils.apply_separation_time(
-                    front_type_enums=predicted_label_matrix[:, i, j],
-                    valid_times_unix_sec=valid_times_unix_sec,
+                    front_type_enums=first_label_matrix[:, i, j],
+                    valid_times_unix_sec=first_times_unix_sec,
                     separation_time_sec=separation_time_sec)
             )[0]
 
-            this_new_num_wf = numpy.sum(
-                predicted_label_matrix[:, i, j] == front_utils.WARM_FRONT_ENUM
+    num_wf_labels_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), 0, dtype=int
+    )
+    num_cf_labels_matrix = num_wf_labels_matrix + 0
+    num_unique_wf_matrix = num_wf_labels_matrix + 0
+    num_unique_cf_matrix = num_wf_labels_matrix + 0
+
+    second_label_matrix = None
+
+    for k in range(first_num_times, num_times):
+        if numpy.mod(k, num_times_per_block) == 0 and k != num_times_per_block:
+            second_num_times = second_label_matrix.shape[0]
+            second_times_unix_sec = valid_times_unix_sec[
+                (k - second_num_times):k
+            ]
+
+            this_count_dict = _update_counts(
+                first_label_matrix=first_label_matrix,
+                first_unique_label_matrix=first_unique_label_matrix,
+                first_times_unix_sec=first_times_unix_sec,
+                second_label_matrix=second_label_matrix,
+                second_times_unix_sec=second_times_unix_sec,
+                separation_time_sec=separation_time_sec,
+                count_second_period=False)
+            print(SEPARATOR_STRING)
+
+            num_wf_labels_matrix = (
+                num_wf_labels_matrix + this_count_dict[NUM_WF_LABELS_KEY]
             )
-            this_new_num_cf = numpy.sum(
-                predicted_label_matrix[:, i, j] == front_utils.COLD_FRONT_ENUM
+            num_cf_labels_matrix = (
+                num_cf_labels_matrix + this_count_dict[NUM_CF_LABELS_KEY]
+            )
+            num_unique_wf_matrix = (
+                num_unique_wf_matrix + this_count_dict[NUM_UNIQUE_WF_KEY]
+            )
+            num_unique_cf_matrix = (
+                num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
             )
 
-            print((
-                'Number of WF labels reduced from {0:d} to {1:d} ... CF labels '
-                'reduced from {2:d} to {3:d}\n'
-            ).format(
-                this_orig_num_wf, this_new_num_wf, this_orig_num_cf,
-                this_new_num_cf
-            ))
+            first_label_matrix = second_label_matrix + 0
+            first_times_unix_sec = second_times_unix_sec + 0
+            first_unique_label_matrix = this_count_dict[
+                SECOND_UNIQUE_LABELS_KEY]
+            second_label_matrix = None
+
+        print('Reading deterministic labels from: "{0:s}"...'.format(
+            prediction_file_names[i]
+        ))
+
+        this_prediction_dict = prediction_io.read_file(
+            netcdf_file_name=prediction_file_names[i], read_deterministic=True)
+
+        this_label_matrix = this_prediction_dict[
+            prediction_io.PREDICTED_LABELS_KEY]
+
+        if second_label_matrix is None:
+            second_label_matrix = this_label_matrix + 0
+        else:
+            second_label_matrix = numpy.concatenate(
+                (second_label_matrix, this_label_matrix), axis=0
+            )
+
+    if second_label_matrix is None:
+        second_times_unix_sec = None
+    else:
+        second_num_times = second_label_matrix.shape[0]
+        second_times_unix_sec = valid_times_unix_sec[
+            (num_times - second_num_times):num_times
+        ]
+
+    this_count_dict = _update_counts(
+        first_label_matrix=first_label_matrix,
+        first_unique_label_matrix=first_unique_label_matrix,
+        first_times_unix_sec=first_times_unix_sec,
+        second_label_matrix=second_label_matrix,
+        second_times_unix_sec=second_times_unix_sec,
+        separation_time_sec=separation_time_sec,
+        count_second_period=True)
+    print(SEPARATOR_STRING)
+
+    num_wf_labels_matrix = (
+        num_wf_labels_matrix + this_count_dict[NUM_WF_LABELS_KEY]
+    )
+    num_cf_labels_matrix = (
+        num_cf_labels_matrix + this_count_dict[NUM_CF_LABELS_KEY]
+    )
+    num_unique_wf_matrix = (
+        num_unique_wf_matrix + this_count_dict[NUM_UNIQUE_WF_KEY]
+    )
+    num_unique_cf_matrix = (
+        num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
+    )
 
     output_file_name = climatology_utils.find_gridded_count_file(
         directory_name=output_dir_name,
@@ -223,17 +406,12 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
-    num_warm_fronts_matrix = numpy.sum(
-        predicted_label_matrix == front_utils.WARM_FRONT_ENUM, axis=0)
-    num_cold_fronts_matrix = numpy.sum(
-        predicted_label_matrix == front_utils.COLD_FRONT_ENUM, axis=0)
-
-    climatology_utils.write_gridded_counts(
-        netcdf_file_name=output_file_name,
-        num_warm_fronts_matrix=num_warm_fronts_matrix,
-        num_cold_fronts_matrix=num_cold_fronts_matrix,
-        prediction_file_names=prediction_file_names,
-        separation_time_sec=separation_time_sec)
+    # climatology_utils.write_gridded_counts(
+    #     netcdf_file_name=output_file_name,
+    #     num_warm_fronts_matrix=num_warm_fronts_matrix,
+    #     num_cold_fronts_matrix=num_cold_fronts_matrix,
+    #     prediction_file_names=prediction_file_names,
+    #     separation_time_sec=separation_time_sec)
 
 
 if __name__ == '__main__':
