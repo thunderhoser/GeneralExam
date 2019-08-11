@@ -194,3 +194,45 @@ def plot_gridded_probs(
         max_colour_value=colour_bounds[-2], grid_id=full_grid_name,
         first_row_in_full_grid=first_row_in_full_grid,
         first_column_in_full_grid=first_column_in_full_grid, opacity=opacity)
+
+
+def plot_gridded_counts(
+        count_or_frequency_matrix, axes_object, basemap_object,
+        colour_map_object, full_grid_name, colour_norm_object=None,
+        first_row_in_full_grid=0, first_column_in_full_grid=0):
+    """Plots gridded front counts.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param count_or_frequency_matrix: M-by-N numpy array with raw counts or
+        frequencies.
+    :param axes_object: See doc for `plot_gridded_probs`.
+    :param basemap_object: Same.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+    :param full_grid_name: See doc for `plot_gridded_probs`.
+    :param colour_norm_object: Colour-normalizer (instance of
+        `matplotlib.colors.Normalize`).  Used to convert from time to colour.
+    :param first_row_in_full_grid: See doc for `plot_gridded_probs`.
+    :param first_column_in_full_grid: Same.
+    """
+
+    error_checking.assert_is_numpy_array(
+        count_or_frequency_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(count_or_frequency_matrix, 0.)
+
+    if hasattr(colour_norm_object, 'boundaries'):
+        min_colour_value = colour_norm_object.boundaries[0]
+        max_colour_value = colour_norm_object.boundaries[-1]
+    else:
+        min_colour_value = colour_norm_object.vmin
+        max_colour_value = colour_norm_object.vmax
+
+    nwp_plotting.plot_subgrid(
+        field_matrix=count_or_frequency_matrix,
+        model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
+        axes_object=axes_object, basemap_object=basemap_object,
+        colour_map_object=colour_map_object,
+        min_colour_value=min_colour_value, max_colour_value=max_colour_value,
+        first_row_in_full_grid=first_row_in_full_grid,
+        first_column_in_full_grid=first_column_in_full_grid, opacity=1.)
