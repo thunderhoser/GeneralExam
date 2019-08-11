@@ -6,7 +6,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
-from generalexam.ge_utils import climatology_utils
+from generalexam.ge_utils import climatology_utils as climo_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -147,13 +147,18 @@ def _update_counts(
     num_grid_rows = unique_label_matrix.shape[1]
     num_grid_columns = unique_label_matrix.shape[2]
 
+    this_num_fronts_matrix = numpy.sum(
+        unique_label_matrix > front_utils.NO_FRONT_ENUM, axis=0)
+
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
-            unique_label_matrix[:, i, j] = (
-                climatology_utils.apply_separation_time(
-                    front_type_enums=unique_label_matrix[:, i, j],
-                    valid_times_unix_sec=valid_times_unix_sec,
-                    separation_time_sec=separation_time_sec)
+            if this_num_fronts_matrix[i, j] == 0:
+                continue
+
+            unique_label_matrix[:, i, j] = climo_utils.apply_separation_time(
+                front_type_enums=unique_label_matrix[:, i, j],
+                valid_times_unix_sec=valid_times_unix_sec,
+                separation_time_sec=separation_time_sec
             )[0]
 
     first_num_times = len(first_times_unix_sec)
@@ -236,14 +241,14 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
             raise ValueError(error_string)
 
-        indices_to_keep = climatology_utils.filter_by_hour(
+        indices_to_keep = climo_utils.filter_by_hour(
             all_times_unix_sec=valid_times_unix_sec,
             hours_to_keep=hours_to_keep)
 
         valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
 
     if months_to_keep is not None:
-        indices_to_keep = climatology_utils.filter_by_month(
+        indices_to_keep = climo_utils.filter_by_month(
             all_times_unix_sec=valid_times_unix_sec,
             months_to_keep=months_to_keep)
 
@@ -295,10 +300,16 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     num_grid_rows = first_label_matrix.shape[1]
     num_grid_columns = first_label_matrix.shape[2]
 
+    this_num_fronts_matrix = numpy.sum(
+        first_label_matrix > front_utils.NO_FRONT_ENUM, axis=0)
+
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
+            if this_num_fronts_matrix[i, j] == 0:
+                continue
+
             first_unique_label_matrix[:, i, j] = (
-                climatology_utils.apply_separation_time(
+                climo_utils.apply_separation_time(
                     front_type_enums=first_label_matrix[:, i, j],
                     valid_times_unix_sec=first_times_unix_sec,
                     separation_time_sec=separation_time_sec)
@@ -397,7 +408,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
     )
 
-    output_file_name = climatology_utils.find_gridded_count_file(
+    output_file_name = climo_utils.find_gridded_count_file(
         directory_name=output_dir_name,
         first_time_unix_sec=valid_times_unix_sec[0],
         last_time_unix_sec=valid_times_unix_sec[-1],
@@ -406,7 +417,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
-    # climatology_utils.write_gridded_counts(
+    # climo_utils.write_gridded_counts(
     #     netcdf_file_name=output_file_name,
     #     num_warm_fronts_matrix=num_warm_fronts_matrix,
     #     num_cold_fronts_matrix=num_cold_fronts_matrix,
