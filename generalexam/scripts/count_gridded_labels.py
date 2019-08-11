@@ -272,13 +272,13 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     first_label_matrix = None
 
-    for i in range(num_times_per_block):
+    for k in range(num_times_per_block):
         print('Reading deterministic labels from: "{0:s}"...'.format(
-            prediction_file_names[i]
+            prediction_file_names[k]
         ))
 
         this_prediction_dict = prediction_io.read_file(
-            netcdf_file_name=prediction_file_names[i], read_deterministic=True)
+            netcdf_file_name=prediction_file_names[k], read_deterministic=True)
 
         this_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
@@ -361,11 +361,11 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             second_label_matrix = None
 
         print('Reading deterministic labels from: "{0:s}"...'.format(
-            prediction_file_names[i]
+            prediction_file_names[k]
         ))
 
         this_prediction_dict = prediction_io.read_file(
-            netcdf_file_name=prediction_file_names[i], read_deterministic=True)
+            netcdf_file_name=prediction_file_names[k], read_deterministic=True)
 
         this_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
