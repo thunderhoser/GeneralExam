@@ -171,6 +171,7 @@ def _plot_one_front_type(
 
     tick_values = colour_bar_object.ax.get_xticks()
     print(tick_values)
+    colour_bar_object.ax.set_xticks(tick_values)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
