@@ -1,4 +1,4 @@
-"""Computes statistics from gridded front labels."""
+"""Computes properties from gridded front labels."""
 
 import argparse
 import numpy
@@ -15,9 +15,6 @@ GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
     model_name=nwp_model_utils.NARR_MODEL_NAME
 )[0]
 
-# TODO(thunderhoser): Allow stats to be ungridded (aggregate over all grid
-# cells).
-
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
@@ -31,24 +28,24 @@ INPUT_DIR_HELP_STRING = (
     '`read_deterministic == True`.')
 
 TIME_HELP_STRING = (
-    'Time (format "yyyymmddHH").  This script will compute WF and CF statistics'
+    'Time (format "yyyymmddHH").  This script will compute WF and CF properties'
     ' at each grid cell for the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
 HOURS_HELP_STRING = (
-    'List of UTC hours (integers in 0...23).  This script will compute stats '
-    'only for the given hours.  If you want do not want to filter by hour, '
-    'leave this argument alone.')
+    'List of UTC hours (integers in 0...23).  This script will compute '
+    'properties only for the given hours.  If you want do not want to filter by'
+    ' hour, leave this argument alone.')
 
 MONTHS_HELP_STRING = (
-    'List of months (integers in 1...12).  This script will compute stats only '
-    'for the given months.  If you want do not want to filter by month, leave '
-    'this argument alone.')
+    'List of months (integers in 1...12).  This script will compute properties '
+    'only for the given months.  If you want do not want to filter by month, '
+    'leave this argument alone.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  File will be written by '
-    '`climatology_utils.write_gridded_stats`, to a location therein determined'
-    ' by `climatology_utils.find_file`.')
+    '`climatology_utils.write_gridded_properties`, to a location therein '
+    'determined by `climatology_utils.find_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -74,22 +71,22 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _compute_stats_one_time(label_matrix):
-    """Computes gridded stats for one time.
+def _compute_properties_one_time(label_matrix):
+    """Computes gridded properties for one time.
 
     T = number of time steps
     M = number of rows in grid
     N = number of columns in grid
 
     :param label_matrix: M-by-N numpy array of integer front labels.
-    :return: front_statistic_dict: Dictionary with the following keys.
-    front_statistic_dict["wf_length_matrix_metres"]: T-by-M-by-N numpy array
+    :return: front_property_dict: Dictionary with the following keys.
+    front_property_dict["wf_length_matrix_metres"]: T-by-M-by-N numpy array
         with warm-front length at each grid cell (NaN if there is no warm
         front).
-    front_statistic_dict["wf_area_matrix_m2"]: Same but for warm-front area.
-    front_statistic_dict["cf_length_matrix_metres"]: Same but for cold-front
+    front_property_dict["wf_area_matrix_m2"]: Same but for warm-front area.
+    front_property_dict["cf_length_matrix_metres"]: Same but for cold-front
         length.
-    front_statistic_dict["cf_area_matrix_m2"]: Same but for cold-front area.
+    front_property_dict["cf_area_matrix_m2"]: Same but for cold-front area.
     """
 
     region_dict = front_utils.gridded_labels_to_regions(
@@ -97,7 +94,7 @@ def _compute_stats_one_time(label_matrix):
 
     this_matrix = numpy.full(label_matrix.shape, numpy.nan)
 
-    front_statistic_dict = {
+    front_property_dict = {
         climo_utils.WARM_FRONT_LENGTHS_KEY: this_matrix + 0.,
         climo_utils.WARM_FRONT_AREAS_KEY: this_matrix + 0.,
         climo_utils.COLD_FRONT_LENGTHS_KEY: this_matrix + 0.,
@@ -119,33 +116,33 @@ def _compute_stats_one_time(label_matrix):
         this_front_type_string = region_dict[front_utils.FRONT_TYPES_KEY][k]
 
         if this_front_type_string == front_utils.WARM_FRONT_STRING:
-            front_statistic_dict[climo_utils.WARM_FRONT_LENGTHS_KEY][
+            front_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY][
                 these_rows, these_columns
             ] = this_length_metres
 
-            front_statistic_dict[climo_utils.WARM_FRONT_AREAS_KEY][
+            front_property_dict[climo_utils.WARM_FRONT_AREAS_KEY][
                 these_rows, these_columns
             ] = this_area_metres2
         else:
-            front_statistic_dict[climo_utils.COLD_FRONT_LENGTHS_KEY][
+            front_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY][
                 these_rows, these_columns
             ] = this_length_metres
 
-            front_statistic_dict[climo_utils.COLD_FRONT_AREAS_KEY][
+            front_property_dict[climo_utils.COLD_FRONT_AREAS_KEY][
                 these_rows, these_columns
             ] = this_area_metres2
 
-    for this_key in front_statistic_dict:
-        front_statistic_dict[this_key] = numpy.expand_dims(
-            front_statistic_dict[this_key], axis=0
+    for this_key in front_property_dict:
+        front_property_dict[this_key] = numpy.expand_dims(
+            front_property_dict[this_key], axis=0
         )
 
-    return front_statistic_dict
+    return front_property_dict
 
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
          hours_to_keep, months_to_keep, output_dir_name):
-    """Computes statistics from gridded front labels.
+    """Computes properties from gridded front labels.
 
     This is effectively the main method.
 
@@ -188,42 +185,42 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=this_file_name, read_deterministic=True)
-        this_statistic_dict = _compute_stats_one_time(
+        this_property_dict = _compute_properties_one_time(
             this_prediction_dict[prediction_io.PREDICTED_LABELS_KEY][0, ...]
         )
 
         if wf_length_matrix_metres is None:
             wf_length_matrix_metres = (
-                this_statistic_dict[climo_utils.WARM_FRONT_LENGTHS_KEY] + 0.
+                this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY] + 0.
             )
             wf_area_matrix_m2 = (
-                this_statistic_dict[climo_utils.WARM_FRONT_AREAS_KEY] + 0.
+                this_property_dict[climo_utils.WARM_FRONT_AREAS_KEY] + 0.
             )
             cf_length_matrix_metres = (
-                this_statistic_dict[climo_utils.COLD_FRONT_LENGTHS_KEY] + 0.
+                this_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY] + 0.
             )
             cf_area_matrix_m2 = (
-                this_statistic_dict[climo_utils.COLD_FRONT_AREAS_KEY] + 0.
+                this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY] + 0.
             )
         else:
             wf_length_matrix_metres = numpy.concatenate(
                 (wf_length_matrix_metres,
-                 this_statistic_dict[climo_utils.WARM_FRONT_LENGTHS_KEY]),
+                 this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY]),
                 axis=0
             )
             wf_area_matrix_m2 = numpy.concatenate(
                 (wf_area_matrix_m2,
-                 this_statistic_dict[climo_utils.WARM_FRONT_AREAS_KEY]),
+                 this_property_dict[climo_utils.WARM_FRONT_AREAS_KEY]),
                 axis=0
             )
             cf_length_matrix_metres = numpy.concatenate(
                 (cf_length_matrix_metres,
-                 this_statistic_dict[climo_utils.COLD_FRONT_LENGTHS_KEY]),
+                 this_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY]),
                 axis=0
             )
             cf_area_matrix_m2 = numpy.concatenate(
                 (cf_area_matrix_m2,
-                 this_statistic_dict[climo_utils.COLD_FRONT_AREAS_KEY]),
+                 this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY]),
                 axis=0
             )
 
@@ -231,7 +228,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     output_file_name = climo_utils.find_file(
         directory_name=output_dir_name,
-        file_type_string=climo_utils.FRONT_STATS_STRING,
+        file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
         first_time_unix_sec=valid_times_unix_sec[0],
         last_time_unix_sec=valid_times_unix_sec[-1],
         hours=hours_to_keep, months=months_to_keep,
@@ -239,7 +236,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
-    climo_utils.write_gridded_stats(
+    climo_utils.write_gridded_properties(
         netcdf_file_name=output_file_name,
         wf_length_matrix_metres=wf_length_matrix_metres,
         wf_area_matrix_m2=wf_area_matrix_m2,

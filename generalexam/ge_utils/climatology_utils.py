@@ -11,8 +11,8 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
 FRONT_COUNTS_STRING = 'front_counts'
-FRONT_STATS_STRING = 'front_statistics'
-VALID_FILE_TYPE_STRINGS = [FRONT_COUNTS_STRING, FRONT_STATS_STRING]
+FRONT_PROPERTIES_STRING = 'front_properties'
+VALID_FILE_TYPE_STRINGS = [FRONT_COUNTS_STRING, FRONT_PROPERTIES_STRING]
 
 WINTER_STRING = 'winter'
 SPRING_STRING = 'spring'
@@ -48,6 +48,11 @@ WARM_FRONT_LENGTHS_KEY = 'wf_length_matrix_metres'
 WARM_FRONT_AREAS_KEY = 'wf_area_matrix_m2'
 COLD_FRONT_LENGTHS_KEY = 'cf_length_matrix_metres'
 COLD_FRONT_AREAS_KEY = 'cf_area_matrix_m2'
+
+MEAN_WF_LENGTH_KEY = 'mean_wf_length_metres'
+MEAN_WF_AREA_KEY = 'mean_wf_area_metres2'
+MEAN_CF_LENGTH_KEY = 'mean_cf_length_metres'
+MEAN_CF_AREA_KEY = 'mean_cf_area_metres2'
 
 
 def _check_season(season_string):
@@ -434,7 +439,7 @@ def apply_separation_time(front_type_enums, valid_times_unix_sec,
 def find_file(directory_name, file_type_string, first_time_unix_sec,
               last_time_unix_sec, hours=None, months=None,
               raise_error_if_missing=True):
-    """Locates file with gridded front counts or statistics.
+    """Locates file with gridded front counts or properties.
 
     :param directory_name: Directory name.
     :param file_type_string: See doc for `_check_file_type`.
@@ -488,20 +493,21 @@ def find_file(directory_name, file_type_string, first_time_unix_sec,
     return netcdf_file_name
 
 
-def average_many_stat_files(stat_file_names):
-    """Averages gridded front statistics over many files.
+def average_many_property_files(property_file_names):
+    """Averages gridded front properties over many files.
 
-    This method averages each statistic, at each grid cell, independently.
+    This method averages each property, at each grid cell, independently.
 
-    :param stat_file_names: 1-D list of paths to input files (will be read by
-        `read_gridded_stats`).
-    :return: front_statistic_dict: Same as output from `read_gridded_stats`,
-        except that statistics are based on all files.
+    :param property_file_names: 1-D list of paths to input files (will be read
+        by `read_gridded_properties`).
+    :return: front_statistic_dict: See doc for `write_gridded_stats`.
     """
 
-    error_checking.assert_is_string_list(stat_file_names)
+    # TODO(thunderhoser): Needs different output dict.
+
+    error_checking.assert_is_string_list(property_file_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(stat_file_names), num_dimensions=1
+        numpy.array(property_file_names), num_dimensions=1
     )
 
     num_wf_labels_matrix = None
@@ -511,27 +517,26 @@ def average_many_stat_files(stat_file_names):
     sum_cf_length_matrix_metres = None
     sum_cf_area_matrix_m2 = None
 
-    front_statistic_dict = None
     first_time_unix_sec = int(1e12)
     last_time_unix_sec = 0
     hours_in_climo = None
     months_in_climo = None
     prediction_file_names = []
 
-    for i in range(len(stat_file_names)):
-        print('Reading data from: "{0:s}"...'.format(stat_file_names[i]))
-        front_statistic_dict = read_gridded_stats(stat_file_names[i])
+    for i in range(len(property_file_names)):
+        print('Reading data from: "{0:s}"...'.format(property_file_names[i]))
+        this_property_dict = read_gridded_properties(property_file_names[i])
 
         first_time_unix_sec = min([
-            first_time_unix_sec, front_statistic_dict[FIRST_TIME_KEY]
+            first_time_unix_sec, this_property_dict[FIRST_TIME_KEY]
         ])
         last_time_unix_sec = max([
-            last_time_unix_sec, front_statistic_dict[LAST_TIME_KEY]
+            last_time_unix_sec, this_property_dict[LAST_TIME_KEY]
         ])
-        prediction_file_names += front_statistic_dict[PREDICTION_FILES_KEY]
+        prediction_file_names += this_property_dict[PREDICTION_FILES_KEY]
 
-        these_hours = front_statistic_dict[HOURS_KEY]
-        these_months = front_statistic_dict[MONTHS_KEY]
+        these_hours = this_property_dict[HOURS_KEY]
+        these_months = this_property_dict[MONTHS_KEY]
 
         if i == 0:
             hours_in_climo = copy.deepcopy(these_hours)
@@ -542,7 +547,7 @@ def average_many_stat_files(stat_file_names):
 
         this_num_labels_matrix = numpy.sum(
             numpy.invert(numpy.isnan(
-                front_statistic_dict[WARM_FRONT_LENGTHS_KEY]
+                this_property_dict[WARM_FRONT_LENGTHS_KEY]
             )),
             axis=0
         )
@@ -561,16 +566,16 @@ def average_many_stat_files(stat_file_names):
         num_wf_labels_matrix = num_wf_labels_matrix + this_num_labels_matrix
         sum_wf_length_matrix_metres = (
             sum_wf_length_matrix_metres + numpy.nansum(
-                front_statistic_dict[WARM_FRONT_LENGTHS_KEY], axis=0
+                this_property_dict[WARM_FRONT_LENGTHS_KEY], axis=0
             )
         )
         sum_wf_area_matrix_m2 = sum_wf_area_matrix_m2 + numpy.nansum(
-            front_statistic_dict[WARM_FRONT_AREAS_KEY], axis=0
+            this_property_dict[WARM_FRONT_AREAS_KEY], axis=0
         )
 
         this_num_labels_matrix = numpy.sum(
             numpy.invert(numpy.isnan(
-                front_statistic_dict[COLD_FRONT_LENGTHS_KEY]
+                this_property_dict[COLD_FRONT_LENGTHS_KEY]
             )),
             axis=0
         )
@@ -578,48 +583,41 @@ def average_many_stat_files(stat_file_names):
         num_cf_labels_matrix = num_cf_labels_matrix + this_num_labels_matrix
         sum_cf_length_matrix_metres = (
             sum_cf_length_matrix_metres + numpy.nansum(
-                front_statistic_dict[COLD_FRONT_LENGTHS_KEY], axis=0
+                this_property_dict[COLD_FRONT_LENGTHS_KEY], axis=0
             )
         )
         sum_cf_area_matrix_m2 = sum_cf_area_matrix_m2 + numpy.nansum(
-            front_statistic_dict[COLD_FRONT_AREAS_KEY], axis=0
+            this_property_dict[COLD_FRONT_AREAS_KEY], axis=0
         )
 
-    front_statistic_dict[FIRST_TIME_KEY] = first_time_unix_sec
-    front_statistic_dict[LAST_TIME_KEY] = last_time_unix_sec
-    front_statistic_dict[PREDICTION_FILES_KEY] = prediction_file_names
-
     num_wf_labels_matrix[num_wf_labels_matrix == 0] = numpy.nan
-    front_statistic_dict[WARM_FRONT_LENGTHS_KEY] = (
-        sum_wf_length_matrix_metres / num_wf_labels_matrix
-    )
-    front_statistic_dict[WARM_FRONT_AREAS_KEY] = (
-        sum_wf_area_matrix_m2 / num_wf_labels_matrix
-    )
-
     num_cf_labels_matrix[num_cf_labels_matrix == 0] = numpy.nan
-    front_statistic_dict[COLD_FRONT_LENGTHS_KEY] = (
-        sum_cf_length_matrix_metres / num_cf_labels_matrix
-    )
-    front_statistic_dict[COLD_FRONT_AREAS_KEY] = (
-        sum_cf_area_matrix_m2 / num_cf_labels_matrix
-    )
 
-    return front_statistic_dict
+    return {
+        MEAN_WF_LENGTH_KEY: sum_wf_length_matrix_metres / num_wf_labels_matrix,
+        MEAN_WF_AREA_KEY: sum_wf_area_matrix_m2 / num_wf_labels_matrix,
+        MEAN_CF_LENGTH_KEY: sum_cf_length_matrix_metres / num_cf_labels_matrix,
+        MEAN_CF_AREA_KEY: sum_cf_area_matrix_m2 / num_cf_labels_matrix,
+        FIRST_TIME_KEY: first_time_unix_sec,
+        LAST_TIME_KEY: last_time_unix_sec,
+        HOURS_KEY: hours_in_climo,
+        MONTHS_KEY: months_in_climo,
+        PREDICTION_FILES_KEY: prediction_file_names
+    }
 
 
-def find_many_stat_files(directory_name, hours=None, months=None,
-                         raise_error_if_none_found=True):
-    """Finds many files with gridded front statistics.
+def find_many_property_files(directory_name, hours=None, months=None,
+                             raise_error_if_none_found=True):
+    """Finds many files with gridded front properties.
 
     :param directory_name: See doc for `find_file`.
     :param hours: Same.
     :param months: Same.
     :param raise_error_if_none_found: Boolean flag.  If all files are missing
         and `raise_error_if_none_found = True`, this method will error out.
-    :return: netcdf_file_names: 1-D list of paths to files with gridded stats.
-        If no files were found are `raise_error_if_none_found = False`, this is
-        an empty list.
+    :return: netcdf_file_names: 1-D list of paths to files with gridded
+        properties.  If no files were found are
+        `raise_error_if_none_found = False`, this is an empty list.
     :raises: ValueError: if no files were found and
         `raise_error_if_none_found = True`.
     """
@@ -640,7 +638,7 @@ def find_many_stat_files(directory_name, hours=None, months=None,
     glob_pattern = (
         '{0:s}/{1:s}_{2:s}_{2:s}_hours={3:s}_months={4:s}.nc'
     ).format(
-        directory_name, FRONT_STATS_STRING.replace('_', '-'),
+        directory_name, FRONT_PROPERTIES_STRING.replace('_', '-'),
         FILE_NAME_TIME_REGEX, hour_string, month_string
     )
 
@@ -865,11 +863,11 @@ def read_gridded_counts(netcdf_file_name):
     return count_dict
 
 
-def write_gridded_stats(
+def write_gridded_properties(
         netcdf_file_name, wf_length_matrix_metres, wf_area_matrix_m2,
         cf_length_matrix_metres, cf_area_matrix_m2, first_time_unix_sec,
         last_time_unix_sec, prediction_file_names, hours=None, months=None):
-    """Writes gridded front statistics to NetCDF file.
+    """Writes gridded front properties to NetCDF file.
 
     T = number of time steps
     M = number of rows in grid
@@ -999,21 +997,21 @@ def write_gridded_stats(
     dataset_object.close()
 
 
-def read_gridded_stats(netcdf_file_name):
-    """Reads gridded front statistics from NetCDF file.
+def read_gridded_properties(netcdf_file_name):
+    """Reads gridded front properties from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :return: front_statistic_dict: Dictionary with the following keys.
-    front_statistic_dict["wf_length_matrix_metres"]: See doc for
-        `write_gridded_stats`.
-    front_statistic_dict["wf_area_matrix_m2"]: Same.
-    front_statistic_dict["cf_length_matrix_metres"]: Same.
-    front_statistic_dict["cf_area_matrix_m2"]: Same.
-    front_statistic_dict["first_time_unix_sec"]: Same.
-    front_statistic_dict["last_time_unix_sec"]: Same.
-    front_statistic_dict["hours"]: Same.
-    front_statistic_dict["months"]: Same.
-    front_statistic_dict["prediction_file_names"]: Same.
+    :return: front_property_dict: Dictionary with the following keys.
+    front_property_dict["wf_length_matrix_metres"]: See doc for
+        `write_gridded_properties`.
+    front_property_dict["wf_area_matrix_m2"]: Same.
+    front_property_dict["cf_length_matrix_metres"]: Same.
+    front_property_dict["cf_area_matrix_m2"]: Same.
+    front_property_dict["first_time_unix_sec"]: Same.
+    front_property_dict["last_time_unix_sec"]: Same.
+    front_property_dict["hours"]: Same.
+    front_property_dict["months"]: Same.
+    front_property_dict["prediction_file_names"]: Same.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
@@ -1036,7 +1034,7 @@ def read_gridded_stats(netcdf_file_name):
     if len(months) == 1 and months[0] == -1:
         months = None
 
-    front_statistic_dict = {
+    front_property_dict = {
         FIRST_TIME_KEY: int(getattr(dataset_object, FIRST_TIME_KEY)),
         LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
         HOURS_KEY: hours,
@@ -1062,4 +1060,4 @@ def read_gridded_stats(netcdf_file_name):
     }
 
     dataset_object.close()
-    return front_statistic_dict
+    return front_property_dict
