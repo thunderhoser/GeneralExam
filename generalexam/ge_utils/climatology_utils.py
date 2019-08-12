@@ -583,11 +583,25 @@ def read_gridded_counts(netcdf_file_name):
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
+    hours = numpy.array(getattr(dataset_object, HOURS_KEY), dtype=int)
+    if not isinstance(hours, numpy.ndarray):
+        hours = numpy.array([hours], dtype=int)
+
+    if len(hours) == 1 and hours[0] == -1:
+        hours = None
+
+    months = numpy.array(getattr(dataset_object, MONTHS_KEY), dtype=int)
+    if not isinstance(months, numpy.ndarray):
+        months = numpy.array([months], dtype=int)
+
+    if len(months) == 1 and months[0] == -1:
+        months = None
+
     count_dict = {
         FIRST_TIME_KEY: int(getattr(dataset_object, FIRST_TIME_KEY)),
         LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
-        HOURS_KEY: numpy.array(getattr(dataset_object, HOURS_KEY), dtype=int),
-        MONTHS_KEY: numpy.array(getattr(dataset_object, MONTHS_KEY), dtype=int),
+        HOURS_KEY: hours,
+        MONTHS_KEY: months,
         NUM_WF_LABELS_KEY: numpy.array(
             dataset_object.variables[NUM_WF_LABELS_KEY][:], dtype=int
         ),

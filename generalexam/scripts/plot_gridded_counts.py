@@ -5,6 +5,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -22,6 +23,8 @@ MIN_LONGITUDE_DEG = 200.
 MAX_LATITUDE_DEG = 80.
 MAX_LONGITUDE_DEG = 310.
 
+TITLE_FONT_SIZE = 16
+TITLE_TIME_FORMAT = '%Y-%m-%d-%H'
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -215,7 +218,28 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
 
         wf_title_string = 'Number'
 
-    wf_title_string += ' of warm fronts'
+    first_time_string = time_conversion.unix_sec_to_string(
+        climo_dict[climo_utils.FIRST_TIME_KEY], TITLE_TIME_FORMAT
+    )
+    last_time_string = time_conversion.unix_sec_to_string(
+        climo_dict[climo_utils.LAST_TIME_KEY], TITLE_TIME_FORMAT
+    )
+
+    wf_title_string += ' of warm fronts from {0:s} to {1:s}'.format(
+        first_time_string, last_time_string)
+
+    hours = climo_dict[climo_utils.HOURS_KEY]
+    if hours is not None:
+        wf_title_string += '; hours {0:s}'.format(
+            climo_utils.hours_to_string(hours)
+        )
+
+    months = climo_dict[climo_utils.MONTHS_KEY]
+    if months is not None:
+        wf_title_string += '; months {0:s}'.format(
+            climo_utils.months_to_string(months)
+        )
+
     wf_output_file_name = '{0:s}/warm_fronts.jpg'.format(output_dir_name)
 
     _plot_one_front_type(
