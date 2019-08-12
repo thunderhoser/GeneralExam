@@ -486,7 +486,7 @@ def write_gridded_counts(
     error_checking.assert_is_greater(separation_time_sec, 0)
 
     if hours is None:
-        hours = numpy.array([-1], dtype=int)
+        hours = numpy.array([-2, -1], dtype=int)
     else:
         _check_hours(hours)
 
