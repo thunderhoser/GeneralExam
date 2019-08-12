@@ -176,7 +176,9 @@ def _plot_one_front_type(
     if plot_frequency:
         colour_bar_object.ax.set_xticklabels(tick_values)
     else:
-        tick_strings = ['{0:d}'.format(x) for x in tick_values]
+        tick_strings = [
+            '{0:d}'.format(int(numpy.round(x))) for x in tick_values
+        ]
         colour_bar_object.ax.set_xticklabels(tick_strings)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
