@@ -423,8 +423,11 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         num_cf_labels_matrix=num_cf_labels_matrix,
         num_unique_wf_matrix=num_unique_wf_matrix,
         num_unique_cf_matrix=num_unique_cf_matrix,
+        first_time_unix_sec=valid_times_unix_sec[0],
+        last_time_unix_sec=valid_times_unix_sec[-1],
         prediction_file_names=prediction_file_names,
-        separation_time_sec=separation_time_sec)
+        separation_time_sec=separation_time_sec,
+        hours=hours_to_keep, months=months_to_keep)
 
 
 if __name__ == '__main__':
