@@ -417,12 +417,14 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
-    # climo_utils.write_gridded_counts(
-    #     netcdf_file_name=output_file_name,
-    #     num_warm_fronts_matrix=num_warm_fronts_matrix,
-    #     num_cold_fronts_matrix=num_cold_fronts_matrix,
-    #     prediction_file_names=prediction_file_names,
-    #     separation_time_sec=separation_time_sec)
+    climo_utils.write_gridded_counts(
+        netcdf_file_name=output_file_name,
+        num_wf_labels_matrix=num_wf_labels_matrix,
+        num_cf_labels_matrix=num_cf_labels_matrix,
+        num_unique_wf_matrix=num_unique_wf_matrix,
+        num_unique_cf_matrix=num_unique_cf_matrix,
+        prediction_file_names=prediction_file_names,
+        separation_time_sec=separation_time_sec)
 
 
 if __name__ == '__main__':

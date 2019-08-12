@@ -24,8 +24,10 @@ COLUMN_DIMENSION_KEY = 'column'
 PREDICTION_FILE_DIM_KEY = 'prediction_file'
 PREDICTION_FILE_CHAR_DIM_KEY = 'prediction_file_char'
 
-NUM_WARM_FRONTS_KEY = 'num_warm_fronts_matrix'
-NUM_COLD_FRONTS_KEY = 'num_cold_fronts_matrix'
+NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
+NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
+NUM_UNIQUE_WF_KEY = 'num_unique_wf_matrix'
+NUM_UNIQUE_CF_KEY = 'num_unique_cf_matrix'
 PREDICTION_FILES_KEY = 'prediction_file_names'
 SEPARATION_TIME_KEY = 'separation_time_sec'
 
@@ -418,17 +420,21 @@ def find_gridded_count_file(
 
 
 def write_gridded_counts(
-        netcdf_file_name, num_warm_fronts_matrix, num_cold_fronts_matrix,
-        prediction_file_names, separation_time_sec):
+        netcdf_file_name, num_wf_labels_matrix, num_cf_labels_matrix,
+        num_unique_wf_matrix, num_unique_cf_matrix, prediction_file_names,
+        separation_time_sec):
     """Writes gridded front counts to NetCDF file.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param netcdf_file_name: Path to output file.
-    :param num_warm_fronts_matrix: M-by-N numpy array with number of warm fronts
-        at each grid cell.
-    :param num_cold_fronts_matrix: Same but for cold fronts.
+    :param num_wf_labels_matrix: M-by-N numpy array with number of WF labels at
+        each grid cell.
+    :param num_cf_labels_matrix: Same but for cold fronts.
+    :param num_unique_wf_matrix: M-by-N numpy array with number of unique warm
+        fronts at each grid cell.
+    :param num_unique_cf_matrix: Same but for cold fronts.
     :param prediction_file_names: 1-D list of paths to input files (readable by
         `prediction_io.read_file`).  This is metadata.
     :param separation_time_sec: Separation time (for more details, see doc for
@@ -436,17 +442,27 @@ def write_gridded_counts(
     """
 
     # Check input args.
-    error_checking.assert_is_integer_numpy_array(num_warm_fronts_matrix)
-    error_checking.assert_is_geq_numpy_array(num_warm_fronts_matrix, 0)
+    error_checking.assert_is_integer_numpy_array(num_wf_labels_matrix)
+    error_checking.assert_is_geq_numpy_array(num_wf_labels_matrix, 0)
     error_checking.assert_is_numpy_array(
-        num_warm_fronts_matrix, num_dimensions=2)
+        num_wf_labels_matrix, num_dimensions=2)
 
-    error_checking.assert_is_integer_numpy_array(num_cold_fronts_matrix)
-    error_checking.assert_is_geq_numpy_array(num_cold_fronts_matrix, 0)
+    expected_dim = numpy.array(num_wf_labels_matrix.shape, dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(num_cf_labels_matrix)
+    error_checking.assert_is_geq_numpy_array(num_cf_labels_matrix, 0)
     error_checking.assert_is_numpy_array(
-        num_cold_fronts_matrix,
-        exact_dimensions=numpy.array(num_warm_fronts_matrix.shape, dtype=int)
-    )
+        num_cf_labels_matrix, exact_dimensions=expected_dim)
+
+    error_checking.assert_is_integer_numpy_array(num_unique_wf_matrix)
+    error_checking.assert_is_geq_numpy_array(num_unique_wf_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_unique_wf_matrix, exact_dimensions=expected_dim)
+
+    error_checking.assert_is_integer_numpy_array(num_unique_cf_matrix)
+    error_checking.assert_is_geq_numpy_array(num_unique_cf_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_unique_cf_matrix, exact_dimensions=expected_dim)
 
     error_checking.assert_is_string_list(prediction_file_names)
     error_checking.assert_is_numpy_array(
@@ -469,10 +485,10 @@ def write_gridded_counts(
     ])
 
     dataset_object.createDimension(
-        ROW_DIMENSION_KEY, num_warm_fronts_matrix.shape[0]
+        ROW_DIMENSION_KEY, num_wf_labels_matrix.shape[0]
     )
     dataset_object.createDimension(
-        COLUMN_DIMENSION_KEY, num_warm_fronts_matrix.shape[1]
+        COLUMN_DIMENSION_KEY, num_wf_labels_matrix.shape[1]
     )
     dataset_object.createDimension(
         PREDICTION_FILE_DIM_KEY, len(prediction_file_names)
@@ -483,16 +499,28 @@ def write_gridded_counts(
 
     # Add variables.
     dataset_object.createVariable(
-        NUM_WARM_FRONTS_KEY, datatype=numpy.int32,
+        NUM_WF_LABELS_KEY, datatype=numpy.int32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[NUM_WARM_FRONTS_KEY][:] = num_warm_fronts_matrix
+    dataset_object.variables[NUM_WF_LABELS_KEY][:] = num_wf_labels_matrix
 
     dataset_object.createVariable(
-        NUM_COLD_FRONTS_KEY, datatype=numpy.int32,
+        NUM_CF_LABELS_KEY, datatype=numpy.int32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[NUM_COLD_FRONTS_KEY][:] = num_cold_fronts_matrix
+    dataset_object.variables[NUM_CF_LABELS_KEY][:] = num_cf_labels_matrix
+
+    dataset_object.createVariable(
+        NUM_UNIQUE_WF_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_UNIQUE_WF_KEY][:] = num_unique_wf_matrix
+
+    dataset_object.createVariable(
+        NUM_UNIQUE_CF_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_UNIQUE_CF_KEY][:] = num_unique_cf_matrix
 
     this_string_type = 'S{0:d}'.format(num_file_name_chars)
     file_names_char_array = netCDF4.stringtochar(numpy.array(
@@ -514,8 +542,10 @@ def read_gridded_counts(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: count_dict: Dictionary with the following keys.
-    count_dict["num_warm_fronts_matrix"]: See doc for `write_gridded_counts`.
-    count_dict["num_cold_fronts_matrix"]: Same.
+    count_dict["num_wf_labels_matrix"]: See doc for `write_gridded_counts`.
+    count_dict["num_cf_labels_matrix"]: Same.
+    count_dict["num_unique_wf_matrix"]: Same.
+    count_dict["num_unique_cf_matrix"]: Same.
     count_dict["prediction_file_names"]: Same.
     count_dict["separation_time_sec"]: Same.
     """
@@ -523,11 +553,17 @@ def read_gridded_counts(netcdf_file_name):
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     count_dict = {
-        NUM_WARM_FRONTS_KEY: numpy.array(
-            dataset_object.variables[NUM_WARM_FRONTS_KEY][:], dtype=int
+        NUM_WF_LABELS_KEY: numpy.array(
+            dataset_object.variables[NUM_WF_LABELS_KEY][:], dtype=int
         ),
-        NUM_COLD_FRONTS_KEY: numpy.array(
-            dataset_object.variables[NUM_COLD_FRONTS_KEY][:], dtype=int
+        NUM_CF_LABELS_KEY: numpy.array(
+            dataset_object.variables[NUM_CF_LABELS_KEY][:], dtype=int
+        ),
+        NUM_UNIQUE_WF_KEY: numpy.array(
+            dataset_object.variables[NUM_UNIQUE_WF_KEY][:], dtype=int
+        ),
+        NUM_UNIQUE_CF_KEY: numpy.array(
+            dataset_object.variables[NUM_UNIQUE_CF_KEY][:], dtype=int
         ),
         PREDICTION_FILES_KEY: [
             str(s) for s in
