@@ -74,6 +74,75 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _compute_stats_one_time(label_matrix):
+    """Computes gridded stats for one time.
+
+    T = number of time steps
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param label_matrix: M-by-N numpy array of integer front labels.
+    :return: front_statistic_dict: Dictionary with the following keys.
+    front_statistic_dict["wf_length_matrix_metres"]: T-by-M-by-N numpy array
+        with warm-front length at each grid cell (NaN if there is no warm
+        front).
+    front_statistic_dict["wf_area_matrix_m2"]: Same but for warm-front area.
+    front_statistic_dict["cf_length_matrix_metres"]: Same but for cold-front
+        length.
+    front_statistic_dict["cf_area_matrix_m2"]: Same but for cold-front area.
+    """
+
+    region_dict = front_utils.gridded_labels_to_regions(
+        ternary_label_matrix=label_matrix, compute_lengths=True)
+
+    this_matrix = numpy.full(label_matrix.shape, numpy.nan)
+
+    front_statistic_dict = {
+        climo_utils.WARM_FRONT_LENGTHS_KEY: this_matrix + 0.,
+        climo_utils.WARM_FRONT_AREAS_KEY: this_matrix + 0.,
+        climo_utils.COLD_FRONT_LENGTHS_KEY: this_matrix + 0.,
+        climo_utils.COLD_FRONT_AREAS_KEY: this_matrix + 0.,
+    }
+
+    num_fronts = len(region_dict[front_utils.FRONT_TYPES_KEY])
+
+    for k in range(num_fronts):
+        these_rows = region_dict[front_utils.ROWS_BY_REGION_KEY][k]
+        these_columns = region_dict[front_utils.COLUMNS_BY_REGION_KEY][k]
+
+        this_area_metres2 = len(these_rows) * GRID_SPACING_METRES ** 2
+        this_length_metres = (
+            GRID_SPACING_METRES *
+            region_dict[front_utils.MAJOR_AXIS_LENGTHS_KEY][k]
+        )
+
+        this_front_type_string = region_dict[front_utils.FRONT_TYPES_KEY][k]
+
+        if this_front_type_string == front_utils.WARM_FRONT_STRING:
+            front_statistic_dict[climo_utils.WARM_FRONT_LENGTHS_KEY][
+                these_rows, these_columns
+            ] = this_length_metres
+
+            front_statistic_dict[climo_utils.WARM_FRONT_AREAS_KEY][
+                these_rows, these_columns
+            ] = this_area_metres2
+        else:
+            front_statistic_dict[climo_utils.COLD_FRONT_LENGTHS_KEY][
+                these_rows, these_columns
+            ] = this_length_metres
+
+            front_statistic_dict[climo_utils.COLD_FRONT_AREAS_KEY][
+                these_rows, these_columns
+            ] = this_area_metres2
+
+    for this_key in front_statistic_dict:
+        front_statistic_dict[this_key] = numpy.expand_dims(
+            front_statistic_dict[this_key], axis=0
+        )
+
+    return front_statistic_dict
+
+
 def _run(prediction_dir_name, first_time_string, last_time_string,
          hours_to_keep, months_to_keep, output_dir_name):
     """Computes statistics from gridded front labels.
@@ -119,79 +188,43 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
 
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=this_file_name, read_deterministic=True)
-
-        this_label_matrix = this_prediction_dict[
-            prediction_io.PREDICTED_LABELS_KEY
-        ][0, ...]
-
-        this_region_dict = front_utils.gridded_labels_to_regions(
-            ternary_label_matrix=this_label_matrix, compute_lengths=True)
-
-        this_num_fronts = len(this_region_dict[front_utils.FRONT_TYPES_KEY])
-        if this_num_fronts == 0:
-            continue
-
-        this_wf_length_matrix_metres = numpy.full(
-            this_label_matrix.shape, numpy.nan)
-        this_wf_area_matrix_m2 = this_wf_length_matrix_metres + 0.
-        this_cf_length_matrix_metres = this_wf_length_matrix_metres + 0.
-        this_cf_area_matrix_m2 = this_wf_length_matrix_metres + 0.
-
-        for k in range(this_num_fronts):
-            these_rows = this_region_dict[front_utils.ROWS_BY_REGION_KEY][k]
-            these_columns = this_region_dict[
-                front_utils.COLUMNS_BY_REGION_KEY][k]
-
-            this_area_metres2 = len(these_rows) * GRID_SPACING_METRES ** 2
-            this_length_metres = this_region_dict[
-                front_utils.MAJOR_AXIS_LENGTHS_KEY][k]
-
-            this_front_type_string = this_region_dict[
-                front_utils.FRONT_TYPES_KEY][k]
-
-            if this_front_type_string == front_utils.WARM_FRONT_STRING:
-                this_wf_length_matrix_metres[
-                    these_rows, these_columns
-                ] = this_length_metres
-
-                this_wf_area_matrix_m2[
-                    these_rows, these_columns
-                ] = this_area_metres2
-            else:
-                this_cf_length_matrix_metres[
-                    these_rows, these_columns
-                ] = this_length_metres
-
-                this_cf_area_matrix_m2[
-                    these_rows, these_columns
-                ] = this_area_metres2
-
-        this_wf_length_matrix_metres = numpy.expand_dims(
-            this_wf_length_matrix_metres, axis=0)
-        this_wf_area_matrix_m2 = numpy.expand_dims(
-            this_wf_area_matrix_m2, axis=0)
-        this_cf_length_matrix_metres = numpy.expand_dims(
-            this_cf_length_matrix_metres, axis=0)
-        this_cf_area_matrix_m2 = numpy.expand_dims(
-            this_cf_area_matrix_m2, axis=0)
+        this_statistic_dict = _compute_stats_one_time(
+            this_prediction_dict[prediction_io.PREDICTED_LABELS_KEY][0, ...]
+        )
 
         if wf_length_matrix_metres is None:
-            wf_length_matrix_metres = this_wf_length_matrix_metres + 0.
-            wf_area_matrix_m2 = this_wf_area_matrix_m2 + 0.
-            cf_length_matrix_metres = this_cf_length_matrix_metres + 0.
-            cf_area_matrix_m2 = this_cf_area_matrix_m2 + 0.
+            wf_length_matrix_metres = (
+                this_statistic_dict[climo_utils.WARM_FRONT_LENGTHS_KEY] + 0.
+            )
+            wf_area_matrix_m2 = (
+                this_statistic_dict[climo_utils.WARM_FRONT_AREAS_KEY] + 0.
+            )
+            cf_length_matrix_metres = (
+                this_statistic_dict[climo_utils.COLD_FRONT_LENGTHS_KEY] + 0.
+            )
+            cf_area_matrix_m2 = (
+                this_statistic_dict[climo_utils.COLD_FRONT_AREAS_KEY] + 0.
+            )
         else:
             wf_length_matrix_metres = numpy.concatenate(
-                (wf_length_matrix_metres, this_wf_length_matrix_metres), axis=0
+                (wf_length_matrix_metres,
+                 this_statistic_dict[climo_utils.WARM_FRONT_LENGTHS_KEY]),
+                axis=0
             )
             wf_area_matrix_m2 = numpy.concatenate(
-                (wf_area_matrix_m2, this_wf_area_matrix_m2), axis=0
+                (wf_area_matrix_m2,
+                 this_statistic_dict[climo_utils.WARM_FRONT_AREAS_KEY]),
+                axis=0
             )
             cf_length_matrix_metres = numpy.concatenate(
-                (cf_length_matrix_metres, this_cf_length_matrix_metres), axis=0
+                (cf_length_matrix_metres,
+                 this_statistic_dict[climo_utils.COLD_FRONT_LENGTHS_KEY]),
+                axis=0
             )
             cf_area_matrix_m2 = numpy.concatenate(
-                (cf_area_matrix_m2, this_cf_area_matrix_m2), axis=0
+                (cf_area_matrix_m2,
+                 this_statistic_dict[climo_utils.COLD_FRONT_AREAS_KEY]),
+                axis=0
             )
 
     print(SEPARATOR_STRING)
