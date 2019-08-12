@@ -161,13 +161,16 @@ def _plot_one_front_type(
         first_column_in_full_grid=full_grid_column_limits[0]
     )
 
-    plotting_utils.plot_colour_bar(
+    colour_bar_object = plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
         data_matrix=this_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
         orientation_string='horizontal', extend_min=False, extend_max=True,
         fraction_of_axis_length=0.9)
+
+    tick_values = colour_bar_object.ax.get_xticks()
+    print(tick_values)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
