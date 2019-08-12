@@ -1,5 +1,7 @@
 """Methods for creating climatology of fronts."""
 
+import copy
+import glob
 import os.path
 import numpy
 import netCDF4
@@ -22,6 +24,9 @@ VALID_SEASON_STRINGS = [
 ]
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+FILE_NAME_TIME_REGEX = (
+    '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]'
+)
 
 ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
@@ -39,10 +44,10 @@ MONTHS_KEY = 'months'
 PREDICTION_FILES_KEY = 'prediction_file_names'
 SEPARATION_TIME_KEY = 'separation_time_sec'
 
-WARM_FRONT_LENGTH_KEY = 'wf_length_matrix_metres'
-WARM_FRONT_AREA_KEY = 'wf_area_matrix_m2'
-COLD_FRONT_LENGTH_KEY = 'cf_length_matrix_metres'
-COLD_FRONT_AREA_KEY = 'cf_area_matrix_m2'
+WARM_FRONT_LENGTHS_KEY = 'wf_length_matrix_metres'
+WARM_FRONT_AREAS_KEY = 'wf_area_matrix_m2'
+COLD_FRONT_LENGTHS_KEY = 'cf_length_matrix_metres'
+COLD_FRONT_AREAS_KEY = 'cf_area_matrix_m2'
 
 
 def _check_season(season_string):
@@ -77,6 +82,36 @@ def _check_file_type(file_type_string):
         ).format(str(VALID_FILE_TYPE_STRINGS), file_type_string)
 
         raise ValueError(error_string)
+
+
+def _compare_hour_sets(first_hours, second_hours):
+    """Ensures that two sets of hours are equal.
+
+    :param first_hours: 1-D numpy array of hours (integers in range 0...23).
+        May also be None.
+    :param second_hours: Same.
+    """
+
+    if first_hours is None and second_hours is None:
+        return
+
+    check_hours(first_hours)
+    assert numpy.array_equal(first_hours, second_hours)
+
+
+def _compare_month_sets(first_months, second_months):
+    """Ensures that two sets of months are equal.
+
+    :param first_months: 1-D numpy array of months (integers in range 1...12).
+        May also be None.
+    :param second_months: Same.
+    """
+
+    if first_months is None and second_months is None:
+        return
+
+    check_months(first_months)
+    assert numpy.array_equal(first_months, second_months)
 
 
 def _exact_times_to_hours(exact_times_unix_sec):
@@ -399,7 +434,7 @@ def apply_separation_time(front_type_enums, valid_times_unix_sec,
 def find_file(directory_name, file_type_string, first_time_unix_sec,
               last_time_unix_sec, hours=None, months=None,
               raise_error_if_missing=True):
-    """Locates file with gridded front counts.
+    """Locates file with gridded front counts or statistics.
 
     :param directory_name: Directory name.
     :param file_type_string: See doc for `_check_file_type`.
@@ -413,6 +448,7 @@ def find_file(directory_name, file_type_string, first_time_unix_sec,
     :return: netcdf_file_name: Path to file with gridded counts.  If file is
         missing and `raise_error_if_missing = False`, this is the *expected*
         path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
     _check_file_type(file_type_string)
@@ -450,6 +486,175 @@ def find_file(directory_name, file_type_string, first_time_unix_sec,
         raise ValueError(error_string)
 
     return netcdf_file_name
+
+
+def average_many_stat_files(stat_file_names):
+    """Averages gridded front statistics over many files.
+
+    This method averages each statistic, at each grid cell, independently.
+
+    :param stat_file_names: 1-D list of paths to input files (will be read by
+        `read_gridded_stats`).
+    :return: front_statistic_dict: Same as output from `read_gridded_stats`,
+        except that statistics are based on all files.
+    """
+
+    error_checking.assert_is_string_list(stat_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(stat_file_names), num_dimensions=1
+    )
+
+    num_wf_labels_matrix = None
+    sum_wf_length_matrix_metres = None
+    sum_wf_area_matrix_m2 = None
+    num_cf_labels_matrix = None
+    sum_cf_length_matrix_metres = None
+    sum_cf_area_matrix_m2 = None
+
+    front_statistic_dict = None
+    first_time_unix_sec = int(1e12)
+    last_time_unix_sec = 0
+    hours_in_climo = None
+    months_in_climo = None
+    prediction_file_names = []
+
+    for i in range(len(stat_file_names)):
+        print('Reading data from: "{0:s}"...'.format(stat_file_names[i]))
+        front_statistic_dict = read_gridded_stats(stat_file_names[i])
+
+        first_time_unix_sec = min([
+            first_time_unix_sec, front_statistic_dict[FIRST_TIME_KEY]
+        ])
+        last_time_unix_sec = max([
+            last_time_unix_sec, front_statistic_dict[LAST_TIME_KEY]
+        ])
+        prediction_file_names += front_statistic_dict[PREDICTION_FILES_KEY]
+
+        these_hours = front_statistic_dict[HOURS_KEY]
+        these_months = front_statistic_dict[MONTHS_KEY]
+
+        if i == 0:
+            hours_in_climo = copy.deepcopy(these_hours)
+            months_in_climo = copy.deepcopy(these_months)
+
+        _compare_hour_sets(these_hours, hours_in_climo)
+        _compare_month_sets(these_months, months_in_climo)
+
+        this_num_labels_matrix = numpy.sum(
+            numpy.invert(numpy.isnan(
+                front_statistic_dict[WARM_FRONT_LENGTHS_KEY]
+            )),
+            axis=0
+        )
+
+        if i == 0:
+            num_wf_labels_matrix = numpy.full(this_num_labels_matrix.shape, 0.)
+            sum_wf_length_matrix_metres = numpy.full(
+                this_num_labels_matrix.shape, 0.)
+            sum_wf_area_matrix_m2 = numpy.full(this_num_labels_matrix.shape, 0.)
+
+            num_cf_labels_matrix = numpy.full(this_num_labels_matrix.shape, 0.)
+            sum_cf_length_matrix_metres = numpy.full(
+                this_num_labels_matrix.shape, 0.)
+            sum_cf_area_matrix_m2 = numpy.full(this_num_labels_matrix.shape, 0.)
+
+        num_wf_labels_matrix = num_wf_labels_matrix + this_num_labels_matrix
+        sum_wf_length_matrix_metres = (
+            sum_wf_length_matrix_metres + numpy.nansum(
+                front_statistic_dict[WARM_FRONT_LENGTHS_KEY], axis=0
+            )
+        )
+        sum_wf_area_matrix_m2 = sum_wf_area_matrix_m2 + numpy.nansum(
+            front_statistic_dict[WARM_FRONT_AREAS_KEY], axis=0
+        )
+
+        this_num_labels_matrix = numpy.sum(
+            numpy.invert(numpy.isnan(
+                front_statistic_dict[COLD_FRONT_LENGTHS_KEY]
+            )),
+            axis=0
+        )
+
+        num_cf_labels_matrix = num_cf_labels_matrix + this_num_labels_matrix
+        sum_cf_length_matrix_metres = (
+            sum_cf_length_matrix_metres + numpy.nansum(
+                front_statistic_dict[COLD_FRONT_LENGTHS_KEY], axis=0
+            )
+        )
+        sum_cf_area_matrix_m2 = sum_cf_area_matrix_m2 + numpy.nansum(
+            front_statistic_dict[COLD_FRONT_AREAS_KEY], axis=0
+        )
+
+    front_statistic_dict[FIRST_TIME_KEY] = first_time_unix_sec
+    front_statistic_dict[LAST_TIME_KEY] = last_time_unix_sec
+    front_statistic_dict[PREDICTION_FILES_KEY] = prediction_file_names
+
+    num_wf_labels_matrix[num_wf_labels_matrix == 0] = numpy.nan
+    front_statistic_dict[WARM_FRONT_LENGTHS_KEY] = (
+        sum_wf_length_matrix_metres / num_wf_labels_matrix
+    )
+    front_statistic_dict[WARM_FRONT_AREAS_KEY] = (
+        sum_wf_area_matrix_m2 / num_wf_labels_matrix
+    )
+
+    num_cf_labels_matrix[num_cf_labels_matrix == 0] = numpy.nan
+    front_statistic_dict[COLD_FRONT_LENGTHS_KEY] = (
+        sum_cf_length_matrix_metres / num_cf_labels_matrix
+    )
+    front_statistic_dict[COLD_FRONT_AREAS_KEY] = (
+        sum_cf_area_matrix_m2 / num_cf_labels_matrix
+    )
+
+    return front_statistic_dict
+
+
+def find_many_stat_files(directory_name, hours=None, months=None,
+                         raise_error_if_none_found=True):
+    """Finds many files with gridded front statistics.
+
+    :param directory_name: See doc for `find_file`.
+    :param hours: Same.
+    :param months: Same.
+    :param raise_error_if_none_found: Boolean flag.  If all files are missing
+        and `raise_error_if_none_found = True`, this method will error out.
+    :return: netcdf_file_names: 1-D list of paths to files with gridded stats.
+        If no files were found are `raise_error_if_none_found = False`, this is
+        an empty list.
+    :raises: ValueError: if no files were found and
+        `raise_error_if_none_found = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_boolean(raise_error_if_none_found)
+
+    if hours is None:
+        hour_string = 'all'
+    else:
+        hour_string = hours_to_string(hours)[-1]
+
+    if months is None:
+        month_string = 'all'
+    else:
+        month_string = months_to_string(months)[-1]
+
+    glob_pattern = (
+        '{0:s}/{1:s}_{2:s}_{2:s}_hours={3:s}_months={4:s}.nc'
+    ).format(
+        directory_name, FRONT_STATS_STRING.replace('_', '-'),
+        FILE_NAME_TIME_REGEX, hour_string, month_string
+    )
+
+    netcdf_file_names = glob.glob(glob_pattern)
+
+    if raise_error_if_none_found and len(netcdf_file_names) == 0:
+        error_string = 'Could not find any files with pattern: "{0:s}"'.format(
+            glob_pattern)
+        raise ValueError(error_string)
+
+    if len(netcdf_file_names) > 0:
+        netcdf_file_names.sort()
+
+    return netcdf_file_names
 
 
 def write_gridded_counts(
@@ -756,28 +961,28 @@ def write_gridded_stats(
 
     # Add variables.
     dataset_object.createVariable(
-        WARM_FRONT_LENGTH_KEY, datatype=numpy.float32,
+        WARM_FRONT_LENGTHS_KEY, datatype=numpy.float32,
         dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[WARM_FRONT_LENGTH_KEY][:] = wf_length_matrix_metres
+    dataset_object.variables[WARM_FRONT_LENGTHS_KEY][:] = wf_length_matrix_metres
 
     dataset_object.createVariable(
-        WARM_FRONT_AREA_KEY, datatype=numpy.float32,
+        WARM_FRONT_AREAS_KEY, datatype=numpy.float32,
         dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[WARM_FRONT_AREA_KEY][:] = wf_area_matrix_m2
+    dataset_object.variables[WARM_FRONT_AREAS_KEY][:] = wf_area_matrix_m2
 
     dataset_object.createVariable(
-        COLD_FRONT_LENGTH_KEY, datatype=numpy.float32,
+        COLD_FRONT_LENGTHS_KEY, datatype=numpy.float32,
         dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[COLD_FRONT_LENGTH_KEY][:] = cf_length_matrix_metres
+    dataset_object.variables[COLD_FRONT_LENGTHS_KEY][:] = cf_length_matrix_metres
 
     dataset_object.createVariable(
-        COLD_FRONT_AREA_KEY, datatype=numpy.float32,
+        COLD_FRONT_AREAS_KEY, datatype=numpy.float32,
         dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[COLD_FRONT_AREA_KEY][:] = cf_area_matrix_m2
+    dataset_object.variables[COLD_FRONT_AREAS_KEY][:] = cf_area_matrix_m2
 
     this_string_type = 'S{0:d}'.format(num_file_name_chars)
     file_names_char_array = netCDF4.stringtochar(numpy.array(
@@ -836,17 +1041,17 @@ def read_gridded_stats(netcdf_file_name):
         LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
         HOURS_KEY: hours,
         MONTHS_KEY: months,
-        WARM_FRONT_LENGTH_KEY: numpy.array(
-            dataset_object.variables[WARM_FRONT_LENGTH_KEY][:], dtype=float
+        WARM_FRONT_LENGTHS_KEY: numpy.array(
+            dataset_object.variables[WARM_FRONT_LENGTHS_KEY][:], dtype=float
         ),
-        WARM_FRONT_AREA_KEY: numpy.array(
-            dataset_object.variables[WARM_FRONT_AREA_KEY][:], dtype=float
+        WARM_FRONT_AREAS_KEY: numpy.array(
+            dataset_object.variables[WARM_FRONT_AREAS_KEY][:], dtype=float
         ),
-        COLD_FRONT_LENGTH_KEY: numpy.array(
-            dataset_object.variables[COLD_FRONT_LENGTH_KEY][:], dtype=float
+        COLD_FRONT_LENGTHS_KEY: numpy.array(
+            dataset_object.variables[COLD_FRONT_LENGTHS_KEY][:], dtype=float
         ),
-        COLD_FRONT_AREA_KEY: numpy.array(
-            dataset_object.variables[COLD_FRONT_AREA_KEY][:], dtype=float
+        COLD_FRONT_AREAS_KEY: numpy.array(
+            dataset_object.variables[COLD_FRONT_AREAS_KEY][:], dtype=float
         ),
         PREDICTION_FILES_KEY: [
             str(s) for s in
