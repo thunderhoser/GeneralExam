@@ -89,13 +89,14 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_one_front_type(
         count_or_frequency_matrix, colour_map_object, max_colour_percentile,
-        title_string, output_file_name):
+        plot_frequency, title_string, output_file_name):
     """Plots gridded counts or frequencies for one front type.
 
     :param count_or_frequency_matrix: 2-D numpy array with number or frequency
         of fronts at each grid cell.
     :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
     :param max_colour_percentile: See documentation at top of file.
+    :param plot_frequency: Same.
     :param title_string: Title.
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
@@ -170,9 +171,13 @@ def _plot_one_front_type(
         fraction_of_axis_length=0.9)
 
     tick_values = colour_bar_object.ax.get_xticks()
-    print(tick_values)
     colour_bar_object.ax.set_xticks(tick_values)
-    colour_bar_object.ax.set_xticklabels(tick_values)
+
+    if plot_frequency:
+        colour_bar_object.ax.set_xticklabels(tick_values)
+    else:
+        tick_strings = ['{0:d}'.format(x) for x in tick_values]
+        colour_bar_object.ax.set_xticklabels(tick_strings)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
@@ -251,7 +256,8 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
         count_or_frequency_matrix=warm_front_matrix,
         colour_map_object=wf_colour_map_object,
         max_colour_percentile=max_colour_percentile,
-        title_string=wf_title_string, output_file_name=wf_output_file_name)
+        plot_frequency=plot_frequency, title_string=wf_title_string,
+        output_file_name=wf_output_file_name)
 
     cf_title_string = wf_title_string.replace('warm', 'cold')
     cf_output_file_name = '{0:s}/cold_fronts.jpg'.format(output_dir_name)
@@ -260,7 +266,8 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
         count_or_frequency_matrix=cold_front_matrix,
         colour_map_object=cf_colour_map_object,
         max_colour_percentile=max_colour_percentile,
-        title_string=cf_title_string, output_file_name=cf_output_file_name)
+        plot_frequency=plot_frequency, title_string=cf_title_string,
+        output_file_name=cf_output_file_name)
 
 
 if __name__ == '__main__':
