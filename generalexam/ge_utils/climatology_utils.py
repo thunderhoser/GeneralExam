@@ -591,8 +591,12 @@ def read_gridded_counts(netcdf_file_name):
         hours = None
 
     months = numpy.array(getattr(dataset_object, MONTHS_KEY), dtype=int)
+    print(type(months))
+
     if not isinstance(months, numpy.ndarray):
         months = numpy.array([months], dtype=int)
+
+    print(type(months))
 
     if len(months) == 1 and months[0] == -1:
         months = None
