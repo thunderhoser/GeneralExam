@@ -31,9 +31,6 @@ PLOT_FREQUENCY_ARG_NAME = 'plot_frequency'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-# TODO(thunderhoser): In gridded-count files, may want num fronts before and
-# after applying separation time.
-
 # TODO(thunderhoser): Make titles fancier.
 
 INPUT_FILE_HELP_STRING = (
@@ -203,16 +200,19 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
     print('Reading data from: "{0:s}"...'.format(input_file_name))
     climo_dict = climo_utils.read_gridded_counts(input_file_name)
 
-    warm_front_matrix = climo_dict[climo_utils.NUM_WARM_FRONTS_KEY]
-    cold_front_matrix = climo_dict[climo_utils.NUM_COLD_FRONTS_KEY]
-
     if plot_frequency:
+        warm_front_matrix = climo_dict[climo_utils.NUM_WF_LABELS_KEY]
+        cold_front_matrix = climo_dict[climo_utils.NUM_CF_LABELS_KEY]
+
         num_times = len(climo_dict[climo_utils.PREDICTION_FILES_KEY])
         warm_front_matrix = warm_front_matrix.astype(float) / num_times
         cold_front_matrix = cold_front_matrix.astype(float) / num_times
 
         wf_title_string = 'Frequency'
     else:
+        warm_front_matrix = climo_dict[climo_utils.NUM_UNIQUE_WF_KEY]
+        cold_front_matrix = climo_dict[climo_utils.NUM_UNIQUE_CF_KEY]
+
         wf_title_string = 'Number'
 
     wf_title_string += ' of warm fronts'

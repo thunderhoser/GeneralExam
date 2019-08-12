@@ -28,6 +28,10 @@ NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
 NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
 NUM_UNIQUE_WF_KEY = 'num_unique_wf_matrix'
 NUM_UNIQUE_CF_KEY = 'num_unique_cf_matrix'
+FIRST_TIME_KEY = 'first_time_unix_sec'
+LAST_TIME_KEY = 'last_time_unix_sec'
+HOURS_KEY = 'hours'
+MONTHS_KEY = 'months'
 PREDICTION_FILES_KEY = 'prediction_file_names'
 SEPARATION_TIME_KEY = 'separation_time_sec'
 
@@ -421,8 +425,9 @@ def find_gridded_count_file(
 
 def write_gridded_counts(
         netcdf_file_name, num_wf_labels_matrix, num_cf_labels_matrix,
-        num_unique_wf_matrix, num_unique_cf_matrix, prediction_file_names,
-        separation_time_sec):
+        num_unique_wf_matrix, num_unique_cf_matrix, first_time_unix_sec,
+        last_time_unix_sec, prediction_file_names, separation_time_sec,
+        hours=None, months=None):
     """Writes gridded front counts to NetCDF file.
 
     M = number of rows in grid
@@ -435,10 +440,14 @@ def write_gridded_counts(
     :param num_unique_wf_matrix: M-by-N numpy array with number of unique warm
         fronts at each grid cell.
     :param num_unique_cf_matrix: Same but for cold fronts.
+    :param first_time_unix_sec: See doc for `find_gridded_count_file`.
+    :param last_time_unix_sec: Same.
     :param prediction_file_names: 1-D list of paths to input files (readable by
         `prediction_io.read_file`).  This is metadata.
     :param separation_time_sec: Separation time (for more details, see doc for
         `apply_separation_time`).  This is metadata.
+    :param hours: See doc for `find_gridded_count_file`.
+    :param months: Same.
     """
 
     # Check input args.
@@ -464,6 +473,10 @@ def write_gridded_counts(
     error_checking.assert_is_numpy_array(
         num_unique_cf_matrix, exact_dimensions=expected_dim)
 
+    error_checking.assert_is_integer(first_time_unix_sec)
+    error_checking.assert_is_integer(last_time_unix_sec)
+    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+
     error_checking.assert_is_string_list(prediction_file_names)
     error_checking.assert_is_numpy_array(
         numpy.array(prediction_file_names), num_dimensions=1
@@ -472,6 +485,16 @@ def write_gridded_counts(
     error_checking.assert_is_integer(separation_time_sec)
     error_checking.assert_is_greater(separation_time_sec, 0)
 
+    if hours is None:
+        hours = numpy.array([-1], dtype=int)
+    else:
+        _check_hours(hours)
+
+    if months is None:
+        months = numpy.array([-1], dtype=int)
+    else:
+        _check_months(months)
+
     # Open file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     dataset_object = netCDF4.Dataset(
@@ -479,6 +502,10 @@ def write_gridded_counts(
 
     # Set global attributes and dimensions.
     dataset_object.setncattr(SEPARATION_TIME_KEY, separation_time_sec)
+    dataset_object.setncattr(FIRST_TIME_KEY, first_time_unix_sec)
+    dataset_object.setncattr(LAST_TIME_KEY, last_time_unix_sec)
+    dataset_object.setncattr(HOURS_KEY, hours)
+    dataset_object.setncattr(MONTHS_KEY, months)
 
     num_file_name_chars = max([
         len(f) for f in prediction_file_names
@@ -546,6 +573,10 @@ def read_gridded_counts(netcdf_file_name):
     count_dict["num_cf_labels_matrix"]: Same.
     count_dict["num_unique_wf_matrix"]: Same.
     count_dict["num_unique_cf_matrix"]: Same.
+    count_dict["first_time_unix_sec"]: Same.
+    count_dict["last_time_unix_sec"]: Same.
+    count_dict["hours"]: Same.
+    count_dict["months"]: Same.
     count_dict["prediction_file_names"]: Same.
     count_dict["separation_time_sec"]: Same.
     """
@@ -553,6 +584,10 @@ def read_gridded_counts(netcdf_file_name):
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
     count_dict = {
+        FIRST_TIME_KEY: int(getattr(dataset_object, FIRST_TIME_KEY)),
+        LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
+        HOURS_KEY: numpy.array(getattr(dataset_object, HOURS_KEY), dtype=int),
+        MONTHS_KEY: numpy.array(getattr(dataset_object, MONTHS_KEY), dtype=int),
         NUM_WF_LABELS_KEY: numpy.array(
             dataset_object.variables[NUM_WF_LABELS_KEY][:], dtype=int
         ),
