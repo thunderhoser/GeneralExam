@@ -4,10 +4,15 @@ import os.path
 import numpy
 import netCDF4
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
+from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.machine_learning import neigh_evaluation
+
+CLIMO_TIME_INTERVAL_SEC = 10800
+ACCEPTED_HOURS_FOR_CLIMO = numpy.array([0, 3, 6, 9, 12, 15, 18, 21], dtype=int)
 
 NUM_CLASSES = 3
 FILE_NAME_TIME_FORMAT = '%Y%m%d%H'
@@ -87,6 +92,71 @@ def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
         raise ValueError(error_string)
 
     return prediction_file_name
+
+
+def find_files_for_climo(
+        directory_name, first_time_unix_sec, last_time_unix_sec,
+        hours_to_keep=None, months_to_keep=None):
+    """Finds files with gridded predictions to be used for climatology.
+
+    T = number of time steps found
+
+    :param directory_name: Name of directory.
+    :param first_time_unix_sec: First time in period.
+    :param last_time_unix_sec: Last time in period.
+    :param hours_to_keep: 1-D numpy array of hours to be used for climo (in
+        range 0...23).
+    :param months_to_keep: 1-D numpy array of months to be used for climo (in
+        range 1...12).
+    :return: prediction_file_names: length-T list of file paths.
+    :return: valid_times_unix_sec: length-T numpy array of valid times.
+    :raises: ValueError: if any value in `hours_to_keep` is not in the list
+        `ACCEPTED_HOURS_FOR_CLIMO`.
+    """
+
+    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_time_unix_sec,
+        end_time_unix_sec=last_time_unix_sec,
+        time_interval_sec=CLIMO_TIME_INTERVAL_SEC, include_endpoint=True)
+
+    if hours_to_keep is not None:
+        climo_utils.check_hours(hours_to_keep)
+        these_flags = numpy.array(
+            [h in ACCEPTED_HOURS_FOR_CLIMO for h in hours_to_keep], dtype=bool
+        )
+
+        if not numpy.all(these_flags):
+            error_string = (
+                '\n{0:s}\nAt least one hour (listed above) is not in the list '
+                'of accepted hours (listed below).\n{1:s}'
+            ).format(str(hours_to_keep), str(ACCEPTED_HOURS_FOR_CLIMO))
+
+            raise ValueError(error_string)
+
+        indices_to_keep = climo_utils.filter_by_hour(
+            all_times_unix_sec=valid_times_unix_sec,
+            hours_to_keep=hours_to_keep)
+
+        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
+
+    if months_to_keep is not None:
+        climo_utils.check_months(months_to_keep)
+
+        indices_to_keep = climo_utils.filter_by_month(
+            all_times_unix_sec=valid_times_unix_sec,
+            months_to_keep=months_to_keep)
+
+        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
+
+    prediction_file_names = [
+        find_file(
+            directory_name=directory_name,
+            first_time_unix_sec=t, last_time_unix_sec=t,
+            raise_error_if_missing=True)
+        for t in valid_times_unix_sec
+    ]
+
+    return prediction_file_names, valid_times_unix_sec
 
 
 def write_probabilities(

@@ -187,8 +187,11 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
                     cf_threshold=cf_prob_threshold)
             )
         else:
-            print('Determinizing probabilities with NF threshold = {0:f}...'.format(
-                nf_prob_threshold))
+            print((
+                'Determinizing probabilities with NF threshold = {0:f}...'
+            ).format(
+                nf_prob_threshold
+            ))
 
             this_predicted_label_matrix = (
                 neigh_evaluation.determinize_predictions_1threshold(

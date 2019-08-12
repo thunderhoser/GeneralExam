@@ -3,16 +3,12 @@
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import time_periods
 from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
 
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
 TIME_FORMAT = '%Y%m%d%H'
-TIME_INTERVAL_SEC = 10800
-ACCEPTED_HOURS = numpy.array([0, 3, 6, 9, 12, 15, 18, 21], dtype=int)
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
 NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
@@ -57,7 +53,7 @@ SEPARATION_TIME_HELP_STRING = (
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  File will be written by '
     '`climatology_utils.write_gridded_counts`, to a location therein determined'
-    ' by `climatology_utils.find_gridded_count_file`.')
+    ' by `climatology_utils.find_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -208,8 +204,6 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     :param months_to_keep: Same.
     :param separation_time_sec: Same.
     :param output_dir_name: Same.
-    :raises: ValueError: if any value in `hours_to_keep` is not in the list
-        `ACCEPTED_HOURS`.
     """
 
     if len(hours_to_keep) == 1 and hours_to_keep[0] == -1:
@@ -223,44 +217,13 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, TIME_FORMAT)
 
-    valid_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_time_unix_sec,
-        end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=TIME_INTERVAL_SEC, include_endpoint=True)
-
-    if hours_to_keep is not None:
-        these_flags = numpy.array(
-            [h in ACCEPTED_HOURS for h in hours_to_keep], dtype=bool
-        )
-
-        if not numpy.all(these_flags):
-            error_string = (
-                '\n{0:s}\nAt least one hour (listed above) is not in the list '
-                'of accepted hours (listed below).\n{1:s}'
-            ).format(str(hours_to_keep), str(ACCEPTED_HOURS))
-
-            raise ValueError(error_string)
-
-        indices_to_keep = climo_utils.filter_by_hour(
-            all_times_unix_sec=valid_times_unix_sec,
-            hours_to_keep=hours_to_keep)
-
-        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
-
-    if months_to_keep is not None:
-        indices_to_keep = climo_utils.filter_by_month(
-            all_times_unix_sec=valid_times_unix_sec,
-            months_to_keep=months_to_keep)
-
-        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
-
-    prediction_file_names = [
-        prediction_io.find_file(
+    prediction_file_names, valid_times_unix_sec = (
+        prediction_io.find_files_for_climo(
             directory_name=prediction_dir_name,
-            first_time_unix_sec=t, last_time_unix_sec=t,
-            raise_error_if_missing=True)
-        for t in valid_times_unix_sec
-    ]
+            first_time_unix_sec=first_time_unix_sec,
+            last_time_unix_sec=last_time_unix_sec,
+            hours_to_keep=hours_to_keep, months_to_keep=months_to_keep)
+    )
 
     if separation_time_sec <= 0:
         num_times_per_block = 50
@@ -408,8 +371,9 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
     )
 
-    output_file_name = climo_utils.find_gridded_count_file(
+    output_file_name = climo_utils.find_file(
         directory_name=output_dir_name,
+        file_type_string=climo_utils.FRONT_COUNTS_STRING,
         first_time_unix_sec=valid_times_unix_sec[0],
         last_time_unix_sec=valid_times_unix_sec[-1],
         hours=hours_to_keep, months=months_to_keep,
