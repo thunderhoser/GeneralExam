@@ -169,7 +169,7 @@ def _plot_one_front_type(
         orientation_string='horizontal', extend_min=False, extend_max=True,
         fraction_of_axis_length=0.9)
 
-    pyplot.title(title_string)
+    pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
