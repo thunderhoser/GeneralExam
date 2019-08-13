@@ -861,6 +861,20 @@ def read_gridded_counts(netcdf_file_name):
     }
 
     dataset_object.close()
+
+    count_dict[NUM_WF_LABELS_KEY] = numpy.maximum(
+        count_dict[NUM_WF_LABELS_KEY], 0
+    )
+    count_dict[NUM_CF_LABELS_KEY] = numpy.maximum(
+        count_dict[NUM_CF_LABELS_KEY], 0
+    )
+    count_dict[NUM_UNIQUE_WF_KEY] = numpy.maximum(
+        count_dict[NUM_UNIQUE_WF_KEY], 0
+    )
+    count_dict[NUM_UNIQUE_CF_KEY] = numpy.maximum(
+        count_dict[NUM_UNIQUE_CF_KEY], 0
+    )
+
     return count_dict
 
 
