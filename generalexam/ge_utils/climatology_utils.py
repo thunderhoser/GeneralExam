@@ -684,25 +684,25 @@ def write_gridded_counts(
     """
 
     # Check input args.
-    error_checking.assert_is_integer_numpy_array(num_wf_labels_matrix)
-    error_checking.assert_is_geq_numpy_array(num_wf_labels_matrix, 0)
+    error_checking.assert_is_geq_numpy_array(
+        num_wf_labels_matrix, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_wf_labels_matrix, num_dimensions=2)
 
     expected_dim = numpy.array(num_wf_labels_matrix.shape, dtype=int)
 
-    error_checking.assert_is_integer_numpy_array(num_cf_labels_matrix)
-    error_checking.assert_is_geq_numpy_array(num_cf_labels_matrix, 0)
+    error_checking.assert_is_geq_numpy_array(
+        num_cf_labels_matrix, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_cf_labels_matrix, exact_dimensions=expected_dim)
 
-    error_checking.assert_is_integer_numpy_array(num_unique_wf_matrix)
-    error_checking.assert_is_geq_numpy_array(num_unique_wf_matrix, 0)
+    error_checking.assert_is_geq_numpy_array(
+        num_unique_wf_matrix, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_unique_wf_matrix, exact_dimensions=expected_dim)
 
-    error_checking.assert_is_integer_numpy_array(num_unique_cf_matrix)
-    error_checking.assert_is_geq_numpy_array(num_unique_cf_matrix, 0)
+    error_checking.assert_is_geq_numpy_array(
+        num_unique_cf_matrix, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_unique_cf_matrix, exact_dimensions=expected_dim)
 
@@ -840,16 +840,16 @@ def read_gridded_counts(netcdf_file_name):
         HOURS_KEY: hours,
         MONTHS_KEY: months,
         NUM_WF_LABELS_KEY: numpy.array(
-            dataset_object.variables[NUM_WF_LABELS_KEY][:], dtype=int
+            dataset_object.variables[NUM_WF_LABELS_KEY][:]
         ),
         NUM_CF_LABELS_KEY: numpy.array(
-            dataset_object.variables[NUM_CF_LABELS_KEY][:], dtype=int
+            dataset_object.variables[NUM_CF_LABELS_KEY][:]
         ),
         NUM_UNIQUE_WF_KEY: numpy.array(
-            dataset_object.variables[NUM_UNIQUE_WF_KEY][:], dtype=int
+            dataset_object.variables[NUM_UNIQUE_WF_KEY][:]
         ),
         NUM_UNIQUE_CF_KEY: numpy.array(
-            dataset_object.variables[NUM_UNIQUE_CF_KEY][:], dtype=int
+            dataset_object.variables[NUM_UNIQUE_CF_KEY][:]
         ),
         PREDICTION_FILES_KEY: [
             str(s) for s in

@@ -137,17 +137,18 @@ FRONT_TYPE_ENUMS_AFTER_BOTH_SEP = numpy.array([
     NO_FRONT_ENUM, NO_FRONT_ENUM, WARM_FRONT_ENUM, NO_FRONT_ENUM
 ], dtype=int)
 
-# The following constants are used to test find_gridded_count_file.
+# The following constants are used to test find_file.
 DIRECTORY_NAME = 'foo'
+FILE_TYPE_STRING = climo_utils.FRONT_COUNTS_STRING
 FIRST_TIME_UNIX_SEC = 0
 LAST_TIME_UNIX_SEC = 86399
 HOURS_IN_FILE = numpy.array([0, 7, 11], dtype=int)
 MONTHS_IN_FILE = numpy.array([1, 2, 12], dtype=int)
 
 FILE_NAME = (
-    'foo/'
-    'gridded-front-counts_1970-01-01-000000_1970-01-01-235959_'
-    'hours=00-07-11utc_months=jfd.nc')
+    'foo/front-counts_1970-01-01-000000_1970-01-01-235959_'
+    'hours=00-07-11utc_months=jfd.nc'
+)
 
 
 class ClimatologyUtilsTests(unittest.TestCase):
@@ -334,11 +335,11 @@ class ClimatologyUtilsTests(unittest.TestCase):
             these_times_unix_sec, VALID_TIMES_UNIX_SEC
         ))
 
-    def test_find_gridded_count_file(self):
-        """Ensures correct output from find_gridded_count_file."""
+    def test_find_file(self):
+        """Ensures correct output from find_file."""
 
-        this_file_name = climo_utils.find_gridded_count_file(
-            directory_name=DIRECTORY_NAME,
+        this_file_name = climo_utils.find_file(
+            directory_name=DIRECTORY_NAME, file_type_string=FILE_TYPE_STRING,
             first_time_unix_sec=FIRST_TIME_UNIX_SEC,
             last_time_unix_sec=LAST_TIME_UNIX_SEC, hours=HOURS_IN_FILE,
             months=MONTHS_IN_FILE, raise_error_if_missing=False)
