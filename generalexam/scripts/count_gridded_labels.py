@@ -253,6 +253,12 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
                     0, ..., -1]
             ))
 
+            print('\n\n\n')
+            print(numpy.any(numpy.isnan(
+                this_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY]
+            )))
+            print('\n\n\n')
+
         this_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
 
@@ -379,9 +385,6 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     num_unique_cf_matrix = (
         num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
     )
-
-    print(mask_matrix.shape)
-    print(num_wf_labels_matrix.shape)
 
     num_wf_labels_matrix[mask_matrix == False] = numpy.nan
     num_cf_labels_matrix[mask_matrix == False] = numpy.nan
