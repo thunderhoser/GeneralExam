@@ -383,11 +383,10 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     print(mask_matrix.shape)
     print(num_wf_labels_matrix.shape)
 
-    for i in range(num_times):
-        num_wf_labels_matrix[i, ...][mask_matrix == False] = numpy.nan
-        num_cf_labels_matrix[i, ...][mask_matrix == False] = numpy.nan
-        num_unique_wf_matrix[i, ...][mask_matrix == False] = numpy.nan
-        num_unique_cf_matrix[i, ...][mask_matrix == False] = numpy.nan
+    num_wf_labels_matrix[mask_matrix == False] = numpy.nan
+    num_cf_labels_matrix[mask_matrix == False] = numpy.nan
+    num_unique_wf_matrix[mask_matrix == False] = numpy.nan
+    num_unique_cf_matrix[mask_matrix == False] = numpy.nan
 
     output_file_name = climo_utils.find_file(
         directory_name=output_dir_name,
