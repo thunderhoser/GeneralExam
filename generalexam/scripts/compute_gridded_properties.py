@@ -234,6 +234,8 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         hours=hours_to_keep, months=months_to_keep,
         raise_error_if_missing=False)
 
+    print(wf_length_matrix_metres.shape)
+
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
     climo_utils.write_gridded_properties(
