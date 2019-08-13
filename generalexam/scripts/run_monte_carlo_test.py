@@ -374,6 +374,7 @@ def _run(input_property_dir_name, first_start_time_strings,
     error_checking.assert_is_greater(last_grid_row, first_grid_row)
     error_checking.assert_is_geq(first_grid_column, 0)
     error_checking.assert_is_greater(last_grid_column, first_grid_column)
+    error_checking.assert_is_geq(num_iterations, 1000)
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
 
@@ -422,6 +423,23 @@ def _run(input_property_dir_name, first_start_time_strings,
     )
     print(SEPARATOR_STRING)
 
+    this_output_file_name = climo_utils.find_monte_carlo_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.WARM_FRONT_LENGTHS_KEY,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+        raise_error_if_missing=False)
+
+    climo_utils.write_monte_carlo_test(
+        netcdf_file_name=this_output_file_name,
+        difference_matrix=wf_length_diff_matrix_metres,
+        significance_matrix=wf_length_sig_matrix,
+        property_name=climo_utils.WARM_FRONT_LENGTHS_KEY,
+        first_property_file_names=first_property_file_names,
+        second_property_file_names=second_property_file_names,
+        num_iterations=num_iterations, confidence_level=confidence_level,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column)
+    print(SEPARATOR_STRING)
+
     wf_area_diff_matrix_m2, wf_area_sig_matrix = _mc_test_one_property(
         first_property_matrix=first_property_dict[
             climo_utils.WARM_FRONT_AREAS_KEY],
@@ -429,6 +447,23 @@ def _run(input_property_dir_name, first_start_time_strings,
             climo_utils.WARM_FRONT_AREAS_KEY],
         num_iterations=num_iterations, confidence_level=confidence_level
     )
+    print(SEPARATOR_STRING)
+
+    this_output_file_name = climo_utils.find_monte_carlo_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.WARM_FRONT_AREAS_KEY,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+        raise_error_if_missing=False)
+
+    climo_utils.write_monte_carlo_test(
+        netcdf_file_name=this_output_file_name,
+        difference_matrix=wf_area_diff_matrix_m2,
+        significance_matrix=wf_area_sig_matrix,
+        property_name=climo_utils.WARM_FRONT_AREAS_KEY,
+        first_property_file_names=first_property_file_names,
+        second_property_file_names=second_property_file_names,
+        num_iterations=num_iterations, confidence_level=confidence_level,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column)
     print(SEPARATOR_STRING)
 
     cf_length_diff_matrix_metres, cf_length_sig_matrix = _mc_test_one_property(
@@ -440,6 +475,23 @@ def _run(input_property_dir_name, first_start_time_strings,
     )
     print(SEPARATOR_STRING)
 
+    this_output_file_name = climo_utils.find_monte_carlo_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.COLD_FRONT_LENGTHS_KEY,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+        raise_error_if_missing=False)
+
+    climo_utils.write_monte_carlo_test(
+        netcdf_file_name=this_output_file_name,
+        difference_matrix=cf_length_diff_matrix_metres,
+        significance_matrix=cf_length_sig_matrix,
+        property_name=climo_utils.COLD_FRONT_LENGTHS_KEY,
+        first_property_file_names=first_property_file_names,
+        second_property_file_names=second_property_file_names,
+        num_iterations=num_iterations, confidence_level=confidence_level,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column)
+    print(SEPARATOR_STRING)
+
     cf_area_diff_matrix_m2, cf_area_sig_matrix = _mc_test_one_property(
         first_property_matrix=first_property_dict[
             climo_utils.COLD_FRONT_AREAS_KEY],
@@ -448,6 +500,22 @@ def _run(input_property_dir_name, first_start_time_strings,
         num_iterations=num_iterations, confidence_level=confidence_level
     )
     print(SEPARATOR_STRING)
+
+    this_output_file_name = climo_utils.find_monte_carlo_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.COLD_FRONT_AREAS_KEY,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+        raise_error_if_missing=False)
+
+    climo_utils.write_monte_carlo_test(
+        netcdf_file_name=this_output_file_name,
+        difference_matrix=cf_area_diff_matrix_m2,
+        significance_matrix=cf_area_sig_matrix,
+        property_name=climo_utils.COLD_FRONT_AREAS_KEY,
+        first_property_file_names=first_property_file_names,
+        second_property_file_names=second_property_file_names,
+        num_iterations=num_iterations, confidence_level=confidence_level,
+        first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
 
 if __name__ == '__main__':
