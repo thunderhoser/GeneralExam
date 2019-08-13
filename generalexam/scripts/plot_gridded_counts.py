@@ -239,6 +239,8 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
         first_time_string, last_time_string)
 
     hours = climo_dict[climo_utils.HOURS_KEY]
+    print(hours)
+    print(type(hours))
     if hours is not None:
         wf_title_string += '; hours {0:s}'.format(
             climo_utils.hours_to_string(hours)
