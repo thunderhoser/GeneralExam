@@ -82,8 +82,6 @@ def _run(input_dir_name, hours_to_keep, months_to_keep, output_dir_name):
         hours=hours_to_keep, months=months_to_keep,
         raise_error_if_missing=False)
 
-    print(front_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY].shape)
-
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
     climo_utils.write_gridded_stats(

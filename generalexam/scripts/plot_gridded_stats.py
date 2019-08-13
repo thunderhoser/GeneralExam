@@ -1,8 +1,9 @@
-"""Plots number of WF and CF labels at each grid cell over a time period."""
+"""Plots statistics for gridded front properties."""
 
 import argparse
 import numpy
 import matplotlib
+
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
@@ -13,6 +14,9 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
+
+METRES_TO_KM = 1e-3
+METRES2_TO_KM2 = 1e-6
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
@@ -28,32 +32,27 @@ TITLE_TIME_FORMAT = '%Y-%m-%d-%H'
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
-WF_COLOUR_MAP_ARG_NAME = 'wf_colour_map_name'
-CF_COLOUR_MAP_ARG_NAME = 'cf_colour_map_name'
-PLOT_FREQUENCY_ARG_NAME = 'plot_frequency'
+LENGTH_CMAP_ARG_NAME = 'length_colour_map_name'
+AREA_CMAP_ARG_NAME = 'area_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by '
-    '`climatology_utils.read_gridded_counts`.')
+    '`climatology_utils.read_gridded_stats`.')
 
-WF_COLOUR_MAP_HELP_STRING = (
-    'Name of colour map for warm-front counts.  Must be accepted by '
+LENGTH_CMAP_HELP_STRING = (
+    'Name of colour map for front length.  Must be accepted by '
     '`matplotlib.pyplot.get_cmap`.')
 
-CF_COLOUR_MAP_HELP_STRING = (
-    'Name of colour map for cold-front counts.  Must be accepted by '
+AREA_CMAP_HELP_STRING = (
+    'Name of colour map for front area.  Must be accepted by '
     '`matplotlib.pyplot.get_cmap`.')
-
-PLOT_FREQUENCY_HELP_STRING = (
-    'Boolean flag.  If 1, will plot frequency (fraction of time steps with '
-    'front).  If 0, will plot raw count (number of fronts).')
 
 MAX_PERCENTILE_HELP_STRING = (
-    'Percentile used to set max value in colour scheme.  Max value in warm-'
-    'front colour scheme will be the [q]th percentile of values at all grid '
-    'cells, where q = `{0:s}` -- and likewise for cold fronts.'
+    'Percentile used to set max value in colour scheme.  Max value in length '
+    'colour scheme will be the [q]th percentile of values at all grid cells, '
+    'where q = `{0:s}` -- and likewise for area.'
 ).format(MAX_PERCENTILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
@@ -65,16 +64,12 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + WF_COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlOrRd',
-    help=WF_COLOUR_MAP_HELP_STRING)
+    '--' + LENGTH_CMAP_ARG_NAME, type=str, required=False, default='PuBuGn',
+    help=LENGTH_CMAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CF_COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlGnBu',
-    help=CF_COLOUR_MAP_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_FREQUENCY_ARG_NAME, type=int, required=False, default=0,
-    help=PLOT_FREQUENCY_HELP_STRING)
+    '--' + AREA_CMAP_ARG_NAME, type=str, required=False, default='PuBuGn',
+    help=AREA_CMAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False, default=99.,
@@ -85,23 +80,21 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_one_front_type(
-        count_or_frequency_matrix, colour_map_object, max_colour_percentile,
-        plot_frequency, title_string, output_file_name):
-    """Plots gridded counts or frequencies for one front type.
+def _plot_one_statistic(
+        statistic_matrix, colour_map_object, max_colour_percentile,
+        title_string, output_file_name):
+    """Plots one statistic for one front type.
 
-    :param count_or_frequency_matrix: 2-D numpy array with number or frequency
-        of fronts at each grid cell.
+    :param statistic_matrix: 2-D numpy array with statistic at each grid cell.
     :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
     :param max_colour_percentile: See documentation at top of file.
-    :param plot_frequency: Same.
     :param title_string: Title.
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
     full_grid_name = nwp_model_utils.dimensions_to_grid(
-        num_rows=count_or_frequency_matrix.shape[0],
-        num_columns=count_or_frequency_matrix.shape[1]
+        num_rows=statistic_matrix.shape[0],
+        num_columns=statistic_matrix.shape[1]
     )
 
     full_grid_row_limits, full_grid_column_limits = (
@@ -141,7 +134,7 @@ def _plot_one_front_type(
         basemap_object=basemap_object, axes_object=axes_object,
         num_meridians=NUM_MERIDIANS)
 
-    this_matrix = count_or_frequency_matrix[
+    this_matrix = statistic_matrix[
         full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
         full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
@@ -170,14 +163,7 @@ def _plot_one_front_type(
 
     tick_values = colour_bar_object.ax.get_xticks()
     colour_bar_object.ax.set_xticks(tick_values)
-
-    if plot_frequency:
-        colour_bar_object.ax.set_xticklabels(tick_values)
-    else:
-        tick_strings = [
-            '{0:d}'.format(int(numpy.round(x))) for x in tick_values
-        ]
-        colour_bar_object.ax.set_xticklabels(tick_strings)
+    colour_bar_object.ax.set_xticklabels(tick_values)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
@@ -187,16 +173,15 @@ def _plot_one_front_type(
     pyplot.close()
 
 
-def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
-         plot_frequency, max_colour_percentile, output_dir_name):
-    """Plots number of WF and CF labels at each grid cell over a time period.
+def _run(input_file_name, length_colour_map_name, area_colour_map_name,
+         max_colour_percentile, output_dir_name):
+    """Plots statistics for gridded front properties.
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
-    :param wf_colour_map_name: Same.
-    :param cf_colour_map_name: Same.
-    :param plot_frequency: Same.
+    :param length_colour_map_name: Same.
+    :param area_colour_map_name: Same.
     :param max_colour_percentile: Same.
     :param output_dir_name: Same.
     """
@@ -204,70 +189,77 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
     error_checking.assert_is_greater(max_colour_percentile, 50.)
     error_checking.assert_is_leq(max_colour_percentile, 100.)
 
-    wf_colour_map_object = pyplot.get_cmap(wf_colour_map_name)
-    cf_colour_map_object = pyplot.get_cmap(cf_colour_map_name)
+    length_colour_map_object = pyplot.get_cmap(length_colour_map_name)
+    area_colour_map_object = pyplot.get_cmap(area_colour_map_name)
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    climo_dict = climo_utils.read_gridded_counts(input_file_name)
-
-    if plot_frequency:
-        warm_front_matrix = climo_dict[climo_utils.NUM_WF_LABELS_KEY]
-        cold_front_matrix = climo_dict[climo_utils.NUM_CF_LABELS_KEY]
-
-        num_times = len(climo_dict[climo_utils.PREDICTION_FILES_KEY])
-        warm_front_matrix = warm_front_matrix.astype(float) / num_times
-        cold_front_matrix = cold_front_matrix.astype(float) / num_times
-
-        wf_title_string = 'Frequency'
-    else:
-        warm_front_matrix = climo_dict[climo_utils.NUM_UNIQUE_WF_KEY]
-        cold_front_matrix = climo_dict[climo_utils.NUM_UNIQUE_CF_KEY]
-
-        wf_title_string = 'Number'
+    front_statistic_dict = climo_utils.read_gridded_stats(input_file_name)
 
     first_time_string = time_conversion.unix_sec_to_string(
-        climo_dict[climo_utils.FIRST_TIME_KEY], TITLE_TIME_FORMAT
+        front_statistic_dict[climo_utils.FIRST_TIME_KEY], TITLE_TIME_FORMAT
     )
     last_time_string = time_conversion.unix_sec_to_string(
-        climo_dict[climo_utils.LAST_TIME_KEY], TITLE_TIME_FORMAT
+        front_statistic_dict[climo_utils.LAST_TIME_KEY], TITLE_TIME_FORMAT
     )
 
-    wf_title_string += ' of warm fronts from {0:s} to {1:s}'.format(
+    this_title_string = 'Mean WF length (km) from {0:s} to {1:s}'.format(
         first_time_string, last_time_string)
 
-    hours = climo_dict[climo_utils.HOURS_KEY]
+    hours = front_statistic_dict[climo_utils.HOURS_KEY]
     if hours is not None:
-        wf_title_string += '; hours {0:s}'.format(
+        this_title_string += '; hours {0:s}'.format(
             climo_utils.hours_to_string(hours)
         )
 
-    months = climo_dict[climo_utils.MONTHS_KEY]
+    months = front_statistic_dict[climo_utils.MONTHS_KEY]
     if months is not None:
-        wf_title_string += '; months {0:s}'.format(
+        this_title_string += '; months {0:s}'.format(
             climo_utils.months_to_string(months)
         )
 
-    wf_output_file_name = '{0:s}/warm_fronts.jpg'.format(output_dir_name)
-
-    _plot_one_front_type(
-        count_or_frequency_matrix=warm_front_matrix,
-        colour_map_object=wf_colour_map_object,
+    this_output_file_name = '{0:s}/mean_wf_length.jpg'.format(output_dir_name)
+    _plot_one_statistic(
+        statistic_matrix=
+        front_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY] * METRES_TO_KM,
+        colour_map_object=length_colour_map_object,
         max_colour_percentile=max_colour_percentile,
-        plot_frequency=plot_frequency, title_string=wf_title_string,
-        output_file_name=wf_output_file_name)
+        title_string=this_title_string, output_file_name=this_output_file_name)
 
-    cf_title_string = wf_title_string.replace('warm', 'cold')
-    cf_output_file_name = '{0:s}/cold_fronts.jpg'.format(output_dir_name)
+    this_title_string = this_title_string.replace('Mean WF length',
+                                                  'Mean CF length')
+    this_output_file_name = '{0:s}/mean_cf_length.jpg'.format(output_dir_name)
 
-    _plot_one_front_type(
-        count_or_frequency_matrix=cold_front_matrix,
-        colour_map_object=cf_colour_map_object,
+    _plot_one_statistic(
+        statistic_matrix=
+        front_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY] * METRES_TO_KM,
+        colour_map_object=length_colour_map_object,
         max_colour_percentile=max_colour_percentile,
-        plot_frequency=plot_frequency, title_string=cf_title_string,
-        output_file_name=cf_output_file_name)
+        title_string=this_title_string, output_file_name=this_output_file_name)
+
+    this_title_string = this_title_string.replace('Mean CF length',
+                                                  'Mean WF area')
+    this_output_file_name = '{0:s}/mean_wf_area.jpg'.format(output_dir_name)
+
+    _plot_one_statistic(
+        statistic_matrix=
+        front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] * METRES2_TO_KM2,
+        colour_map_object=area_colour_map_object,
+        max_colour_percentile=max_colour_percentile,
+        title_string=this_title_string, output_file_name=this_output_file_name)
+
+    this_title_string = this_title_string.replace('Mean WF area',
+                                                  'Mean CF area')
+    this_output_file_name = '{0:s}/mean_cf_area.jpg'.format(output_dir_name)
+
+    _plot_one_statistic(
+        statistic_matrix=
+        front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] * METRES2_TO_KM2,
+        colour_map_object=area_colour_map_object,
+        max_colour_percentile=max_colour_percentile,
+        title_string=this_title_string, output_file_name=this_output_file_name)
 
 
 if __name__ == '__main__':
@@ -275,9 +267,8 @@ if __name__ == '__main__':
 
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
-        wf_colour_map_name=getattr(INPUT_ARG_OBJECT, WF_COLOUR_MAP_ARG_NAME),
-        cf_colour_map_name=getattr(INPUT_ARG_OBJECT, CF_COLOUR_MAP_ARG_NAME),
-        plot_frequency=bool(getattr(INPUT_ARG_OBJECT, PLOT_FREQUENCY_ARG_NAME)),
+        length_colour_map_name=getattr(INPUT_ARG_OBJECT, LENGTH_CMAP_ARG_NAME),
+        area_colour_map_name=getattr(INPUT_ARG_OBJECT, AREA_CMAP_ARG_NAME),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
