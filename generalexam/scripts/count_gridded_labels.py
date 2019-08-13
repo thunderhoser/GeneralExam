@@ -234,7 +234,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         )
 
     first_label_matrix = None
-    masked_out_matrix = None
+    mask_matrix = None
 
     for k in range(num_times_per_block):
         print('Reading deterministic labels from: "{0:s}"...'.format(
@@ -244,10 +244,11 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=prediction_file_names[k], read_deterministic=True)
 
-        if masked_out_matrix is None:
-            masked_out_matrix = numpy.isnan(
-                this_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY]
-            )
+        if mask_matrix is None:
+            mask_matrix = numpy.invert(numpy.isnan(
+                this_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY][
+                    0, ...]
+            ))
 
         this_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
@@ -377,10 +378,11 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
     )
 
-    num_wf_labels_matrix[masked_out_matrix] = numpy.nan
-    num_cf_labels_matrix[masked_out_matrix] = numpy.nan
-    num_unique_wf_matrix[masked_out_matrix] = numpy.nan
-    num_unique_cf_matrix[masked_out_matrix] = numpy.nan
+    for i in range(num_times):
+        num_wf_labels_matrix[i, ...][mask_matrix == False] = numpy.nan
+        num_cf_labels_matrix[i, ...][mask_matrix == False] = numpy.nan
+        num_unique_wf_matrix[i, ...][mask_matrix == False] = numpy.nan
+        num_unique_cf_matrix[i, ...][mask_matrix == False] = numpy.nan
 
     output_file_name = climo_utils.find_file(
         directory_name=output_dir_name,
