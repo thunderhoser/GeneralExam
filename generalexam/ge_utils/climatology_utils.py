@@ -685,24 +685,24 @@ def write_gridded_counts(
 
     # Check input args.
     error_checking.assert_is_geq_numpy_array(
-        num_wf_labels_matrix, 0, allow_nan=True)
+        num_wf_labels_matrix, 0., allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_wf_labels_matrix, num_dimensions=2)
 
     expected_dim = numpy.array(num_wf_labels_matrix.shape, dtype=int)
 
     error_checking.assert_is_geq_numpy_array(
-        num_cf_labels_matrix, 0, allow_nan=True)
+        num_cf_labels_matrix, 0., allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_cf_labels_matrix, exact_dimensions=expected_dim)
 
     error_checking.assert_is_geq_numpy_array(
-        num_unique_wf_matrix, 0, allow_nan=True)
+        num_unique_wf_matrix, 0., allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_unique_wf_matrix, exact_dimensions=expected_dim)
 
     error_checking.assert_is_geq_numpy_array(
-        num_unique_cf_matrix, 0, allow_nan=True)
+        num_unique_cf_matrix, 0., allow_nan=True)
     error_checking.assert_is_numpy_array(
         num_unique_cf_matrix, exact_dimensions=expected_dim)
 
@@ -759,25 +759,25 @@ def write_gridded_counts(
 
     # Add variables.
     dataset_object.createVariable(
-        NUM_WF_LABELS_KEY, datatype=numpy.int32,
+        NUM_WF_LABELS_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[NUM_WF_LABELS_KEY][:] = num_wf_labels_matrix
 
     dataset_object.createVariable(
-        NUM_CF_LABELS_KEY, datatype=numpy.int32,
+        NUM_CF_LABELS_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[NUM_CF_LABELS_KEY][:] = num_cf_labels_matrix
 
     dataset_object.createVariable(
-        NUM_UNIQUE_WF_KEY, datatype=numpy.int32,
+        NUM_UNIQUE_WF_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[NUM_UNIQUE_WF_KEY][:] = num_unique_wf_matrix
 
     dataset_object.createVariable(
-        NUM_UNIQUE_CF_KEY, datatype=numpy.int32,
+        NUM_UNIQUE_CF_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[NUM_UNIQUE_CF_KEY][:] = num_unique_cf_matrix
@@ -862,18 +862,9 @@ def read_gridded_counts(netcdf_file_name):
 
     dataset_object.close()
 
-    count_dict[NUM_WF_LABELS_KEY] = numpy.maximum(
-        count_dict[NUM_WF_LABELS_KEY], 0
-    )
-    count_dict[NUM_CF_LABELS_KEY] = numpy.maximum(
-        count_dict[NUM_CF_LABELS_KEY], 0
-    )
-    count_dict[NUM_UNIQUE_WF_KEY] = numpy.maximum(
-        count_dict[NUM_UNIQUE_WF_KEY], 0
-    )
-    count_dict[NUM_UNIQUE_CF_KEY] = numpy.maximum(
-        count_dict[NUM_UNIQUE_CF_KEY], 0
-    )
+    for this_key in [NUM_WF_LABELS_KEY, NUM_CF_LABELS_KEY, NUM_UNIQUE_WF_KEY,
+                     NUM_UNIQUE_CF_KEY]:
+        count_dict[this_key][count_dict[this_key] < 0] = numpy.nan
 
     return count_dict
 
