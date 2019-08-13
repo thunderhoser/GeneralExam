@@ -380,6 +380,9 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
     )
 
+    print(mask_matrix.shape)
+    print(num_wf_labels_matrix.shape)
+
     for i in range(num_times):
         num_wf_labels_matrix[i, ...][mask_matrix == False] = numpy.nan
         num_cf_labels_matrix[i, ...][mask_matrix == False] = numpy.nan
