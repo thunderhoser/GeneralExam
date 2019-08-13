@@ -210,13 +210,13 @@ def _run(input_file_name, length_colour_map_name, area_colour_map_name,
     hours = front_statistic_dict[climo_utils.HOURS_KEY]
     if hours is not None:
         this_title_string += '; hours {0:s}'.format(
-            climo_utils.hours_to_string(hours)
+            climo_utils.hours_to_string(hours)[0]
         )
 
     months = front_statistic_dict[climo_utils.MONTHS_KEY]
     if months is not None:
         this_title_string += '; months {0:s}'.format(
-            climo_utils.months_to_string(months)
+            climo_utils.months_to_string(months)[0]
         )
 
     this_output_file_name = '{0:s}/mean_wf_length.jpg'.format(output_dir_name)

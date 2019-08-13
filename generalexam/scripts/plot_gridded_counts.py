@@ -239,17 +239,15 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
         first_time_string, last_time_string)
 
     hours = climo_dict[climo_utils.HOURS_KEY]
-    print(hours)
-    print(type(hours))
     if hours is not None:
         wf_title_string += '; hours {0:s}'.format(
-            climo_utils.hours_to_string(hours)
+            climo_utils.hours_to_string(hours)[0]
         )
 
     months = climo_dict[climo_utils.MONTHS_KEY]
     if months is not None:
         wf_title_string += '; months {0:s}'.format(
-            climo_utils.months_to_string(months)
+            climo_utils.months_to_string(months)[0]
         )
 
     wf_output_file_name = '{0:s}/warm_fronts.jpg'.format(output_dir_name)
