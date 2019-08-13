@@ -15,7 +15,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 
 METRES_TO_KM = 1e-3
-METRES2_TO_KM2 = 1e-6
+METRES2_TO_THOUSAND_KM2 = 1e-9
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
@@ -238,13 +238,13 @@ def _run(input_file_name, length_colour_map_name, area_colour_map_name,
         max_colour_percentile=max_colour_percentile,
         title_string=this_title_string, output_file_name=this_output_file_name)
 
-    this_title_string = this_title_string.replace('Mean CF length',
-                                                  'Mean WF area')
+    this_title_string = this_title_string.replace(
+        'Mean CF length (km)', r'Mean WF area ($\times$ 1000 km$^2$)')
     this_output_file_name = '{0:s}/mean_wf_area.jpg'.format(output_dir_name)
 
     _plot_one_statistic(
         statistic_matrix=
-        front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] * METRES2_TO_KM2,
+        front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] * METRES2_TO_THOUSAND_KM2,
         colour_map_object=area_colour_map_object,
         max_colour_percentile=max_colour_percentile,
         title_string=this_title_string, output_file_name=this_output_file_name)
@@ -255,7 +255,7 @@ def _run(input_file_name, length_colour_map_name, area_colour_map_name,
 
     _plot_one_statistic(
         statistic_matrix=
-        front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] * METRES2_TO_KM2,
+        front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] * METRES2_TO_THOUSAND_KM2,
         colour_map_object=area_colour_map_object,
         max_colour_percentile=max_colour_percentile,
         title_string=this_title_string, output_file_name=this_output_file_name)
