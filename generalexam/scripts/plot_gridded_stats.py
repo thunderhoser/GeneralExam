@@ -140,7 +140,7 @@ def _plot_one_statistic(
 
     colour_norm_object = pyplot.Normalize(
         vmin=0,
-        vmax=numpy.percentile(this_matrix, max_colour_percentile)
+        vmax=numpy.nanpercentile(this_matrix, max_colour_percentile)
     )
 
     prediction_plotting.plot_gridded_counts(
