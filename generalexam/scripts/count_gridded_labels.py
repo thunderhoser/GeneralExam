@@ -233,6 +233,9 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             numpy.ceil(float(separation_time_sec) / smallest_time_step_sec)
         )
 
+    num_times = len(prediction_file_names)
+    num_times_per_block = min([num_times_per_block, num_times])
+
     first_label_matrix = None
     mask_matrix = None
 
@@ -266,7 +269,6 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     first_times_unix_sec = valid_times_unix_sec[:first_num_times]
     first_unique_label_matrix = first_label_matrix + 0
 
-    num_times = len(prediction_file_names)
     num_grid_rows = first_label_matrix.shape[1]
     num_grid_columns = first_label_matrix.shape[2]
 
