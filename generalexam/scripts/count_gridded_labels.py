@@ -255,10 +255,10 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     )
 
     if separation_time_sec <= 0:
-        num_times_per_block = 50
+        num_times_per_block = 100
     else:
         smallest_time_step_sec = numpy.min(numpy.diff(valid_times_unix_sec))
-        num_times_per_block = 5 * int(
+        num_times_per_block = 10 * int(
             numpy.ceil(float(separation_time_sec) / smallest_time_step_sec)
         )
 
