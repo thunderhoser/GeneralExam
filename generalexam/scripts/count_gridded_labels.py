@@ -4,12 +4,10 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_io import prediction_io
+from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
-from generalexam.machine_learning import machine_learning_utils as ml_utils
-
-# TODO(thunderhoser): Build mask into prediction files, rather than reading in
-# separate mask file.
+from generalexam.ge_utils import predictor_utils
 
 TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -26,7 +24,7 @@ LAST_TIME_ARG_NAME = 'last_time_string'
 HOURS_ARG_NAME = 'hours_to_keep'
 MONTHS_ARG_NAME = 'months_to_keep'
 SEPARATION_TIME_ARG_NAME = 'separation_time_sec'
-MASK_FILE_ARG_NAME = 'mask_file_name'
+PREDICTOR_FILE_ARG_NAME = 'predictor_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -55,10 +53,13 @@ SEPARATION_TIME_HELP_STRING = (
     'only one such label will count.'
 ).format(SEPARATION_TIME_ARG_NAME)
 
-MASK_FILE_HELP_STRING = (
-    'Path to mask file (will be read by `machine_learning_utils.read_narr_mask`'
-    ').  Fronts will not be counted at masked grid cells.  If you do not want a'
-    ' mask, leave this argument alone.')
+# TODO(thunderhoser): This is a terrible HACK.  Mask should be built into
+# prediction files, without requiring you to go back and read predictor file.
+PREDICTOR_FILE_HELP_STRING = (
+    'Path to predictor file (readable by `predictor_io.read_file`), on the same'
+    ' grid as the front labels.  This will be used to mask out grid cells with '
+    'no reanalysis data.  If you do not want to bother with masking, leave this'
+    ' alone.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  File will be written by '
@@ -89,8 +90,8 @@ INPUT_ARG_PARSER.add_argument(
     help=SEPARATION_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MASK_FILE_ARG_NAME, type=str, required=False, default='',
-    help=MASK_FILE_HELP_STRING)
+    '--' + PREDICTOR_FILE_ARG_NAME, type=str, required=False, default='',
+    help=PREDICTOR_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -206,7 +207,8 @@ def _update_counts(
 
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
-         hours_to_keep, months_to_keep, separation_time_sec, mask_file_name,
+         hours_to_keep, months_to_keep, separation_time_sec,
+         predictor_file_name,
          output_dir_name):
     """Counts WF and CF labels at each grid cell over a given time period.
 
@@ -218,7 +220,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     :param hours_to_keep: Same.
     :param months_to_keep: Same.
     :param separation_time_sec: Same.
-    :param mask_file_name: Same.
+    :param predictor_file_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -228,11 +230,16 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     if len(months_to_keep) == 1 and months_to_keep[0] == -1:
         months_to_keep = None
 
-    if mask_file_name in ['', 'None']:
+    if predictor_file_name in ['', 'None']:
         mask_matrix = None
     else:
-        print('Reading mask from: "{0:s}"...'.format(mask_file_name))
-        mask_matrix = ml_utils.read_narr_mask(mask_file_name)[0]
+        print('Reading predictors from: "{0:s}"...'.format(predictor_file_name))
+        predictor_dict = predictor_io.read_file(
+            netcdf_file_name=predictor_file_name)
+
+        mask_matrix = numpy.invert(numpy.isnan(
+            predictor_dict[predictor_utils.DATA_MATRIX_KEY][0, ..., 0]
+        ))
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, TIME_FORMAT)
@@ -438,6 +445,6 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, MONTHS_ARG_NAME), dtype=int
         ),
         separation_time_sec=getattr(INPUT_ARG_OBJECT, SEPARATION_TIME_ARG_NAME),
-        mask_file_name=getattr(INPUT_ARG_OBJECT, MASK_FILE_ARG_NAME),
+        predictor_file_name=getattr(INPUT_ARG_OBJECT, PREDICTOR_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
