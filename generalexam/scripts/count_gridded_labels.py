@@ -250,7 +250,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         if mask_matrix is None:
             mask_matrix = numpy.invert(numpy.isnan(
                 this_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY][
-                    0, ...]
+                    0, ..., -1]
             ))
 
         this_label_matrix = this_prediction_dict[
