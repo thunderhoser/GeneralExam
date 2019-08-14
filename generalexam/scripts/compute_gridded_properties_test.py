@@ -28,13 +28,11 @@ WF_LENGTH_MATRIX_METRES[WF_LENGTH_MATRIX_METRES == 0] = numpy.nan
 WF_LENGTH_MATRIX_METRES[WF_LENGTH_MATRIX_METRES == 1] = (
     numpy.sqrt(10) * gridded_props.GRID_SPACING_METRES
 )
-WF_LENGTH_MATRIX_METRES = numpy.expand_dims(WF_LENGTH_MATRIX_METRES, axis=0)
 
 WF_AREA_MATRIX_M2[WF_AREA_MATRIX_M2 == 0] = numpy.nan
 WF_AREA_MATRIX_M2[WF_AREA_MATRIX_M2 == 1] = (
     5 * gridded_props.GRID_SPACING_METRES ** 2
 )
-WF_AREA_MATRIX_M2 = numpy.expand_dims(WF_AREA_MATRIX_M2, axis=0)
 
 CF_LENGTH_MATRIX_METRES = numpy.array([
     [0, 0, 0, 0, 0, 0],
@@ -49,13 +47,11 @@ CF_LENGTH_MATRIX_METRES[CF_LENGTH_MATRIX_METRES == 0] = numpy.nan
 CF_LENGTH_MATRIX_METRES[CF_LENGTH_MATRIX_METRES == 1] = (
     numpy.sqrt(5) * gridded_props.GRID_SPACING_METRES
 )
-CF_LENGTH_MATRIX_METRES = numpy.expand_dims(CF_LENGTH_MATRIX_METRES, axis=0)
 
 CF_AREA_MATRIX_M2[CF_AREA_MATRIX_M2 == 0] = numpy.nan
 CF_AREA_MATRIX_M2[CF_AREA_MATRIX_M2 == 1] = (
     4 * gridded_props.GRID_SPACING_METRES ** 2
 )
-CF_AREA_MATRIX_M2 = numpy.expand_dims(CF_AREA_MATRIX_M2, axis=0)
 
 
 class ComputeGriddedPropertiesTests(unittest.TestCase):

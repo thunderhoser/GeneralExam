@@ -782,32 +782,27 @@ def read_gridded_labels(netcdf_file_name):
 
 def write_gridded_properties(
         netcdf_file_name, wf_length_matrix_metres, wf_area_matrix_m2,
-        cf_length_matrix_metres, cf_area_matrix_m2, first_time_unix_sec,
-        last_time_unix_sec, prediction_file_names, hours=None, months=None):
+        cf_length_matrix_metres, cf_area_matrix_m2, prediction_file_name):
     """Writes gridded front properties to NetCDF file.
 
-    T = number of time steps
     M = number of rows in grid
     N = number of columns in grid
 
     :param netcdf_file_name: Path to output file.
-    :param wf_length_matrix_metres: T-by-M-by-N numpy array with warm-front
-        length at each grid cell (NaN if there is no warm front).
+    :param wf_length_matrix_metres: M-by-N numpy array with warm-front length at
+        each grid cell (NaN if there is no warm front).
     :param wf_area_matrix_m2: Same but for warm-front area.
     :param cf_length_matrix_metres: Same but for cold-front length.
     :param cf_area_matrix_m2: Same but for cold-front area.
-    :param first_time_unix_sec: See doc for `write_gridded_counts`.
-    :param last_time_unix_sec: Same.
-    :param prediction_file_names: Same.
-    :param hours: Same.
-    :param months: Same.
+    :param prediction_file_name: Path to input file (readable by
+        `prediction_io.read_file`).  This is metadata.
     """
 
     # Check input args.
     error_checking.assert_is_geq_numpy_array(
         wf_length_matrix_metres, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
-        wf_length_matrix_metres, num_dimensions=3)
+        wf_length_matrix_metres, num_dimensions=2)
 
     these_expected_dim = numpy.array(wf_length_matrix_metres.shape, dtype=int)
 
@@ -826,27 +821,7 @@ def write_gridded_properties(
     error_checking.assert_is_numpy_array(
         cf_area_matrix_m2, exact_dimensions=these_expected_dim)
 
-    error_checking.assert_is_integer(first_time_unix_sec)
-    error_checking.assert_is_integer(last_time_unix_sec)
-    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
-
-    num_times = wf_length_matrix_metres.shape[0]
-
-    error_checking.assert_is_string_list(prediction_file_names)
-    error_checking.assert_is_numpy_array(
-        numpy.array(prediction_file_names),
-        exact_dimensions=numpy.array([num_times], dtype=int)
-    )
-
-    if hours is None:
-        hours = numpy.array([-1], dtype=int)
-    else:
-        check_hours(hours)
-
-    if months is None:
-        months = numpy.array([-1], dtype=int)
-    else:
-        check_months(months)
+    error_checking.assert_is_string(prediction_file_name)
 
     # Open file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -854,14 +829,7 @@ def write_gridded_properties(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
     # Set global attributes and dimensions.
-    dataset_object.setncattr(FIRST_TIME_KEY, first_time_unix_sec)
-    dataset_object.setncattr(LAST_TIME_KEY, last_time_unix_sec)
-    dataset_object.setncattr(HOURS_KEY, hours)
-    dataset_object.setncattr(MONTHS_KEY, months)
-
-    num_file_name_chars = max([
-        len(f) for f in prediction_file_names
-    ])
+    dataset_object.setncattr(PREDICTION_FILE_KEY, str(prediction_file_name))
 
     dataset_object.createDimension(
         ROW_DIMENSION_KEY, wf_length_matrix_metres.shape[1]
@@ -869,15 +837,11 @@ def write_gridded_properties(
     dataset_object.createDimension(
         COLUMN_DIMENSION_KEY, wf_length_matrix_metres.shape[2]
     )
-    dataset_object.createDimension(TIME_DIMENSION_KEY, num_times)
-    dataset_object.createDimension(
-        PREDICTION_FILE_CHAR_DIM_KEY, num_file_name_chars
-    )
 
     # Add variables.
     dataset_object.createVariable(
         WARM_FRONT_LENGTHS_KEY, datatype=numpy.float32,
-        dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[WARM_FRONT_LENGTHS_KEY][:] = (
         wf_length_matrix_metres
@@ -885,13 +849,13 @@ def write_gridded_properties(
 
     dataset_object.createVariable(
         WARM_FRONT_AREAS_KEY, datatype=numpy.float32,
-        dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[WARM_FRONT_AREAS_KEY][:] = wf_area_matrix_m2
 
     dataset_object.createVariable(
         COLD_FRONT_LENGTHS_KEY, datatype=numpy.float32,
-        dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[COLD_FRONT_LENGTHS_KEY][:] = (
         cf_length_matrix_metres
@@ -899,21 +863,9 @@ def write_gridded_properties(
 
     dataset_object.createVariable(
         COLD_FRONT_AREAS_KEY, datatype=numpy.float32,
-        dimensions=(TIME_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[COLD_FRONT_AREAS_KEY][:] = cf_area_matrix_m2
-
-    this_string_type = 'S{0:d}'.format(num_file_name_chars)
-    file_names_char_array = netCDF4.stringtochar(numpy.array(
-        prediction_file_names, dtype=this_string_type
-    ))
-
-    dataset_object.createVariable(
-        PREDICTION_FILES_KEY, datatype='S1',
-        dimensions=(TIME_DIMENSION_KEY, PREDICTION_FILE_CHAR_DIM_KEY)
-    )
-    dataset_object.variables[PREDICTION_FILES_KEY][:] = numpy.array(
-        file_names_char_array)
 
     dataset_object.close()
 
@@ -928,38 +880,12 @@ def read_gridded_properties(netcdf_file_name):
     front_property_dict["wf_area_matrix_m2"]: Same.
     front_property_dict["cf_length_matrix_metres"]: Same.
     front_property_dict["cf_area_matrix_m2"]: Same.
-    front_property_dict["first_time_unix_sec"]: Same.
-    front_property_dict["last_time_unix_sec"]: Same.
-    front_property_dict["hours"]: Same.
-    front_property_dict["months"]: Same.
-    front_property_dict["prediction_file_names"]: Same.
+    front_property_dict["prediction_file_name"]: Same.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
-    hours = getattr(dataset_object, HOURS_KEY)
-    if isinstance(hours, numpy.ndarray):
-        hours = hours.astype(int)
-    else:
-        hours = numpy.array([hours], dtype=int)
-
-    if len(hours) == 1 and hours[0] == -1:
-        hours = None
-
-    months = getattr(dataset_object, MONTHS_KEY)
-    if isinstance(months, numpy.ndarray):
-        months = months.astype(int)
-    else:
-        months = numpy.array([months], dtype=int)
-
-    if len(months) == 1 and months[0] == -1:
-        months = None
-
     front_property_dict = {
-        FIRST_TIME_KEY: int(getattr(dataset_object, FIRST_TIME_KEY)),
-        LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
-        HOURS_KEY: hours,
-        MONTHS_KEY: months,
         WARM_FRONT_LENGTHS_KEY: numpy.array(
             dataset_object.variables[WARM_FRONT_LENGTHS_KEY][:], dtype=float
         ),
@@ -972,12 +898,7 @@ def read_gridded_properties(netcdf_file_name):
         COLD_FRONT_AREAS_KEY: numpy.array(
             dataset_object.variables[COLD_FRONT_AREAS_KEY][:], dtype=float
         ),
-        PREDICTION_FILES_KEY: [
-            str(s) for s in
-            netCDF4.chartostring(
-                dataset_object.variables[PREDICTION_FILES_KEY][:]
-            )
-        ],
+        PREDICTION_FILE_KEY: str(getattr(dataset_object, PREDICTION_FILE_KEY))
     }
 
     dataset_object.close()
