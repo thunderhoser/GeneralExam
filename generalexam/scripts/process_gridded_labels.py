@@ -155,7 +155,7 @@ def _write_new_labels(
         return second_unique_label_matrix
 
     for i in range(len(first_times_unix_sec)):
-        this_output_file_name = climo_utils.find_file(
+        this_output_file_name = climo_utils.find_basic_file(
             directory_name=output_dir_name,
             file_type_string=climo_utils.FRONT_LABELS_STRING,
             valid_time_unix_sec=first_times_unix_sec[i],
@@ -182,7 +182,7 @@ def _write_new_labels(
         return second_unique_label_matrix
 
     for i in range(len(second_times_unix_sec)):
-        this_output_file_name = climo_utils.find_file(
+        this_output_file_name = climo_utils.find_basic_file(
             directory_name=output_dir_name,
             file_type_string=climo_utils.FRONT_LABELS_STRING,
             valid_time_unix_sec=second_times_unix_sec[i],

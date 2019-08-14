@@ -387,18 +387,18 @@ def _run(input_property_dir_name, first_start_time_strings,
         end_time_strings=second_end_time_strings)
 
     first_property_file_names = [
-        climo_utils.find_file(
+        climo_utils.find_basic_file(
             directory_name=input_property_dir_name,
             file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
-            first_time_unix_sec=t, last_time_unix_sec=t)
+            valid_time_unix_sec=t)
         for t in first_times_unix_sec
     ]
 
     second_property_file_names = [
-        climo_utils.find_file(
+        climo_utils.find_basic_file(
             directory_name=input_property_dir_name,
             file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
-            first_time_unix_sec=t, last_time_unix_sec=t)
+            valid_time_unix_sec=t)
         for t in second_times_unix_sec
     ]
 

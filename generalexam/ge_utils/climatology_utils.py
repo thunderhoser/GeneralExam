@@ -13,9 +13,7 @@ from generalexam.ge_utils import front_utils
 FRONT_LABELS_STRING = 'front_labels'
 FRONT_PROPERTIES_STRING = 'front_properties'
 FRONT_STATS_STRING = 'front_statistics'
-VALID_FILE_TYPE_STRINGS = [
-    FRONT_LABELS_STRING, FRONT_PROPERTIES_STRING, FRONT_STATS_STRING
-]
+BASIC_FILE_TYPE_STRINGS = [FRONT_LABELS_STRING, FRONT_PROPERTIES_STRING]
 
 WINTER_STRING = 'winter'
 SPRING_STRING = 'spring'
@@ -33,23 +31,18 @@ FILE_NAME_TIME_REGEX = (
 
 ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
-TIME_DIMENSION_KEY = 'time'
-PREDICTION_FILE_CHAR_DIM_KEY = 'prediction_file_char'
-
 FRONT_LABELS_KEY = 'label_matrix'
 UNIQUE_FRONT_LABELS_KEY = 'unique_label_matrix'
 PREDICTION_FILE_KEY = 'prediction_file_name'
+SEPARATION_TIME_KEY = 'separation_time_sec'
 
-NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
-NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
-NUM_UNIQUE_WF_KEY = 'num_unique_wf_matrix'
-NUM_UNIQUE_CF_KEY = 'num_unique_cf_matrix'
+TIME_DIMENSION_KEY = 'time'
+PREDICTION_FILE_CHAR_DIM_KEY = 'prediction_file_char'
 FIRST_TIME_KEY = 'first_time_unix_sec'
 LAST_TIME_KEY = 'last_time_unix_sec'
 HOURS_KEY = 'hours'
 MONTHS_KEY = 'months'
 PREDICTION_FILES_KEY = 'prediction_file_names'
-SEPARATION_TIME_KEY = 'separation_time_sec'
 
 WARM_FRONT_LENGTHS_KEY = 'wf_length_matrix_metres'
 WARM_FRONT_AREAS_KEY = 'wf_area_matrix_m2'
@@ -98,19 +91,19 @@ def _check_season(season_string):
         raise ValueError(error_string)
 
 
-def _check_file_type(file_type_string):
+def _check_basic_file_type(file_type_string):
     """Error-checks file type.
 
     :param file_type_string: File type.
-    :raises: ValueError: if `file_type_string not in VALID_FILE_TYPE_STRINGS`.
+    :raises: ValueError: if `file_type_string not in BASIC_FILE_TYPE_STRINGS`.
     """
 
     error_checking.assert_is_string(file_type_string)
 
-    if file_type_string not in VALID_FILE_TYPE_STRINGS:
+    if file_type_string not in BASIC_FILE_TYPE_STRINGS:
         error_string = (
-            '\n\n{0:s}\nValid file types (listed above) do not include "{1:s}".'
-        ).format(str(VALID_FILE_TYPE_STRINGS), file_type_string)
+            '\n\n{0:s}\nBasic file types (listed above) do not include "{1:s}".'
+        ).format(str(BASIC_FILE_TYPE_STRINGS), file_type_string)
 
         raise ValueError(error_string)
 
@@ -479,12 +472,12 @@ def apply_separation_time(front_type_enums, valid_times_unix_sec,
     return front_type_enums, valid_times_unix_sec
 
 
-def find_file(directory_name, file_type_string, valid_time_unix_sec,
-              raise_error_if_missing=True):
-    """Locates file with gridded front labels, properties, or statistics.
+def find_basic_file(directory_name, file_type_string, valid_time_unix_sec,
+                    raise_error_if_missing=True):
+    """Locates file with gridded front labels or properties.
 
     :param directory_name: Directory name.
-    :param file_type_string: See doc for `_check_file_type`.
+    :param file_type_string: See doc for `_check_basic_file_type`.
     :param valid_time_unix_sec: Valid time.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
@@ -494,12 +487,12 @@ def find_file(directory_name, file_type_string, valid_time_unix_sec,
     """
 
     error_checking.assert_is_string(directory_name)
-    _check_file_type(file_type_string)
+    _check_basic_file_type(file_type_string)
     error_checking.assert_is_integer(valid_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     netcdf_file_name = '{0:s}/{1:s}_{2:s}.nc'.format(
-        directory_name, file_type_string,
+        directory_name, file_type_string.replace('_', '-'),
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
     )
@@ -512,43 +505,93 @@ def find_file(directory_name, file_type_string, valid_time_unix_sec,
     return netcdf_file_name
 
 
-def find_many_property_files(directory_name, hours=None, months=None,
-                             raise_error_if_none_found=True):
-    """Finds many files with gridded front properties.
+def basic_file_name_to_time(netcdf_file_name):
+    """Parses time from file name.
 
-    :param directory_name: See doc for `find_file`.
-    :param hours: Same.
-    :param months: Same.
+    :param netcdf_file_name: See doc for `find_basic_file`.
+    :return: valid_time_unix_sec: Valid time.
+    """
+
+    error_checking.assert_is_string(netcdf_file_name)
+
+    pathless_file_name = os.path.split(netcdf_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    return time_conversion.string_to_unix_sec(
+        extensionless_file_name.split('_')[-1], FILE_NAME_TIME_FORMAT
+    )
+
+
+def find_many_basic_files(
+        directory_name, file_type_string, first_time_unix_sec,
+        last_time_unix_sec, hours_to_keep=None, months_to_keep=None,
+        raise_error_if_none_found=True):
+    """Finds many files with gridded front labels or properties.
+
+    :param directory_name: Directory name.
+    :param file_type_string: See doc for `_check_basic_file_type`.
+    :param first_time_unix_sec: First time.  Will look for files only in period
+        `first_time_unix_sec`...`last_time_unix_sec`.
+    :param last_time_unix_sec: See above.
+    :param hours_to_keep: 1-D numpy array of integers in range 0...23.  Will
+        look for files only at these hours.  If None, will look for files at all
+        hours.
+    :param months_to_keep: 1-D numpy array of integers in range 1...12.  Will
+        look for files only in these months.  If None, will look for files in
+        all months.
     :param raise_error_if_none_found: Boolean flag.  If all files are missing
         and `raise_error_if_none_found = True`, this method will error out.
-    :return: netcdf_file_names: 1-D list of paths to files with gridded
-        properties.  If no files were found are
-        `raise_error_if_none_found = False`, this is an empty list.
+    :return: netcdf_file_names: 1-D list of file paths.  If no files were found
+        and `raise_error_if_none_found = False`, this is an empty list.
     :raises: ValueError: if no files were found and
         `raise_error_if_none_found = True`.
     """
 
     error_checking.assert_is_string(directory_name)
+    _check_basic_file_type(file_type_string)
+    error_checking.assert_is_integer(first_time_unix_sec)
+    error_checking.assert_is_integer(last_time_unix_sec)
+    error_checking.assert_is_geq(last_time_unix_sec, first_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_none_found)
 
-    if hours is None:
-        hour_string = 'all'
-    else:
-        hour_string = hours_to_string(hours)[-1]
+    if hours_to_keep is not None:
+        check_hours(hours_to_keep)
+    if months_to_keep is not None:
+        check_months(months_to_keep)
 
-    if months is None:
-        month_string = 'all'
-    else:
-        month_string = months_to_string(months)[-1]
-
-    glob_pattern = (
-        '{0:s}/{1:s}_{2:s}_{2:s}_hours={3:s}_months={4:s}.nc'
-    ).format(
-        directory_name, FRONT_PROPERTIES_STRING.replace('_', '-'),
-        FILE_NAME_TIME_REGEX, hour_string, month_string
-    )
+    glob_pattern = '{0:s}/{1:s}_{2:s}.nc'.format(
+        directory_name, file_type_string, FILE_NAME_TIME_REGEX)
 
     netcdf_file_names = glob.glob(glob_pattern)
+
+    if len(netcdf_file_names) > 0:
+        valid_times_unix_sec = numpy.array(
+            [basic_file_name_to_time(f) for f in netcdf_file_names], dtype=int
+        )
+
+        good_indices = numpy.where(numpy.logical_and(
+            valid_times_unix_sec >= first_time_unix_sec,
+            valid_times_unix_sec <= last_time_unix_sec
+        ))[0]
+
+        netcdf_file_names = [netcdf_file_names[k] for k in good_indices]
+        valid_times_unix_sec = valid_times_unix_sec[good_indices]
+
+    if hours_to_keep is not None and len(netcdf_file_names) > 0:
+        good_indices = filter_by_hour(
+            all_times_unix_sec=valid_times_unix_sec,
+            hours_to_keep=hours_to_keep)
+
+        netcdf_file_names = [netcdf_file_names[k] for k in good_indices]
+        valid_times_unix_sec = valid_times_unix_sec[good_indices]
+
+    if months_to_keep is not None and len(netcdf_file_names) > 0:
+        good_indices = filter_by_month(
+            all_times_unix_sec=valid_times_unix_sec,
+            months_to_keep=months_to_keep)
+
+        netcdf_file_names = [netcdf_file_names[k] for k in good_indices]
+        # valid_times_unix_sec = valid_times_unix_sec[good_indices]
 
     if raise_error_if_none_found and len(netcdf_file_names) == 0:
         error_string = 'Could not find any files with pattern: "{0:s}"'.format(
@@ -583,8 +626,6 @@ def average_many_property_files(property_file_names):
     sum_cf_length_matrix_metres = None
     sum_cf_area_matrix_m2 = None
 
-    first_time_unix_sec = int(1e12)
-    last_time_unix_sec = 0
     hours_in_climo = None
     months_in_climo = None
     prediction_file_names = []
@@ -593,14 +634,7 @@ def average_many_property_files(property_file_names):
         print('Reading data from: "{0:s}"...'.format(property_file_names[i]))
         this_property_dict = read_gridded_properties(property_file_names[i])
 
-        first_time_unix_sec = min([
-            first_time_unix_sec, this_property_dict[FIRST_TIME_KEY]
-        ])
-        last_time_unix_sec = max([
-            last_time_unix_sec, this_property_dict[LAST_TIME_KEY]
-        ])
         prediction_file_names += this_property_dict[PREDICTION_FILES_KEY]
-
         these_hours = this_property_dict[HOURS_KEY]
         these_months = this_property_dict[MONTHS_KEY]
 
@@ -664,8 +698,6 @@ def average_many_property_files(property_file_names):
         MEAN_WF_AREAS_KEY: sum_wf_area_matrix_m2 / num_wf_labels_matrix,
         MEAN_CF_LENGTHS_KEY: sum_cf_length_matrix_metres / num_cf_labels_matrix,
         MEAN_CF_AREAS_KEY: sum_cf_area_matrix_m2 / num_cf_labels_matrix,
-        FIRST_TIME_KEY: first_time_unix_sec,
-        LAST_TIME_KEY: last_time_unix_sec,
         HOURS_KEY: hours_in_climo,
         MONTHS_KEY: months_in_climo,
         PREDICTION_FILES_KEY: prediction_file_names
@@ -930,7 +962,7 @@ def find_monte_carlo_file(
     error_checking.assert_is_geq(first_grid_column, 0)
 
     netcdf_file_name = (
-        '{0:s}/monte-carlo-test_{1:s}_first-row={2:02d}_first-column={3:02d}.nc'
+        '{0:s}/monte-carlo-test_{1:s}_first-row={2:03d}_first-column={3:03d}.nc'
     ).format(
         directory_name, property_name.replace('_', '-'),
         first_grid_row, first_grid_column
@@ -1118,6 +1150,60 @@ def read_monte_carlo_test(netcdf_file_name):
 
     dataset_object.close()
     return monte_carlo_dict
+
+
+def find_statistic_file(
+        directory_name, first_time_unix_sec, last_time_unix_sec, hours=None,
+        months=None, raise_error_if_missing=True):
+    """Locates file with gridded front statistics.
+
+    :param directory_name: Directory name.
+    :param first_time_unix_sec: First time used to create stats.
+    :param last_time_unix_sec: Last time used to create stats.
+    :param hours: 1-D numpy array of hours for which fronts were counted.  If
+        all hours were used, leave this as None.
+    :param months: Same but for months.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: netcdf_file_name: Path to file with gridded stats.  If file is
+        missing and `raise_error_if_missing = False`, this is the *expected*
+        path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_integer(first_time_unix_sec)
+    error_checking.assert_is_integer(last_time_unix_sec)
+    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if hours is None:
+        hour_string = 'all'
+    else:
+        hour_string = hours_to_string(hours)[-1]
+
+    if months is None:
+        month_string = 'all'
+    else:
+        month_string = months_to_string(months)[-1]
+
+    netcdf_file_name = (
+        '{0:s}/{1:s}_{2:s}_{3:s}_hours={4:s}_months={5:s}.nc'
+    ).format(
+        directory_name, FRONT_STATS_STRING.replace('_', '-'),
+        time_conversion.unix_sec_to_string(
+            first_time_unix_sec, FILE_NAME_TIME_FORMAT),
+        time_conversion.unix_sec_to_string(
+            last_time_unix_sec, FILE_NAME_TIME_FORMAT),
+        hour_string, month_string
+    )
+
+    if raise_error_if_missing and not os.path.isfile(netcdf_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            netcdf_file_name)
+        raise ValueError(error_string)
+
+    return netcdf_file_name
 
 
 def write_gridded_stats(

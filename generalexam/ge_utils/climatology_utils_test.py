@@ -137,18 +137,29 @@ FRONT_TYPE_ENUMS_AFTER_BOTH_SEP = numpy.array([
     NO_FRONT_ENUM, NO_FRONT_ENUM, WARM_FRONT_ENUM, NO_FRONT_ENUM
 ], dtype=int)
 
-# The following constants are used to test find_file.
+# The following constants are used to test find_basic_file and
+# basic_file_name_to_time.
 DIRECTORY_NAME = 'foo'
-FILE_TYPE_STRING = climo_utils.FRONT_COUNTS_STRING
-FIRST_TIME_UNIX_SEC = 0
-LAST_TIME_UNIX_SEC = 86399
-HOURS_IN_FILE = numpy.array([0, 7, 11], dtype=int)
-MONTHS_IN_FILE = numpy.array([1, 2, 12], dtype=int)
+BASIC_FILE_TIME_UNIX_SEC = 0
+LABEL_FILE_NAME = 'foo/front-labels_1970-01-01-000000.nc'
+PROPERTY_FILE_NAME = 'foo/front-properties_1970-01-01-000000.nc'
 
-FILE_NAME = (
-    'foo/front-counts_1970-01-01-000000_1970-01-01-235959_'
-    'hours=00-07-11utc_months=jfd.nc'
-)
+# The following constants are used to test find_monte_carlo_file.
+MONTE_CARLO_PROPERTY_NAME = climo_utils.WARM_FRONT_LENGTHS_KEY
+FIRST_MONTE_CARLO_ROW = 10
+FIRST_MONTE_CARLO_COLUMN = 20
+MONTE_CARLO_FILE_NAME = (
+    'foo/monte-carlo-test_wf-length-matrix-metres_first-row=010_'
+    'first-column=020.nc')
+
+# The following constants are used to test find_statistic_file.
+FIRST_STAT_TIME_UNIX_SEC = 0
+LAST_STAT_TIME_UNIX_SEC = 86399
+STAT_HOURS = numpy.array([18, 21], dtype=int)
+STAT_MONTHS = numpy.array([12, 1, 2], dtype=int)
+STAT_FILE_NAME = (
+    'foo/front-statistics_1970-01-01-000000_1970-01-01-235959_hours=18-21utc_'
+    'months=jfd.nc')
 
 
 class ClimatologyUtilsTests(unittest.TestCase):
@@ -335,16 +346,78 @@ class ClimatologyUtilsTests(unittest.TestCase):
             these_times_unix_sec, VALID_TIMES_UNIX_SEC
         ))
 
-    def test_find_file(self):
-        """Ensures correct output from find_file."""
+    def test_find_basic_file_labels(self):
+        """Ensures correct output from find_basic_file.
 
-        this_file_name = climo_utils.find_file(
-            directory_name=DIRECTORY_NAME, file_type_string=FILE_TYPE_STRING,
-            first_time_unix_sec=FIRST_TIME_UNIX_SEC,
-            last_time_unix_sec=LAST_TIME_UNIX_SEC, hours=HOURS_IN_FILE,
-            months=MONTHS_IN_FILE, raise_error_if_missing=False)
+        In this case the file type is front labels.
+        """
 
-        self.assertTrue(this_file_name == FILE_NAME)
+        this_file_name = climo_utils.find_basic_file(
+            directory_name=DIRECTORY_NAME,
+            file_type_string=climo_utils.FRONT_LABELS_STRING,
+            valid_time_unix_sec=BASIC_FILE_TIME_UNIX_SEC,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == LABEL_FILE_NAME)
+
+    def test_find_basic_file_properties(self):
+        """Ensures correct output from find_basic_file.
+
+        In this case the file type is front properties.
+        """
+
+        this_file_name = climo_utils.find_basic_file(
+            directory_name=DIRECTORY_NAME,
+            file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
+            valid_time_unix_sec=BASIC_FILE_TIME_UNIX_SEC,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == PROPERTY_FILE_NAME)
+
+    def test_basic_file_name_to_time_labels(self):
+        """Ensures correct output from basic_file_name_to_time.
+
+        In this case the file type is front labels.
+        """
+
+        self.assertTrue(
+            climo_utils.basic_file_name_to_time(LABEL_FILE_NAME) ==
+            BASIC_FILE_TIME_UNIX_SEC
+        )
+
+    def test_basic_file_name_to_time_properties(self):
+        """Ensures correct output from basic_file_name_to_time.
+
+        In this case the file type is front properties.
+        """
+
+        self.assertTrue(
+            climo_utils.basic_file_name_to_time(PROPERTY_FILE_NAME) ==
+            BASIC_FILE_TIME_UNIX_SEC
+        )
+
+    def test_find_monte_carlo_file(self):
+        """Ensures correct output from find_monte_carlo_file."""
+
+        this_file_name = climo_utils.find_monte_carlo_file(
+            directory_name=DIRECTORY_NAME,
+            property_name=MONTE_CARLO_PROPERTY_NAME,
+            first_grid_row=FIRST_MONTE_CARLO_ROW,
+            first_grid_column=FIRST_MONTE_CARLO_COLUMN,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == MONTE_CARLO_FILE_NAME)
+
+    def test_find_statistic_file(self):
+        """Ensures correct output from find_statistic_file."""
+
+        this_file_name = climo_utils.find_statistic_file(
+            directory_name=DIRECTORY_NAME,
+            first_time_unix_sec=FIRST_STAT_TIME_UNIX_SEC,
+            last_time_unix_sec=LAST_STAT_TIME_UNIX_SEC,
+            hours=STAT_HOURS, months=STAT_MONTHS, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STAT_FILE_NAME)
 
 
 if __name__ == '__main__':

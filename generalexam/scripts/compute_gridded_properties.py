@@ -149,7 +149,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             this_prediction_dict[prediction_io.PREDICTED_LABELS_KEY][0, ...]
         )
 
-        this_output_file_name = climo_utils.find_file(
+        this_output_file_name = climo_utils.find_basic_file(
             directory_name=output_dir_name,
             file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
             valid_time_unix_sec=valid_times_unix_sec[i],
