@@ -1,4 +1,4 @@
-"""Counts WF and CF labels at each grid cell over a given time period."""
+"""Processes WF and CF labels at each grid cell over some time period."""
 
 import copy
 import argparse
@@ -13,12 +13,6 @@ from generalexam.ge_utils import predictor_utils
 TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
-NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
-NUM_UNIQUE_WF_KEY = 'num_unique_wf_matrix'
-NUM_UNIQUE_CF_KEY = 'num_unique_cf_matrix'
-SECOND_UNIQUE_LABELS_KEY = 'second_unique_label_matrix'
-
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
@@ -32,8 +26,8 @@ INPUT_DIR_HELP_STRING = (
     '`read_deterministic == True`.')
 
 TIME_HELP_STRING = (
-    'Time (format "yyyymmddHH").  This script will count WF and CF labels at '
-    'each grid cell for the period `{0:s}`...`{1:s}`.'
+    'Time (format "yyyymmddHH").  This script will process WF and CF labels for'
+    ' the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
 SEPARATION_TIME_HELP_STRING = (
@@ -51,8 +45,8 @@ PREDICTOR_FILE_HELP_STRING = (
     ' alone.')
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  File will be written by '
-    '`climatology_utils.write_gridded_counts`, to a location therein determined'
+    'Name of output directory.  For each time step, file will be written by '
+    '`climatology_utils.write_gridded_labels`, to a location therein determined'
     ' by `climatology_utils.find_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -83,7 +77,7 @@ def _write_new_labels(
         first_label_matrix, first_unique_label_matrix,
         first_prediction_file_names, second_label_matrix,
         second_prediction_file_names, write_second_period, separation_time_sec,
-        output_dir_name, mask_matrix=None):
+        output_dir_name, mask_matrix=None, test_mode=False):
     """Writes new labels to files (one per time step).
 
     F = number of times in first period
@@ -107,6 +101,7 @@ def _write_new_labels(
     :param mask_matrix: M-by-N numpy array of integers in 0...1.  If
         mask_matrix[i, j] = 0, grid cell [i, j] will be masked out.  In other
         words, all labels at grid cell [i, j] will be turned into NaN.
+    :param test_mode: Never mind.  Just leave this alone.
     :return: second_unique_label_matrix: Same as input `second_label_matrix` but
         after applying separation time.
     """
@@ -155,6 +150,9 @@ def _write_new_labels(
     else:
         second_unique_label_matrix = None
         second_times_unix_sec = None
+
+    if test_mode:
+        return second_unique_label_matrix
 
     for i in range(len(first_times_unix_sec)):
         this_output_file_name = climo_utils.find_file(
@@ -212,7 +210,7 @@ def _write_new_labels(
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
          separation_time_sec, predictor_file_name, output_dir_name):
-    """Counts WF and CF labels at each grid cell over a given time period.
+    """Processes WF and CF labels at each grid cell over some time period.
 
     This is effectively the main method.
 

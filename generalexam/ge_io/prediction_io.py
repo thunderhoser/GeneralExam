@@ -105,7 +105,9 @@ def file_name_to_times(prediction_file_name):
     error_checking.assert_is_string(prediction_file_name)
 
     pathless_file_name = os.path.split(prediction_file_name)[-1]
-    time_period_string = pathless_file_name.split('_')[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+
+    time_period_string = extensionless_file_name.split('_')[-1]
     time_strings = time_period_string.split('-')
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
