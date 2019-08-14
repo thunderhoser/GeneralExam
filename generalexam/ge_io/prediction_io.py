@@ -94,6 +94,30 @@ def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
     return prediction_file_name
 
 
+def file_name_to_times(prediction_file_name):
+    """Parses time period from name of prediction file.
+
+    :param prediction_file_name: Path to input file.
+    :return: first_time_unix_sec: First time in file.
+    :return: last_time_unix_sec: Last time in file.
+    """
+
+    error_checking.assert_is_string(prediction_file_name)
+
+    pathless_file_name = os.path.split(prediction_file_name)[-1]
+    time_period_string = pathless_file_name.split('_')[-1]
+    time_strings = time_period_string.split('-')
+
+    first_time_unix_sec = time_conversion.string_to_unix_sec(
+        time_strings[0], FILE_NAME_TIME_FORMAT
+    )
+    last_time_unix_sec = time_conversion.string_to_unix_sec(
+        time_strings[1], FILE_NAME_TIME_FORMAT
+    )
+
+    return first_time_unix_sec, last_time_unix_sec
+
+
 def find_files_for_climo(
         directory_name, first_time_unix_sec, last_time_unix_sec,
         hours_to_keep=None, months_to_keep=None):

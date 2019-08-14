@@ -10,11 +10,11 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
-FRONT_COUNTS_STRING = 'front_counts'
+FRONT_LABELS_STRING = 'front_labels'
 FRONT_PROPERTIES_STRING = 'front_properties'
 FRONT_STATS_STRING = 'front_statistics'
 VALID_FILE_TYPE_STRINGS = [
-    FRONT_COUNTS_STRING, FRONT_PROPERTIES_STRING, FRONT_STATS_STRING
+    FRONT_LABELS_STRING, FRONT_PROPERTIES_STRING, FRONT_STATS_STRING
 ]
 
 WINTER_STRING = 'winter'
@@ -35,6 +35,10 @@ ROW_DIMENSION_KEY = 'row'
 COLUMN_DIMENSION_KEY = 'column'
 TIME_DIMENSION_KEY = 'time'
 PREDICTION_FILE_CHAR_DIM_KEY = 'prediction_file_char'
+
+FRONT_LABELS_KEY = 'label_matrix'
+UNIQUE_FRONT_LABELS_KEY = 'unique_label_matrix'
+PREDICTION_FILE_KEY = 'prediction_file_name'
 
 NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
 NUM_CF_LABELS_KEY = 'num_cf_labels_matrix'
@@ -475,53 +479,29 @@ def apply_separation_time(front_type_enums, valid_times_unix_sec,
     return front_type_enums, valid_times_unix_sec
 
 
-def find_file(directory_name, file_type_string, first_time_unix_sec,
-              last_time_unix_sec, hours=None, months=None,
+def find_file(directory_name, file_type_string, valid_time_unix_sec,
               raise_error_if_missing=True):
-    """Locates file with gridded front counts, properties, or statistics.
+    """Locates file with gridded front labels, properties, or statistics.
 
     :param directory_name: Directory name.
     :param file_type_string: See doc for `_check_file_type`.
-    :param first_time_unix_sec: First time in period.
-    :param last_time_unix_sec: Last time in period.
-    :param hours: 1-D numpy array of hours for which fronts were counted.  If
-        all hours were used, leave this as None.
-    :param months: Same but for months.
+    :param valid_time_unix_sec: Valid time.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
-    :return: netcdf_file_name: Path to file with gridded counts.  If file is
-        missing and `raise_error_if_missing = False`, this is the *expected*
-        path.
+    :return: netcdf_file_name: File path.  If file is missing and
+        `raise_error_if_missing = False`, this is the *expected* path.
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
-    _check_file_type(file_type_string)
-
     error_checking.assert_is_string(directory_name)
-    error_checking.assert_is_integer(first_time_unix_sec)
-    error_checking.assert_is_integer(last_time_unix_sec)
-    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+    _check_file_type(file_type_string)
+    error_checking.assert_is_integer(valid_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    if hours is None:
-        hour_string = 'all'
-    else:
-        hour_string = hours_to_string(hours)[-1]
-
-    if months is None:
-        month_string = 'all'
-    else:
-        month_string = months_to_string(months)[-1]
-
-    netcdf_file_name = (
-        '{0:s}/{1:s}_{2:s}_{3:s}_hours={4:s}_months={5:s}.nc'
-    ).format(
-        directory_name, file_type_string.replace('_', '-'),
+    netcdf_file_name = '{0:s}/{1:s}_{2:s}.nc'.format(
+        directory_name, file_type_string,
         time_conversion.unix_sec_to_string(
-            first_time_unix_sec, FILE_NAME_TIME_FORMAT),
-        time_conversion.unix_sec_to_string(
-            last_time_unix_sec, FILE_NAME_TIME_FORMAT),
-        hour_string, month_string
+            valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
     )
 
     if raise_error_if_missing and not os.path.isfile(netcdf_file_name):
@@ -692,77 +672,53 @@ def average_many_property_files(property_file_names):
     }
 
 
-def write_gridded_counts(
-        netcdf_file_name, num_wf_labels_matrix, num_cf_labels_matrix,
-        num_unique_wf_matrix, num_unique_cf_matrix, first_time_unix_sec,
-        last_time_unix_sec, prediction_file_names, separation_time_sec,
-        hours=None, months=None):
-    """Writes gridded front counts to NetCDF file.
+def write_gridded_labels(
+        netcdf_file_name, label_matrix, unique_label_matrix,
+        prediction_file_name, separation_time_sec):
+    """Writes gridded front labels to NetCDF file.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param netcdf_file_name: Path to output file.
-    :param num_wf_labels_matrix: M-by-N numpy array with number of WF labels at
-        each grid cell.
-    :param num_cf_labels_matrix: Same but for cold fronts.
-    :param num_unique_wf_matrix: M-by-N numpy array with number of unique warm
-        fronts at each grid cell.
-    :param num_unique_cf_matrix: Same but for cold fronts.
-    :param first_time_unix_sec: See doc for `find_file`.
-    :param last_time_unix_sec: Same.
-    :param prediction_file_names: 1-D list of paths to input files (readable by
+    :param label_matrix: M-by-N numpy array of front labels (integers).  NaN
+        means that there is no reanalysis (predictor) data at the grid cell, so
+        it is impossible to tell.
+    :param unique_label_matrix: Same but after applying separation time.
+    :param prediction_file_name: Path to input file (readable by
         `prediction_io.read_file`).  This is metadata.
     :param separation_time_sec: Separation time (for more details, see doc for
         `apply_separation_time`).  This is metadata.
-    :param hours: See doc for `find_file`.
-    :param months: Same.
     """
 
     # Check input args.
     error_checking.assert_is_geq_numpy_array(
-        num_wf_labels_matrix, 0., allow_nan=True)
-    error_checking.assert_is_numpy_array(
-        num_wf_labels_matrix, num_dimensions=2)
-
-    expected_dim = numpy.array(num_wf_labels_matrix.shape, dtype=int)
-
-    error_checking.assert_is_geq_numpy_array(
-        num_cf_labels_matrix, 0., allow_nan=True)
-    error_checking.assert_is_numpy_array(
-        num_cf_labels_matrix, exact_dimensions=expected_dim)
+        label_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS),
+        allow_nan=True
+    )
+    error_checking.assert_is_leq_numpy_array(
+        label_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS),
+        allow_nan=True
+    )
+    error_checking.assert_is_numpy_array(label_matrix, num_dimensions=2)
 
     error_checking.assert_is_geq_numpy_array(
-        num_unique_wf_matrix, 0., allow_nan=True)
-    error_checking.assert_is_numpy_array(
-        num_unique_wf_matrix, exact_dimensions=expected_dim)
-
-    error_checking.assert_is_geq_numpy_array(
-        num_unique_cf_matrix, 0., allow_nan=True)
-    error_checking.assert_is_numpy_array(
-        num_unique_cf_matrix, exact_dimensions=expected_dim)
-
-    error_checking.assert_is_integer(first_time_unix_sec)
-    error_checking.assert_is_integer(last_time_unix_sec)
-    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
-
-    error_checking.assert_is_string_list(prediction_file_names)
-    error_checking.assert_is_numpy_array(
-        numpy.array(prediction_file_names), num_dimensions=1
+        unique_label_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS),
+        allow_nan=True
+    )
+    error_checking.assert_is_leq_numpy_array(
+        unique_label_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS),
+        allow_nan=True
     )
 
+    error_checking.assert_is_numpy_array(
+        unique_label_matrix,
+        exact_dimensions=numpy.array(label_matrix.shape, dtype=int)
+    )
+
+    error_checking.assert_is_string(prediction_file_name)
     error_checking.assert_is_integer(separation_time_sec)
     error_checking.assert_is_greater(separation_time_sec, 0)
-
-    if hours is None:
-        hours = numpy.array([-1], dtype=int)
-    else:
-        check_hours(hours)
-
-    if months is None:
-        months = numpy.array([-1], dtype=int)
-    else:
-        check_months(months)
 
     # Open file.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
@@ -770,139 +726,58 @@ def write_gridded_counts(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
     # Set global attributes and dimensions.
+    dataset_object.setncattr(PREDICTION_FILE_KEY, str(prediction_file_name))
     dataset_object.setncattr(SEPARATION_TIME_KEY, separation_time_sec)
-    dataset_object.setncattr(FIRST_TIME_KEY, first_time_unix_sec)
-    dataset_object.setncattr(LAST_TIME_KEY, last_time_unix_sec)
-    dataset_object.setncattr(HOURS_KEY, hours)
-    dataset_object.setncattr(MONTHS_KEY, months)
 
-    num_file_name_chars = max([
-        len(f) for f in prediction_file_names
-    ])
-
-    dataset_object.createDimension(
-        ROW_DIMENSION_KEY, num_wf_labels_matrix.shape[0]
-    )
-    dataset_object.createDimension(
-        COLUMN_DIMENSION_KEY, num_wf_labels_matrix.shape[1]
-    )
-    dataset_object.createDimension(
-        TIME_DIMENSION_KEY, len(prediction_file_names)
-    )
-    dataset_object.createDimension(
-        PREDICTION_FILE_CHAR_DIM_KEY, num_file_name_chars
-    )
+    dataset_object.createDimension(ROW_DIMENSION_KEY, label_matrix.shape[0])
+    dataset_object.createDimension(COLUMN_DIMENSION_KEY, label_matrix.shape[1])
 
     # Add variables.
     dataset_object.createVariable(
-        NUM_WF_LABELS_KEY, datatype=numpy.float32,
+        FRONT_LABELS_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[NUM_WF_LABELS_KEY][:] = num_wf_labels_matrix
+    dataset_object.variables[FRONT_LABELS_KEY][:] = label_matrix
 
     dataset_object.createVariable(
-        NUM_CF_LABELS_KEY, datatype=numpy.float32,
+        UNIQUE_FRONT_LABELS_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[NUM_CF_LABELS_KEY][:] = num_cf_labels_matrix
-
-    dataset_object.createVariable(
-        NUM_UNIQUE_WF_KEY, datatype=numpy.float32,
-        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
-    )
-    dataset_object.variables[NUM_UNIQUE_WF_KEY][:] = num_unique_wf_matrix
-
-    dataset_object.createVariable(
-        NUM_UNIQUE_CF_KEY, datatype=numpy.float32,
-        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
-    )
-    dataset_object.variables[NUM_UNIQUE_CF_KEY][:] = num_unique_cf_matrix
-
-    this_string_type = 'S{0:d}'.format(num_file_name_chars)
-    file_names_char_array = netCDF4.stringtochar(numpy.array(
-        prediction_file_names, dtype=this_string_type
-    ))
-
-    dataset_object.createVariable(
-        PREDICTION_FILES_KEY, datatype='S1',
-        dimensions=(TIME_DIMENSION_KEY, PREDICTION_FILE_CHAR_DIM_KEY)
-    )
-    dataset_object.variables[PREDICTION_FILES_KEY][:] = numpy.array(
-        file_names_char_array)
+    dataset_object.variables[UNIQUE_FRONT_LABELS_KEY][:] = unique_label_matrix
 
     dataset_object.close()
 
 
-def read_gridded_counts(netcdf_file_name):
-    """Reads gridded front counts from NetCDF file.
+def read_gridded_labels(netcdf_file_name):
+    """Reads gridded front labels from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
-    :return: count_dict: Dictionary with the following keys.
-    count_dict["num_wf_labels_matrix"]: See doc for `write_gridded_counts`.
-    count_dict["num_cf_labels_matrix"]: Same.
-    count_dict["num_unique_wf_matrix"]: Same.
-    count_dict["num_unique_cf_matrix"]: Same.
-    count_dict["first_time_unix_sec"]: Same.
-    count_dict["last_time_unix_sec"]: Same.
-    count_dict["hours"]: Same.
-    count_dict["months"]: Same.
-    count_dict["prediction_file_names"]: Same.
-    count_dict["separation_time_sec"]: Same.
+    :return: front_label_dict: Dictionary with the following keys.
+    front_label_dict["label_matrix"]: See doc for `write_gridded_labels`.
+    front_label_dict["unique_label_matrix"]: Same.
+    front_label_dict["prediction_file_name"]: Same.
+    front_label_dict["separation_time_sec"]: Same.
     """
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
-    hours = getattr(dataset_object, HOURS_KEY)
-    if isinstance(hours, numpy.ndarray):
-        hours = hours.astype(int)
-    else:
-        hours = numpy.array([hours], dtype=int)
-
-    if len(hours) == 1 and hours[0] == -1:
-        hours = None
-
-    months = getattr(dataset_object, MONTHS_KEY)
-    if isinstance(months, numpy.ndarray):
-        months = months.astype(int)
-    else:
-        months = numpy.array([months], dtype=int)
-
-    if len(months) == 1 and months[0] == -1:
-        months = None
-
-    count_dict = {
-        FIRST_TIME_KEY: int(getattr(dataset_object, FIRST_TIME_KEY)),
-        LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
-        HOURS_KEY: hours,
-        MONTHS_KEY: months,
-        NUM_WF_LABELS_KEY: numpy.array(
-            dataset_object.variables[NUM_WF_LABELS_KEY][:]
+    front_label_dict = {
+        FRONT_LABELS_KEY: numpy.array(
+            dataset_object.variables[FRONT_LABELS_KEY][:]
         ),
-        NUM_CF_LABELS_KEY: numpy.array(
-            dataset_object.variables[NUM_CF_LABELS_KEY][:]
+        UNIQUE_FRONT_LABELS_KEY: numpy.array(
+            dataset_object.variables[UNIQUE_FRONT_LABELS_KEY][:]
         ),
-        NUM_UNIQUE_WF_KEY: numpy.array(
-            dataset_object.variables[NUM_UNIQUE_WF_KEY][:]
-        ),
-        NUM_UNIQUE_CF_KEY: numpy.array(
-            dataset_object.variables[NUM_UNIQUE_CF_KEY][:]
-        ),
-        PREDICTION_FILES_KEY: [
-            str(s) for s in
-            netCDF4.chartostring(
-                dataset_object.variables[PREDICTION_FILES_KEY][:]
-            )
-        ],
+        PREDICTION_FILE_KEY: str(getattr(dataset_object, PREDICTION_FILE_KEY)),
         SEPARATION_TIME_KEY: int(getattr(dataset_object, SEPARATION_TIME_KEY))
     }
 
     dataset_object.close()
 
-    for this_key in [NUM_WF_LABELS_KEY, NUM_CF_LABELS_KEY, NUM_UNIQUE_WF_KEY,
-                     NUM_UNIQUE_CF_KEY]:
-        count_dict[this_key][count_dict[this_key] < 0] = numpy.nan
+    for this_key in [FRONT_LABELS_KEY, UNIQUE_FRONT_LABELS_KEY]:
+        front_label_dict[this_key][front_label_dict[this_key] < 0] = numpy.nan
 
-    return count_dict
+    return front_label_dict
 
 
 def write_gridded_properties(

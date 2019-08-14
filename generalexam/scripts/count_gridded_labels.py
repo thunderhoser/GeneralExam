@@ -1,5 +1,6 @@
 """Counts WF and CF labels at each grid cell over a given time period."""
 
+import copy
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -21,8 +22,6 @@ SECOND_UNIQUE_LABELS_KEY = 'second_unique_label_matrix'
 INPUT_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
-HOURS_ARG_NAME = 'hours_to_keep'
-MONTHS_ARG_NAME = 'months_to_keep'
 SEPARATION_TIME_ARG_NAME = 'separation_time_sec'
 PREDICTOR_FILE_ARG_NAME = 'predictor_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -36,16 +35,6 @@ TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  This script will count WF and CF labels at '
     'each grid cell for the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
-
-HOURS_HELP_STRING = (
-    'List of UTC hours (integers in 0...23).  This script will count WF and CF '
-    'labels only at the given hours.  If you want do not want to filter by '
-    'hour, leave this argument alone.')
-
-MONTHS_HELP_STRING = (
-    'List of months (integers in 1...12).  This script will count WF and CF '
-    'labels only for the given months.  If you want do not want to filter by '
-    'month, leave this argument alone.')
 
 SEPARATION_TIME_HELP_STRING = (
     'Separation time (used to remove redundant front labels).  If grid cell '
@@ -78,14 +67,6 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + HOURS_ARG_NAME, type=int, nargs='+', required=False, default=[-1],
-    help=HOURS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + MONTHS_ARG_NAME, type=int, nargs='+', required=False, default=[-1],
-    help=MONTHS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + SEPARATION_TIME_ARG_NAME, type=int, required=False, default=86400,
     help=SEPARATION_TIME_HELP_STRING)
 
@@ -98,118 +79,139 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _update_counts(
-        first_label_matrix, first_unique_label_matrix, first_times_unix_sec,
-        second_label_matrix, second_times_unix_sec, separation_time_sec,
-        count_second_period):
-    """Updates WF and CF count at each grid cell.
+def _write_new_labels(
+        first_label_matrix, first_unique_label_matrix,
+        first_prediction_file_names, second_label_matrix,
+        second_prediction_file_names, write_second_period, separation_time_sec,
+        output_dir_name, mask_matrix=None):
+    """Writes new labels to files (one per time step).
 
-    F = number of time steps in first period
-    S = number of time steps in second period
+    F = number of times in first period
+    S = number of times in second period
     M = number of rows in grid
     N = number of columns in grid
 
-    :param first_label_matrix: F-by-M-by-N numpy array with integer front
-        labels.
+    :param first_label_matrix: F-by-M-by-N numpy array of front labels
+        (integers) for first period.
     :param first_unique_label_matrix: Same but after applying separation time.
-    :param first_times_unix_sec: length-F numpy array of valid times.
-    :param second_label_matrix: S-by-M-by-N numpy array with integer front
-        labels.  This may be None.
-    :param second_times_unix_sec: length-S numpy array of valid times.  This may
-        be None.
+    :param first_prediction_file_names: length-F list of paths to prediction
+        files.
+    :param second_label_matrix: S-by-M-by-N numpy array of front labels
+        (integers) for second period.
+    :param second_prediction_file_names: length-S list of paths to prediction
+        files.
+    :param write_second_period: Boolean flag.  If True, will write labels for
+        both periods.  If False, will write labels only for first period.
     :param separation_time_sec: See documentation at top of file.
-    :param count_second_period: Boolean flag.  If True, will count number of
-        fronts in both periods.  If False, will count only in first period.
-    :return: count_dict: Dictionary with the following keys.
-    count_dict["num_wf_labels_matrix"]: M-by-N numpy array with number of
-        warm-front labels (before applying separation time).
-    count_dict["num_cf_labels_matrix"]: Same but for cold fronts.
-    count_dict["num_unique_wf_matrix"]: M-by-N numpy array with number of unique
-        warm fronts (after applying separation time).
-    count_dict["num_unique_cf_matrix"]: Same but for cold fronts.
-    count_dict["second_unique_label_matrix"]: Same as input
-        `second_label_matrix` but after applying separation time.
+    :param output_dir_name: Same.
+    :param mask_matrix: M-by-N numpy array of integers in 0...1.  If
+        mask_matrix[i, j] = 0, grid cell [i, j] will be masked out.  In other
+        words, all labels at grid cell [i, j] will be turned into NaN.
+    :return: second_unique_label_matrix: Same as input `second_label_matrix` but
+        after applying separation time.
     """
+
+    first_times_unix_sec = numpy.array([
+        prediction_io.file_name_to_times(f)[0]
+        for f in first_prediction_file_names
+    ], dtype=int)
 
     have_second_period = second_label_matrix is not None
 
-    if have_second_period and count_second_period:
-        this_label_matrix = numpy.concatenate(
-            (first_label_matrix, second_label_matrix), axis=0
-        )
-    else:
-        this_label_matrix = first_label_matrix + 0
-
-    num_wf_labels_matrix = numpy.sum(
-        this_label_matrix == front_utils.WARM_FRONT_ENUM, axis=0)
-    num_cf_labels_matrix = numpy.sum(
-        this_label_matrix == front_utils.COLD_FRONT_ENUM, axis=0)
-
     if have_second_period:
+        second_times_unix_sec = numpy.array([
+            prediction_io.file_name_to_times(f)[0]
+            for f in second_prediction_file_names
+        ], dtype=int)
+
         unique_label_matrix = numpy.concatenate(
             (first_unique_label_matrix, second_label_matrix), axis=0
         )
         valid_times_unix_sec = numpy.concatenate((
             first_times_unix_sec, second_times_unix_sec))
-    else:
-        unique_label_matrix = first_unique_label_matrix + 0
-        valid_times_unix_sec = first_times_unix_sec + 0
 
-    num_grid_rows = unique_label_matrix.shape[1]
-    num_grid_columns = unique_label_matrix.shape[2]
+        num_grid_rows = unique_label_matrix.shape[1]
+        num_grid_columns = unique_label_matrix.shape[2]
 
-    this_num_fronts_matrix = numpy.sum(
-        unique_label_matrix > front_utils.NO_FRONT_ENUM, axis=0)
+        this_num_fronts_matrix = numpy.sum(
+            unique_label_matrix > front_utils.NO_FRONT_ENUM, axis=0)
 
-    for i in range(num_grid_rows):
-        for j in range(num_grid_columns):
-            if this_num_fronts_matrix[i, j] == 0:
-                continue
+        for i in range(num_grid_rows):
+            for j in range(num_grid_columns):
+                if this_num_fronts_matrix[i, j] == 0:
+                    continue
 
-            unique_label_matrix[:, i, j] = climo_utils.apply_separation_time(
-                front_type_enums=unique_label_matrix[:, i, j],
-                valid_times_unix_sec=valid_times_unix_sec,
-                separation_time_sec=separation_time_sec
-            )[0]
+                unique_label_matrix[:, i, j] = (
+                    climo_utils.apply_separation_time(
+                        front_type_enums=unique_label_matrix[:, i, j],
+                        valid_times_unix_sec=valid_times_unix_sec,
+                        separation_time_sec=separation_time_sec
+                    )[0]
+                )
 
-    first_num_times = len(first_times_unix_sec)
-    if count_second_period:
-        this_label_matrix = unique_label_matrix + 0
-    else:
-        this_label_matrix = unique_label_matrix[:first_num_times, ...]
-
-    num_unique_wf_matrix = numpy.sum(
-        this_label_matrix == front_utils.WARM_FRONT_ENUM, axis=0)
-    num_unique_cf_matrix = numpy.sum(
-        this_label_matrix == front_utils.COLD_FRONT_ENUM, axis=0)
-
-    if have_second_period:
-        second_unique_label_matrix = unique_label_matrix[first_num_times:, ...]
+        second_unique_label_matrix = unique_label_matrix[
+            len(first_times_unix_sec):, ...
+        ]
     else:
         second_unique_label_matrix = None
+        second_times_unix_sec = None
 
-    num_front_labels = numpy.sum(num_wf_labels_matrix + num_cf_labels_matrix)
-    num_unique_fronts = numpy.sum(num_unique_wf_matrix + num_unique_cf_matrix)
+    for i in range(len(first_times_unix_sec)):
+        this_output_file_name = climo_utils.find_file(
+            directory_name=output_dir_name,
+            file_type_string=climo_utils.FRONT_LABELS_STRING,
+            valid_time_unix_sec=first_times_unix_sec[i],
+            raise_error_if_missing=False)
 
-    print((
-        'Number of front labels (unique fronts) increased by {0:d} ({1:d})!'
-    ).format(
-        num_front_labels, num_unique_fronts
-    ))
+        print('Writing labels to: "{0:s}"...'.format(this_output_file_name))
 
-    return {
-        NUM_WF_LABELS_KEY: num_wf_labels_matrix,
-        NUM_CF_LABELS_KEY: num_cf_labels_matrix,
-        NUM_UNIQUE_WF_KEY: num_unique_wf_matrix,
-        NUM_UNIQUE_CF_KEY: num_unique_cf_matrix,
-        SECOND_UNIQUE_LABELS_KEY: second_unique_label_matrix
-    }
+        this_label_matrix = first_label_matrix[i, ...].astype(float)
+        this_unique_label_matrix = first_unique_label_matrix[i, ...].astype(
+            float)
+
+        if mask_matrix is not None:
+            this_label_matrix[mask_matrix == 0] = numpy.nan
+            this_unique_label_matrix[mask_matrix == 0] = numpy.nan
+
+        climo_utils.write_gridded_labels(
+            netcdf_file_name=this_output_file_name,
+            label_matrix=this_label_matrix,
+            unique_label_matrix=this_unique_label_matrix,
+            prediction_file_name=None,
+            separation_time_sec=separation_time_sec)
+
+    if not(have_second_period and write_second_period):
+        return second_unique_label_matrix
+
+    for i in range(len(second_times_unix_sec)):
+        this_output_file_name = climo_utils.find_file(
+            directory_name=output_dir_name,
+            file_type_string=climo_utils.FRONT_LABELS_STRING,
+            valid_time_unix_sec=second_times_unix_sec[i],
+            raise_error_if_missing=False)
+
+        print('Writing labels to: "{0:s}"...'.format(this_output_file_name))
+
+        this_label_matrix = second_label_matrix[i, ...].astype(float)
+        this_unique_label_matrix = second_unique_label_matrix[i, ...].astype(
+            float)
+
+        if mask_matrix is not None:
+            this_label_matrix[mask_matrix == 0] = numpy.nan
+            this_unique_label_matrix[mask_matrix == 0] = numpy.nan
+
+        climo_utils.write_gridded_labels(
+            netcdf_file_name=this_output_file_name,
+            label_matrix=this_label_matrix,
+            unique_label_matrix=this_unique_label_matrix,
+            prediction_file_name=None,
+            separation_time_sec=separation_time_sec)
+
+    return second_unique_label_matrix
 
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
-         hours_to_keep, months_to_keep, separation_time_sec,
-         predictor_file_name,
-         output_dir_name):
+         separation_time_sec, predictor_file_name, output_dir_name):
     """Counts WF and CF labels at each grid cell over a given time period.
 
     This is effectively the main method.
@@ -217,18 +219,10 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     :param prediction_dir_name: See documentation at top of file.
     :param first_time_string: Same.
     :param last_time_string: Same.
-    :param hours_to_keep: Same.
-    :param months_to_keep: Same.
     :param separation_time_sec: Same.
     :param predictor_file_name: Same.
     :param output_dir_name: Same.
     """
-
-    if len(hours_to_keep) == 1 and hours_to_keep[0] == -1:
-        hours_to_keep = None
-
-    if len(months_to_keep) == 1 and months_to_keep[0] == -1:
-        months_to_keep = None
 
     if predictor_file_name in ['', 'None']:
         mask_matrix = None
@@ -240,6 +234,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         mask_matrix = numpy.invert(numpy.isnan(
             predictor_dict[predictor_utils.DATA_MATRIX_KEY][0, ..., 0]
         ))
+        mask_matrix = mask_matrix.astype(int)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, TIME_FORMAT)
@@ -250,8 +245,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         prediction_io.find_files_for_climo(
             directory_name=prediction_dir_name,
             first_time_unix_sec=first_time_unix_sec,
-            last_time_unix_sec=last_time_unix_sec,
-            hours_to_keep=hours_to_keep, months_to_keep=months_to_keep)
+            last_time_unix_sec=last_time_unix_sec)
     )
 
     if separation_time_sec <= 0:
@@ -288,7 +282,6 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     print(SEPARATOR_STRING)
 
     first_num_times = first_label_matrix.shape[0]
-    first_times_unix_sec = valid_times_unix_sec[:first_num_times]
     first_unique_label_matrix = first_label_matrix + 0
 
     num_grid_rows = first_label_matrix.shape[1]
@@ -305,53 +298,34 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             first_unique_label_matrix[:, i, j] = (
                 climo_utils.apply_separation_time(
                     front_type_enums=first_label_matrix[:, i, j],
-                    valid_times_unix_sec=first_times_unix_sec,
+                    valid_times_unix_sec=valid_times_unix_sec[:first_num_times],
                     separation_time_sec=separation_time_sec)
             )[0]
 
-    num_wf_labels_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), 0, dtype=float
-    )
-    num_cf_labels_matrix = num_wf_labels_matrix + 0.
-    num_unique_wf_matrix = num_wf_labels_matrix + 0.
-    num_unique_cf_matrix = num_wf_labels_matrix + 0.
-
     second_label_matrix = None
+    first_prediction_file_names = prediction_file_names[:first_num_times]
 
     for k in range(first_num_times, num_times):
         if numpy.mod(k, num_times_per_block) == 0 and k != num_times_per_block:
             second_num_times = second_label_matrix.shape[0]
-            second_times_unix_sec = valid_times_unix_sec[
+            second_prediction_file_names = prediction_file_names[
                 (k - second_num_times):k
             ]
 
-            this_count_dict = _update_counts(
+            first_unique_label_matrix = _write_new_labels(
                 first_label_matrix=first_label_matrix,
                 first_unique_label_matrix=first_unique_label_matrix,
-                first_times_unix_sec=first_times_unix_sec,
+                first_prediction_file_names=first_prediction_file_names,
                 second_label_matrix=second_label_matrix,
-                second_times_unix_sec=second_times_unix_sec,
+                second_prediction_file_names=second_prediction_file_names,
+                write_second_period=False, mask_matrix=mask_matrix,
                 separation_time_sec=separation_time_sec,
-                count_second_period=False)
+                output_dir_name=output_dir_name)
             print(SEPARATOR_STRING)
 
-            num_wf_labels_matrix = (
-                num_wf_labels_matrix + this_count_dict[NUM_WF_LABELS_KEY]
-            )
-            num_cf_labels_matrix = (
-                num_cf_labels_matrix + this_count_dict[NUM_CF_LABELS_KEY]
-            )
-            num_unique_wf_matrix = (
-                num_unique_wf_matrix + this_count_dict[NUM_UNIQUE_WF_KEY]
-            )
-            num_unique_cf_matrix = (
-                num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
-            )
-
             first_label_matrix = second_label_matrix + 0
-            first_times_unix_sec = second_times_unix_sec + 0
-            first_unique_label_matrix = this_count_dict[
-                SECOND_UNIQUE_LABELS_KEY]
+            first_prediction_file_names = copy.deepcopy(
+                second_prediction_file_names)
             second_label_matrix = None
 
         print('Reading deterministic labels from: "{0:s}"...'.format(
@@ -372,63 +346,23 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             )
 
     if second_label_matrix is None:
-        second_times_unix_sec = None
+        second_prediction_file_names = None
     else:
         second_num_times = second_label_matrix.shape[0]
-        second_times_unix_sec = valid_times_unix_sec[
+        second_prediction_file_names = prediction_file_names[
             (num_times - second_num_times):num_times
         ]
 
-    this_count_dict = _update_counts(
+    _write_new_labels(
         first_label_matrix=first_label_matrix,
         first_unique_label_matrix=first_unique_label_matrix,
-        first_times_unix_sec=first_times_unix_sec,
+        first_prediction_file_names=first_prediction_file_names,
         second_label_matrix=second_label_matrix,
-        second_times_unix_sec=second_times_unix_sec,
+        second_prediction_file_names=second_prediction_file_names,
+        write_second_period=True, mask_matrix=mask_matrix,
         separation_time_sec=separation_time_sec,
-        count_second_period=True)
+        output_dir_name=output_dir_name)
     print(SEPARATOR_STRING)
-
-    num_wf_labels_matrix = (
-        num_wf_labels_matrix + this_count_dict[NUM_WF_LABELS_KEY]
-    )
-    num_cf_labels_matrix = (
-        num_cf_labels_matrix + this_count_dict[NUM_CF_LABELS_KEY]
-    )
-    num_unique_wf_matrix = (
-        num_unique_wf_matrix + this_count_dict[NUM_UNIQUE_WF_KEY]
-    )
-    num_unique_cf_matrix = (
-        num_unique_cf_matrix + this_count_dict[NUM_UNIQUE_CF_KEY]
-    )
-
-    if mask_matrix is not None:
-        num_wf_labels_matrix[mask_matrix == 0] = numpy.nan
-        num_cf_labels_matrix[mask_matrix == 0] = numpy.nan
-        num_unique_wf_matrix[mask_matrix == 0] = numpy.nan
-        num_unique_cf_matrix[mask_matrix == 0] = numpy.nan
-
-    output_file_name = climo_utils.find_file(
-        directory_name=output_dir_name,
-        file_type_string=climo_utils.FRONT_COUNTS_STRING,
-        first_time_unix_sec=valid_times_unix_sec[0],
-        last_time_unix_sec=valid_times_unix_sec[-1],
-        hours=hours_to_keep, months=months_to_keep,
-        raise_error_if_missing=False)
-
-    print('Writing results to: "{0:s}"...'.format(output_file_name))
-
-    climo_utils.write_gridded_counts(
-        netcdf_file_name=output_file_name,
-        num_wf_labels_matrix=num_wf_labels_matrix,
-        num_cf_labels_matrix=num_cf_labels_matrix,
-        num_unique_wf_matrix=num_unique_wf_matrix,
-        num_unique_cf_matrix=num_unique_cf_matrix,
-        first_time_unix_sec=valid_times_unix_sec[0],
-        last_time_unix_sec=valid_times_unix_sec[-1],
-        prediction_file_names=prediction_file_names,
-        separation_time_sec=separation_time_sec,
-        hours=hours_to_keep, months=months_to_keep)
 
 
 if __name__ == '__main__':
@@ -438,12 +372,6 @@ if __name__ == '__main__':
         prediction_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
-        hours_to_keep=numpy.array(
-            getattr(INPUT_ARG_OBJECT, HOURS_ARG_NAME), dtype=int
-        ),
-        months_to_keep=numpy.array(
-            getattr(INPUT_ARG_OBJECT, MONTHS_ARG_NAME), dtype=int
-        ),
         separation_time_sec=getattr(INPUT_ARG_OBJECT, SEPARATION_TIME_ARG_NAME),
         predictor_file_name=getattr(INPUT_ARG_OBJECT, PREDICTOR_FILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
