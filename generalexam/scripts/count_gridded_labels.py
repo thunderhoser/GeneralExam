@@ -124,17 +124,17 @@ def _run(input_dir_name, first_time_string, last_time_string, hours_to_keep,
         this_unique_wf_matrix = (
             this_label_dict[climo_utils.UNIQUE_FRONT_LABELS_KEY] ==
             front_utils.WARM_FRONT_ENUM
-        ).astype(int)
+        ).astype(float)
 
         this_cf_label_matrix = (
             this_label_dict[climo_utils.FRONT_LABELS_KEY] ==
             front_utils.COLD_FRONT_ENUM
-        ).astype(int)
+        ).astype(float)
 
         this_unique_cf_matrix = (
             this_label_dict[climo_utils.UNIQUE_FRONT_LABELS_KEY] ==
             front_utils.COLD_FRONT_ENUM
-        ).astype(int)
+        ).astype(float)
 
         this_wf_label_matrix[this_mask_matrix == 0] = numpy.nan
         this_unique_wf_matrix[this_mask_matrix == 0] = numpy.nan
