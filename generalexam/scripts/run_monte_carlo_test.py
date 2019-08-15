@@ -1,17 +1,23 @@
-"""Runs Monte Carlo significance test for gridded front properties."""
+"""Runs Monte Carlo test for gridded front frequencies or properties."""
 
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
+
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SEC = 10800
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-INPUT_DIR_ARG_NAME = 'input_property_dir_name'
+WF_FLAGS_KEY = 'wf_flag_matrix'
+CF_FLAGS_KEY = 'cf_flag_matrix'
+
+INPUT_DIR_ARG_NAME = 'input_dir_name'
+FILE_TYPE_ARG_NAME = 'file_type_string'
 FIRST_START_TIMES_ARG_NAME = 'first_start_time_strings'
 FIRST_END_TIMES_ARG_NAME = 'first_end_time_strings'
 SECOND_START_TIMES_ARG_NAME = 'second_start_time_strings'
@@ -26,8 +32,14 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
-    '`climatology_utils.find_many_basic_files` and read by '
+    '`climatology_utils.find_basic_file` and read by '
+    '`climatology_utils.read_gridded_labels` or '
     '`climatology_utils.read_gridded_properties`.')
+
+FILE_TYPE_HELP_STRING = (
+    'File type (determines whether this script will test front frequencies or '
+    'properties).  Must be in the following list:\n{0:s}'
+).format(str(climo_utils.BASIC_FILE_TYPE_STRINGS))
 
 FIRST_START_TIMES_HELP_STRING = (
     'List of start times (format "yyyymmddHH") for first composite.')
@@ -75,6 +87,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
     help=INPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + FILE_TYPE_ARG_NAME, type=str, required=True,
+    help=FILE_TYPE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
@@ -170,6 +186,74 @@ def _convert_input_times(start_time_strings, end_time_strings):
     return valid_times_unix_sec
 
 
+def _read_labels_one_composite(
+        label_file_names, first_grid_row, last_grid_row, first_grid_column,
+        last_grid_column):
+    """Reads gridded front labels for one composite.
+
+    T = number of time steps
+    M = number of rows in subgrid
+    N = number of columns in subgrid
+
+    :param label_file_names: 1-D list of paths to input files.
+    :param first_grid_row: See documentation at top of file.
+    :param last_grid_row: Same.
+    :param first_grid_column: Same.
+    :param last_grid_column: Same.
+    :return: front_label_dict: Dictionary with the following keys.
+    front_label_dict["wf_flag_matrix"]: T-by-M-by-N numpy array of flags.  0
+        indicates no warm front; 1 indicates warm front; NaN indicates no data.
+    front_label_dict["cf_flag_matrix"]: Same but for cold fronts.
+    """
+
+    wf_flag_matrix = None
+    cf_flag_matrix = None
+
+    for this_file_name in label_file_names:
+        print('Reading front labels from: "{0:s}"...'.format(this_file_name))
+        this_label_dict = climo_utils.read_gridded_labels(this_file_name)
+
+        this_wf_flag_matrix = numpy.expand_dims(
+            this_label_dict[climo_utils.FRONT_LABELS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ],
+            axis=0
+        )
+
+        this_cf_flag_matrix = this_wf_flag_matrix + 0.
+
+        this_wf_flag_matrix[
+            this_wf_flag_matrix == front_utils.COLD_FRONT_ENUM
+        ] = 0.
+        this_wf_flag_matrix[
+            this_wf_flag_matrix == front_utils.WARM_FRONT_ENUM
+        ] = 1.
+
+        this_cf_flag_matrix[
+            this_cf_flag_matrix == front_utils.WARM_FRONT_ENUM
+        ] = 0.
+        this_cf_flag_matrix[
+            this_cf_flag_matrix == front_utils.COLD_FRONT_ENUM
+        ] = 1.
+
+        if wf_flag_matrix is None:
+            wf_flag_matrix = this_wf_flag_matrix + 0.
+            cf_flag_matrix = this_cf_flag_matrix + 0.
+        else:
+            wf_flag_matrix = numpy.concatenate(
+                (wf_flag_matrix, this_wf_flag_matrix), axis=0
+            )
+            cf_flag_matrix = numpy.concatenate(
+                (cf_flag_matrix, this_cf_flag_matrix), axis=0
+            )
+
+    return {
+        WF_FLAGS_KEY: wf_flag_matrix,
+        CF_FLAGS_KEY: cf_flag_matrix
+    }
+
+
 def _read_properties_one_composite(
         property_file_names, first_grid_row, last_grid_row, first_grid_column,
         last_grid_column):
@@ -263,6 +347,86 @@ def _read_properties_one_composite(
     }
 
 
+def _mc_test_frequency(
+        first_flag_matrix, second_flag_matrix, num_iterations,
+        confidence_level):
+    """Runs Monte Carlo for frequency of one front type (warm or cold).
+
+    F = number of times in first composite
+    S = number of times in second composite
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param first_flag_matrix: F-by-M-by-N numpy array of flags.  1 indicates a
+        front; 0 indicates no front; NaN indicates no data.
+    :param second_flag_matrix: S-by-M-by-N numpy array with same format.
+    :param num_iterations: See documentation at top of file.
+    :param confidence_level: Same.
+    :return: actual_frequency_diff_matrix: M-by-N numpy array with difference
+        between front frequencies (second composite minus first) at each grid
+        cell.
+    :return: significance_matrix: M-by-N numpy array of Boolean flags,
+        indicating where difference between frequencies is significant.
+    """
+
+    first_num_times = first_flag_matrix.shape[0]
+    concat_label_matrix = numpy.concatenate(
+        (first_flag_matrix, second_flag_matrix), axis=0
+    )
+
+    num_grid_rows = first_flag_matrix.shape[1]
+    num_grid_columns = first_flag_matrix.shape[2]
+    mc_frequency_diff_matrix = numpy.full(
+        (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
+    )
+
+    for k in range(num_iterations):
+        if numpy.mod(k, 25) == 0:
+            print('Have run {0:d} of {1:d} Monte Carlo iterations...'.format(
+                k, num_iterations
+            ))
+
+        numpy.random.shuffle(concat_label_matrix)
+        this_first_frequency_matrix = numpy.mean(
+            concat_label_matrix[:first_num_times, ...], axis=0
+        )
+        this_second_frequency_matrix = numpy.mean(
+            concat_label_matrix[first_num_times:, ...], axis=0
+        )
+
+        mc_frequency_diff_matrix[k, ...] = (
+            this_second_frequency_matrix - this_first_frequency_matrix
+        )
+
+    print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
+
+    actual_frequency_diff_matrix = (
+        numpy.mean(second_flag_matrix, axis=0) -
+        numpy.mean(first_flag_matrix, axis=0)
+    )
+
+    min_frequency_diff_matrix = numpy.percentile(
+        a=mc_frequency_diff_matrix, q=50. * (1 - confidence_level), axis=0
+    )
+    max_frequency_diff_matrix = numpy.percentile(
+        a=mc_frequency_diff_matrix, q=50. * (1 + confidence_level), axis=0
+    )
+
+    significance_matrix = numpy.logical_or(
+        actual_frequency_diff_matrix < min_frequency_diff_matrix,
+        actual_frequency_diff_matrix > max_frequency_diff_matrix
+    )
+
+    print((
+        'Difference between frequencies is significant at {0:d} of {1:d} grid '
+        'cells!'
+    ).format(
+        numpy.sum(significance_matrix.astype(int)), significance_matrix.size
+    ))
+
+    return actual_frequency_diff_matrix, significance_matrix
+
+
 def _mc_test_one_property(
         first_property_matrix, second_property_matrix, num_iterations,
         confidence_level):
@@ -305,6 +469,8 @@ def _mc_test_one_property(
             ))
 
         numpy.random.shuffle(concat_property_matrix)
+
+        # numpy.nanmean on all-NaN slice returns NaN.
         this_first_mean_matrix = numpy.nanmean(
             concat_property_matrix[:first_num_times, ...], axis=0
         )
@@ -312,23 +478,16 @@ def _mc_test_one_property(
             concat_property_matrix[first_num_times:, ...], axis=0
         )
 
-        # TODO(thunderhoser): This works only for values (like length and area)
-        # that must be positive.
-        this_first_mean_matrix[this_first_mean_matrix == 0] = numpy.nan
-        this_second_mean_matrix[this_second_mean_matrix == 0] = numpy.nan
-
         mc_difference_matrix[k, ...] = (
             this_second_mean_matrix - this_first_mean_matrix
         )
 
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
 
-    first_mean_matrix = numpy.nanmean(first_property_matrix, axis=0)
-    second_mean_matrix = numpy.nanmean(second_property_matrix, axis=0)
-    first_mean_matrix[first_mean_matrix == 0] = numpy.nan
-    second_mean_matrix[second_mean_matrix == 0] = numpy.nan
-
-    actual_difference_matrix = second_mean_matrix - first_mean_matrix
+    actual_difference_matrix = (
+        numpy.nanmean(second_property_matrix, axis=0) -
+        numpy.nanmean(first_property_matrix, axis=0)
+    )
 
     # TODO(thunderhoser): nanpercentile method ignores NaN's completely.  Is
     # this what I want?
@@ -353,7 +512,7 @@ def _mc_test_one_property(
     return actual_difference_matrix, significance_matrix
 
 
-def _run(input_property_dir_name, first_start_time_strings,
+def _run(input_dir_name, file_type_string, first_start_time_strings,
          first_end_time_strings, second_start_time_strings,
          second_end_time_strings, first_grid_row, last_grid_row,
          first_grid_column, last_grid_column, num_iterations, confidence_level,
@@ -362,7 +521,8 @@ def _run(input_property_dir_name, first_start_time_strings,
 
     This is effectively the main method.
 
-    :param input_property_dir_name: See documentation at top of file.
+    :param input_dir_name: See documentation at top of file.
+    :param file_type_string: Same.
     :param first_start_time_strings: Same.
     :param first_end_time_strings: Same.
     :param second_start_time_strings: Same.
@@ -392,134 +552,196 @@ def _run(input_property_dir_name, first_start_time_strings,
         start_time_strings=second_start_time_strings,
         end_time_strings=second_end_time_strings)
 
-    first_property_file_names = [
+    first_input_file_names = [
         climo_utils.find_basic_file(
-            directory_name=input_property_dir_name,
-            file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
-            valid_time_unix_sec=t)
+            directory_name=input_dir_name, file_type_string=file_type_string,
+            valid_time_unix_sec=t
+        )
         for t in first_times_unix_sec
     ]
 
-    second_property_file_names = [
+    second_input_file_names = [
         climo_utils.find_basic_file(
-            directory_name=input_property_dir_name,
-            file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
-            valid_time_unix_sec=t)
+            directory_name=input_dir_name, file_type_string=file_type_string,
+            valid_time_unix_sec=t
+        )
         for t in second_times_unix_sec
     ]
 
-    first_property_dict = _read_properties_one_composite(
-        property_file_names=first_property_file_names,
+    if file_type_string == climo_utils.FRONT_PROPERTIES_STRING:
+        first_property_dict = _read_properties_one_composite(
+            property_file_names=first_input_file_names,
+            first_grid_row=first_grid_row, last_grid_row=last_grid_row,
+            first_grid_column=first_grid_column,
+            last_grid_column=last_grid_column)
+        print(SEPARATOR_STRING)
+
+        second_property_dict = _read_properties_one_composite(
+            property_file_names=second_input_file_names,
+            first_grid_row=first_grid_row, last_grid_row=last_grid_row,
+            first_grid_column=first_grid_column,
+            last_grid_column=last_grid_column)
+        print(SEPARATOR_STRING)
+
+        wf_length_diff_matrix_metres, wf_length_sig_matrix = (
+            _mc_test_one_property(
+                first_property_matrix=first_property_dict[
+                    climo_utils.WARM_FRONT_LENGTHS_KEY],
+                second_property_matrix=second_property_dict[
+                    climo_utils.WARM_FRONT_LENGTHS_KEY],
+                num_iterations=num_iterations,
+                confidence_level=confidence_level)
+        )
+        print(SEPARATOR_STRING)
+
+        this_output_file_name = climo_utils.find_monte_carlo_file(
+            directory_name=output_dir_name,
+            property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+            raise_error_if_missing=False)
+
+        climo_utils.write_monte_carlo_test(
+            netcdf_file_name=this_output_file_name,
+            difference_matrix=wf_length_diff_matrix_metres,
+            significance_matrix=wf_length_sig_matrix,
+            property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
+            first_property_file_names=first_input_file_names,
+            second_property_file_names=second_input_file_names,
+            num_iterations=num_iterations, confidence_level=confidence_level,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column)
+        print(SEPARATOR_STRING)
+
+        wf_area_diff_matrix_m2, wf_area_sig_matrix = _mc_test_one_property(
+            first_property_matrix=first_property_dict[
+                climo_utils.WARM_FRONT_AREAS_KEY],
+            second_property_matrix=second_property_dict[
+                climo_utils.WARM_FRONT_AREAS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level)
+        print(SEPARATOR_STRING)
+
+        this_output_file_name = climo_utils.find_monte_carlo_file(
+            directory_name=output_dir_name,
+            property_name=climo_utils.WF_AREA_PROPERTY_NAME,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+            raise_error_if_missing=False)
+
+        climo_utils.write_monte_carlo_test(
+            netcdf_file_name=this_output_file_name,
+            difference_matrix=wf_area_diff_matrix_m2,
+            significance_matrix=wf_area_sig_matrix,
+            property_name=climo_utils.WF_AREA_PROPERTY_NAME,
+            first_property_file_names=first_input_file_names,
+            second_property_file_names=second_input_file_names,
+            num_iterations=num_iterations, confidence_level=confidence_level,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column)
+        print(SEPARATOR_STRING)
+
+        cf_length_diff_matrix_metres, cf_length_sig_matrix = (
+            _mc_test_one_property(
+                first_property_matrix=first_property_dict[
+                    climo_utils.COLD_FRONT_LENGTHS_KEY],
+                second_property_matrix=second_property_dict[
+                    climo_utils.COLD_FRONT_LENGTHS_KEY],
+                num_iterations=num_iterations,
+                confidence_level=confidence_level)
+        )
+        print(SEPARATOR_STRING)
+
+        this_output_file_name = climo_utils.find_monte_carlo_file(
+            directory_name=output_dir_name,
+            property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+            raise_error_if_missing=False)
+
+        climo_utils.write_monte_carlo_test(
+            netcdf_file_name=this_output_file_name,
+            difference_matrix=cf_length_diff_matrix_metres,
+            significance_matrix=cf_length_sig_matrix,
+            property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
+            first_property_file_names=first_input_file_names,
+            second_property_file_names=second_input_file_names,
+            num_iterations=num_iterations, confidence_level=confidence_level,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column)
+        print(SEPARATOR_STRING)
+
+        cf_area_diff_matrix_m2, cf_area_sig_matrix = _mc_test_one_property(
+            first_property_matrix=first_property_dict[
+                climo_utils.COLD_FRONT_AREAS_KEY],
+            second_property_matrix=second_property_dict[
+                climo_utils.COLD_FRONT_AREAS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level
+        )
+        print(SEPARATOR_STRING)
+
+        this_output_file_name = climo_utils.find_monte_carlo_file(
+            directory_name=output_dir_name,
+            property_name=climo_utils.CF_AREA_PROPERTY_NAME,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column,
+            raise_error_if_missing=False)
+
+        climo_utils.write_monte_carlo_test(
+            netcdf_file_name=this_output_file_name,
+            difference_matrix=cf_area_diff_matrix_m2,
+            significance_matrix=cf_area_sig_matrix,
+            property_name=climo_utils.CF_AREA_PROPERTY_NAME,
+            first_property_file_names=first_input_file_names,
+            second_property_file_names=second_input_file_names,
+            num_iterations=num_iterations, confidence_level=confidence_level,
+            first_grid_row=first_grid_row, first_grid_column=first_grid_column)
+
+        return
+
+    first_label_dict = _read_labels_one_composite(
+        label_file_names=first_input_file_names,
         first_grid_row=first_grid_row, last_grid_row=last_grid_row,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    second_property_dict = _read_properties_one_composite(
-        property_file_names=second_property_file_names,
+    second_label_dict = _read_labels_one_composite(
+        label_file_names=second_input_file_names,
         first_grid_row=first_grid_row, last_grid_row=last_grid_row,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    wf_length_diff_matrix_metres, wf_length_sig_matrix = _mc_test_one_property(
-        first_property_matrix=first_property_dict[
-            climo_utils.WARM_FRONT_LENGTHS_KEY],
-        second_property_matrix=second_property_dict[
-            climo_utils.WARM_FRONT_LENGTHS_KEY],
-        num_iterations=num_iterations, confidence_level=confidence_level
-    )
-    print(SEPARATOR_STRING)
+    wf_frequency_diff_matrix, wf_frequency_sig_matrix = _mc_test_frequency(
+        first_flag_matrix=first_label_dict[WF_FLAGS_KEY],
+        second_flag_matrix=second_label_dict[WF_FLAGS_KEY],
+        num_iterations=num_iterations, confidence_level=confidence_level)
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
-        property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
+        property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
-        difference_matrix=wf_length_diff_matrix_metres,
-        significance_matrix=wf_length_sig_matrix,
-        property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
-        first_property_file_names=first_property_file_names,
-        second_property_file_names=second_property_file_names,
+        difference_matrix=wf_frequency_diff_matrix,
+        significance_matrix=wf_frequency_sig_matrix,
+        property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
+        first_property_file_names=first_input_file_names,
+        second_property_file_names=second_input_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column)
-    print(SEPARATOR_STRING)
 
-    wf_area_diff_matrix_m2, wf_area_sig_matrix = _mc_test_one_property(
-        first_property_matrix=first_property_dict[
-            climo_utils.WARM_FRONT_AREAS_KEY],
-        second_property_matrix=second_property_dict[
-            climo_utils.WARM_FRONT_AREAS_KEY],
-        num_iterations=num_iterations, confidence_level=confidence_level
-    )
-    print(SEPARATOR_STRING)
+    cf_frequency_diff_matrix, cf_frequency_sig_matrix = _mc_test_frequency(
+        first_flag_matrix=first_label_dict[CF_FLAGS_KEY],
+        second_flag_matrix=second_label_dict[CF_FLAGS_KEY],
+        num_iterations=num_iterations, confidence_level=confidence_level)
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
-        property_name=climo_utils.WF_AREA_PROPERTY_NAME,
+        property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
-        difference_matrix=wf_area_diff_matrix_m2,
-        significance_matrix=wf_area_sig_matrix,
-        property_name=climo_utils.WF_AREA_PROPERTY_NAME,
-        first_property_file_names=first_property_file_names,
-        second_property_file_names=second_property_file_names,
-        num_iterations=num_iterations, confidence_level=confidence_level,
-        first_grid_row=first_grid_row, first_grid_column=first_grid_column)
-    print(SEPARATOR_STRING)
-
-    cf_length_diff_matrix_metres, cf_length_sig_matrix = _mc_test_one_property(
-        first_property_matrix=first_property_dict[
-            climo_utils.COLD_FRONT_LENGTHS_KEY],
-        second_property_matrix=second_property_dict[
-            climo_utils.COLD_FRONT_LENGTHS_KEY],
-        num_iterations=num_iterations, confidence_level=confidence_level
-    )
-    print(SEPARATOR_STRING)
-
-    this_output_file_name = climo_utils.find_monte_carlo_file(
-        directory_name=output_dir_name,
-        property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
-        first_grid_row=first_grid_row, first_grid_column=first_grid_column,
-        raise_error_if_missing=False)
-
-    climo_utils.write_monte_carlo_test(
-        netcdf_file_name=this_output_file_name,
-        difference_matrix=cf_length_diff_matrix_metres,
-        significance_matrix=cf_length_sig_matrix,
-        property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
-        first_property_file_names=first_property_file_names,
-        second_property_file_names=second_property_file_names,
-        num_iterations=num_iterations, confidence_level=confidence_level,
-        first_grid_row=first_grid_row, first_grid_column=first_grid_column)
-    print(SEPARATOR_STRING)
-
-    cf_area_diff_matrix_m2, cf_area_sig_matrix = _mc_test_one_property(
-        first_property_matrix=first_property_dict[
-            climo_utils.COLD_FRONT_AREAS_KEY],
-        second_property_matrix=second_property_dict[
-            climo_utils.COLD_FRONT_AREAS_KEY],
-        num_iterations=num_iterations, confidence_level=confidence_level
-    )
-    print(SEPARATOR_STRING)
-
-    this_output_file_name = climo_utils.find_monte_carlo_file(
-        directory_name=output_dir_name,
-        property_name=climo_utils.CF_AREA_PROPERTY_NAME,
-        first_grid_row=first_grid_row, first_grid_column=first_grid_column,
-        raise_error_if_missing=False)
-
-    climo_utils.write_monte_carlo_test(
-        netcdf_file_name=this_output_file_name,
-        difference_matrix=cf_area_diff_matrix_m2,
-        significance_matrix=cf_area_sig_matrix,
-        property_name=climo_utils.CF_AREA_PROPERTY_NAME,
-        first_property_file_names=first_property_file_names,
-        second_property_file_names=second_property_file_names,
+        difference_matrix=cf_frequency_diff_matrix,
+        significance_matrix=cf_frequency_sig_matrix,
+        property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
+        first_property_file_names=first_input_file_names,
+        second_property_file_names=second_input_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
@@ -528,7 +750,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        input_property_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        file_type_string=getattr(INPUT_ARG_OBJECT, FILE_TYPE_ARG_NAME),
         first_start_time_strings=getattr(
             INPUT_ARG_OBJECT, FIRST_START_TIMES_ARG_NAME),
         first_end_time_strings=getattr(
