@@ -7,10 +7,6 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import climatology_utils as climo_utils
 
-# TODO(thunderhoser): Allow the same to be done for gridded frequency.  Do not
-# run this test on raw counts, since the two composites are almost guaranteed to
-# have unequal time spans.
-
 TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SEC = 10800
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -30,9 +26,8 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
-    '`climatology_utils.find_many_property_files` and read by '
-    '`climatology_utils.average_many_property_files`.  This script will look '
-    'for one file per 3-hour time step.')
+    '`climatology_utils.find_many_basic_files` and read by '
+    '`climatology_utils.read_gridded_properties`.')
 
 FIRST_START_TIMES_HELP_STRING = (
     'List of start times (format "yyyymmddHH") for first composite.')
@@ -71,8 +66,10 @@ CONFIDENCE_LEVEL_HELP_STRING = (
     'difference between the composites will be deemed statistically significant'
     ' iff it reaches or exceeds this confidence level.')
 
-# TODO(thunderhoser): I haven't decided on the output format.
-OUTPUT_DIR_HELP_STRING = 'Name of output directory.'
+OUTPUT_DIR_HELP_STRING = (
+    'Name of output directory.  Files will be written here by '
+    '`climatology_utils.write_monte_carlo_test`, to exact locations determined '
+    'by `climatology_utils.find_monte_carlo_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -178,17 +175,22 @@ def _read_properties_one_composite(
         last_grid_column):
     """Reads gridded front properties for one composite.
 
+    T = number of time steps
+    M = number of rows in subgrid
+    N = number of columns in subgrid
+
     :param property_file_names: 1-D list of paths to input files.
     :param first_grid_row: See documentation at top of file.
     :param last_grid_row: Same.
     :param first_grid_column: Same.
     :param last_grid_column: Same.
     :return: front_property_dict: Dictionary with the following keys.
-    front_property_dict["wf_length_matrix_metres"]: See doc for
-        `climatology_utils.write_gridded_properties`.
-    front_property_dict["wf_area_matrix_m2"]: Same.
-    front_property_dict["cf_length_matrix_metres"]: Same.
-    front_property_dict["cf_area_matrix_m2"]: Same.
+    front_property_dict["wf_length_matrix_metres"]: T-by-M-by-N numpy array of
+        warm-front lengths.
+    front_property_dict["wf_area_matrix_m2"]: Same but for warm-front areas.
+    front_property_dict["cf_length_matrix_metres"]: Same but for cold-front
+        lengths.
+    front_property_dict["cf_area_matrix_m2"]: Same but for cold-front areas.
     """
 
     wf_length_matrix_metres = None
@@ -196,39 +198,43 @@ def _read_properties_one_composite(
     cf_length_matrix_metres = None
     cf_area_matrix_m2 = None
 
+    grid_rows_to_keep = numpy.linspace(
+        first_grid_row, last_grid_row, num=last_grid_row - first_grid_row + 1,
+        dtype=int)
+
+    grid_columns_to_keep = numpy.linspace(
+        first_grid_column, last_grid_column,
+        num=last_grid_column - first_grid_column + 1, dtype=int)
+
     for this_file_name in property_file_names:
         print('Reading front properties from: "{0:s}"...'.format(
             this_file_name))
 
         this_property_dict = climo_utils.read_gridded_properties(this_file_name)
 
-        this_wf_length_matrix_metres = this_property_dict[
-            climo_utils.WARM_FRONT_LENGTHS_KEY
-        ][
-            :, first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_wf_length_matrix_metres = numpy.expand_dims(
+            this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY][
+                grid_rows_to_keep, grid_columns_to_keep],
+            axis=0
+        )
 
-        this_wf_area_matrix_m2 = this_property_dict[
-            climo_utils.WARM_FRONT_AREAS_KEY
-        ][
-            :, first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_wf_area_matrix_m2 = numpy.expand_dims(
+            this_property_dict[climo_utils.WARM_FRONT_AREAS_KEY][
+                grid_rows_to_keep, grid_columns_to_keep],
+            axis=0
+        )
 
-        this_cf_length_matrix_metres = this_property_dict[
-            climo_utils.COLD_FRONT_LENGTHS_KEY
-        ][
-            :, first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_cf_length_matrix_metres = numpy.expand_dims(
+            this_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY][
+                grid_rows_to_keep, grid_columns_to_keep],
+            axis=0
+        )
 
-        this_cf_area_matrix_m2 = this_property_dict[
-            climo_utils.COLD_FRONT_AREAS_KEY
-        ][
-            :, first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_cf_area_matrix_m2 = numpy.expand_dims(
+            this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY][
+                grid_rows_to_keep, grid_columns_to_keep],
+            axis=0
+        )
 
         if wf_length_matrix_metres is None:
             wf_length_matrix_metres = this_wf_length_matrix_metres + 0.
@@ -425,7 +431,7 @@ def _run(input_property_dir_name, first_start_time_strings,
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
-        property_name=climo_utils.WARM_FRONT_LENGTHS_KEY,
+        property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
@@ -433,7 +439,7 @@ def _run(input_property_dir_name, first_start_time_strings,
         netcdf_file_name=this_output_file_name,
         difference_matrix=wf_length_diff_matrix_metres,
         significance_matrix=wf_length_sig_matrix,
-        property_name=climo_utils.WARM_FRONT_LENGTHS_KEY,
+        property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
         first_property_file_names=first_property_file_names,
         second_property_file_names=second_property_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
@@ -451,7 +457,7 @@ def _run(input_property_dir_name, first_start_time_strings,
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
-        property_name=climo_utils.WARM_FRONT_AREAS_KEY,
+        property_name=climo_utils.WF_AREA_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
@@ -459,7 +465,7 @@ def _run(input_property_dir_name, first_start_time_strings,
         netcdf_file_name=this_output_file_name,
         difference_matrix=wf_area_diff_matrix_m2,
         significance_matrix=wf_area_sig_matrix,
-        property_name=climo_utils.WARM_FRONT_AREAS_KEY,
+        property_name=climo_utils.WF_AREA_PROPERTY_NAME,
         first_property_file_names=first_property_file_names,
         second_property_file_names=second_property_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
@@ -477,7 +483,7 @@ def _run(input_property_dir_name, first_start_time_strings,
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
-        property_name=climo_utils.COLD_FRONT_LENGTHS_KEY,
+        property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
@@ -485,7 +491,7 @@ def _run(input_property_dir_name, first_start_time_strings,
         netcdf_file_name=this_output_file_name,
         difference_matrix=cf_length_diff_matrix_metres,
         significance_matrix=cf_length_sig_matrix,
-        property_name=climo_utils.COLD_FRONT_LENGTHS_KEY,
+        property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
         first_property_file_names=first_property_file_names,
         second_property_file_names=second_property_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
@@ -503,7 +509,7 @@ def _run(input_property_dir_name, first_start_time_strings,
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
-        property_name=climo_utils.COLD_FRONT_AREAS_KEY,
+        property_name=climo_utils.CF_AREA_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
@@ -511,7 +517,7 @@ def _run(input_property_dir_name, first_start_time_strings,
         netcdf_file_name=this_output_file_name,
         difference_matrix=cf_area_diff_matrix_m2,
         significance_matrix=cf_area_sig_matrix,
-        property_name=climo_utils.COLD_FRONT_AREAS_KEY,
+        property_name=climo_utils.CF_AREA_PROPERTY_NAME,
         first_property_file_names=first_property_file_names,
         second_property_file_names=second_property_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
