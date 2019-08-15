@@ -198,14 +198,6 @@ def _read_properties_one_composite(
     cf_length_matrix_metres = None
     cf_area_matrix_m2 = None
 
-    grid_rows_to_keep = numpy.linspace(
-        first_grid_row, last_grid_row, num=last_grid_row - first_grid_row + 1,
-        dtype=int)
-
-    grid_columns_to_keep = numpy.linspace(
-        first_grid_column, last_grid_column,
-        num=last_grid_column - first_grid_column + 1, dtype=int)
-
     for this_file_name in property_file_names:
         print('Reading front properties from: "{0:s}"...'.format(
             this_file_name))
@@ -214,25 +206,33 @@ def _read_properties_one_composite(
 
         this_wf_length_matrix_metres = numpy.expand_dims(
             this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY][
-                grid_rows_to_keep, grid_columns_to_keep],
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ],
             axis=0
         )
 
         this_wf_area_matrix_m2 = numpy.expand_dims(
             this_property_dict[climo_utils.WARM_FRONT_AREAS_KEY][
-                grid_rows_to_keep, grid_columns_to_keep],
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ],
             axis=0
         )
 
         this_cf_length_matrix_metres = numpy.expand_dims(
             this_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY][
-                grid_rows_to_keep, grid_columns_to_keep],
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ],
             axis=0
         )
 
         this_cf_area_matrix_m2 = numpy.expand_dims(
             this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY][
-                grid_rows_to_keep, grid_columns_to_keep],
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ],
             axis=0
         )
 
