@@ -736,12 +736,9 @@ def average_many_property_files(property_file_names):
         this_property_dict = read_gridded_properties(property_file_names[i])
         prediction_file_names.append(this_property_dict[PREDICTION_FILE_KEY])
 
-        this_num_labels_matrix = numpy.sum(
-            numpy.invert(numpy.isnan(
-                this_property_dict[WARM_FRONT_LENGTHS_KEY]
-            )),
-            axis=0
-        )
+        this_num_labels_matrix = numpy.invert(numpy.isnan(
+            this_property_dict[WARM_FRONT_LENGTHS_KEY]
+        )).astype(int)
 
         if i == 0:
             num_wf_labels_matrix = numpy.full(this_num_labels_matrix.shape, 0.)
@@ -755,30 +752,23 @@ def average_many_property_files(property_file_names):
             sum_cf_area_matrix_m2 = numpy.full(this_num_labels_matrix.shape, 0.)
 
         num_wf_labels_matrix = num_wf_labels_matrix + this_num_labels_matrix
-        sum_wf_length_matrix_metres = (
-            sum_wf_length_matrix_metres + numpy.nansum(
-                this_property_dict[WARM_FRONT_LENGTHS_KEY], axis=0
-            )
+        sum_wf_length_matrix_metres += numpy.nan_to_num(
+            this_property_dict[WARM_FRONT_LENGTHS_KEY], nan=0
         )
-        sum_wf_area_matrix_m2 = sum_wf_area_matrix_m2 + numpy.nansum(
-            this_property_dict[WARM_FRONT_AREAS_KEY], axis=0
+        sum_wf_area_matrix_m2 += numpy.nan_to_num(
+            this_property_dict[WARM_FRONT_AREAS_KEY], nan=0
         )
 
-        this_num_labels_matrix = numpy.sum(
-            numpy.invert(numpy.isnan(
-                this_property_dict[COLD_FRONT_LENGTHS_KEY]
-            )),
-            axis=0
-        )
+        this_num_labels_matrix = numpy.invert(numpy.isnan(
+            this_property_dict[COLD_FRONT_LENGTHS_KEY]
+        )).astype(int)
 
         num_cf_labels_matrix = num_cf_labels_matrix + this_num_labels_matrix
-        sum_cf_length_matrix_metres = (
-            sum_cf_length_matrix_metres + numpy.nansum(
-                this_property_dict[COLD_FRONT_LENGTHS_KEY], axis=0
-            )
+        sum_cf_length_matrix_metres += numpy.nan_to_num(
+            this_property_dict[COLD_FRONT_LENGTHS_KEY], nan=0
         )
-        sum_cf_area_matrix_m2 = sum_cf_area_matrix_m2 + numpy.nansum(
-            this_property_dict[COLD_FRONT_AREAS_KEY], axis=0
+        sum_cf_area_matrix_m2 += numpy.nan_to_num(
+            this_property_dict[COLD_FRONT_AREAS_KEY], nan=0
         )
 
     num_wf_labels_matrix[num_wf_labels_matrix == 0] = numpy.nan
