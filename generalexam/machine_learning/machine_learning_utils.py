@@ -528,8 +528,8 @@ def normalize_predictors(
                 else:
                     mean_value_matrix[i, m] = numpy.nanmean(
                         predictor_matrix[i, ..., m])
-                standard_deviation_matrix[i, m] = numpy.nanstd(
-                    predictor_matrix[i, ..., m], ddof=1)
+                    standard_deviation_matrix[i, m] = numpy.nanstd(
+                        predictor_matrix[i, ..., m], ddof=1)
 
                 predictor_matrix[i, ..., m] = (
                     (predictor_matrix[i, ..., m] - mean_value_matrix[i, m]) /
