@@ -101,7 +101,10 @@ def model_to_grid_dimensions(model_object):
     """
 
     input_dimensions = model_object.input.get_shape().as_list()
-    return (input_dimensions[1] - 1) / 2, (input_dimensions[2] - 1) / 2
+    num_half_rows = int(numpy.round((input_dimensions[1] - 1) / 2))
+    num_half_columns = int(numpy.round((input_dimensions[1] - 1) / 2))
+
+    return num_half_rows, num_half_columns
 
 
 def get_flattening_layer(model_object):
