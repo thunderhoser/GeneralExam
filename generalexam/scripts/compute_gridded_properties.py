@@ -174,10 +174,14 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             print('Reading CNN metadata from: "{0:s}"...'.format(
                 cnn_metafile_name))
 
-            cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
-            num_half_rows_for_cnn = cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY]
-            num_half_columns_for_cnn = cnn_metadata_dict[
-                cnn.NUM_HALF_COLUMNS_KEY]
+            try:
+                cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
+                num_half_rows_for_cnn = cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY]
+                num_half_columns_for_cnn = cnn_metadata_dict[
+                    cnn.NUM_HALF_COLUMNS_KEY]
+            except UnicodeDecodeError:
+                num_half_rows_for_cnn = 16
+                num_half_columns_for_cnn = 16
 
         this_property_dict = _compute_properties_one_time(
             label_matrix=this_prediction_dict[
