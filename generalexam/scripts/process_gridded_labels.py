@@ -310,6 +310,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
                 (k - second_num_times):k
             ]
 
+            print(SEPARATOR_STRING)
             first_unique_label_matrix = _write_new_labels(
                 first_label_matrix=first_label_matrix,
                 first_unique_label_matrix=first_unique_label_matrix,
@@ -351,6 +352,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             (num_times - second_num_times):num_times
         ]
 
+    print(SEPARATOR_STRING)
     _write_new_labels(
         first_label_matrix=first_label_matrix,
         first_unique_label_matrix=first_unique_label_matrix,
@@ -360,7 +362,6 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         write_second_period=True, mask_matrix=mask_matrix,
         separation_time_sec=separation_time_sec,
         output_dir_name=output_dir_name)
-    print(SEPARATOR_STRING)
 
 
 if __name__ == '__main__':

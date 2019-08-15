@@ -656,7 +656,8 @@ def find_many_basic_files(
         check_months(months_to_keep)
 
     glob_pattern = '{0:s}/{1:s}_{2:s}.nc'.format(
-        directory_name, file_type_string, FILE_NAME_TIME_REGEX)
+        directory_name, file_type_string.replace('_', '-'), FILE_NAME_TIME_REGEX
+    )
 
     netcdf_file_names = glob.glob(glob_pattern)
 
