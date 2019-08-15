@@ -339,6 +339,9 @@ def _mc_test_one_property(
         a=mc_difference_matrix, q=50. * (1 + confidence_level), axis=0
     )
 
+    print(numpy.sum(numpy.invert(numpy.isnan(min_difference_matrix))))
+    print(numpy.sum(numpy.invert(numpy.isnan(max_difference_matrix))))
+
     significance_matrix = numpy.logical_or(
         actual_difference_matrix < min_difference_matrix,
         actual_difference_matrix > max_difference_matrix
