@@ -953,10 +953,10 @@ def write_gridded_properties(
     dataset_object.setncattr(PREDICTION_FILE_KEY, str(prediction_file_name))
 
     dataset_object.createDimension(
-        ROW_DIMENSION_KEY, wf_length_matrix_metres.shape[1]
+        ROW_DIMENSION_KEY, wf_length_matrix_metres.shape[0]
     )
     dataset_object.createDimension(
-        COLUMN_DIMENSION_KEY, wf_length_matrix_metres.shape[2]
+        COLUMN_DIMENSION_KEY, wf_length_matrix_metres.shape[1]
     )
 
     # Add variables.
