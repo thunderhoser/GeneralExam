@@ -243,6 +243,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
             # mask_matrix[100:-100, 100:-100] = 0
             mask_matrix[120:-120, 120:-120] = 0
+            print('FUCKING WITH MASK MATRIX')
 
     num_times = len(valid_times_unix_sec)
     print(SEPARATOR_STRING)
