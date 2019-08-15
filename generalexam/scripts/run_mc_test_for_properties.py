@@ -313,8 +313,8 @@ def _mc_test_one_property(
         )
 
         if numpy.mod(k, 25) == 0:
-            print(numpy.sum(numpy.invert(numpy.isnan(this_first_mean_matrix))))
-            print(numpy.sum(numpy.invert(numpy.isnan(this_second_mean_matrix))))
+            print(numpy.sum(numpy.invert(numpy.isnan(concat_property_matrix[:first_num_times, ...]))))
+            print(numpy.sum(numpy.invert(numpy.isnan(concat_property_matrix[first_num_times:, ...]))))
 
         # TODO(thunderhoser): This works only for values (like length and area)
         # that must be positive.
