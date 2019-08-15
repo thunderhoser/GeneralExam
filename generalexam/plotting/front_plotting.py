@@ -211,8 +211,7 @@ def plot_gridded_labels(
     nwp_plotting.plot_subgrid(
         field_matrix=gridded_front_matrix,
         model_name=nwp_model_utils.NARR_MODEL_NAME, axes_object=axes_object,
-        basemap_object=basemap_object, colour_map=colour_map_object,
-        min_value_in_colour_map=colour_bounds[1],
-        max_value_in_colour_map=colour_bounds[-2], grid_id=full_grid_name,
-        first_row_in_full_grid=first_row_in_full_grid,
+        basemap_object=basemap_object, colour_map_object=colour_map_object,
+        min_colour_value=colour_bounds[1], max_colour_value=colour_bounds[-2],
+        grid_id=full_grid_name, first_row_in_full_grid=first_row_in_full_grid,
         first_column_in_full_grid=first_column_in_full_grid, opacity=opacity)
