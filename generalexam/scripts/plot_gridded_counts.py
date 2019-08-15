@@ -211,40 +211,40 @@ def _run(input_file_name, wf_colour_map_name, cf_colour_map_name,
         directory_name=output_dir_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    climo_dict = climo_utils.read_gridded_counts(input_file_name)
+    front_count_dict = climo_utils.read_gridded_counts(input_file_name)
 
     if plot_frequency:
-        warm_front_matrix = climo_dict[climo_utils.NUM_WF_LABELS_KEY]
-        cold_front_matrix = climo_dict[climo_utils.NUM_CF_LABELS_KEY]
+        warm_front_matrix = front_count_dict[climo_utils.NUM_WF_LABELS_KEY]
+        cold_front_matrix = front_count_dict[climo_utils.NUM_CF_LABELS_KEY]
 
-        num_times = len(climo_dict[climo_utils.PREDICTION_FILES_KEY])
+        num_times = len(front_count_dict[climo_utils.PREDICTION_FILES_KEY])
         warm_front_matrix = warm_front_matrix.astype(float) / num_times
         cold_front_matrix = cold_front_matrix.astype(float) / num_times
 
         wf_title_string = 'Frequency'
     else:
-        warm_front_matrix = climo_dict[climo_utils.NUM_UNIQUE_WF_KEY]
-        cold_front_matrix = climo_dict[climo_utils.NUM_UNIQUE_CF_KEY]
+        warm_front_matrix = front_count_dict[climo_utils.NUM_UNIQUE_WF_KEY]
+        cold_front_matrix = front_count_dict[climo_utils.NUM_UNIQUE_CF_KEY]
 
         wf_title_string = 'Number'
 
     first_time_string = time_conversion.unix_sec_to_string(
-        climo_dict[climo_utils.FIRST_TIME_KEY], TITLE_TIME_FORMAT
+        front_count_dict[climo_utils.FIRST_TIME_KEY], TITLE_TIME_FORMAT
     )
     last_time_string = time_conversion.unix_sec_to_string(
-        climo_dict[climo_utils.LAST_TIME_KEY], TITLE_TIME_FORMAT
+        front_count_dict[climo_utils.LAST_TIME_KEY], TITLE_TIME_FORMAT
     )
 
     wf_title_string += ' of warm fronts from {0:s} to {1:s}'.format(
         first_time_string, last_time_string)
 
-    hours = climo_dict[climo_utils.HOURS_KEY]
+    hours = front_count_dict[climo_utils.HOURS_KEY]
     if hours is not None:
         wf_title_string += '; hours {0:s}'.format(
             climo_utils.hours_to_string(hours)[0]
         )
 
-    months = climo_dict[climo_utils.MONTHS_KEY]
+    months = front_count_dict[climo_utils.MONTHS_KEY]
     if months is not None:
         wf_title_string += '; months {0:s}'.format(
             climo_utils.months_to_string(months)[0]
