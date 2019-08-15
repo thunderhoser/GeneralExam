@@ -312,6 +312,10 @@ def _mc_test_one_property(
             concat_property_matrix[first_num_times:, ...], axis=0
         )
 
+        if numpy.mod(k, 25) == 0:
+            print(numpy.sum(numpy.invert(numpy.isnan(this_first_mean_matrix))))
+            print(numpy.sum(numpy.invert(numpy.isnan(this_second_mean_matrix))))
+
         # TODO(thunderhoser): This works only for values (like length and area)
         # that must be positive.
         this_first_mean_matrix[this_first_mean_matrix == 0] = numpy.nan
@@ -338,9 +342,6 @@ def _mc_test_one_property(
     max_difference_matrix = numpy.nanpercentile(
         a=mc_difference_matrix, q=50. * (1 + confidence_level), axis=0
     )
-
-    print(numpy.sum(numpy.invert(numpy.isnan(min_difference_matrix))))
-    print(numpy.sum(numpy.invert(numpy.isnan(max_difference_matrix))))
 
     significance_matrix = numpy.logical_or(
         actual_difference_matrix < min_difference_matrix,
