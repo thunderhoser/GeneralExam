@@ -176,7 +176,27 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
     print('Reading CNN metadata from: "{0:s}"...'.format(model_metafile_name))
-    model_metadata_dict = cnn.read_metadata(model_metafile_name)
+
+    try:
+        model_metadata_dict = cnn.read_metadata(model_metafile_name)
+    except UnicodeDecodeError:
+        predictor_names = 2 * [
+            predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+            predictor_utils.V_WIND_GRID_RELATIVE_NAME,
+            predictor_utils.TEMPERATURE_NAME,
+            predictor_utils.SPECIFIC_HUMIDITY_NAME
+        ]
+
+        pressure_levels_mb = numpy.array(
+            [1013, 1013, 1013, 1013, 850, 850, 850, 850], dtype=int
+        )
+
+        model_metadata_dict = {
+            cnn.DILATION_DISTANCE_KEY: 50000.,
+            cnn.PREDICTOR_NAMES_KEY: predictor_names,
+            cnn.PRESSURE_LEVELS_KEY: pressure_levels_mb,
+            cnn.NORMALIZATION_TYPE_KEY: 'z_score'
+        }
 
     if dilation_distance_metres < 0:
         dilation_distance_metres = model_metadata_dict[
