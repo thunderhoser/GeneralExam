@@ -1,37 +1,38 @@
-"""Computes statistics for gridded front properties."""
+"""Counts number of warm and cold fronts at each grid cell over time period."""
 
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
+from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
 
 TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-INPUT_DIR_ARG_NAME = 'input_property_dir_name'
+INPUT_DIR_ARG_NAME = 'input_label_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 HOURS_ARG_NAME = 'hours_to_keep'
 MONTHS_ARG_NAME = 'months_to_keep'
-OUTPUT_DIR_ARG_NAME = 'output_statistic_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
     '`climatology_utils.find_many_basic_files` and read by '
-    '`climatology_utils.average_many_property_files`.')
+    '`climatology_utils.read_basic_file`.')
 
 TIME_HELP_STRING = (
-    'Time (format "yyyymmddHH").  This script will compute stats only for the '
+    'Time (format "yyyymmddHH").  This script will count fronts only for the '
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
 HOURS_HELP_STRING = (
-    'List of UTC hours (integers in 0...23).  This script will compute stats '
+    'List of UTC hours (integers in 0...23).  This script will count fronts '
     'only for the given hours.  If you want do not want to filter by hour, '
     'leave this argument alone.')
 
 MONTHS_HELP_STRING = (
-    'List of months (integers in 1...12).  This script will compute stats only '
+    'List of months (integers in 1...12).  This script will count fronts only '
     'for the given months.  If you want do not want to filter by month, leave '
     'this argument alone.')
 
@@ -66,7 +67,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(input_dir_name, first_time_string, last_time_string, hours_to_keep,
          months_to_keep, output_dir_name):
-    """Computes statistics for gridded front properties.
+    """Counts number of warm and cold fronts at each grid cell over time period.
 
     This is effectively the main method.
 
@@ -89,43 +90,89 @@ def _run(input_dir_name, first_time_string, last_time_string, hours_to_keep,
     if len(months_to_keep) == 1 and months_to_keep[0] == -1:
         months_to_keep = None
 
-    property_file_names = climo_utils.find_many_basic_files(
+    label_file_names = climo_utils.find_many_basic_files(
         directory_name=input_dir_name,
-        file_type_string=climo_utils.FRONT_PROPERTIES_STRING,
+        file_type_string=climo_utils.FRONT_LABELS_STRING,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec,
         hours_to_keep=hours_to_keep, months_to_keep=months_to_keep,
         raise_error_if_none_found=True)
 
-    front_statistic_dict = climo_utils.average_many_property_files(
-        property_file_names)
+    num_wf_labels_matrix = None
+    num_unique_wf_matrix = None
+    num_cf_labels_matrix = None
+    num_unique_cf_matrix = None
+    prediction_file_names = []
+
+    for this_file_name in label_file_names:
+        print('Reading data from: "{0:s}"...'.format(this_file_name))
+        this_label_dict = climo_utils.read_gridded_labels(this_file_name)
+
+        prediction_file_names.append(
+            this_label_dict[climo_utils.PREDICTION_FILE_KEY]
+        )
+
+        this_mask_matrix = numpy.invert(
+            numpy.isnan(this_label_dict[climo_utils.FRONT_LABELS_KEY])
+        ).astype(int)
+
+        this_wf_label_matrix = (
+            this_label_dict[climo_utils.FRONT_LABELS_KEY] ==
+            front_utils.WARM_FRONT_ENUM
+        ).astype(float)
+
+        this_unique_wf_matrix = (
+            this_label_dict[climo_utils.UNIQUE_FRONT_LABELS_KEY] ==
+            front_utils.WARM_FRONT_ENUM
+        ).astype(int)
+
+        this_cf_label_matrix = (
+            this_label_dict[climo_utils.FRONT_LABELS_KEY] ==
+            front_utils.COLD_FRONT_ENUM
+        ).astype(int)
+
+        this_unique_cf_matrix = (
+            this_label_dict[climo_utils.UNIQUE_FRONT_LABELS_KEY] ==
+            front_utils.COLD_FRONT_ENUM
+        ).astype(int)
+
+        this_wf_label_matrix[this_mask_matrix == 0] = numpy.nan
+        this_unique_wf_matrix[this_mask_matrix == 0] = numpy.nan
+        this_cf_label_matrix[this_mask_matrix == 0] = numpy.nan
+        this_unique_cf_matrix[this_mask_matrix == 0] = numpy.nan
+
+        if num_wf_labels_matrix is None:
+            num_wf_labels_matrix = this_wf_label_matrix + 0.
+            num_unique_wf_matrix = this_unique_wf_matrix + 0.
+            num_cf_labels_matrix = this_cf_label_matrix + 0.
+            num_unique_cf_matrix = this_unique_cf_matrix + 0.
+        else:
+            num_wf_labels_matrix = num_wf_labels_matrix + this_wf_label_matrix
+            num_unique_wf_matrix = num_unique_wf_matrix + this_unique_wf_matrix
+            num_cf_labels_matrix = num_cf_labels_matrix + this_cf_label_matrix
+            num_unique_cf_matrix = num_unique_cf_matrix + this_unique_cf_matrix
+
     print(SEPARATOR_STRING)
 
     output_file_name = climo_utils.find_aggregated_file(
         directory_name=output_dir_name,
-        file_type_string=climo_utils.FRONT_STATS_STRING,
+        file_type_string=climo_utils.FRONT_COUNTS_STRING,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec, hours=hours_to_keep,
         months=months_to_keep, raise_error_if_missing=False)
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
-    climo_utils.write_gridded_stats(
+    climo_utils.write_gridded_counts(
         netcdf_file_name=output_file_name,
-        mean_wf_length_matrix_metres=front_statistic_dict[
-            climo_utils.MEAN_WF_LENGTHS_KEY],
-        mean_wf_area_matrix_m2=front_statistic_dict[
-            climo_utils.MEAN_WF_AREAS_KEY],
-        mean_cf_length_matrix_metres=front_statistic_dict[
-            climo_utils.MEAN_CF_LENGTHS_KEY],
-        mean_cf_area_matrix_m2=front_statistic_dict[
-            climo_utils.MEAN_CF_AREAS_KEY],
+        num_wf_labels_matrix=num_wf_labels_matrix,
+        num_unique_wf_matrix=num_unique_wf_matrix,
+        num_cf_labels_matrix=num_cf_labels_matrix,
+        num_unique_cf_matrix=num_unique_cf_matrix,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec,
-        prediction_file_names=front_statistic_dict[
-            climo_utils.PREDICTION_FILES_KEY],
-        hours=hours_to_keep, months=months_to_keep
-    )
+        prediction_file_names=prediction_file_names,
+        hours=hours_to_keep, months=months_to_keep)
 
 
 if __name__ == '__main__':

@@ -153,11 +153,16 @@ MONTE_CARLO_FILE_NAME = (
     'first-column=020.nc')
 
 # The following constants are used to test find_statistic_file.
-FIRST_STAT_TIME_UNIX_SEC = 0
-LAST_STAT_TIME_UNIX_SEC = 86399
-STAT_HOURS = numpy.array([18, 21], dtype=int)
-STAT_MONTHS = numpy.array([12, 1, 2], dtype=int)
-STAT_FILE_NAME = (
+FIRST_AGG_TIME_UNIX_SEC = 0
+LAST_AGG_TIME_UNIX_SEC = 86399
+HOURS_IN_AGGREGATE = numpy.array([18, 21], dtype=int)
+MONTHS_IN_AGGREGATE = numpy.array([12, 1, 2], dtype=int)
+
+COUNT_FILE_NAME = (
+    'foo/front-counts_1970-01-01-000000_1970-01-01-235959_hours=18-21utc_'
+    'months=jfd.nc')
+
+STATISTIC_FILE_NAME = (
     'foo/front-statistics_1970-01-01-000000_1970-01-01-235959_hours=18-21utc_'
     'months=jfd.nc')
 
@@ -408,16 +413,37 @@ class ClimatologyUtilsTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == MONTE_CARLO_FILE_NAME)
 
-    def test_find_statistic_file(self):
-        """Ensures correct output from find_statistic_file."""
+    def test_find_count_file(self):
+        """Ensures correct output from find_aggregated_file.
 
-        this_file_name = climo_utils.find_statistic_file(
+        In this case the file type is front counts.
+        """
+
+        this_file_name = climo_utils.find_aggregated_file(
             directory_name=DIRECTORY_NAME,
-            first_time_unix_sec=FIRST_STAT_TIME_UNIX_SEC,
-            last_time_unix_sec=LAST_STAT_TIME_UNIX_SEC,
-            hours=STAT_HOURS, months=STAT_MONTHS, raise_error_if_missing=False)
+            file_type_string=climo_utils.FRONT_COUNTS_STRING,
+            first_time_unix_sec=FIRST_AGG_TIME_UNIX_SEC,
+            last_time_unix_sec=LAST_AGG_TIME_UNIX_SEC,
+            hours=HOURS_IN_AGGREGATE, months=MONTHS_IN_AGGREGATE,
+            raise_error_if_missing=False)
 
-        self.assertTrue(this_file_name == STAT_FILE_NAME)
+        self.assertTrue(this_file_name == COUNT_FILE_NAME)
+
+    def test_find_statistic_file(self):
+        """Ensures correct output from find_aggregated_file.
+
+        In this case the file type is front statistics.
+        """
+
+        this_file_name = climo_utils.find_aggregated_file(
+            directory_name=DIRECTORY_NAME,
+            file_type_string=climo_utils.FRONT_STATS_STRING,
+            first_time_unix_sec=FIRST_AGG_TIME_UNIX_SEC,
+            last_time_unix_sec=LAST_AGG_TIME_UNIX_SEC,
+            hours=HOURS_IN_AGGREGATE, months=MONTHS_IN_AGGREGATE,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STATISTIC_FILE_NAME)
 
 
 if __name__ == '__main__':
