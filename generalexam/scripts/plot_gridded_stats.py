@@ -243,8 +243,10 @@ def _run(input_file_name, length_colour_map_name, area_colour_map_name,
     this_output_file_name = '{0:s}/mean_wf_area.jpg'.format(output_dir_name)
 
     _plot_one_statistic(
-        statistic_matrix=
-        front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] * METRES2_TO_THOUSAND_KM2,
+        statistic_matrix=(
+            front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] *
+            METRES2_TO_THOUSAND_KM2
+        ),
         colour_map_object=area_colour_map_object,
         max_colour_percentile=max_colour_percentile,
         title_string=this_title_string, output_file_name=this_output_file_name)
@@ -254,8 +256,10 @@ def _run(input_file_name, length_colour_map_name, area_colour_map_name,
     this_output_file_name = '{0:s}/mean_cf_area.jpg'.format(output_dir_name)
 
     _plot_one_statistic(
-        statistic_matrix=
-        front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] * METRES2_TO_THOUSAND_KM2,
+        statistic_matrix=(
+            front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] *
+            METRES2_TO_THOUSAND_KM2
+        ),
         colour_map_object=area_colour_map_object,
         max_colour_percentile=max_colour_percentile,
         title_string=this_title_string, output_file_name=this_output_file_name)

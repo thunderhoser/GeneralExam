@@ -26,6 +26,7 @@ VALID_SEASON_STRINGS = [
 ]
 
 FILE_NAME_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+YEAR_MONTH_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9]'
 FILE_NAME_TIME_REGEX = (
     '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]'
 )
@@ -49,9 +50,15 @@ WARM_FRONT_LENGTHS_KEY = 'wf_length_matrix_metres'
 WARM_FRONT_AREAS_KEY = 'wf_area_matrix_m2'
 COLD_FRONT_LENGTHS_KEY = 'cf_length_matrix_metres'
 COLD_FRONT_AREAS_KEY = 'cf_area_matrix_m2'
+
+WF_LENGTH_PROPERTY_NAME = 'wf_length'
+WF_AREA_PROPERTY_NAME = 'wf_area'
+CF_LENGTH_PROPERTY_NAME = 'cf_length'
+CF_AREA_PROPERTY_NAME = 'cf_area'
+
 VALID_PROPERTY_NAMES = [
-    WARM_FRONT_LENGTHS_KEY, WARM_FRONT_AREAS_KEY, COLD_FRONT_LENGTHS_KEY,
-    COLD_FRONT_AREAS_KEY
+    WF_LENGTH_PROPERTY_NAME, WF_AREA_PROPERTY_NAME,
+    CF_LENGTH_PROPERTY_NAME, CF_AREA_PROPERTY_NAME
 ]
 
 NUM_WF_LABELS_KEY = 'num_wf_labels_matrix'
@@ -587,8 +594,10 @@ def find_basic_file(directory_name, file_type_string, valid_time_unix_sec,
     error_checking.assert_is_integer(valid_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    netcdf_file_name = '{0:s}/{1:s}_{2:s}.nc'.format(
+    netcdf_file_name = '{0:s}/{1:s}/{2:s}_{3:s}.nc'.format(
         directory_name, file_type_string.replace('_', '-'),
+        time_conversion.unix_sec_to_string(
+            valid_time_unix_sec, '%Y%m'),
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
     )
@@ -655,8 +664,9 @@ def find_many_basic_files(
     if months_to_keep is not None:
         check_months(months_to_keep)
 
-    glob_pattern = '{0:s}/{1:s}_{2:s}.nc'.format(
-        directory_name, file_type_string.replace('_', '-'), FILE_NAME_TIME_REGEX
+    glob_pattern = '{0:s}/{1:s}/{2:s}_{3:s}.nc'.format(
+        directory_name, YEAR_MONTH_REGEX,
+        file_type_string.replace('_', '-'), FILE_NAME_TIME_REGEX
     )
 
     netcdf_file_names = glob.glob(glob_pattern)
