@@ -175,7 +175,7 @@ def _write_new_labels(
             netcdf_file_name=this_output_file_name,
             label_matrix=this_label_matrix,
             unique_label_matrix=this_unique_label_matrix,
-            prediction_file_name=None,
+            prediction_file_name=first_prediction_file_names[i],
             separation_time_sec=separation_time_sec)
 
     if not(have_second_period and write_second_period):
@@ -202,7 +202,7 @@ def _write_new_labels(
             netcdf_file_name=this_output_file_name,
             label_matrix=this_label_matrix,
             unique_label_matrix=this_unique_label_matrix,
-            prediction_file_name=None,
+            prediction_file_name=second_prediction_file_names[i],
             separation_time_sec=separation_time_sec)
 
     return second_unique_label_matrix
