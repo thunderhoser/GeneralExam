@@ -312,10 +312,6 @@ def _mc_test_one_property(
             concat_property_matrix[first_num_times:, ...], axis=0
         )
 
-        if numpy.mod(k, 25) == 0:
-            print(numpy.sum(numpy.invert(numpy.isnan(concat_property_matrix[:first_num_times, ...]))))
-            print(numpy.sum(numpy.invert(numpy.isnan(concat_property_matrix[first_num_times:, ...]))))
-
         # TODO(thunderhoser): This works only for values (like length and area)
         # that must be positive.
         this_first_mean_matrix[this_first_mean_matrix == 0] = numpy.nan
