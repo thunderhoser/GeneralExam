@@ -141,16 +141,15 @@ FRONT_TYPE_ENUMS_AFTER_BOTH_SEP = numpy.array([
 # basic_file_name_to_time.
 DIRECTORY_NAME = 'foo'
 BASIC_FILE_TIME_UNIX_SEC = 0
-LABEL_FILE_NAME = 'foo/front-labels_1970-01-01-000000.nc'
-PROPERTY_FILE_NAME = 'foo/front-properties_1970-01-01-000000.nc'
+LABEL_FILE_NAME = 'foo/197001/front-labels_1970-01-01-000000.nc'
+PROPERTY_FILE_NAME = 'foo/197001/front-properties_1970-01-01-000000.nc'
 
 # The following constants are used to test find_monte_carlo_file.
-MONTE_CARLO_PROPERTY_NAME = climo_utils.WARM_FRONT_LENGTHS_KEY
+MONTE_CARLO_PROPERTY_NAME = climo_utils.WF_LENGTH_PROPERTY_NAME
 FIRST_MONTE_CARLO_ROW = 10
 FIRST_MONTE_CARLO_COLUMN = 20
 MONTE_CARLO_FILE_NAME = (
-    'foo/monte-carlo-test_wf-length-matrix-metres_first-row=010_'
-    'first-column=020.nc')
+    'foo/monte-carlo-test_wf-length_first-row=010_first-column=020.nc')
 
 # The following constants are used to test find_statistic_file.
 FIRST_AGG_TIME_UNIX_SEC = 0

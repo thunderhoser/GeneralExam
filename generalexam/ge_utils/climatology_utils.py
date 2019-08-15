@@ -595,9 +595,10 @@ def find_basic_file(directory_name, file_type_string, valid_time_unix_sec,
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     netcdf_file_name = '{0:s}/{1:s}/{2:s}_{3:s}.nc'.format(
-        directory_name, file_type_string.replace('_', '-'),
+        directory_name,
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, '%Y%m'),
+        file_type_string.replace('_', '-'),
         time_conversion.unix_sec_to_string(
             valid_time_unix_sec, FILE_NAME_TIME_FORMAT)
     )
