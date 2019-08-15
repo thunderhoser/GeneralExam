@@ -14,6 +14,8 @@ from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 
+# TODO(thunderhoser): Mask out grid cells on edge.
+
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
 BORDER_COLOUR = numpy.full(3, 0.)

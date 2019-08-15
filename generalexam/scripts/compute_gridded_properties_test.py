@@ -9,17 +9,21 @@ from generalexam.scripts import compute_gridded_properties as gridded_props
 TOLERANCE = 1e-6
 
 LABEL_MATRIX = numpy.array([
-    [0, 0, 1, 1, 1, 1],
-    [2, 2, 1, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 1, 0],
+    [0, 2, 2, 1, 0, 0, 0, 0],
+    [0, 0, 2, 0, 0, 0, 0, 0],
+    [0, 0, 2, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0]
 ], dtype=int)
 
 WF_LENGTH_MATRIX_METRES = numpy.array([
-    [0, 0, 1, 1, 1, 1],
-    [0, 0, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 1, 0],
+    [0, 0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0]
 ], dtype=float)
 
 WF_AREA_MATRIX_M2 = copy.deepcopy(WF_LENGTH_MATRIX_METRES)
@@ -35,10 +39,12 @@ WF_AREA_MATRIX_M2[WF_AREA_MATRIX_M2 == 1] = (
 )
 
 CF_LENGTH_MATRIX_METRES = numpy.array([
-    [0, 0, 0, 0, 0, 0],
-    [1, 1, 0, 0, 0, 0],
-    [0, 1, 0, 0, 0, 0],
-    [0, 1, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0]
 ], dtype=float)
 
 CF_AREA_MATRIX_M2 = copy.deepcopy(CF_LENGTH_MATRIX_METRES)
@@ -57,11 +63,15 @@ CF_AREA_MATRIX_M2[CF_AREA_MATRIX_M2 == 1] = (
 class ComputeGriddedPropertiesTests(unittest.TestCase):
     """Each method is a unit test for compute_gridded_properties.py."""
 
-    def test_compute_properties_one_time(self):
-        """Ensures correct output from _compute_properties_one_time."""
+    def test_compute_properties_1px_window(self):
+        """Ensures correct output from _compute_properties_one_time.
+
+        In this case, num_half_rows_for_cnn = num_half_columns_for_cnn = 0.
+        """
 
         this_property_dict = gridded_props._compute_properties_one_time(
-            LABEL_MATRIX)
+            label_matrix=LABEL_MATRIX, num_half_rows_for_cnn=0,
+            num_half_columns_for_cnn=0)
 
         self.assertTrue(numpy.allclose(
             this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY],
@@ -82,6 +92,32 @@ class ComputeGriddedPropertiesTests(unittest.TestCase):
             this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY],
             CF_AREA_MATRIX_M2, rtol=TOLERANCE, equal_nan=True
         ))
+
+    def test_compute_properties_3px_window(self):
+        """Ensures correct output from _compute_properties_one_time.
+
+        In this case, num_half_rows_for_cnn = num_half_columns_for_cnn = 1.
+        """
+
+        this_property_dict = gridded_props._compute_properties_one_time(
+            label_matrix=LABEL_MATRIX, num_half_rows_for_cnn=1,
+            num_half_columns_for_cnn=1)
+
+        self.assertTrue(numpy.all(numpy.isnan(
+            this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY]
+        )))
+
+        self.assertTrue(numpy.all(numpy.isnan(
+            this_property_dict[climo_utils.WARM_FRONT_AREAS_KEY]
+        )))
+
+        self.assertTrue(numpy.all(numpy.isnan(
+            this_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY]
+        )))
+
+        self.assertTrue(numpy.all(numpy.isnan(
+            this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY]
+        )))
 
 
 if __name__ == '__main__':

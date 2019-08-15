@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
+from generalexam.machine_learning import cnn
 
 TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -51,13 +52,16 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _compute_properties_one_time(label_matrix):
+def _compute_properties_one_time(label_matrix, num_half_rows_for_cnn,
+                                 num_half_columns_for_cnn):
     """Computes gridded properties for one time.
 
     M = number of rows in grid
     N = number of columns in grid
 
     :param label_matrix: M-by-N numpy array of integer front labels.
+    :param num_half_rows_for_cnn: Number of half-rows in grids fed to CNN.
+    :param num_half_columns_for_cnn: Number of half-columns in grids fed to CNN.
     :return: front_property_dict: Dictionary with the following keys.
     front_property_dict["wf_length_matrix_metres"]: M-by-N numpy array with
         warm-front length at each grid cell (NaN if there is no warm front).
@@ -66,6 +70,11 @@ def _compute_properties_one_time(label_matrix):
         length.
     front_property_dict["cf_area_matrix_m2"]: Same but for cold-front area.
     """
+
+    first_relevant_row = num_half_rows_for_cnn + 1
+    last_relevant_row = label_matrix.shape[0] - num_half_rows_for_cnn - 2
+    first_relevant_column = num_half_columns_for_cnn + 1
+    last_relevant_column = label_matrix.shape[1] - num_half_columns_for_cnn - 2
 
     region_dict = front_utils.gridded_labels_to_regions(
         ternary_label_matrix=label_matrix, compute_lengths=True)
@@ -84,6 +93,14 @@ def _compute_properties_one_time(label_matrix):
     for k in range(num_fronts):
         these_rows = region_dict[front_utils.ROWS_BY_REGION_KEY][k]
         these_columns = region_dict[front_utils.COLUMNS_BY_REGION_KEY][k]
+
+        if (
+                numpy.any(these_rows < first_relevant_row) or
+                numpy.any(these_rows > last_relevant_row) or
+                numpy.any(these_columns < first_relevant_column) or
+                numpy.any(these_columns > last_relevant_column)
+        ):
+            continue
 
         this_area_metres2 = len(these_rows) * GRID_SPACING_METRES ** 2
         this_length_metres = (
@@ -137,6 +154,9 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             last_time_unix_sec=last_time_unix_sec)
     )
 
+    num_half_rows_for_cnn = None
+    num_half_columns_for_cnn = None
+
     for i in range(len(prediction_file_names)):
         print('Reading deterministic labels from: "{0:s}"...'.format(
             prediction_file_names[i]
@@ -145,8 +165,25 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=prediction_file_names[i], read_deterministic=True
         )
+
+        if num_half_rows_for_cnn is None:
+            cnn_metafile_name = cnn.find_metafile(
+                this_prediction_dict[prediction_io.MODEL_FILE_KEY]
+            )
+
+            print('Reading CNN metadata from: "{0:s}"...'.format(
+                cnn_metafile_name))
+
+            cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
+            num_half_rows_for_cnn = cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY]
+            num_half_columns_for_cnn = cnn_metadata_dict[
+                cnn.NUM_HALF_COLUMNS_KEY]
+
         this_property_dict = _compute_properties_one_time(
-            this_prediction_dict[prediction_io.PREDICTED_LABELS_KEY][0, ...]
+            label_matrix=this_prediction_dict[
+                prediction_io.PREDICTED_LABELS_KEY][0, ...],
+            num_half_rows_for_cnn=num_half_rows_for_cnn,
+            num_half_columns_for_cnn=num_half_columns_for_cnn
         )
 
         this_output_file_name = climo_utils.find_basic_file(
