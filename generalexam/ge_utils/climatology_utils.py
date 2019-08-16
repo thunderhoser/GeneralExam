@@ -79,14 +79,15 @@ CONFIDENCE_LEVEL_KEY = 'confidence_level'
 FIRST_GRID_ROW_KEY = 'first_grid_row'
 FIRST_GRID_COLUMN_KEY = 'first_grid_column'
 
-FIRST_PROPERTY_FILE_DIM_KEY = 'first_property_file'
-SECOND_PROPERTY_FILE_DIM_KEY = 'second_property_file'
-PROPERTY_FILE_CHAR_DIM_KEY = 'property_file_char'
+BASELINE_INPUT_FILE_DIM_KEY = 'baseline_input_file'
+TRIAL_INPUT_FILE_DIM_KEY = 'trial_input_file'
+INPUT_FILE_CHAR_DIM_KEY = 'input_file_char'
 
-DIFFERENCE_MATRIX_KEY = 'difference_matrix'
+BASELINE_MATRIX_KEY = 'baseline_mean_matrix'
+TRIAL_MATRIX_KEY = 'trial_mean_matrix'
 SIGNIFICANCE_MATRIX_KEY = 'significance_matrix'
-FIRST_PROPERTY_FILES_KEY = 'first_property_file_names'
-SECOND_PROPERTY_FILES_KEY = 'second_property_file_names'
+BASELINE_INPUT_FILES_KEY = 'baseline_input_file_names'
+TRIAL_INPUT_FILES_KEY = 'trial_input_file_names'
 
 
 def _check_season(season_string):
@@ -1076,24 +1077,26 @@ def find_monte_carlo_file(
 
 
 def write_monte_carlo_test(
-        netcdf_file_name, difference_matrix, significance_matrix, property_name,
-        first_property_file_names, second_property_file_names, num_iterations,
-        confidence_level, first_grid_row, first_grid_column):
+        netcdf_file_name, baseline_mean_matrix, trial_mean_matrix,
+        significance_matrix, property_name, baseline_input_file_names,
+        trial_input_file_names, num_iterations, confidence_level,
+        first_grid_row, first_grid_column):
     """Writes results of Monte Carlo test to NetCDF file.
 
     M = number of rows in subgrid (the part of the grid sent to this method)
     N = number of rows in subgrid
 
     :param netcdf_file_name: Path to output file.
-    :param difference_matrix: M-by-N numpy array with difference (mean
-        of second composite minus mean of first composite) at each grid cell.
+    :param baseline_mean_matrix: M-by-N numpy array with mean values in baseline
+        set.
+    :param trial_mean_matrix: M-by-N numpy array with mean values in trial set.
     :param significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between means is significant.
     :param property_name: Name of property.  Must be accepted by
         `_check_property`.
-    :param first_property_file_names: 1-D list of paths to input files for first
+    :param baseline_input_file_names: 1-D list of paths to input files for first
         composite (readable by `read_gridded_properties`).
-    :param second_property_file_names: Same but for second composite.
+    :param trial_input_file_names: Same but for second composite.
     :param num_iterations: Number of iterations for Monte Carlo test.
     :param confidence_level: Confidence level for Monte Carlo test (used to
         determine where difference between means is significant).
@@ -1102,23 +1105,26 @@ def write_monte_carlo_test(
     :param first_grid_column: Same but for first column in subgrid.
     """
 
-    error_checking.assert_is_numpy_array(difference_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(baseline_mean_matrix, num_dimensions=2)
+
+    expected_dim = numpy.array(baseline_mean_matrix.shape, dtype=int)
+    error_checking.assert_is_numpy_array(
+        trial_mean_matrix, exact_dimensions=expected_dim)
+
     error_checking.assert_is_boolean_numpy_array(significance_matrix)
     error_checking.assert_is_numpy_array(
-        significance_matrix,
-        exact_dimensions=numpy.array(difference_matrix.shape, dtype=int)
-    )
+        significance_matrix, exact_dimensions=expected_dim)
 
     _check_property(property_name)
 
-    error_checking.assert_is_string_list(first_property_file_names)
+    error_checking.assert_is_string_list(baseline_input_file_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(first_property_file_names), num_dimensions=1
+        numpy.array(baseline_input_file_names), num_dimensions=1
     )
 
-    error_checking.assert_is_string_list(second_property_file_names)
+    error_checking.assert_is_string_list(trial_input_file_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(second_property_file_names), num_dimensions=1
+        numpy.array(trial_input_file_names), num_dimensions=1
     )
 
     error_checking.assert_is_integer(num_iterations)
@@ -1143,30 +1149,36 @@ def write_monte_carlo_test(
     dataset_object.setncattr(FIRST_GRID_COLUMN_KEY, first_grid_column)
 
     num_file_name_chars = max([
-        len(f) for f in [first_property_file_names, second_property_file_names]
+        len(f) for f in [baseline_input_file_names, trial_input_file_names]
     ])
 
     dataset_object.createDimension(
-        ROW_DIMENSION_KEY, difference_matrix.shape[0]
+        ROW_DIMENSION_KEY, baseline_mean_matrix.shape[0]
     )
     dataset_object.createDimension(
-        COLUMN_DIMENSION_KEY, difference_matrix.shape[1]
+        COLUMN_DIMENSION_KEY, baseline_mean_matrix.shape[1]
     )
     dataset_object.createDimension(
-        FIRST_PROPERTY_FILE_DIM_KEY, len(first_property_file_names)
+        BASELINE_INPUT_FILE_DIM_KEY, len(baseline_input_file_names)
     )
     dataset_object.createDimension(
-        SECOND_PROPERTY_FILE_DIM_KEY, len(second_property_file_names)
+        TRIAL_INPUT_FILE_DIM_KEY, len(trial_input_file_names)
     )
     dataset_object.createDimension(
-        PROPERTY_FILE_CHAR_DIM_KEY, num_file_name_chars
+        INPUT_FILE_CHAR_DIM_KEY, num_file_name_chars
     )
 
     dataset_object.createVariable(
-        DIFFERENCE_MATRIX_KEY, datatype=numpy.float32,
+        BASELINE_MATRIX_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[DIFFERENCE_MATRIX_KEY][:] = difference_matrix
+    dataset_object.variables[BASELINE_MATRIX_KEY][:] = baseline_mean_matrix
+
+    dataset_object.createVariable(
+        TRIAL_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[TRIAL_MATRIX_KEY][:] = trial_mean_matrix
 
     dataset_object.createVariable(
         SIGNIFICANCE_MATRIX_KEY, datatype=numpy.int32,
@@ -1178,25 +1190,25 @@ def write_monte_carlo_test(
 
     this_string_type = 'S{0:d}'.format(num_file_name_chars)
     this_char_array = netCDF4.stringtochar(numpy.array(
-        first_property_file_names, dtype=this_string_type
+        baseline_input_file_names, dtype=this_string_type
     ))
 
     dataset_object.createVariable(
-        FIRST_PROPERTY_FILES_KEY, datatype='S1',
-        dimensions=(FIRST_PROPERTY_FILE_DIM_KEY, PROPERTY_FILE_CHAR_DIM_KEY)
+        BASELINE_INPUT_FILES_KEY, datatype='S1',
+        dimensions=(BASELINE_INPUT_FILE_DIM_KEY, INPUT_FILE_CHAR_DIM_KEY)
     )
-    dataset_object.variables[FIRST_PROPERTY_FILES_KEY][:] = numpy.array(
+    dataset_object.variables[BASELINE_INPUT_FILES_KEY][:] = numpy.array(
         this_char_array)
 
     this_char_array = netCDF4.stringtochar(numpy.array(
-        second_property_file_names, dtype=this_string_type
+        trial_input_file_names, dtype=this_string_type
     ))
 
     dataset_object.createVariable(
-        SECOND_PROPERTY_FILES_KEY, datatype='S1',
-        dimensions=(SECOND_PROPERTY_FILE_DIM_KEY, PROPERTY_FILE_CHAR_DIM_KEY)
+        TRIAL_INPUT_FILES_KEY, datatype='S1',
+        dimensions=(TRIAL_INPUT_FILE_DIM_KEY, INPUT_FILE_CHAR_DIM_KEY)
     )
-    dataset_object.variables[SECOND_PROPERTY_FILES_KEY][:] = numpy.array(
+    dataset_object.variables[TRIAL_INPUT_FILES_KEY][:] = numpy.array(
         this_char_array)
 
     dataset_object.close()
@@ -1207,11 +1219,13 @@ def read_monte_carlo_test(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: monte_carlo_dict: Dictionary with the following keys.
-    monte_carlo_dict["difference_matrix"]: See doc for `write_monte_carlo_test`.
+    monte_carlo_dict["baseline_mean_matrix"]: See doc for
+        `write_monte_carlo_test`.
+    monte_carlo_dict["trial_mean_matrix"]: Same.
     monte_carlo_dict["significance_matrix"]: Same.
     monte_carlo_dict["property_name"]: Same.
-    monte_carlo_dict["first_property_file_names"]: Same.
-    monte_carlo_dict["second_property_file_names"]: Same.
+    monte_carlo_dict["baseline_input_file_names"]: Same.
+    monte_carlo_dict["trial_input_file_names"]: Same.
     monte_carlo_dict["num_iterations"]: Same.
     monte_carlo_dict["confidence_level"]: Same.
     monte_carlo_dict["first_grid_row"]: Same.
@@ -1227,22 +1241,25 @@ def read_monte_carlo_test(netcdf_file_name):
         FIRST_GRID_ROW_KEY: int(getattr(dataset_object, FIRST_GRID_ROW_KEY)),
         FIRST_GRID_COLUMN_KEY:
             int(getattr(dataset_object, FIRST_GRID_COLUMN_KEY)),
-        DIFFERENCE_MATRIX_KEY: numpy.array(
-            dataset_object.variables[DIFFERENCE_MATRIX_KEY][:], dtype=float
+        BASELINE_MATRIX_KEY: numpy.array(
+            dataset_object.variables[BASELINE_MATRIX_KEY][:], dtype=float
+        ),
+        TRIAL_MATRIX_KEY: numpy.array(
+            dataset_object.variables[TRIAL_MATRIX_KEY][:], dtype=float
         ),
         SIGNIFICANCE_MATRIX_KEY: numpy.array(
             dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:], dtype=bool
         ),
-        FIRST_PROPERTY_FILES_KEY: [
+        BASELINE_INPUT_FILES_KEY: [
             str(s) for s in
             netCDF4.chartostring(
-                dataset_object.variables[FIRST_PROPERTY_FILES_KEY][:]
+                dataset_object.variables[BASELINE_INPUT_FILES_KEY][:]
             )
         ],
-        SECOND_PROPERTY_FILES_KEY: [
+        TRIAL_INPUT_FILES_KEY: [
             str(s) for s in
             netCDF4.chartostring(
-                dataset_object.variables[SECOND_PROPERTY_FILES_KEY][:]
+                dataset_object.variables[TRIAL_INPUT_FILES_KEY][:]
             )
         ]
     }

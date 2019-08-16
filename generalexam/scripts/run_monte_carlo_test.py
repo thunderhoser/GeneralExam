@@ -18,10 +18,10 @@ CF_FLAGS_KEY = 'cf_flag_matrix'
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 FILE_TYPE_ARG_NAME = 'file_type_string'
-FIRST_START_TIMES_ARG_NAME = 'first_start_time_strings'
-FIRST_END_TIMES_ARG_NAME = 'first_end_time_strings'
-SECOND_START_TIMES_ARG_NAME = 'second_start_time_strings'
-SECOND_END_TIMES_ARG_NAME = 'second_end_time_strings'
+BASELINE_START_TIMES_ARG_NAME = 'baseline_start_time_strings'
+BASELINE_END_TIMES_ARG_NAME = 'baseline_end_time_strings'
+TRIAL_START_TIMES_ARG_NAME = 'trial_start_time_strings'
+TRIAL_END_TIMES_ARG_NAME = 'trial_end_time_strings'
 FIRST_ROW_ARG_NAME = 'first_grid_row'
 LAST_ROW_ARG_NAME = 'last_grid_row'
 FIRST_COLUMN_ARG_NAME = 'first_grid_column'
@@ -41,17 +41,17 @@ FILE_TYPE_HELP_STRING = (
     'properties).  Must be in the following list:\n{0:s}'
 ).format(str(climo_utils.BASIC_FILE_TYPE_STRINGS))
 
-FIRST_START_TIMES_HELP_STRING = (
-    'List of start times (format "yyyymmddHH") for first composite.')
+BASELINE_START_TIMES_HELP_STRING = (
+    'List of start times (format "yyyymmddHH") for baseline composite.')
 
-FIRST_END_TIMES_HELP_STRING = (
-    'List of end times (format "yyyymmddHH") for first composite.')
+BASELINE_END_TIMES_HELP_STRING = (
+    'List of end times (format "yyyymmddHH") for baseline composite.')
 
-SECOND_START_TIMES_HELP_STRING = (
-    'List of start times (format "yyyymmddHH") for second composite.')
+TRIAL_START_TIMES_HELP_STRING = (
+    'List of start times (format "yyyymmddHH") for trial composite.')
 
-SECOND_END_TIMES_HELP_STRING = (
-    'List of end times (format "yyyymmddHH") for second composite.')
+TRIAL_END_TIMES_HELP_STRING = (
+    'List of end times (format "yyyymmddHH") for trial composite.')
 
 FIRST_ROW_HELP_STRING = (
     'First grid row to test.  This script will test only a subset of grid '
@@ -93,20 +93,20 @@ INPUT_ARG_PARSER.add_argument(
     help=FILE_TYPE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=FIRST_START_TIMES_HELP_STRING)
+    '--' + BASELINE_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
+    help=BASELINE_START_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_END_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=FIRST_END_TIMES_HELP_STRING)
+    '--' + BASELINE_END_TIMES_ARG_NAME, nargs='+', type=str, required=True,
+    help=BASELINE_END_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SECOND_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=SECOND_START_TIMES_HELP_STRING)
+    '--' + TRIAL_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
+    help=TRIAL_START_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SECOND_END_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=SECOND_END_TIMES_HELP_STRING)
+    '--' + TRIAL_END_TIMES_ARG_NAME, nargs='+', type=str, required=True,
+    help=TRIAL_END_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_ROW_ARG_NAME, type=int, required=True,
@@ -141,9 +141,9 @@ def _convert_input_times(start_time_strings, end_time_strings):
     """Converts and error-checks set of input times.
 
     :param start_time_strings: See documentation at top of file for either
-        `first_start_time_strings` or `second_start_time_strings`.
+        `baseline_start_time_strings` or `trial_start_time_strings`.
     :param end_time_strings: See doc at top of file for either
-        `first_end_time_strings` or `second_end_time_strings`.
+        `baseline_end_time_strings` or `trial_end_time_strings`.
     :return: valid_times_unix_sec: 1-D numpy array of time steps.
     """
 
@@ -348,34 +348,31 @@ def _read_properties_one_composite(
 
 
 def _mc_test_frequency(
-        first_flag_matrix, second_flag_matrix, num_iterations,
+        baseline_flag_matrix, trial_flag_matrix, num_iterations,
         confidence_level):
     """Runs Monte Carlo for frequency of one front type (warm or cold).
 
-    F = number of times in first composite
-    S = number of times in second composite
+    F = number of times in baseline composite
+    S = number of times in trial composite
     M = number of rows in grid
     N = number of columns in grid
 
-    :param first_flag_matrix: F-by-M-by-N numpy array of flags.  1 indicates a
+    :param baseline_flag_matrix: F-by-M-by-N numpy array of flags.  1 indicates a
         front; 0 indicates no front; NaN indicates no data.
-    :param second_flag_matrix: S-by-M-by-N numpy array with same format.
+    :param trial_flag_matrix: S-by-M-by-N numpy array with same format.
     :param num_iterations: See documentation at top of file.
     :param confidence_level: Same.
-    :return: actual_frequency_diff_matrix: M-by-N numpy array with difference
-        between front frequencies (second composite minus first) at each grid
-        cell.
     :return: significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between frequencies is significant.
     """
 
-    first_num_times = first_flag_matrix.shape[0]
+    num_baseline_times = baseline_flag_matrix.shape[0]
     concat_label_matrix = numpy.concatenate(
-        (first_flag_matrix, second_flag_matrix), axis=0
+        (baseline_flag_matrix, trial_flag_matrix), axis=0
     )
 
-    num_grid_rows = first_flag_matrix.shape[1]
-    num_grid_columns = first_flag_matrix.shape[2]
+    num_grid_rows = baseline_flag_matrix.shape[1]
+    num_grid_columns = baseline_flag_matrix.shape[2]
     mc_frequency_diff_matrix = numpy.full(
         (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
     )
@@ -387,22 +384,22 @@ def _mc_test_frequency(
             ))
 
         numpy.random.shuffle(concat_label_matrix)
-        this_first_frequency_matrix = numpy.mean(
-            concat_label_matrix[:first_num_times, ...], axis=0
+        this_baseline_freq_matrix = numpy.mean(
+            concat_label_matrix[:num_baseline_times, ...], axis=0
         )
-        this_second_frequency_matrix = numpy.mean(
-            concat_label_matrix[first_num_times:, ...], axis=0
+        this_trial_freq_matrix = numpy.mean(
+            concat_label_matrix[num_baseline_times:, ...], axis=0
         )
 
         mc_frequency_diff_matrix[k, ...] = (
-            this_second_frequency_matrix - this_first_frequency_matrix
+            this_trial_freq_matrix - this_baseline_freq_matrix
         )
 
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
 
     actual_frequency_diff_matrix = (
-        numpy.mean(second_flag_matrix, axis=0) -
-        numpy.mean(first_flag_matrix, axis=0)
+        numpy.mean(trial_flag_matrix, axis=0) -
+        numpy.mean(baseline_flag_matrix, axis=0)
     )
 
     min_frequency_diff_matrix = numpy.percentile(
@@ -424,40 +421,38 @@ def _mc_test_frequency(
         numpy.sum(significance_matrix.astype(int)), significance_matrix.size
     ))
 
-    return actual_frequency_diff_matrix, significance_matrix
+    return significance_matrix
 
 
 def _mc_test_one_property(
-        first_property_matrix, second_property_matrix, num_iterations,
+        baseline_property_matrix, trial_property_matrix, num_iterations,
         confidence_level):
     """Runs Monte Carlo test for one property.
 
     The "one property" could be WF length, WF area, CF length, or CF area.
 
-    F = number of times in first composite
-    S = number of times in second composite
+    F = number of times in baseline composite
+    S = number of times in trial composite
     M = number of rows in grid
     N = number of columns in grid
 
-    :param first_property_matrix: F-by-M-by-N numpy array with values of given
+    :param baseline_property_matrix: F-by-M-by-N numpy array with values of given
         property.
-    :param second_property_matrix: S-by-M-by-N numpy array with values of given
+    :param trial_property_matrix: S-by-M-by-N numpy array with values of given
         property.
     :param num_iterations: See documentation at top of file.
     :param confidence_level: Same.
-    :return: actual_difference_matrix: M-by-N numpy array with difference (mean
-        of second composite minus mean of first composite) at each grid cell.
     :return: significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between means is significant.
     """
 
-    first_num_times = first_property_matrix.shape[0]
+    num_baseline_times = baseline_property_matrix.shape[0]
     concat_property_matrix = numpy.concatenate(
-        (first_property_matrix, second_property_matrix), axis=0
+        (baseline_property_matrix, trial_property_matrix), axis=0
     )
 
-    num_grid_rows = first_property_matrix.shape[1]
-    num_grid_columns = first_property_matrix.shape[2]
+    num_grid_rows = baseline_property_matrix.shape[1]
+    num_grid_columns = baseline_property_matrix.shape[2]
     mc_difference_matrix = numpy.full(
         (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
     )
@@ -471,22 +466,22 @@ def _mc_test_one_property(
         numpy.random.shuffle(concat_property_matrix)
 
         # numpy.nanmean on all-NaN slice returns NaN.
-        this_first_mean_matrix = numpy.nanmean(
-            concat_property_matrix[:first_num_times, ...], axis=0
+        this_baseline_mean_matrix = numpy.nanmean(
+            concat_property_matrix[:num_baseline_times, ...], axis=0
         )
-        this_second_mean_matrix = numpy.nanmean(
-            concat_property_matrix[first_num_times:, ...], axis=0
+        this_trial_mean_matrix = numpy.nanmean(
+            concat_property_matrix[num_baseline_times:, ...], axis=0
         )
 
         mc_difference_matrix[k, ...] = (
-            this_second_mean_matrix - this_first_mean_matrix
+            this_trial_mean_matrix - this_baseline_mean_matrix
         )
 
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
 
     actual_difference_matrix = (
-        numpy.nanmean(second_property_matrix, axis=0) -
-        numpy.nanmean(first_property_matrix, axis=0)
+        numpy.nanmean(trial_property_matrix, axis=0) -
+        numpy.nanmean(baseline_property_matrix, axis=0)
     )
 
     # TODO(thunderhoser): nanpercentile method ignores NaN's completely.  Is
@@ -509,12 +504,12 @@ def _mc_test_one_property(
         numpy.sum(significance_matrix.astype(int)), significance_matrix.size
     ))
 
-    return actual_difference_matrix, significance_matrix
+    return significance_matrix
 
 
-def _run(input_dir_name, file_type_string, first_start_time_strings,
-         first_end_time_strings, second_start_time_strings,
-         second_end_time_strings, first_grid_row, last_grid_row,
+def _run(input_dir_name, file_type_string, baseline_start_time_strings,
+         baseline_end_time_strings, trial_start_time_strings,
+         trial_end_time_strings, first_grid_row, last_grid_row,
          first_grid_column, last_grid_column, num_iterations, confidence_level,
          output_dir_name):
     """Runs Monte Carlo significance test for gridded front properties.
@@ -523,10 +518,10 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
     :param input_dir_name: See documentation at top of file.
     :param file_type_string: Same.
-    :param first_start_time_strings: Same.
-    :param first_end_time_strings: Same.
-    :param second_start_time_strings: Same.
-    :param second_end_time_strings: Same.
+    :param baseline_start_time_strings: Same.
+    :param baseline_end_time_strings: Same.
+    :param trial_start_time_strings: Same.
+    :param trial_end_time_strings: Same.
     :param first_grid_row: Same.
     :param last_grid_row: Same.
     :param first_grid_column: Same.
@@ -544,55 +539,59 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
 
-    first_times_unix_sec = _convert_input_times(
-        start_time_strings=first_start_time_strings,
-        end_time_strings=first_end_time_strings)
+    baseline_times_unix_sec = _convert_input_times(
+        start_time_strings=baseline_start_time_strings,
+        end_time_strings=baseline_end_time_strings)
 
-    second_times_unix_sec = _convert_input_times(
-        start_time_strings=second_start_time_strings,
-        end_time_strings=second_end_time_strings)
+    trial_times_unix_sec = _convert_input_times(
+        start_time_strings=trial_start_time_strings,
+        end_time_strings=trial_end_time_strings)
 
-    first_input_file_names = [
+    baseline_input_file_names = [
         climo_utils.find_basic_file(
             directory_name=input_dir_name, file_type_string=file_type_string,
             valid_time_unix_sec=t
         )
-        for t in first_times_unix_sec
+        for t in baseline_times_unix_sec
     ]
 
-    second_input_file_names = [
+    trial_input_file_names = [
         climo_utils.find_basic_file(
             directory_name=input_dir_name, file_type_string=file_type_string,
             valid_time_unix_sec=t
         )
-        for t in second_times_unix_sec
+        for t in trial_times_unix_sec
     ]
 
     if file_type_string == climo_utils.FRONT_PROPERTIES_STRING:
-        first_property_dict = _read_properties_one_composite(
-            property_file_names=first_input_file_names,
+        baseline_property_dict = _read_properties_one_composite(
+            property_file_names=baseline_input_file_names,
             first_grid_row=first_grid_row, last_grid_row=last_grid_row,
             first_grid_column=first_grid_column,
             last_grid_column=last_grid_column)
         print(SEPARATOR_STRING)
 
-        second_property_dict = _read_properties_one_composite(
-            property_file_names=second_input_file_names,
+        trial_property_dict = _read_properties_one_composite(
+            property_file_names=trial_input_file_names,
             first_grid_row=first_grid_row, last_grid_row=last_grid_row,
             first_grid_column=first_grid_column,
             last_grid_column=last_grid_column)
         print(SEPARATOR_STRING)
 
-        wf_length_diff_matrix_metres, wf_length_sig_matrix = (
-            _mc_test_one_property(
-                first_property_matrix=first_property_dict[
-                    climo_utils.WARM_FRONT_LENGTHS_KEY],
-                second_property_matrix=second_property_dict[
-                    climo_utils.WARM_FRONT_LENGTHS_KEY],
-                num_iterations=num_iterations,
-                confidence_level=confidence_level)
+        this_significance_matrix = _mc_test_one_property(
+            baseline_property_matrix=baseline_property_dict[
+                climo_utils.WARM_FRONT_LENGTHS_KEY],
+            trial_property_matrix=trial_property_dict[
+                climo_utils.WARM_FRONT_LENGTHS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level)
+        print(SEPARATOR_STRING)
+
+        this_baseline_mean_matrix = numpy.nanmean(
+            baseline_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY], axis=0
         )
-        print(SEPARATOR_STRING)
+        this_trial_mean_matrix = numpy.nanmean(
+            trial_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY], axis=0
+        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -602,23 +601,31 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
-            difference_matrix=wf_length_diff_matrix_metres,
-            significance_matrix=wf_length_sig_matrix,
+            baseline_mean_matrix=this_baseline_mean_matrix,
+            trial_mean_matrix=this_trial_mean_matrix,
+            significance_matrix=this_significance_matrix,
             property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
-            first_property_file_names=first_input_file_names,
-            second_property_file_names=second_input_file_names,
+            baseline_input_file_names=baseline_input_file_names,
+            trial_input_file_names=trial_input_file_names,
             num_iterations=num_iterations, confidence_level=confidence_level,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        wf_area_diff_matrix_m2, wf_area_sig_matrix = _mc_test_one_property(
-            first_property_matrix=first_property_dict[
+        this_significance_matrix = _mc_test_one_property(
+            baseline_property_matrix=baseline_property_dict[
                 climo_utils.WARM_FRONT_AREAS_KEY],
-            second_property_matrix=second_property_dict[
+            trial_property_matrix=trial_property_dict[
                 climo_utils.WARM_FRONT_AREAS_KEY],
             num_iterations=num_iterations, confidence_level=confidence_level)
         print(SEPARATOR_STRING)
 
+        this_baseline_mean_matrix = numpy.nanmean(
+            baseline_property_dict[climo_utils.WARM_FRONT_AREAS_KEY], axis=0
+        )
+        this_trial_mean_matrix = numpy.nanmean(
+            trial_property_dict[climo_utils.WARM_FRONT_AREAS_KEY], axis=0
+        )
+
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
             property_name=climo_utils.WF_AREA_PROPERTY_NAME,
@@ -627,25 +634,30 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
-            difference_matrix=wf_area_diff_matrix_m2,
-            significance_matrix=wf_area_sig_matrix,
+            baseline_mean_matrix=this_baseline_mean_matrix,
+            trial_mean_matrix=this_trial_mean_matrix,
+            significance_matrix=this_significance_matrix,
             property_name=climo_utils.WF_AREA_PROPERTY_NAME,
-            first_property_file_names=first_input_file_names,
-            second_property_file_names=second_input_file_names,
+            baseline_input_file_names=baseline_input_file_names,
+            trial_input_file_names=trial_input_file_names,
             num_iterations=num_iterations, confidence_level=confidence_level,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        cf_length_diff_matrix_metres, cf_length_sig_matrix = (
-            _mc_test_one_property(
-                first_property_matrix=first_property_dict[
-                    climo_utils.COLD_FRONT_LENGTHS_KEY],
-                second_property_matrix=second_property_dict[
-                    climo_utils.COLD_FRONT_LENGTHS_KEY],
-                num_iterations=num_iterations,
-                confidence_level=confidence_level)
-        )
+        this_significance_matrix = _mc_test_one_property(
+            baseline_property_matrix=baseline_property_dict[
+                climo_utils.COLD_FRONT_LENGTHS_KEY],
+            trial_property_matrix=trial_property_dict[
+                climo_utils.COLD_FRONT_LENGTHS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level)
         print(SEPARATOR_STRING)
+
+        this_baseline_mean_matrix = numpy.nanmean(
+            baseline_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY], axis=0
+        )
+        this_trial_mean_matrix = numpy.nanmean(
+            trial_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY], axis=0
+        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -655,23 +667,30 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
-            difference_matrix=cf_length_diff_matrix_metres,
-            significance_matrix=cf_length_sig_matrix,
+            baseline_mean_matrix=this_baseline_mean_matrix,
+            trial_mean_matrix=this_trial_mean_matrix,
+            significance_matrix=this_significance_matrix,
             property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
-            first_property_file_names=first_input_file_names,
-            second_property_file_names=second_input_file_names,
+            baseline_input_file_names=baseline_input_file_names,
+            trial_input_file_names=trial_input_file_names,
             num_iterations=num_iterations, confidence_level=confidence_level,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        cf_area_diff_matrix_m2, cf_area_sig_matrix = _mc_test_one_property(
-            first_property_matrix=first_property_dict[
+        this_significance_matrix = _mc_test_one_property(
+            baseline_property_matrix=baseline_property_dict[
                 climo_utils.COLD_FRONT_AREAS_KEY],
-            second_property_matrix=second_property_dict[
+            trial_property_matrix=trial_property_dict[
                 climo_utils.COLD_FRONT_AREAS_KEY],
-            num_iterations=num_iterations, confidence_level=confidence_level
-        )
+            num_iterations=num_iterations, confidence_level=confidence_level)
         print(SEPARATOR_STRING)
+
+        this_baseline_mean_matrix = numpy.nanmean(
+            baseline_property_dict[climo_utils.COLD_FRONT_AREAS_KEY], axis=0
+        )
+        this_trial_mean_matrix = numpy.nanmean(
+            trial_property_dict[climo_utils.COLD_FRONT_AREAS_KEY], axis=0
+        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -681,32 +700,41 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
-            difference_matrix=cf_area_diff_matrix_m2,
-            significance_matrix=cf_area_sig_matrix,
+            baseline_mean_matrix=this_baseline_mean_matrix,
+            trial_mean_matrix=this_trial_mean_matrix,
+            significance_matrix=this_significance_matrix,
             property_name=climo_utils.CF_AREA_PROPERTY_NAME,
-            first_property_file_names=first_input_file_names,
-            second_property_file_names=second_input_file_names,
+            baseline_input_file_names=baseline_input_file_names,
+            trial_input_file_names=trial_input_file_names,
             num_iterations=num_iterations, confidence_level=confidence_level,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
         return
 
-    first_label_dict = _read_labels_one_composite(
-        label_file_names=first_input_file_names,
+    baseline_label_dict = _read_labels_one_composite(
+        label_file_names=baseline_input_file_names,
         first_grid_row=first_grid_row, last_grid_row=last_grid_row,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    second_label_dict = _read_labels_one_composite(
-        label_file_names=second_input_file_names,
+    trial_label_dict = _read_labels_one_composite(
+        label_file_names=trial_input_file_names,
         first_grid_row=first_grid_row, last_grid_row=last_grid_row,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    wf_frequency_diff_matrix, wf_frequency_sig_matrix = _mc_test_frequency(
-        first_flag_matrix=first_label_dict[WF_FLAGS_KEY],
-        second_flag_matrix=second_label_dict[WF_FLAGS_KEY],
+    this_significance_matrix = _mc_test_frequency(
+        baseline_flag_matrix=baseline_label_dict[WF_FLAGS_KEY],
+        trial_flag_matrix=trial_label_dict[WF_FLAGS_KEY],
         num_iterations=num_iterations, confidence_level=confidence_level)
+    print(SEPARATOR_STRING)
+
+    this_baseline_mean_matrix = numpy.mean(
+        baseline_label_dict[WF_FLAGS_KEY], axis=0
+    )
+    this_trial_mean_matrix = numpy.mean(
+        trial_label_dict[WF_FLAGS_KEY], axis=0
+    )
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
@@ -716,18 +744,27 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
-        difference_matrix=wf_frequency_diff_matrix,
-        significance_matrix=wf_frequency_sig_matrix,
+        baseline_mean_matrix=this_baseline_mean_matrix,
+        trial_mean_matrix=this_trial_mean_matrix,
+        significance_matrix=this_significance_matrix,
         property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
-        first_property_file_names=first_input_file_names,
-        second_property_file_names=second_input_file_names,
+        baseline_input_file_names=baseline_input_file_names,
+        trial_input_file_names=trial_input_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
-    cf_frequency_diff_matrix, cf_frequency_sig_matrix = _mc_test_frequency(
-        first_flag_matrix=first_label_dict[CF_FLAGS_KEY],
-        second_flag_matrix=second_label_dict[CF_FLAGS_KEY],
+    this_significance_matrix = _mc_test_frequency(
+        baseline_flag_matrix=baseline_label_dict[CF_FLAGS_KEY],
+        trial_flag_matrix=trial_label_dict[CF_FLAGS_KEY],
         num_iterations=num_iterations, confidence_level=confidence_level)
+    print(SEPARATOR_STRING)
+
+    this_baseline_mean_matrix = numpy.mean(
+        baseline_label_dict[CF_FLAGS_KEY], axis=0
+    )
+    this_trial_mean_matrix = numpy.mean(
+        trial_label_dict[CF_FLAGS_KEY], axis=0
+    )
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
@@ -737,11 +774,12 @@ def _run(input_dir_name, file_type_string, first_start_time_strings,
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
-        difference_matrix=cf_frequency_diff_matrix,
-        significance_matrix=cf_frequency_sig_matrix,
+        baseline_mean_matrix=this_baseline_mean_matrix,
+        trial_mean_matrix=this_trial_mean_matrix,
+        significance_matrix=this_significance_matrix,
         property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
-        first_property_file_names=first_input_file_names,
-        second_property_file_names=second_input_file_names,
+        baseline_input_file_names=baseline_input_file_names,
+        trial_input_file_names=trial_input_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
@@ -752,14 +790,14 @@ if __name__ == '__main__':
     _run(
         input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         file_type_string=getattr(INPUT_ARG_OBJECT, FILE_TYPE_ARG_NAME),
-        first_start_time_strings=getattr(
-            INPUT_ARG_OBJECT, FIRST_START_TIMES_ARG_NAME),
-        first_end_time_strings=getattr(
-            INPUT_ARG_OBJECT, FIRST_END_TIMES_ARG_NAME),
-        second_start_time_strings=getattr(
-            INPUT_ARG_OBJECT, SECOND_START_TIMES_ARG_NAME),
-        second_end_time_strings=getattr(
-            INPUT_ARG_OBJECT, SECOND_END_TIMES_ARG_NAME),
+        baseline_start_time_strings=getattr(
+            INPUT_ARG_OBJECT, BASELINE_START_TIMES_ARG_NAME),
+        baseline_end_time_strings=getattr(
+            INPUT_ARG_OBJECT, BASELINE_END_TIMES_ARG_NAME),
+        trial_start_time_strings=getattr(
+            INPUT_ARG_OBJECT, TRIAL_START_TIMES_ARG_NAME),
+        trial_end_time_strings=getattr(
+            INPUT_ARG_OBJECT, TRIAL_END_TIMES_ARG_NAME),
         first_grid_row=getattr(INPUT_ARG_OBJECT, FIRST_ROW_ARG_NAME),
         last_grid_row=getattr(INPUT_ARG_OBJECT, LAST_ROW_ARG_NAME),
         first_grid_column=getattr(INPUT_ARG_OBJECT, FIRST_COLUMN_ARG_NAME),

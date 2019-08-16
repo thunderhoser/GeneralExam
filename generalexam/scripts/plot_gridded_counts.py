@@ -301,8 +301,8 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
 
     concat_data_matrix = numpy.concatenate(
         (
-            monte_carlo_dict[climo_utils.BASELINE_MEAN_MATRIX],
-            monte_carlo_dict[climo_utils.TRIAL_MEAN_MATRIX]
+            monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY],
+            monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
         ), axis=0
     )
 
@@ -311,7 +311,7 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
 
     _plot_one_front_type(
         count_or_frequency_matrix=monte_carlo_dict[
-            climo_utils.BASELINE_MEAN_MATRIX],
+            climo_utils.BASELINE_MATRIX_KEY],
         colour_map_object=colour_map_object, max_colour_value=max_colour_value,
         plot_frequency=True, title_string=this_title_string,
         output_file_name=this_output_file_name)
@@ -322,7 +322,7 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
 
     _plot_one_front_type(
         count_or_frequency_matrix=monte_carlo_dict[
-            climo_utils.TRIAL_MEAN_MATRIX],
+            climo_utils.TRIAL_MATRIX_KEY],
         colour_map_object=colour_map_object, max_colour_value=max_colour_value,
         plot_frequency=True, title_string=this_title_string,
         output_file_name=this_output_file_name)
@@ -336,7 +336,10 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
         'trial.jpg', 'difference.jpg')
 
     plot_gridded_stats._plot_monte_carlo_diff(
-        difference_matrix=monte_carlo_dict[climo_utils.DIFFERENCE_MATRIX_KEY],
+        difference_matrix=(
+            monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] -
+            monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
+        ),
         significance_matrix=monte_carlo_dict[
             climo_utils.SIGNIFICANCE_MATRIX_KEY],
         colour_map_object=diff_colour_map_object,
