@@ -1128,7 +1128,7 @@ def write_monte_carlo_test(
     )
 
     error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_geq(num_iterations, 1000)
+    error_checking.assert_is_geq(num_iterations, 10)
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
     error_checking.assert_is_integer(first_grid_row)

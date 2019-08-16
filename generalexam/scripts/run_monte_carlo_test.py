@@ -533,7 +533,7 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
     error_checking.assert_is_greater(last_grid_row, first_grid_row)
     error_checking.assert_is_geq(first_grid_column, 0)
     error_checking.assert_is_greater(last_grid_column, first_grid_column)
-    error_checking.assert_is_geq(num_iterations, 1000)
+    error_checking.assert_is_geq(num_iterations, 10)
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
 
