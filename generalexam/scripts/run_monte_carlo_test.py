@@ -206,20 +206,22 @@ def _read_labels_one_composite(
     front_label_dict["cf_flag_matrix"]: Same but for cold fronts.
     """
 
+    num_times = len(label_file_names)
+
     wf_flag_matrix = None
     cf_flag_matrix = None
 
-    for this_file_name in label_file_names:
-        print('Reading front labels from: "{0:s}"...'.format(this_file_name))
-        this_label_dict = climo_utils.read_gridded_labels(this_file_name)
+    for i in range(len(label_file_names)):
+        print('Reading front labels from: "{0:s}"...'.format(
+            label_file_names[i]
+        ))
 
-        this_wf_flag_matrix = numpy.expand_dims(
-            this_label_dict[climo_utils.FRONT_LABELS_KEY][
-                first_grid_row:(last_grid_row + 1),
-                first_grid_column:(last_grid_column + 1)
-            ],
-            axis=0
-        )
+        this_label_dict = climo_utils.read_gridded_labels(label_file_names[i])
+
+        this_wf_flag_matrix = this_label_dict[climo_utils.FRONT_LABELS_KEY][
+            first_grid_row:(last_grid_row + 1),
+            first_grid_column:(last_grid_column + 1)
+        ]
 
         this_cf_flag_matrix = this_wf_flag_matrix + 0.
 
@@ -238,15 +240,16 @@ def _read_labels_one_composite(
         ] = 1.
 
         if wf_flag_matrix is None:
-            wf_flag_matrix = this_wf_flag_matrix + 0.
-            cf_flag_matrix = this_cf_flag_matrix + 0.
-        else:
-            wf_flag_matrix = numpy.concatenate(
-                (wf_flag_matrix, this_wf_flag_matrix), axis=0
+            num_grid_rows = this_wf_flag_matrix.shape[0]
+            num_grid_columns = this_wf_flag_matrix.shape[1]
+
+            wf_flag_matrix = numpy.full(
+                (num_times, num_grid_rows, num_grid_columns), numpy.nan
             )
-            cf_flag_matrix = numpy.concatenate(
-                (cf_flag_matrix, this_cf_flag_matrix), axis=0
-            )
+            cf_flag_matrix = wf_flag_matrix + 0.
+
+        wf_flag_matrix[i, ...] = this_wf_flag_matrix
+        cf_flag_matrix[i, ...] = this_cf_flag_matrix
 
     return {
         WF_FLAGS_KEY: wf_flag_matrix,
