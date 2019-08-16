@@ -1188,7 +1188,7 @@ def write_monte_carlo_test(
     dataset_object.setncattr(FIRST_GRID_COLUMN_KEY, first_grid_column)
 
     num_file_name_chars = max([
-        len(f) for f in [baseline_input_file_names, trial_input_file_names]
+        len(f) for f in baseline_input_file_names + trial_input_file_names
     ])
 
     dataset_object.createDimension(
