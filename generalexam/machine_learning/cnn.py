@@ -252,7 +252,7 @@ def read_metadata(pickle_file_name):
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    metadata_dict = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle, encoding='latin1')
     pickle_file_handle.close()
 
     if PRESSURE_LEVELS_KEY not in metadata_dict:
