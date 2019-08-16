@@ -1060,6 +1060,7 @@ def find_monte_carlo_file(
     error_checking.assert_is_geq(first_grid_row, 0)
     error_checking.assert_is_integer(first_grid_column)
     error_checking.assert_is_geq(first_grid_column, 0)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     netcdf_file_name = (
         '{0:s}/monte-carlo-test_{1:s}_first-row={2:03d}_first-column={3:03d}.nc'
@@ -1074,6 +1075,44 @@ def find_monte_carlo_file(
         raise ValueError(error_string)
 
     return netcdf_file_name
+
+
+def find_many_monte_carlo_files(
+        directory_name, property_name, raise_error_if_none_found=True):
+    """Finds many NetCDF files with results of Monte Carlo test.
+
+    :param directory_name: See doc for `write_monte_carlo_test`.
+    :param property_name: Same.
+    :param raise_error_if_none_found: Boolean flag.  If all files are missing
+        and `raise_error_if_none_found = True`, this method will error out.
+    :return: netcdf_file_names: 1-D list of file paths.  If no files were found
+        and `raise_error_if_none_found = False`, this is an empty list.
+    :raises: ValueError: if no files were found and
+        `raise_error_if_none_found = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    _check_property(property_name)
+    error_checking.assert_is_boolean(raise_error_if_none_found)
+
+    glob_pattern = (
+        '{0:s}/monte-carlo-test_{1:s}_first-row=[0-9][0-9][0-9]_'
+        'first-column=[0-9][0-9][0-9].nc'
+    ).format(
+        directory_name, property_name.replace('_', '-'),
+    )
+
+    netcdf_file_names = glob.glob(glob_pattern)
+
+    if raise_error_if_none_found and len(netcdf_file_names) == 0:
+        error_string = 'Could not find any files with pattern: "{0:s}"'.format(
+            glob_pattern)
+        raise ValueError(error_string)
+
+    if len(netcdf_file_names) > 0:
+        netcdf_file_names.sort()
+
+    return netcdf_file_names
 
 
 def write_monte_carlo_test(
