@@ -70,7 +70,8 @@ AREA_CMAP_HELP_STRING = (
 
 DIFFERENCE_CMAP_HELP_STRING = (
     'Name of colour map for composite difference (used only if `{0:s}` is not '
-    'empty).  Must be accepted by `matplotlib.pyplot.get_cmap`.')
+    'empty).  Must be accepted by `matplotlib.pyplot.get_cmap`.'
+).format(MONTE_CARLO_FILE_ARG_NAME)
 
 MAX_PERCENTILE_HELP_STRING = (
     'Percentile used to set max value in colour scheme.  Max value in length '
@@ -312,7 +313,8 @@ def _plot_monte_carlo_diff(
         significant_x_coords, significant_y_coords, linestyle='None',
         marker=SIG_MARKER_TYPE, markerfacecolor=SIG_MARKER_COLOUR,
         markeredgecolor=SIG_MARKER_COLOUR, markersize=SIG_MARKER_SIZE,
-        markeredgewidth=SIG_MARKER_EDGE_WIDTH)
+        markeredgewidth=SIG_MARKER_EDGE_WIDTH,
+        transform=axes_object.transAxes)
 
     colour_bar_object = plotting_utils.plot_colour_bar(
         axes_object_or_matrix=axes_object,
@@ -516,7 +518,8 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         title_string=this_title_string, output_file_name=this_output_file_name)
 
     this_title_string = this_title_string.replace('baseline', 'trial')
-    this_output_file_name = this_output_file_name.replace('baseline', 'trial')
+    this_output_file_name = this_output_file_name.replace(
+        'baseline-mean.jpg', 'trial-mean.jpg')
 
     _plot_one_statistic(
         statistic_matrix=(
@@ -531,7 +534,7 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         'Mean', 'Composite difference (trial minus baseline)'
     )
     this_output_file_name = this_output_file_name.replace(
-        'trial-mean', 'difference')
+        'trial-mean.jpg', 'difference.jpg')
 
     _plot_monte_carlo_diff(
         difference_matrix=(
