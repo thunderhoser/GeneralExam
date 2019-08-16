@@ -219,8 +219,8 @@ def plot_gridded_counts(
 
     error_checking.assert_is_numpy_array(
         count_or_frequency_matrix, num_dimensions=2)
-    error_checking.assert_is_geq_numpy_array(
-        count_or_frequency_matrix, 0., allow_nan=True)
+    # error_checking.assert_is_geq_numpy_array(
+    #     count_or_frequency_matrix, 0., allow_nan=True)
 
     if hasattr(colour_norm_object, 'boundaries'):
         min_colour_value = colour_norm_object.boundaries[0]

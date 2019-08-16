@@ -600,6 +600,8 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column,
             raise_error_if_missing=False)
 
+        print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
@@ -632,6 +634,8 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             property_name=climo_utils.WF_AREA_PROPERTY_NAME,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column,
             raise_error_if_missing=False)
+
+        print('Writing results to: "{0:s}"...'.format(this_output_file_name))
 
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
@@ -666,6 +670,8 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column,
             raise_error_if_missing=False)
 
+        print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
@@ -698,6 +704,8 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             property_name=climo_utils.CF_AREA_PROPERTY_NAME,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column,
             raise_error_if_missing=False)
+
+        print('Writing results to: "{0:s}"...'.format(this_output_file_name))
 
         climo_utils.write_monte_carlo_test(
             netcdf_file_name=this_output_file_name,
@@ -743,6 +751,8 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
 
+    print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
         baseline_mean_matrix=this_baseline_mean_matrix,
@@ -772,6 +782,8 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
         property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column,
         raise_error_if_missing=False)
+
+    print('Writing results to: "{0:s}"...'.format(this_output_file_name))
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
