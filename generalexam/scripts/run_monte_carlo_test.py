@@ -277,67 +277,65 @@ def _read_properties_one_composite(
     front_property_dict["cf_area_matrix_m2"]: Same but for cold-front areas.
     """
 
+    num_times = len(property_file_names)
+
     wf_length_matrix_metres = None
     wf_area_matrix_m2 = None
     cf_length_matrix_metres = None
     cf_area_matrix_m2 = None
 
-    for this_file_name in property_file_names:
+    for i in range(len(property_file_names)):
         print('Reading front properties from: "{0:s}"...'.format(
-            this_file_name))
+            property_file_names[i]
+        ))
 
-        this_property_dict = climo_utils.read_gridded_properties(this_file_name)
-
-        this_wf_length_matrix_metres = numpy.expand_dims(
-            this_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY][
-                first_grid_row:(last_grid_row + 1),
-                first_grid_column:(last_grid_column + 1)
-            ],
-            axis=0
+        this_property_dict = climo_utils.read_gridded_properties(
+            property_file_names[i]
         )
 
-        this_wf_area_matrix_m2 = numpy.expand_dims(
-            this_property_dict[climo_utils.WARM_FRONT_AREAS_KEY][
-                first_grid_row:(last_grid_row + 1),
-                first_grid_column:(last_grid_column + 1)
-            ],
-            axis=0
-        )
+        this_wf_length_matrix_metres = this_property_dict[
+            climo_utils.WARM_FRONT_LENGTHS_KEY
+        ][
+            first_grid_row:(last_grid_row + 1),
+            first_grid_column:(last_grid_column + 1)
+        ]
 
-        this_cf_length_matrix_metres = numpy.expand_dims(
-            this_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY][
-                first_grid_row:(last_grid_row + 1),
-                first_grid_column:(last_grid_column + 1)
-            ],
-            axis=0
-        )
+        this_wf_area_matrix_m2 = this_property_dict[
+            climo_utils.WARM_FRONT_AREAS_KEY
+        ][
+            first_grid_row:(last_grid_row + 1),
+            first_grid_column:(last_grid_column + 1)
+        ]
 
-        this_cf_area_matrix_m2 = numpy.expand_dims(
-            this_property_dict[climo_utils.COLD_FRONT_AREAS_KEY][
-                first_grid_row:(last_grid_row + 1),
-                first_grid_column:(last_grid_column + 1)
-            ],
-            axis=0
-        )
+        this_cf_length_matrix_metres = this_property_dict[
+            climo_utils.COLD_FRONT_LENGTHS_KEY
+        ][
+            first_grid_row:(last_grid_row + 1),
+            first_grid_column:(last_grid_column + 1)
+        ]
+
+        this_cf_area_matrix_m2 = this_property_dict[
+            climo_utils.COLD_FRONT_AREAS_KEY
+        ][
+            first_grid_row:(last_grid_row + 1),
+            first_grid_column:(last_grid_column + 1)
+        ]
 
         if wf_length_matrix_metres is None:
-            wf_length_matrix_metres = this_wf_length_matrix_metres + 0.
-            wf_area_matrix_m2 = this_wf_area_matrix_m2 + 0.
-            cf_length_matrix_metres = this_cf_length_matrix_metres + 0.
-            cf_area_matrix_m2 = this_cf_area_matrix_m2 + 0.
-        else:
-            wf_length_matrix_metres = numpy.concatenate(
-                (wf_length_matrix_metres, this_wf_length_matrix_metres), axis=0
+            num_grid_rows = this_wf_length_matrix_metres.shape[0]
+            num_grid_columns = this_wf_length_matrix_metres.shape[1]
+
+            wf_length_matrix_metres = numpy.full(
+                (num_times, num_grid_rows, num_grid_columns), numpy.nan
             )
-            wf_area_matrix_m2 = numpy.concatenate(
-                (wf_area_matrix_m2, this_wf_area_matrix_m2), axis=0
-            )
-            cf_length_matrix_metres = numpy.concatenate(
-                (cf_length_matrix_metres, this_cf_length_matrix_metres), axis=0
-            )
-            cf_area_matrix_m2 = numpy.concatenate(
-                (cf_area_matrix_m2, this_cf_area_matrix_m2), axis=0
-            )
+            wf_area_matrix_m2 = wf_length_matrix_metres + 0.
+            cf_length_matrix_metres = wf_length_matrix_metres + 0.
+            cf_area_matrix_m2 = wf_length_matrix_metres + 0.
+
+        wf_length_matrix_metres[i, ...] = this_wf_length_matrix_metres
+        wf_area_matrix_m2[i, ...] = this_wf_area_matrix_m2
+        cf_length_matrix_metres[i, ...] = this_cf_length_matrix_metres
+        cf_area_matrix_m2[i, ...] = this_cf_area_matrix_m2
 
     return {
         climo_utils.WARM_FRONT_LENGTHS_KEY: wf_length_matrix_metres,
