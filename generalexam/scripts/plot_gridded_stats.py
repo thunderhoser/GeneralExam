@@ -329,7 +329,7 @@ def _plot_monte_carlo_diff(
     colour_bar_object.ax.set_xticks(tick_values)
 
     if numpy.all(numpy.absolute(tick_values) < 1):
-        tick_strings = ['{0:.2f}'.format(x) for x in tick_values]
+        tick_strings = ['{0:.3f}'.format(x) for x in tick_values]
     else:
         tick_strings = [
             '{0:d}'.format(int(numpy.round(x))) for x in tick_values
