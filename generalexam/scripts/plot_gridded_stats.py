@@ -327,8 +327,15 @@ def _plot_monte_carlo_diff(
 
     tick_values = colour_bar_object.ax.get_xticks()
     colour_bar_object.ax.set_xticks(tick_values)
-    colour_bar_object.ax.set_xticklabels(tick_values)
 
+    if numpy.all(numpy.absolute(tick_values) < 1):
+        tick_strings = ['{0:.2f}'.format(x) for x in tick_values]
+    else:
+        tick_strings = [
+            '{0:d}'.format(int(numpy.round(x))) for x in tick_values
+        ]
+
+    colour_bar_object.ax.set_xticklabels(tick_strings)
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
