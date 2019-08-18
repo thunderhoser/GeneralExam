@@ -478,7 +478,7 @@ def _mc_test_frequency(
         numpy.sum(significance_matrix.astype(int)), significance_matrix.size
     ))
 
-    return significance_matrix
+    return significance_matrix, baseline_freq_matrix, trial_freq_matrix
 
 
 def _mc_test_one_statistic(
