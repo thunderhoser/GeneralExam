@@ -160,9 +160,7 @@ def _get_weighted_mean_for_statistic(num_labels_matrix, statistic_matrix):
         each grid cell (over all T time steps)
     """
 
-    # TODO(thunderhoser): Need unit test!
-
-    count_matrix = numpy.sum(num_labels_matrix, axis=0)
+    count_matrix = numpy.sum(num_labels_matrix, axis=0).astype(float)
     sum_statistic_matrix = numpy.nansum(
         num_labels_matrix * statistic_matrix, axis=0
     )
