@@ -112,10 +112,14 @@ def _run(input_dir_name, first_time_string, last_time_string, hours_to_keep,
 
     climo_utils.write_gridded_stats(
         netcdf_file_name=output_file_name,
+        num_wf_labels_matrix=front_statistic_dict[
+            climo_utils.NUM_WF_LABELS_KEY],
         mean_wf_length_matrix_metres=front_statistic_dict[
             climo_utils.MEAN_WF_LENGTHS_KEY],
         mean_wf_area_matrix_m2=front_statistic_dict[
             climo_utils.MEAN_WF_AREAS_KEY],
+        num_cf_labels_matrix=front_statistic_dict[
+            climo_utils.NUM_CF_LABELS_KEY],
         mean_cf_length_matrix_metres=front_statistic_dict[
             climo_utils.MEAN_CF_LENGTHS_KEY],
         mean_cf_area_matrix_m2=front_statistic_dict[

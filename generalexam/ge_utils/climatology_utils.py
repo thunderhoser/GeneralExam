@@ -723,9 +723,12 @@ def average_many_property_files(property_file_names):
     :param property_file_names: 1-D list of paths to input files (will be read
         by `read_gridded_properties`).
     :return: front_statistic_dict: Dictionary with the following keys.
+    front_property_dict["num_wf_labels_matrix"]: See doc for
+        `write_gridded_stats`.
     front_property_dict["mean_wf_length_matrix_metres"]: See doc for
         `write_gridded_stats`.
     front_property_dict["mean_wf_area_matrix_m2"]: Same.
+    front_property_dict["num_cf_labels_matrix"]: Same.
     front_property_dict["mean_cf_length_matrix_metres"]: Same.
     front_property_dict["mean_cf_area_matrix_m2"]: Same.
     front_property_dict["prediction_file_names"]: Same.
@@ -788,13 +791,26 @@ def average_many_property_files(property_file_names):
     num_wf_labels_matrix[num_wf_labels_matrix == 0] = numpy.nan
     num_cf_labels_matrix[num_cf_labels_matrix == 0] = numpy.nan
 
-    return {
+    front_property_dict = {
         MEAN_WF_LENGTHS_KEY: sum_wf_length_matrix_metres / num_wf_labels_matrix,
         MEAN_WF_AREAS_KEY: sum_wf_area_matrix_m2 / num_wf_labels_matrix,
         MEAN_CF_LENGTHS_KEY: sum_cf_length_matrix_metres / num_cf_labels_matrix,
         MEAN_CF_AREAS_KEY: sum_cf_area_matrix_m2 / num_cf_labels_matrix,
         PREDICTION_FILES_KEY: prediction_file_names
     }
+
+    num_wf_labels_matrix[numpy.isnan(num_wf_labels_matrix)] = 0
+    num_cf_labels_matrix[numpy.isnan(num_cf_labels_matrix)] = 0
+
+    num_wf_labels_matrix = numpy.round(num_wf_labels_matrix).astype(int)
+    num_cf_labels_matrix = numpy.round(num_cf_labels_matrix).astype(int)
+
+    front_property_dict.update({
+        NUM_WF_LABELS_KEY: num_wf_labels_matrix,
+        NUM_CF_LABELS_KEY: num_cf_labels_matrix
+    })
+
+    return front_property_dict
 
 
 def write_gridded_labels(
@@ -1534,7 +1550,8 @@ def read_gridded_counts(netcdf_file_name):
 
 
 def write_gridded_stats(
-        netcdf_file_name, mean_wf_length_matrix_metres, mean_wf_area_matrix_m2,
+        netcdf_file_name, num_wf_labels_matrix, mean_wf_length_matrix_metres,
+        mean_wf_area_matrix_m2, num_cf_labels_matrix,
         mean_cf_length_matrix_metres, mean_cf_area_matrix_m2,
         first_time_unix_sec, last_time_unix_sec, prediction_file_names,
         hours=None, months=None):
@@ -1544,10 +1561,15 @@ def write_gridded_stats(
     N = number of columns in grid
 
     :param netcdf_file_name: Path to output file.
+    :param num_wf_labels_matrix: M-by-N numpy array with number of warm fronts
+        involved in stat calculations at each grid cell.
     :param mean_wf_length_matrix_metres: M-by-N numpy array with mean warm-front
         length at each grid cell (NaN if there are no warm fronts).
     :param mean_wf_area_matrix_m2: Same but for warm-front area.
-    :param mean_cf_length_matrix_metres: Same but for cold-front length.
+    :param num_cf_labels_matrix: M-by-N numpy array with number of cold fronts
+        involved in stat calculations at each grid cell.
+    :param mean_cf_length_matrix_metres: M-by-N numpy array with mean cold-front
+        length at each grid cell (NaN if there are no cold fronts).
     :param mean_cf_area_matrix_m2: Same but for cold-front area.
     :param first_time_unix_sec: See doc for `_check_aggregated_file_metadata`.
     :param last_time_unix_sec: Same.
@@ -1557,18 +1579,26 @@ def write_gridded_stats(
     """
 
     # Check input args.
+    error_checking.assert_is_integer_numpy_array(num_wf_labels_matrix)
+    error_checking.assert_is_geq_numpy_array(num_wf_labels_matrix, 0)
+    error_checking.assert_is_numpy_array(num_wf_labels_matrix, num_dimensions=2)
+
+    these_expected_dim = numpy.array(num_wf_labels_matrix.shape, dtype=int)
+
     error_checking.assert_is_geq_numpy_array(
         mean_wf_length_matrix_metres, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
-        mean_wf_length_matrix_metres, num_dimensions=2)
-
-    these_expected_dim = numpy.array(
-        mean_wf_length_matrix_metres.shape, dtype=int)
+        mean_wf_length_matrix_metres, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_geq_numpy_array(
         mean_wf_area_matrix_m2, 0, allow_nan=True)
     error_checking.assert_is_numpy_array(
         mean_wf_area_matrix_m2, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_integer_numpy_array(num_cf_labels_matrix)
+    error_checking.assert_is_geq_numpy_array(num_cf_labels_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_cf_labels_matrix, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_geq_numpy_array(
         mean_cf_length_matrix_metres, 0, allow_nan=True)
@@ -1615,6 +1645,12 @@ def write_gridded_stats(
 
     # Add variables.
     dataset_object.createVariable(
+        NUM_WF_LABELS_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_WF_LABELS_KEY][:] = num_wf_labels_matrix
+
+    dataset_object.createVariable(
         MEAN_WF_LENGTHS_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
@@ -1627,6 +1663,12 @@ def write_gridded_stats(
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
     dataset_object.variables[MEAN_WF_AREAS_KEY][:] = mean_wf_area_matrix_m2
+
+    dataset_object.createVariable(
+        NUM_CF_LABELS_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_CF_LABELS_KEY][:] = num_cf_labels_matrix
 
     dataset_object.createVariable(
         MEAN_CF_LENGTHS_KEY, datatype=numpy.float32,
@@ -1662,9 +1704,11 @@ def read_gridded_stats(netcdf_file_name):
 
     :param netcdf_file_name: Path to input file.
     :return: front_statistic_dict: Dictionary with the following keys.
-    front_statistic_dict["mean_wf_length_matrix_metres"]: See doc for
+    front_statistic_dict["num_wf_labels_matrix"]: See doc for
         `write_gridded_stats`.
+    front_statistic_dict["mean_wf_length_matrix_metres"]: Same.
     front_statistic_dict["mean_wf_area_matrix_m2"]: Same.
+    front_statistic_dict["num_cf_labels_matrix"]: Same.
     front_statistic_dict["mean_cf_length_matrix_metres"]: Same.
     front_statistic_dict["mean_cf_area_matrix_m2"]: Same.
     front_statistic_dict["first_time_unix_sec"]: Same.
@@ -1682,11 +1726,17 @@ def read_gridded_stats(netcdf_file_name):
         LAST_TIME_KEY: int(getattr(dataset_object, LAST_TIME_KEY)),
         HOURS_KEY: hours,
         MONTHS_KEY: months,
+        NUM_WF_LABELS_KEY: numpy.array(
+            dataset_object.variables[NUM_WF_LABELS_KEY][:], dtype=int
+        ),
         MEAN_WF_LENGTHS_KEY: numpy.array(
             dataset_object.variables[MEAN_WF_LENGTHS_KEY][:], dtype=float
         ),
         MEAN_WF_AREAS_KEY: numpy.array(
             dataset_object.variables[MEAN_WF_AREAS_KEY][:], dtype=float
+        ),
+        NUM_CF_LABELS_KEY: numpy.array(
+            dataset_object.variables[NUM_CF_LABELS_KEY][:], dtype=int
         ),
         MEAN_CF_LENGTHS_KEY: numpy.array(
             dataset_object.variables[MEAN_CF_LENGTHS_KEY][:], dtype=float
