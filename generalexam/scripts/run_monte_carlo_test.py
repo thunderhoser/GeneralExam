@@ -143,6 +143,8 @@ def _months_to_start_end_times(month_strings):
         for m in months_unix_sec
     ], dtype=int)
 
+    end_times_unix_sec += 1 - TIME_INTERVAL_SEC
+
     return start_times_unix_sec, end_times_unix_sec
 
 

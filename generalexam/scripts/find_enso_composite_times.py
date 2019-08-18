@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 TIME_FORMAT = '%Y%m%d%H'
+MONTH_YEAR_FORMAT = '%Y%m'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 FIRST_YEAR = 1979
@@ -50,46 +51,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + TRIAL_THRES_ARG_NAME, type=float, required=True,
     help=TRIAL_THRES_HELP_STRING)
-
-
-def _months_to_start_end_times(years, months):
-    """Converts list of months to list of start and end times.
-
-    N = number of months in set
-
-    :param years: length-N numpy array of years.
-    :param months: length-N numpy array of months.
-    :return: start_time_strings: length-N list of start times (format
-        "yyyymmddHH").
-    :return: end_time_strings: length-N list of end times (format "yyyymmddHH").
-    """
-
-    num_months = len(months)
-    start_times_unix_sec = numpy.full(num_months, -1, dtype=int)
-    end_times_unix_sec = numpy.full(num_months, -1, dtype=int)
-
-    for i in range(num_months):
-        this_month_unix_sec = time_conversion.string_to_unix_sec(
-            '{0:04d}{1:02d}'.format(years[i], months[i]), '%Y%m'
-        )
-
-        start_times_unix_sec[i], end_times_unix_sec[i] = (
-            time_conversion.first_and_last_times_in_month(this_month_unix_sec)
-        )
-
-    end_times_unix_sec += 1 - TIME_INTERVAL_SEC
-
-    start_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-        for t in start_times_unix_sec
-    ]
-
-    end_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-        for t in end_times_unix_sec
-    ]
-
-    return start_time_strings, end_time_strings
 
 
 def _run(enso_file_name, baseline_threshold, trial_threshold):
@@ -145,33 +106,23 @@ def _run(enso_file_name, baseline_threshold, trial_threshold):
         trial_threshold
     ))
 
-    baseline_start_time_strings, baseline_end_time_strings = (
-        _months_to_start_end_times(
-            years=years[baseline_indices], months=months[baseline_indices]
-        )
-    )
+    baseline_month_strings = [
+        '{0:04d}{1:02d}'.format(y, m)
+        for y, m in zip(years[baseline_indices], months[baseline_indices])
+    ]
 
-    trial_start_time_strings, trial_end_time_strings = (
-        _months_to_start_end_times(
-            years=years[trial_indices], months=months[trial_indices]
-        )
-    )
+    trial_month_strings = [
+        '{0:04d}{1:02d}'.format(y, m)
+        for y, m in zip(years[trial_indices], months[trial_indices])
+    ]
 
     print(SEPARATOR_STRING)
-    print('Baseline start times:\n')
-    print(' '.join(baseline_start_time_strings))
+    print('Baseline months:\n')
+    print(' '.join(baseline_month_strings))
 
     print(SEPARATOR_STRING)
-    print('Baseline end times:\n')
-    print(' '.join(baseline_end_time_strings))
-
-    print(SEPARATOR_STRING)
-    print('Trial start times:\n')
-    print(' '.join(trial_start_time_strings))
-
-    print(SEPARATOR_STRING)
-    print('Trial end times:\n')
-    print(' '.join(trial_end_time_strings))
+    print('Trial months:\n')
+    print(' '.join(trial_month_strings))
 
 
 if __name__ == '__main__':
