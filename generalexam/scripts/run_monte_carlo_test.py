@@ -3,25 +3,20 @@
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
-from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TIME_FORMAT = '%Y%m%d%H'
+YEAR_MONTH_FORMAT = '%Y%m'
 TIME_INTERVAL_SEC = 10800
 
-WF_FLAGS_KEY = 'wf_flag_matrix'
-CF_FLAGS_KEY = 'cf_flag_matrix'
+NUM_TIMES_BY_MONTH_KEY = 'num_time_steps_by_month'
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 FILE_TYPE_ARG_NAME = 'file_type_string'
-BASELINE_START_TIMES_ARG_NAME = 'baseline_start_time_strings'
-BASELINE_END_TIMES_ARG_NAME = 'baseline_end_time_strings'
-TRIAL_START_TIMES_ARG_NAME = 'trial_start_time_strings'
-TRIAL_END_TIMES_ARG_NAME = 'trial_end_time_strings'
+BASELINE_MONTHS_ARG_NAME = 'baseline_month_strings'
+TRIAL_MONTHS_ARG_NAME = 'trial_month_strings'
 FIRST_ROW_ARG_NAME = 'first_grid_row'
 LAST_ROW_ARG_NAME = 'last_grid_row'
 FIRST_COLUMN_ARG_NAME = 'first_grid_column'
@@ -31,27 +26,21 @@ CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_DIR_HELP_STRING = (
-    'Name of input directory.  Files therein will be found by '
-    '`climatology_utils.find_basic_file` and read by '
-    '`climatology_utils.read_gridded_labels` or '
-    '`climatology_utils.read_gridded_properties`.')
+    'Name of input directory.  Files therein (one per month) will be found by '
+    '`climatology_utils.find_aggregated_file` and read by '
+    '`climatology_utils.read_gridded_counts` or '
+    '`climatology_utils.read_gridded_stats`.')
 
 FILE_TYPE_HELP_STRING = (
     'File type (determines whether this script will test front frequencies or '
-    'properties).  Must be in the following list:\n{0:s}'
-).format(str(climo_utils.BASIC_FILE_TYPE_STRINGS))
+    'statistics).  Must be in the following list:\n{0:s}'
+).format(str(climo_utils.AGGREGATED_FILE_TYPE_STRINGS))
 
-BASELINE_START_TIMES_HELP_STRING = (
-    'List of start times (format "yyyymmddHH") for baseline composite.')
+BASELINE_MONTHS_HELP_STRING = (
+    'List of months (format "yyyymm") for baseline composite.')
 
-BASELINE_END_TIMES_HELP_STRING = (
-    'List of end times (format "yyyymmddHH") for baseline composite.')
-
-TRIAL_START_TIMES_HELP_STRING = (
-    'List of start times (format "yyyymmddHH") for trial composite.')
-
-TRIAL_END_TIMES_HELP_STRING = (
-    'List of end times (format "yyyymmddHH") for trial composite.')
+TRIAL_MONTHS_HELP_STRING = (
+    'List of months (format "yyyymm") for trial composite.')
 
 FIRST_ROW_HELP_STRING = (
     'First grid row to test.  This script will test only a subset of grid '
@@ -93,20 +82,12 @@ INPUT_ARG_PARSER.add_argument(
     help=FILE_TYPE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + BASELINE_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=BASELINE_START_TIMES_HELP_STRING)
+    '--' + BASELINE_MONTHS_ARG_NAME, nargs='+', type=str, required=True,
+    help=BASELINE_MONTHS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + BASELINE_END_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=BASELINE_END_TIMES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + TRIAL_START_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=TRIAL_START_TIMES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + TRIAL_END_TIMES_ARG_NAME, nargs='+', type=str, required=True,
-    help=TRIAL_END_TIMES_HELP_STRING)
+    '--' + TRIAL_MONTHS_ARG_NAME, nargs='+', type=str, required=True,
+    help=TRIAL_MONTHS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_ROW_ARG_NAME, type=int, required=True,
@@ -137,244 +118,298 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _convert_input_times(start_time_strings, end_time_strings):
-    """Converts and error-checks set of input times.
+def _months_to_start_end_times(month_strings):
+    """Converts list of months to list of start/end times.
 
-    :param start_time_strings: See documentation at top of file for either
-        `baseline_start_time_strings` or `trial_start_time_strings`.
-    :param end_time_strings: See doc at top of file for either
-        `baseline_end_time_strings` or `trial_end_time_strings`.
-    :return: valid_times_unix_sec: 1-D numpy array of time steps.
+    T = number of months
+
+    :param month_strings: length-T list of months (format "yyyymm").
+    :return: start_times_unix_sec: length-T numpy array of month-start times.
+    :return: end_times_unix_sec: length-T numpy array of month-end times.
     """
 
-    num_periods = len(start_time_strings)
-    error_checking.assert_is_numpy_array(
-        numpy.array(end_time_strings),
-        exact_dimensions=numpy.array([num_periods], dtype=int)
-    )
+    months_unix_sec = numpy.array([
+        time_conversion.string_to_unix_sec(m, YEAR_MONTH_FORMAT)
+        for m in month_strings
+    ], dtype=int)
 
     start_times_unix_sec = numpy.array([
-        time_conversion.string_to_unix_sec(t, TIME_FORMAT)
-        for t in start_time_strings
+        time_conversion.first_and_last_times_in_month(m)[0]
+        for m in months_unix_sec
     ], dtype=int)
 
     end_times_unix_sec = numpy.array([
-        time_conversion.string_to_unix_sec(t, TIME_FORMAT)
-        for t in end_time_strings
+        time_conversion.first_and_last_times_in_month(m)[1]
+        for m in months_unix_sec
     ], dtype=int)
 
-    sort_indices = numpy.argsort(start_times_unix_sec)
-    start_times_unix_sec = start_times_unix_sec[sort_indices]
-    end_times_unix_sec = end_times_unix_sec[sort_indices]
-
-    for i in range(1, num_periods):
-        error_checking.assert_is_greater(
-            start_times_unix_sec[i], end_times_unix_sec[i - 1]
-        )
-
-    valid_times_unix_sec = numpy.array([], dtype=int)
-
-    for i in range(num_periods):
-        these_times_unix_sec = time_periods.range_and_interval_to_list(
-            start_time_unix_sec=start_times_unix_sec[i],
-            end_time_unix_sec=end_times_unix_sec[i],
-            time_interval_sec=TIME_INTERVAL_SEC, include_endpoint=True)
-
-        valid_times_unix_sec = numpy.concatenate((
-            valid_times_unix_sec, these_times_unix_sec))
-
-    return valid_times_unix_sec
+    return start_times_unix_sec, end_times_unix_sec
 
 
-def _read_labels_one_composite(
-        label_file_names, first_grid_row, last_grid_row, first_grid_column,
-        last_grid_column):
-    """Reads gridded front labels for one composite.
+def _get_weighted_mean_for_statistic(num_labels_matrix, statistic_matrix):
+    """Computes weighted mean for one statistic.
 
     T = number of time steps
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param num_labels_matrix: T-by-M-by-N numpy array with number of labels
+        (fronts) used to compute statistic.
+    :param statistic_matrix: T-by-M-by-N numpy array with values of statistic.
+    :return: mean_statistic__matrix: M-by-N numpy array with mean statistic at
+        each grid cell (over all T time steps)
+    """
+
+    # TODO(thunderhoser): Need unit test!
+
+    count_matrix = numpy.sum(num_labels_matrix, axis=0)
+    sum_statistic_matrix = numpy.nansum(
+        num_labels_matrix * statistic_matrix, axis=0
+    )
+
+    count_matrix[count_matrix == 0] = numpy.nan
+    return sum_statistic_matrix / count_matrix
+
+
+def _read_frequencies_one_composite(
+        count_file_names, first_grid_row, last_grid_row, first_grid_column,
+        last_grid_column):
+    """Reads gridded front frequencies for one composite.
+
+    T = number of months
     M = number of rows in subgrid
     N = number of columns in subgrid
 
-    :param label_file_names: 1-D list of paths to input files.
+    :param count_file_names: 1-D list of paths to input files.
     :param first_grid_row: See documentation at top of file.
     :param last_grid_row: Same.
     :param first_grid_column: Same.
     :param last_grid_column: Same.
-    :return: front_label_dict: Dictionary with the following keys.
-    front_label_dict["wf_flag_matrix"]: T-by-M-by-N numpy array of flags.  0
-        indicates no warm front; 1 indicates warm front; NaN indicates no data.
-    front_label_dict["cf_flag_matrix"]: Same but for cold fronts.
+    :return: front_count_dict: Dictionary with the following keys.
+    front_count_dict["num_wf_labels_matrix"]: T-by-M-by-N numpy array with
+        number of warm fronts.
+    front_count_dict["num_cf_labels_matrix"]: Same but for cold fronts.
+    front_count_dict["num_time_steps_by_month"]: length-T numpy array with
+        number of time steps (max possible number of fronts) in each month.
     """
 
-    num_times = len(label_file_names)
+    num_months = len(count_file_names)
 
-    wf_flag_matrix = None
-    cf_flag_matrix = None
+    num_wf_labels_matrix = None
+    num_cf_labels_matrix = None
+    num_time_steps_by_month = numpy.full(num_months, -1, dtype=int)
 
-    for i in range(len(label_file_names)):
-        print('Reading front labels from: "{0:s}"...'.format(
-            label_file_names[i]
+    for i in range(num_months):
+        print('Reading front counts from: "{0:s}"...'.format(
+            count_file_names[i]
         ))
 
-        this_label_dict = climo_utils.read_gridded_labels(label_file_names[i])
+        this_count_dict = climo_utils.read_gridded_counts(count_file_names[i])
 
-        this_wf_flag_matrix = this_label_dict[climo_utils.FRONT_LABELS_KEY][
-            first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
-
-        this_cf_flag_matrix = this_wf_flag_matrix + 0.
-
-        this_wf_flag_matrix[
-            this_wf_flag_matrix == front_utils.COLD_FRONT_ENUM
-        ] = 0.
-        this_wf_flag_matrix[
-            this_wf_flag_matrix == front_utils.WARM_FRONT_ENUM
-        ] = 1.
-
-        this_cf_flag_matrix[
-            this_cf_flag_matrix == front_utils.WARM_FRONT_ENUM
-        ] = 0.
-        this_cf_flag_matrix[
-            this_cf_flag_matrix == front_utils.COLD_FRONT_ENUM
-        ] = 1.
-
-        if wf_flag_matrix is None:
-            num_grid_rows = this_wf_flag_matrix.shape[0]
-            num_grid_columns = this_wf_flag_matrix.shape[1]
-
-            wf_flag_matrix = numpy.full(
-                (num_times, num_grid_rows, num_grid_columns), numpy.nan
+        num_time_steps_by_month[i] = 1 + int(numpy.round(
+            float(
+                this_count_dict[climo_utils.LAST_TIME_KEY] -
+                this_count_dict[climo_utils.FIRST_TIME_KEY]
             )
-            cf_flag_matrix = wf_flag_matrix + 0.
+            / TIME_INTERVAL_SEC
+        ))
 
-        wf_flag_matrix[i, ...] = this_wf_flag_matrix
-        cf_flag_matrix[i, ...] = this_cf_flag_matrix
+        print('Number of time steps in month = {0:d}'.format(
+            num_time_steps_by_month[i]
+        ))
+
+        this_num_wf_labels_matrix = (
+            this_count_dict[climo_utils.NUM_WF_LABELS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
+
+        this_num_cf_labels_matrix = (
+            this_count_dict[climo_utils.NUM_CF_LABELS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
+
+        if num_wf_labels_matrix is None:
+            num_grid_rows = this_num_wf_labels_matrix.shape[0]
+            num_grid_columns = this_num_wf_labels_matrix.shape[1]
+            dimensions = (num_months, num_grid_rows, num_grid_columns)
+
+            num_wf_labels_matrix = numpy.full(dimensions, numpy.nan)
+            num_cf_labels_matrix = numpy.full(dimensions, numpy.nan)
+
+        num_wf_labels_matrix[i, ...] = this_num_wf_labels_matrix
+        num_cf_labels_matrix[i, ...] = this_num_cf_labels_matrix
 
     return {
-        WF_FLAGS_KEY: wf_flag_matrix,
-        CF_FLAGS_KEY: cf_flag_matrix
+        climo_utils.NUM_WF_LABELS_KEY: num_wf_labels_matrix,
+        climo_utils.NUM_CF_LABELS_KEY: num_cf_labels_matrix,
+        NUM_TIMES_BY_MONTH_KEY: num_time_steps_by_month
     }
 
 
-def _read_properties_one_composite(
-        property_file_names, first_grid_row, last_grid_row, first_grid_column,
+def _read_stats_one_composite(
+        statistic_file_names, first_grid_row, last_grid_row, first_grid_column,
         last_grid_column):
-    """Reads gridded front properties for one composite.
+    """Reads gridded front statistics for one composite.
 
-    T = number of time steps
+    T = number of months
     M = number of rows in subgrid
     N = number of columns in subgrid
 
-    :param property_file_names: 1-D list of paths to input files.
+    :param statistic_file_names: 1-D list of paths to input files.
     :param first_grid_row: See documentation at top of file.
     :param last_grid_row: Same.
     :param first_grid_column: Same.
     :param last_grid_column: Same.
-    :return: front_property_dict: Dictionary with the following keys.
-    front_property_dict["wf_length_matrix_metres"]: T-by-M-by-N numpy array of
-        warm-front lengths.
-    front_property_dict["wf_area_matrix_m2"]: Same but for warm-front areas.
-    front_property_dict["cf_length_matrix_metres"]: Same but for cold-front
-        lengths.
-    front_property_dict["cf_area_matrix_m2"]: Same but for cold-front areas.
+    :return: front_statistic_dict: Dictionary with the following keys.
+    front_statistic_dict["num_wf_labels_matrix"]: T-by-M-by-N numpy array with
+        number of warm fronts used to compute stats.
+    front_statistic_dict["mean_wf_length_matrix_metres"]: Same but for
+        warm-front length.
+    front_statistic_dict["mean_wf_area_matrix_m2"]: Same but for warm-front
+        area.
+    front_statistic_dict["num_cf_labels_matrix"]: T-by-M-by-N numpy array with
+        number of cold fronts used to compute stats.
+    front_statistic_dict["mean_cf_length_matrix_metres"]: Same but for
+        cold-front length.
+    front_statistic_dict["mean_cf_area_matrix_m2"]: Same but for cold-front
+        area.
     """
 
-    num_times = len(property_file_names)
+    num_months = len(statistic_file_names)
 
-    wf_length_matrix_metres = None
-    wf_area_matrix_m2 = None
-    cf_length_matrix_metres = None
-    cf_area_matrix_m2 = None
+    num_wf_labels_matrix = None
+    mean_wf_length_matrix_metres = None
+    mean_wf_area_matrix_m2 = None
+    num_cf_labels_matrix = None
+    mean_cf_length_matrix_metres = None
+    mean_cf_area_matrix_m2 = None
 
-    for i in range(len(property_file_names)):
-        print('Reading front properties from: "{0:s}"...'.format(
-            property_file_names[i]
+    for i in range(num_months):
+        print('Reading front statistics from: "{0:s}"...'.format(
+            statistic_file_names[i]
         ))
 
-        this_property_dict = climo_utils.read_gridded_properties(
-            property_file_names[i]
+        this_statistic_dict = climo_utils.read_gridded_stats(
+            statistic_file_names[i]
         )
 
-        this_wf_length_matrix_metres = this_property_dict[
-            climo_utils.WARM_FRONT_LENGTHS_KEY
-        ][
-            first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_num_wf_labels_matrix = (
+            this_statistic_dict[climo_utils.NUM_WF_LABELS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
 
-        this_wf_area_matrix_m2 = this_property_dict[
-            climo_utils.WARM_FRONT_AREAS_KEY
-        ][
-            first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_wf_length_matrix_metres = (
+            this_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
 
-        this_cf_length_matrix_metres = this_property_dict[
-            climo_utils.COLD_FRONT_LENGTHS_KEY
-        ][
-            first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_wf_area_matrix_m2 = (
+            this_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
 
-        this_cf_area_matrix_m2 = this_property_dict[
-            climo_utils.COLD_FRONT_AREAS_KEY
-        ][
-            first_grid_row:(last_grid_row + 1),
-            first_grid_column:(last_grid_column + 1)
-        ]
+        this_num_cf_labels_matrix = (
+            this_statistic_dict[climo_utils.NUM_CF_LABELS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
 
-        if wf_length_matrix_metres is None:
-            num_grid_rows = this_wf_length_matrix_metres.shape[0]
-            num_grid_columns = this_wf_length_matrix_metres.shape[1]
+        this_cf_length_matrix_metres = (
+            this_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
 
-            wf_length_matrix_metres = numpy.full(
-                (num_times, num_grid_rows, num_grid_columns), numpy.nan
-            )
-            wf_area_matrix_m2 = wf_length_matrix_metres + 0.
-            cf_length_matrix_metres = wf_length_matrix_metres + 0.
-            cf_area_matrix_m2 = wf_length_matrix_metres + 0.
+        this_cf_area_matrix_m2 = (
+            this_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY][
+                first_grid_row:(last_grid_row + 1),
+                first_grid_column:(last_grid_column + 1)
+            ]
+        )
 
-        wf_length_matrix_metres[i, ...] = this_wf_length_matrix_metres
-        wf_area_matrix_m2[i, ...] = this_wf_area_matrix_m2
-        cf_length_matrix_metres[i, ...] = this_cf_length_matrix_metres
-        cf_area_matrix_m2[i, ...] = this_cf_area_matrix_m2
+        if num_wf_labels_matrix is None:
+            num_grid_rows = this_num_wf_labels_matrix.shape[0]
+            num_grid_columns = this_num_wf_labels_matrix.shape[1]
+            dimensions = (num_months, num_grid_rows, num_grid_columns)
+
+            num_wf_labels_matrix = numpy.full(dimensions, numpy.nan)
+            mean_wf_length_matrix_metres = numpy.full(dimensions, numpy.nan)
+            mean_wf_area_matrix_m2 = numpy.full(dimensions, numpy.nan)
+            num_cf_labels_matrix = numpy.full(dimensions, numpy.nan)
+            mean_cf_length_matrix_metres = numpy.full(dimensions, numpy.nan)
+            mean_cf_area_matrix_m2 = numpy.full(dimensions, numpy.nan)
+
+        num_wf_labels_matrix[i, ...] = this_num_wf_labels_matrix
+        mean_wf_length_matrix_metres[i, ...] = this_wf_length_matrix_metres
+        mean_wf_area_matrix_m2[i, ...] = this_wf_area_matrix_m2
+        num_cf_labels_matrix[i, ...] = this_num_cf_labels_matrix
+        mean_cf_length_matrix_metres[i, ...] = this_cf_length_matrix_metres
+        mean_cf_area_matrix_m2[i, ...] = this_cf_area_matrix_m2
 
     return {
-        climo_utils.WARM_FRONT_LENGTHS_KEY: wf_length_matrix_metres,
-        climo_utils.WARM_FRONT_AREAS_KEY: wf_area_matrix_m2,
-        climo_utils.COLD_FRONT_LENGTHS_KEY: cf_length_matrix_metres,
-        climo_utils.COLD_FRONT_AREAS_KEY: cf_area_matrix_m2
+        climo_utils.NUM_WF_LABELS_KEY: num_wf_labels_matrix,
+        climo_utils.MEAN_WF_LENGTHS_KEY: mean_wf_length_matrix_metres,
+        climo_utils.MEAN_WF_AREAS_KEY: mean_wf_area_matrix_m2,
+        climo_utils.NUM_CF_LABELS_KEY: num_cf_labels_matrix,
+        climo_utils.MEAN_CF_LENGTHS_KEY: mean_cf_length_matrix_metres,
+        climo_utils.MEAN_CF_AREAS_KEY: mean_cf_area_matrix_m2
     }
 
 
 def _mc_test_frequency(
-        baseline_flag_matrix, trial_flag_matrix, num_iterations,
+        baseline_num_labels_matrix, baseline_time_step_counts,
+        trial_num_labels_matrix, trial_time_step_counts, num_iterations,
         confidence_level):
-    """Runs Monte Carlo for frequency of one front type (warm or cold).
+    """Runs Monte Carlo test for frequency of one front type.
 
-    F = number of times in baseline composite
-    S = number of times in trial composite
+    B = number of months in baseline composite
+    T = number of months in trial composite
     M = number of rows in grid
     N = number of columns in grid
 
-    :param baseline_flag_matrix: F-by-M-by-N numpy array of flags.  1 indicates a
-        front; 0 indicates no front; NaN indicates no data.
-    :param trial_flag_matrix: S-by-M-by-N numpy array with same format.
+    :param baseline_num_labels_matrix: B-by-M-by-N numpy array with number of
+        fronts.
+    :param baseline_time_step_counts: length-B numpy array with number of time
+        steps in each month.
+    :param trial_num_labels_matrix: T-by-M-by-N numpy array with number of
+        fronts.
+    :param trial_time_step_counts: length-T numpy array with number of time
+        steps in each month.
     :param num_iterations: See documentation at top of file.
     :param confidence_level: Same.
     :return: significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between frequencies is significant.
+    :return: baseline_freq_matrix: M-by-N numpy array with overall frequencies
+        for baseline composite.
+    :return: trial_freq_matrix: Same but for trial composite.
     """
 
-    num_baseline_times = baseline_flag_matrix.shape[0]
-    concat_label_matrix = numpy.concatenate(
-        (baseline_flag_matrix, trial_flag_matrix), axis=0
+    concat_num_labels_matrix = numpy.concatenate(
+        (baseline_num_labels_matrix, trial_num_labels_matrix), axis=0
+    )
+    concat_time_step_counts = numpy.concatenate(
+        (baseline_time_step_counts, trial_time_step_counts), axis=0
     )
 
-    num_grid_rows = baseline_flag_matrix.shape[1]
-    num_grid_columns = baseline_flag_matrix.shape[2]
-    mc_frequency_diff_matrix = numpy.full(
+    num_baseline_months = baseline_num_labels_matrix.shape[0]
+    num_months = concat_num_labels_matrix.shape[0]
+    month_indices = numpy.linspace(0, num_months - 1, num=num_months, dtype=int)
+
+    num_grid_rows = baseline_num_labels_matrix.shape[1]
+    num_grid_columns = baseline_num_labels_matrix.shape[2]
+    mc_difference_matrix = numpy.full(
         (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
     )
 
@@ -384,35 +419,56 @@ def _mc_test_frequency(
                 k, num_iterations
             ))
 
-        numpy.random.shuffle(concat_label_matrix)
-        this_baseline_freq_matrix = numpy.mean(
-            concat_label_matrix[:num_baseline_times, ...], axis=0
-        )
-        this_trial_freq_matrix = numpy.mean(
-            concat_label_matrix[num_baseline_times:, ...], axis=0
+        numpy.random.shuffle(month_indices)
+
+        this_baseline_freq_matrix = numpy.sum(
+            concat_num_labels_matrix[month_indices[:num_baseline_months], ...],
+            axis=0
         )
 
-        mc_frequency_diff_matrix[k, ...] = (
+        this_baseline_freq_matrix = (
+            this_baseline_freq_matrix /
+            numpy.sum(concat_time_step_counts[:num_baseline_months])
+        )
+
+        this_trial_freq_matrix = numpy.sum(
+            concat_num_labels_matrix[month_indices[num_baseline_months:], ...],
+            axis=0
+        )
+
+        this_trial_freq_matrix = (
+            this_trial_freq_matrix /
+            numpy.sum(concat_time_step_counts[num_baseline_months:])
+        )
+
+        mc_difference_matrix[k, ...] = (
             this_trial_freq_matrix - this_baseline_freq_matrix
         )
 
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
 
-    actual_frequency_diff_matrix = (
-        numpy.mean(trial_flag_matrix, axis=0) -
-        numpy.mean(baseline_flag_matrix, axis=0)
+    baseline_freq_matrix = (
+        numpy.sum(baseline_num_labels_matrix, axis=0) /
+        numpy.sum(baseline_time_step_counts)
     )
 
+    trial_freq_matrix = (
+        numpy.sum(trial_num_labels_matrix, axis=0) /
+        numpy.sum(trial_time_step_counts)
+    )
+
+    actual_difference_matrix = trial_freq_matrix - baseline_freq_matrix
+
     min_frequency_diff_matrix = numpy.percentile(
-        a=mc_frequency_diff_matrix, q=50. * (1 - confidence_level), axis=0
+        a=mc_difference_matrix, q=50. * (1 - confidence_level), axis=0
     )
     max_frequency_diff_matrix = numpy.percentile(
-        a=mc_frequency_diff_matrix, q=50. * (1 + confidence_level), axis=0
+        a=mc_difference_matrix, q=50. * (1 + confidence_level), axis=0
     )
 
     significance_matrix = numpy.logical_or(
-        actual_frequency_diff_matrix < min_frequency_diff_matrix,
-        actual_frequency_diff_matrix > max_frequency_diff_matrix
+        actual_difference_matrix < min_frequency_diff_matrix,
+        actual_difference_matrix > max_frequency_diff_matrix
     )
 
     print((
@@ -425,35 +481,47 @@ def _mc_test_frequency(
     return significance_matrix
 
 
-def _mc_test_one_property(
-        baseline_property_matrix, trial_property_matrix, num_iterations,
+def _mc_test_one_statistic(
+        baseline_num_labels_matrix, baseline_stat_matrix,
+        trial_num_labels_matrix, trial_stat_matrix, num_iterations,
         confidence_level):
-    """Runs Monte Carlo test for one property.
+    """Runs Monte Carlo test for one statistic.
 
-    The "one property" could be WF length, WF area, CF length, or CF area.
+    The "one statistic" could be WF length, WF area, CF length, or CF area.
 
-    F = number of times in baseline composite
-    S = number of times in trial composite
+    B = number of months in baseline composite
+    T = number of months in trial composite
     M = number of rows in grid
     N = number of columns in grid
 
-    :param baseline_property_matrix: F-by-M-by-N numpy array with values of given
-        property.
-    :param trial_property_matrix: S-by-M-by-N numpy array with values of given
-        property.
+    :param baseline_num_labels_matrix: B-by-M-by-N numpy array with number of
+        fronts used to compute statistic.
+    :param baseline_stat_matrix: B-by-M-by-N numpy array with statistic itself.
+    :param trial_num_labels_matrix: T-by-M-by-N numpy array with number of
+        fronts used to compute statistic.
+    :param trial_stat_matrix: T-by-M-by-N numpy array with statistic itself.
     :param num_iterations: See documentation at top of file.
     :param confidence_level: Same.
     :return: significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between means is significant.
+    :return: baseline_mean_matrix: M-by-N numpy array with mean values for
+        baseline composite.
+    :return: trial_mean_matrix: Same but for trial composite.
     """
 
-    num_baseline_times = baseline_property_matrix.shape[0]
-    concat_property_matrix = numpy.concatenate(
-        (baseline_property_matrix, trial_property_matrix), axis=0
+    concat_num_labels_matrix = numpy.concatenate(
+        (baseline_num_labels_matrix, trial_num_labels_matrix), axis=0
+    )
+    concat_stat_matrix = numpy.concatenate(
+        (baseline_stat_matrix, trial_stat_matrix), axis=0
     )
 
-    num_grid_rows = baseline_property_matrix.shape[1]
-    num_grid_columns = baseline_property_matrix.shape[2]
+    num_baseline_months = baseline_stat_matrix.shape[0]
+    num_months = concat_stat_matrix.shape[0]
+    month_indices = numpy.linspace(0, num_months - 1, num=num_months, dtype=int)
+
+    num_grid_rows = baseline_stat_matrix.shape[1]
+    num_grid_columns = baseline_stat_matrix.shape[2]
     mc_difference_matrix = numpy.full(
         (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
     )
@@ -464,14 +532,20 @@ def _mc_test_one_property(
                 k, num_iterations
             ))
 
-        numpy.random.shuffle(concat_property_matrix)
+        numpy.random.shuffle(month_indices)
 
-        # numpy.nanmean on all-NaN slice returns NaN.
-        this_baseline_mean_matrix = numpy.nanmean(
-            concat_property_matrix[:num_baseline_times, ...], axis=0
+        this_baseline_mean_matrix = _get_weighted_mean_for_statistic(
+            num_labels_matrix=
+            concat_num_labels_matrix[month_indices[:num_baseline_months], ...],
+            statistic_matrix=
+            concat_stat_matrix[month_indices[:num_baseline_months], ...]
         )
-        this_trial_mean_matrix = numpy.nanmean(
-            concat_property_matrix[num_baseline_times:, ...], axis=0
+
+        this_trial_mean_matrix = _get_weighted_mean_for_statistic(
+            num_labels_matrix=
+            concat_num_labels_matrix[month_indices[num_baseline_months:], ...],
+            statistic_matrix=
+            concat_stat_matrix[month_indices[num_baseline_months:], ...]
         )
 
         mc_difference_matrix[k, ...] = (
@@ -480,10 +554,15 @@ def _mc_test_one_property(
 
     print('Have run all {0:d} Monte Carlo iterations!'.format(num_iterations))
 
-    actual_difference_matrix = (
-        numpy.nanmean(trial_property_matrix, axis=0) -
-        numpy.nanmean(baseline_property_matrix, axis=0)
-    )
+    baseline_mean_matrix = _get_weighted_mean_for_statistic(
+        num_labels_matrix=baseline_num_labels_matrix,
+        statistic_matrix=baseline_stat_matrix)
+
+    trial_mean_matrix = _get_weighted_mean_for_statistic(
+        num_labels_matrix=trial_num_labels_matrix,
+        statistic_matrix=trial_stat_matrix)
+
+    actual_difference_matrix = trial_mean_matrix - baseline_mean_matrix
 
     # TODO(thunderhoser): nanpercentile method ignores NaN's completely.  Is
     # this what I want?
@@ -505,24 +584,20 @@ def _mc_test_one_property(
         numpy.sum(significance_matrix.astype(int)), significance_matrix.size
     ))
 
-    return significance_matrix
+    return significance_matrix, baseline_mean_matrix, trial_mean_matrix
 
 
-def _run(input_dir_name, file_type_string, baseline_start_time_strings,
-         baseline_end_time_strings, trial_start_time_strings,
-         trial_end_time_strings, first_grid_row, last_grid_row,
-         first_grid_column, last_grid_column, num_iterations, confidence_level,
-         output_dir_name):
+def _run(input_dir_name, file_type_string, baseline_month_strings,
+         trial_month_strings, first_grid_row, last_grid_row, first_grid_column,
+         last_grid_column, num_iterations, confidence_level, output_dir_name):
     """Runs Monte Carlo significance test for gridded front properties.
 
     This is effectively the main method.
 
     :param input_dir_name: See documentation at top of file.
     :param file_type_string: Same.
-    :param baseline_start_time_strings: Same.
-    :param baseline_end_time_strings: Same.
-    :param trial_start_time_strings: Same.
-    :param trial_end_time_strings: Same.
+    :param baseline_month_strings: Same.
+    :param trial_month_strings: Same.
     :param first_grid_row: Same.
     :param last_grid_row: Same.
     :param first_grid_column: Same.
@@ -540,59 +615,59 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
 
-    baseline_times_unix_sec = _convert_input_times(
-        start_time_strings=baseline_start_time_strings,
-        end_time_strings=baseline_end_time_strings)
+    baseline_start_times_unix_sec, baseline_end_times_unix_sec = (
+        _months_to_start_end_times(baseline_month_strings)
+    )
 
-    trial_times_unix_sec = _convert_input_times(
-        start_time_strings=trial_start_time_strings,
-        end_time_strings=trial_end_time_strings)
+    trial_start_times_unix_sec, trial_end_times_unix_sec = (
+        _months_to_start_end_times(trial_month_strings)
+    )
 
     baseline_input_file_names = [
-        climo_utils.find_basic_file(
+        climo_utils.find_aggregated_file(
             directory_name=input_dir_name, file_type_string=file_type_string,
-            valid_time_unix_sec=t
+            first_time_unix_sec=f, last_time_unix_sec=l
+        ) for f, l in zip(
+            baseline_start_times_unix_sec, baseline_end_times_unix_sec
         )
-        for t in baseline_times_unix_sec
     ]
 
     trial_input_file_names = [
-        climo_utils.find_basic_file(
+        climo_utils.find_aggregated_file(
             directory_name=input_dir_name, file_type_string=file_type_string,
-            valid_time_unix_sec=t
-        )
-        for t in trial_times_unix_sec
+            first_time_unix_sec=f, last_time_unix_sec=l
+        ) for f, l in zip(trial_start_times_unix_sec, trial_end_times_unix_sec)
     ]
 
-    if file_type_string == climo_utils.FRONT_PROPERTIES_STRING:
-        baseline_property_dict = _read_properties_one_composite(
-            property_file_names=baseline_input_file_names,
+    if file_type_string == climo_utils.FRONT_STATS_STRING:
+        baseline_statistic_dict = _read_stats_one_composite(
+            statistic_file_names=baseline_input_file_names,
             first_grid_row=first_grid_row, last_grid_row=last_grid_row,
             first_grid_column=first_grid_column,
             last_grid_column=last_grid_column)
         print(SEPARATOR_STRING)
 
-        trial_property_dict = _read_properties_one_composite(
-            property_file_names=trial_input_file_names,
+        trial_statistic_dict = _read_stats_one_composite(
+            statistic_file_names=trial_input_file_names,
             first_grid_row=first_grid_row, last_grid_row=last_grid_row,
             first_grid_column=first_grid_column,
             last_grid_column=last_grid_column)
         print(SEPARATOR_STRING)
 
-        this_significance_matrix = _mc_test_one_property(
-            baseline_property_matrix=baseline_property_dict[
-                climo_utils.WARM_FRONT_LENGTHS_KEY],
-            trial_property_matrix=trial_property_dict[
-                climo_utils.WARM_FRONT_LENGTHS_KEY],
-            num_iterations=num_iterations, confidence_level=confidence_level)
+        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
+            _mc_test_one_statistic(
+                baseline_num_labels_matrix=baseline_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                baseline_stat_matrix=baseline_statistic_dict[
+                    climo_utils.MEAN_WF_LENGTHS_KEY],
+                trial_num_labels_matrix=trial_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                trial_stat_matrix=trial_statistic_dict[
+                    climo_utils.MEAN_WF_LENGTHS_KEY],
+                num_iterations=num_iterations,
+                confidence_level=confidence_level)
+        )
         print(SEPARATOR_STRING)
-
-        this_baseline_mean_matrix = numpy.nanmean(
-            baseline_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY], axis=0
-        )
-        this_trial_mean_matrix = numpy.nanmean(
-            trial_property_dict[climo_utils.WARM_FRONT_LENGTHS_KEY], axis=0
-        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -606,7 +681,7 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_significance_matrix,
+            significance_matrix=this_sig_matrix,
             property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -614,20 +689,20 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        this_significance_matrix = _mc_test_one_property(
-            baseline_property_matrix=baseline_property_dict[
-                climo_utils.WARM_FRONT_AREAS_KEY],
-            trial_property_matrix=trial_property_dict[
-                climo_utils.WARM_FRONT_AREAS_KEY],
-            num_iterations=num_iterations, confidence_level=confidence_level)
+        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
+            _mc_test_one_statistic(
+                baseline_num_labels_matrix=baseline_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                baseline_stat_matrix=baseline_statistic_dict[
+                    climo_utils.MEAN_WF_AREAS_KEY],
+                trial_num_labels_matrix=trial_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                trial_stat_matrix=trial_statistic_dict[
+                    climo_utils.MEAN_WF_AREAS_KEY],
+                num_iterations=num_iterations,
+                confidence_level=confidence_level)
+        )
         print(SEPARATOR_STRING)
-
-        this_baseline_mean_matrix = numpy.nanmean(
-            baseline_property_dict[climo_utils.WARM_FRONT_AREAS_KEY], axis=0
-        )
-        this_trial_mean_matrix = numpy.nanmean(
-            trial_property_dict[climo_utils.WARM_FRONT_AREAS_KEY], axis=0
-        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -641,7 +716,7 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_significance_matrix,
+            significance_matrix=this_sig_matrix,
             property_name=climo_utils.WF_AREA_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -649,20 +724,20 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        this_significance_matrix = _mc_test_one_property(
-            baseline_property_matrix=baseline_property_dict[
-                climo_utils.COLD_FRONT_LENGTHS_KEY],
-            trial_property_matrix=trial_property_dict[
-                climo_utils.COLD_FRONT_LENGTHS_KEY],
-            num_iterations=num_iterations, confidence_level=confidence_level)
+        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
+            _mc_test_one_statistic(
+                baseline_num_labels_matrix=baseline_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                baseline_stat_matrix=baseline_statistic_dict[
+                    climo_utils.MEAN_CF_LENGTHS_KEY],
+                trial_num_labels_matrix=trial_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                trial_stat_matrix=trial_statistic_dict[
+                    climo_utils.MEAN_CF_LENGTHS_KEY],
+                num_iterations=num_iterations,
+                confidence_level=confidence_level)
+        )
         print(SEPARATOR_STRING)
-
-        this_baseline_mean_matrix = numpy.nanmean(
-            baseline_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY], axis=0
-        )
-        this_trial_mean_matrix = numpy.nanmean(
-            trial_property_dict[climo_utils.COLD_FRONT_LENGTHS_KEY], axis=0
-        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -676,7 +751,7 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_significance_matrix,
+            significance_matrix=this_sig_matrix,
             property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -684,20 +759,20 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        this_significance_matrix = _mc_test_one_property(
-            baseline_property_matrix=baseline_property_dict[
-                climo_utils.COLD_FRONT_AREAS_KEY],
-            trial_property_matrix=trial_property_dict[
-                climo_utils.COLD_FRONT_AREAS_KEY],
-            num_iterations=num_iterations, confidence_level=confidence_level)
+        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
+            _mc_test_one_statistic(
+                baseline_num_labels_matrix=baseline_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                baseline_stat_matrix=baseline_statistic_dict[
+                    climo_utils.MEAN_CF_AREAS_KEY],
+                trial_num_labels_matrix=trial_statistic_dict[
+                    climo_utils.NUM_WF_LABELS_KEY],
+                trial_stat_matrix=trial_statistic_dict[
+                    climo_utils.MEAN_CF_AREAS_KEY],
+                num_iterations=num_iterations,
+                confidence_level=confidence_level)
+        )
         print(SEPARATOR_STRING)
-
-        this_baseline_mean_matrix = numpy.nanmean(
-            baseline_property_dict[climo_utils.COLD_FRONT_AREAS_KEY], axis=0
-        )
-        this_trial_mean_matrix = numpy.nanmean(
-            trial_property_dict[climo_utils.COLD_FRONT_AREAS_KEY], axis=0
-        )
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -711,7 +786,7 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_significance_matrix,
+            significance_matrix=this_sig_matrix,
             property_name=climo_utils.CF_AREA_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -720,30 +795,30 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
 
         return
 
-    baseline_label_dict = _read_labels_one_composite(
-        label_file_names=baseline_input_file_names,
+    baseline_count_dict = _read_frequencies_one_composite(
+        count_file_names=baseline_input_file_names,
         first_grid_row=first_grid_row, last_grid_row=last_grid_row,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    trial_label_dict = _read_labels_one_composite(
-        label_file_names=trial_input_file_names,
+    trial_count_dict = _read_frequencies_one_composite(
+        count_file_names=trial_input_file_names,
         first_grid_row=first_grid_row, last_grid_row=last_grid_row,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    this_significance_matrix = _mc_test_frequency(
-        baseline_flag_matrix=baseline_label_dict[WF_FLAGS_KEY],
-        trial_flag_matrix=trial_label_dict[WF_FLAGS_KEY],
-        num_iterations=num_iterations, confidence_level=confidence_level)
+    this_sig_matrix, this_baseline_freq_matrix, this_trial_freq_matrix = (
+        _mc_test_frequency(
+            baseline_num_labels_matrix=baseline_count_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            baseline_time_step_counts=baseline_count_dict[
+                NUM_TIMES_BY_MONTH_KEY],
+            trial_num_labels_matrix=trial_count_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            trial_time_step_counts=trial_count_dict[NUM_TIMES_BY_MONTH_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level)
+    )
     print(SEPARATOR_STRING)
-
-    this_baseline_mean_matrix = numpy.mean(
-        baseline_label_dict[WF_FLAGS_KEY], axis=0
-    )
-    this_trial_mean_matrix = numpy.mean(
-        trial_label_dict[WF_FLAGS_KEY], axis=0
-    )
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
@@ -755,27 +830,27 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
-        baseline_mean_matrix=this_baseline_mean_matrix,
-        trial_mean_matrix=this_trial_mean_matrix,
-        significance_matrix=this_significance_matrix,
+        baseline_mean_matrix=this_baseline_freq_matrix,
+        trial_mean_matrix=this_trial_freq_matrix,
+        significance_matrix=this_sig_matrix,
         property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
         baseline_input_file_names=baseline_input_file_names,
         trial_input_file_names=trial_input_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
-    this_significance_matrix = _mc_test_frequency(
-        baseline_flag_matrix=baseline_label_dict[CF_FLAGS_KEY],
-        trial_flag_matrix=trial_label_dict[CF_FLAGS_KEY],
-        num_iterations=num_iterations, confidence_level=confidence_level)
+    this_sig_matrix, this_baseline_freq_matrix, this_trial_freq_matrix = (
+        _mc_test_frequency(
+            baseline_num_labels_matrix=baseline_count_dict[
+                climo_utils.NUM_CF_LABELS_KEY],
+            baseline_time_step_counts=baseline_count_dict[
+                NUM_TIMES_BY_MONTH_KEY],
+            trial_num_labels_matrix=trial_count_dict[
+                climo_utils.NUM_CF_LABELS_KEY],
+            trial_time_step_counts=trial_count_dict[NUM_TIMES_BY_MONTH_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level)
+    )
     print(SEPARATOR_STRING)
-
-    this_baseline_mean_matrix = numpy.mean(
-        baseline_label_dict[CF_FLAGS_KEY], axis=0
-    )
-    this_trial_mean_matrix = numpy.mean(
-        trial_label_dict[CF_FLAGS_KEY], axis=0
-    )
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
@@ -787,9 +862,9 @@ def _run(input_dir_name, file_type_string, baseline_start_time_strings,
 
     climo_utils.write_monte_carlo_test(
         netcdf_file_name=this_output_file_name,
-        baseline_mean_matrix=this_baseline_mean_matrix,
-        trial_mean_matrix=this_trial_mean_matrix,
-        significance_matrix=this_significance_matrix,
+        baseline_mean_matrix=this_baseline_freq_matrix,
+        trial_mean_matrix=this_trial_freq_matrix,
+        significance_matrix=this_sig_matrix,
         property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
         baseline_input_file_names=baseline_input_file_names,
         trial_input_file_names=trial_input_file_names,
@@ -803,14 +878,9 @@ if __name__ == '__main__':
     _run(
         input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         file_type_string=getattr(INPUT_ARG_OBJECT, FILE_TYPE_ARG_NAME),
-        baseline_start_time_strings=getattr(
-            INPUT_ARG_OBJECT, BASELINE_START_TIMES_ARG_NAME),
-        baseline_end_time_strings=getattr(
-            INPUT_ARG_OBJECT, BASELINE_END_TIMES_ARG_NAME),
-        trial_start_time_strings=getattr(
-            INPUT_ARG_OBJECT, TRIAL_START_TIMES_ARG_NAME),
-        trial_end_time_strings=getattr(
-            INPUT_ARG_OBJECT, TRIAL_END_TIMES_ARG_NAME),
+        baseline_month_strings=getattr(
+            INPUT_ARG_OBJECT, BASELINE_MONTHS_ARG_NAME),
+        trial_month_strings=getattr(INPUT_ARG_OBJECT, TRIAL_MONTHS_ARG_NAME),
         first_grid_row=getattr(INPUT_ARG_OBJECT, FIRST_ROW_ARG_NAME),
         last_grid_row=getattr(INPUT_ARG_OBJECT, LAST_ROW_ARG_NAME),
         first_grid_column=getattr(INPUT_ARG_OBJECT, FIRST_COLUMN_ARG_NAME),
