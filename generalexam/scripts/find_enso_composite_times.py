@@ -3,8 +3,8 @@
 import argparse
 import numpy
 import pandas
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import climatology_utils as climo_utils
 
 TIME_FORMAT = '%Y%m%d%H'
 MONTH_YEAR_FORMAT = '%Y%m'
@@ -19,6 +19,7 @@ MONTH_COLUMN = 1
 NINO_3POINT4_COLUMN = 9
 
 ENSO_FILE_ARG_NAME = 'input_enso_file_name'
+SEASON_ARG_NAME = 'season_string'
 BASELINE_THRES_ARG_NAME = 'baseline_threshold'
 TRIAL_THRES_ARG_NAME = 'trial_threshold'
 
@@ -27,6 +28,11 @@ ENSO_FILE_HELP_STRING = (
     '(including the Nino 3.4 index, which will be used here).  The file should '
     'come from here: '
     'https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.81-10.ascii')
+
+SEASON_HELP_STRING = (
+    'Season.  If you do *not* want to subset by season, leave this empty.  If '
+    'you want to subset by season, must be in the following list:\n{0:s}'
+).format(str(climo_utils.VALID_SEASON_STRINGS))
 
 BASELINE_THRES_HELP_STRING = (
     'Absolute threshold for baseline period.  Months with '
@@ -45,6 +51,10 @@ INPUT_ARG_PARSER.add_argument(
     help=ENSO_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + SEASON_ARG_NAME, type=str, required=False, default='',
+    help=SEASON_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + BASELINE_THRES_ARG_NAME, type=float, required=True,
     help=BASELINE_THRES_HELP_STRING)
 
@@ -53,15 +63,21 @@ INPUT_ARG_PARSER.add_argument(
     help=TRIAL_THRES_HELP_STRING)
 
 
-def _run(enso_file_name, baseline_threshold, trial_threshold):
+def _run(enso_file_name, season_string, baseline_threshold, trial_threshold):
     """Finds time periods for ENSO-based composites.
 
     This is effectively the main method.
 
     :param enso_file_name: See documentation at top of file.
+    :param season_string: Same.
     :param baseline_threshold: Same.
     :param trial_threshold: Same.
     """
+
+    if season_string in ['', 'None']:
+        desired_months = None
+    else:
+        desired_months = climo_utils.season_to_months(season_string)
 
     error_checking.assert_is_greater(baseline_threshold, 0.)
     error_checking.assert_is_geq(
@@ -77,6 +93,11 @@ def _run(enso_file_name, baseline_threshold, trial_threshold):
         (enso_table[YEAR_COLUMN] >= FIRST_YEAR) &
         (enso_table[YEAR_COLUMN] <= LAST_YEAR)
     ]
+
+    if desired_months is not None:
+        enso_table = enso_table.loc[
+            enso_table[MONTH_COLUMN].isin(desired_months)
+        ]
 
     years = enso_table[YEAR_COLUMN].values
     months = enso_table[MONTH_COLUMN].values
@@ -130,6 +151,7 @@ if __name__ == '__main__':
 
     _run(
         enso_file_name=getattr(INPUT_ARG_OBJECT, ENSO_FILE_ARG_NAME),
+        season_string=getattr(INPUT_ARG_OBJECT, SEASON_ARG_NAME),
         baseline_threshold=getattr(INPUT_ARG_OBJECT, BASELINE_THRES_ARG_NAME),
         trial_threshold=getattr(INPUT_ARG_OBJECT, TRIAL_THRES_ARG_NAME)
     )
