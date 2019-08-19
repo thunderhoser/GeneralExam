@@ -234,33 +234,33 @@ def _mk_test_frequency(frequency_matrix, confidence_level):
     return trend_matrix_year01, significance_matrix
 
 
-def _fill_nans_in_time_series(data_values):
-    """Fills NaN's in time series (via linear interpolation).
+def _fill_nans_in_series(data_series):
+    """Fills NaN's in data series (via linear interpolation).
 
-    This method assumes that the time series is equally spaced.
+    This method assumes that the data series is equally spaced.
 
-    :param data_values: 1-D numpy array of values.
-    :return: data_values: Same but without NaN's.
+    :param data_series: 1-D numpy array of values.
+    :return: data_series: Same but without NaN's.
     """
 
-    nan_flags = numpy.isnan(data_values)
+    nan_flags = numpy.isnan(data_series)
     if not numpy.any(nan_flags):
-        return data_values
+        return data_series
 
-    num_times = len(data_values)
+    num_times = len(data_series)
     time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=float)
 
     nan_indices = numpy.where(nan_flags)[0]
     real_indices = numpy.where(numpy.invert(nan_flags))[0]
 
     interp_object = scipy_interp1d(
-        time_indices[real_indices], data_values[real_indices],
+        time_indices[real_indices], data_series[real_indices],
         kind='linear', assume_sorted=True, bounds_error=False,
         fill_value='extrapolate'
     )
 
-    data_values[nan_indices] = interp_object(time_indices[nan_indices])
-    return data_values
+    data_series[nan_indices] = interp_object(time_indices[nan_indices])
+    return data_series
 
 
 def _mk_test_one_statistic(statistic_matrix, confidence_level):
@@ -299,7 +299,7 @@ def _mk_test_one_statistic(statistic_matrix, confidence_level):
             if numpy.all(numpy.isnan(these_values)):
                 continue
 
-            these_values = _fill_nans_in_time_series(these_values)
+            these_values = _fill_nans_in_series(these_values)
             this_result_tuple = pymannkendall.original_test(
                 x=these_values, alpha=1. - confidence_level)
 
