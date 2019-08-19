@@ -82,8 +82,8 @@ CF_COLOUR_MAX_HELP_STRING = (
 
 MC_COLOUR_MAXIMA_HELP_STRING = (
     '[used only if `{0:s}` is negative] List of max values for the two types of'
-    ' Monte Carlo maps.  This list should have 2 elements (one for mean plots, '
-    'then one for difference plots).')
+    ' Monte Carlo maps.  This list should have 2 elements [means, differences].'
+)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
