@@ -13,8 +13,6 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
-# TODO(thunderhoser): Mask out grid cells on edge.
-
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
 BORDER_COLOUR = numpy.full(3, 0.)
@@ -35,6 +33,9 @@ CF_COLOUR_MAP_ARG_NAME = 'cf_colour_map_name'
 PLOT_FREQUENCY_ARG_NAME = 'plot_frequency'
 DIFFERENCE_CMAP_ARG_NAME = 'diff_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
+WF_COLOUR_MAX_ARG_NAME = 'wf_colour_max'
+CF_COLOUR_MAX_ARG_NAME = 'cf_colour_max'
+MC_COLOUR_MAXIMA_ARG_NAME = 'monte_carlo_colour_maxima'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 COUNT_FILE_HELP_STRING = (
@@ -65,10 +66,22 @@ PLOT_FREQUENCY_HELP_STRING = (
     'front).  If 0, will plot raw count (number of fronts).')
 
 MAX_PERCENTILE_HELP_STRING = (
-    'Percentile used to set max value in colour scheme.  Max value in warm-'
-    'front colour scheme will be the [q]th percentile of values at all grid '
-    'cells, where q = `{0:s}` -- and likewise for cold fronts.'
+    'Percentile used to set max value in each colour scheme.  If you want to '
+    'set max values directly, make this negative and use other input args.'
 ).format(MAX_PERCENTILE_ARG_NAME)
+
+WF_COLOUR_MAX_HELP_STRING = (
+    '[used only if `{0:s}` is negative] Max value for warm-front map (count or '
+    'frequency).')
+
+CF_COLOUR_MAX_HELP_STRING = (
+    '[used only if `{0:s}` is negative] Max value for cold-front map (count or '
+    'frequency).')
+
+MC_COLOUR_MAXIMA_HELP_STRING = (
+    '[used only if `{0:s}` is negative] List of max values for the two types of'
+    ' Monte Carlo maps.  This list should have 2 elements (one for mean plots, '
+    'then one for difference plots).')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
@@ -103,14 +116,27 @@ INPUT_ARG_PARSER.add_argument(
     help=MAX_PERCENTILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + WF_COLOUR_MAX_ARG_NAME, type=float, required=False, default=0.,
+    help=WF_COLOUR_MAX_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CF_COLOUR_MAX_ARG_NAME, type=float, required=False, default=0.,
+    help=CF_COLOUR_MAX_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MC_COLOUR_MAXIMA_ARG_NAME, type=float, nargs=2, required=False,
+    default=numpy.full(2, 0.), help=MC_COLOUR_MAXIMA_HELP_STRING
+)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _plot_one_front_type(
         count_or_frequency_matrix, colour_map_object, plot_frequency,
-        title_string, output_file_name, max_colour_value=None,
-        max_colour_percentile=None):
+        title_string, output_file_name, max_colour_percentile=None,
+        max_colour_value=None):
     """Plots gridded counts or frequencies for one front type.
 
     :param count_or_frequency_matrix: 2-D numpy array with number or frequency
@@ -119,11 +145,12 @@ def _plot_one_front_type(
     :param plot_frequency: Same.
     :param title_string: Title.
     :param output_file_name: Path to output file.  Figure will be saved here.
-    :param max_colour_value: Max value in colour scheme.  This may be None.
-    :param max_colour_percentile: [used only if `max_colour_value is None`]
+    :param max_colour_percentile: [may be None]
         Max percentile in colour scheme.  The max value will be the [q]th
         percentile of all values in `count_or_frequency_matrix`, where q =
         `max_colour_percentile`.
+    :param max_colour_value: [used only if `max_colour_percentile is None`]
+        Max value in colour scheme.
     """
 
     basemap_dict = plot_gridded_stats._plot_basemap(count_or_frequency_matrix)
@@ -136,7 +163,7 @@ def _plot_one_front_type(
 
     this_matrix = basemap_dict[plot_gridded_stats.SUBGRID_DATA_KEY]
 
-    if max_colour_value is None:
+    if max_colour_percentile is not None:
         max_colour_value = numpy.nanpercentile(
             this_matrix, max_colour_percentile)
 
@@ -180,7 +207,8 @@ def _plot_one_front_type(
 
 def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
          cf_colour_map_name, diff_colour_map_name, plot_frequency,
-         max_colour_percentile, output_dir_name):
+         max_colour_percentile, wf_colour_max, cf_colour_max,
+         monte_carlo_colour_maxima, output_dir_name):
     """Plots number of WF and CF labels at each grid cell over a time period.
 
     This is effectively the main method.
@@ -192,16 +220,22 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
     :param diff_colour_map_name: Same.
     :param plot_frequency: Same.
     :param max_colour_percentile: Same.
+    :param wf_colour_max: Same.
+    :param cf_colour_max: Same.
+    :param monte_carlo_colour_maxima: Same.
     :param output_dir_name: Same.
     """
+
+    if max_colour_percentile <= 0:
+        max_colour_percentile = None
+    else:
+        error_checking.assert_is_greater(max_colour_percentile, 50.)
+        error_checking.assert_is_leq(max_colour_percentile, 100.)
 
     if count_file_name in ['', 'None']:
         count_file_name = None
     if monte_carlo_file_name in ['', 'None']:
         monte_carlo_file_name = None
-
-    error_checking.assert_is_greater(max_colour_percentile, 50.)
-    error_checking.assert_is_leq(max_colour_percentile, 100.)
 
     wf_colour_map_object = pyplot.get_cmap(wf_colour_map_name)
     cf_colour_map_object = pyplot.get_cmap(cf_colour_map_name)
@@ -258,8 +292,8 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
             count_or_frequency_matrix=warm_front_matrix,
             colour_map_object=wf_colour_map_object,
             max_colour_percentile=max_colour_percentile,
-            plot_frequency=plot_frequency, title_string=wf_title_string,
-            output_file_name=wf_output_file_name)
+            max_colour_value=wf_colour_max, plot_frequency=plot_frequency,
+            title_string=wf_title_string, output_file_name=wf_output_file_name)
 
         cf_title_string = wf_title_string.replace('warm', 'cold')
         cf_output_file_name = '{0:s}/cold_front_{1:s}.jpg'.format(
@@ -270,8 +304,8 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
             count_or_frequency_matrix=cold_front_matrix,
             colour_map_object=cf_colour_map_object,
             max_colour_percentile=max_colour_percentile,
-            plot_frequency=plot_frequency, title_string=cf_title_string,
-            output_file_name=cf_output_file_name)
+            max_colour_value=cf_colour_max, plot_frequency=plot_frequency,
+            title_string=cf_title_string, output_file_name=cf_output_file_name)
 
         return
 
@@ -299,15 +333,18 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
 
         colour_map_object = cf_colour_map_object
 
-    concat_data_matrix = numpy.concatenate(
-        (
-            monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY],
-            monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
-        ), axis=0
-    )
+    if max_colour_percentile is None:
+        max_colour_value = monte_carlo_colour_maxima[0]
+    else:
+        concat_data_matrix = numpy.concatenate(
+            (
+                monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY],
+                monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
+            ), axis=0
+        )
 
-    max_colour_value = numpy.nanpercentile(
-        concat_data_matrix, max_colour_percentile)
+        max_colour_value = numpy.nanpercentile(
+            concat_data_matrix, max_colour_percentile)
 
     _plot_one_front_type(
         count_or_frequency_matrix=monte_carlo_dict[
@@ -344,6 +381,7 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
             climo_utils.SIGNIFICANCE_MATRIX_KEY],
         colour_map_object=diff_colour_map_object,
         max_colour_percentile=max_colour_percentile,
+        max_colour_value=monte_carlo_colour_maxima[1],
         title_string=this_title_string, output_file_name=this_output_file_name)
 
 
@@ -361,5 +399,10 @@ if __name__ == '__main__':
         plot_frequency=bool(getattr(INPUT_ARG_OBJECT, PLOT_FREQUENCY_ARG_NAME)),
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+        wf_colour_max=getattr(INPUT_ARG_OBJECT, WF_COLOUR_MAX_ARG_NAME),
+        cf_colour_max=getattr(INPUT_ARG_OBJECT, CF_COLOUR_MAX_ARG_NAME),
+        monte_carlo_colour_maxima=numpy.array(
+            getattr(INPUT_ARG_OBJECT, MC_COLOUR_MAXIMA_ARG_NAME), dtype=float
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

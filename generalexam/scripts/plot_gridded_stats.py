@@ -14,6 +14,10 @@ from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 
+# TODO(thunderhoser): Making these constants is a HACK.
+NUM_ROWS_IN_CNN_PATCH = 16
+NUM_COLUMNS_IN_CNN_PATCH = 16
+
 METRES_TO_KM = 1e-3
 METRES2_TO_THOUSAND_KM2 = 1e-9
 
@@ -133,10 +137,11 @@ def _plot_basemap(full_data_matrix):
     basemap_dict["subgrid_data_matrix"]: 2-D numpy array of values to plot.
     """
 
+    num_full_rows = full_data_matrix.shape[0]
+    num_full_columns = full_data_matrix.shape[1]
+
     full_grid_name = nwp_model_utils.dimensions_to_grid(
-        num_rows=full_data_matrix.shape[0],
-        num_columns=full_data_matrix.shape[1]
-    )
+        num_rows=num_full_rows, num_columns=num_full_columns)
 
     full_grid_row_limits, full_grid_column_limits = (
         nwp_plotting.latlng_limits_to_rowcol_limits(
@@ -146,6 +151,20 @@ def _plot_basemap(full_data_matrix):
             max_longitude_deg=MAX_LONGITUDE_DEG,
             model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name)
     )
+
+    full_grid_row_limits[0] = max([
+        full_grid_row_limits[0], NUM_ROWS_IN_CNN_PATCH
+    ])
+    full_grid_row_limits[-1] = min([
+        full_grid_row_limits[-1], num_full_rows - 1 - NUM_ROWS_IN_CNN_PATCH
+    ])
+    full_grid_column_limits[0] = max([
+        full_grid_column_limits[0], NUM_COLUMNS_IN_CNN_PATCH
+    ])
+    full_grid_column_limits[-1] = min([
+        full_grid_column_limits[-1],
+        num_full_columns - 1 - NUM_COLUMNS_IN_CNN_PATCH
+    ])
 
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
@@ -199,11 +218,12 @@ def _plot_one_statistic(
     :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
     :param title_string: Title.
     :param output_file_name: Path to output file.  Figure will be saved here.
-    :param max_colour_value: Max value in colour scheme.  This may be None.
-    :param max_colour_percentile: [used only if `max_colour_value is None`]
+    :param max_colour_percentile: [may be None]
         Max percentile in colour scheme.  The max value will be the [q]th
         percentile of all values in `statistic_matrix`, where q =
         `max_colour_percentile`.
+    :param max_colour_value: [used only if `max_colour_percentile is None`]
+        Max value in colour scheme.
     """
 
     basemap_dict = _plot_basemap(statistic_matrix)
@@ -214,7 +234,7 @@ def _plot_one_statistic(
     full_grid_column_limits = basemap_dict[FULL_GRID_COLUMNS_KEY]
     this_matrix = basemap_dict[SUBGRID_DATA_KEY]
 
-    if max_colour_value is None:
+    if max_colour_percentile is not None:
         max_colour_value = numpy.nanpercentile(
             this_matrix, max_colour_percentile)
 
@@ -250,8 +270,8 @@ def _plot_one_statistic(
 
 
 def _plot_monte_carlo_diff(
-        difference_matrix, significance_matrix, colour_map_object,
-        max_colour_percentile, title_string, output_file_name):
+        difference_matrix, significance_matrix, colour_map_object, title_string,
+        output_file_name, max_colour_percentile=None, max_colour_value=None):
     """Plots diff between two composites, along with Monte Carlo significance.
 
     M = number of rows in grid
@@ -262,11 +282,14 @@ def _plot_monte_carlo_diff(
     :param significance_matrix: M-by-N numpy array of Boolean flags, indicating
         where difference is significant.
     :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
-    :param max_colour_percentile: Max value in colour scheme will be [q]th
-        percentile of all absolute values in `difference_matrix`, where q =
-        `max_colour_percentile`.  Minimum value will be -1 * max value.
     :param title_string: Title.
     :param output_file_name: Path to output file.  Figure will be saved here.
+    :param max_colour_percentile: [may be None]
+        Max percentile in colour scheme.  The max value will be the [q]th
+        percentile of all absolute values in `difference_matrix`, where q =
+        `max_colour_percentile`.  Minimum value will be -1 * max value.
+    :param max_colour_value: [used only if `max_colour_percentile is None`]
+        Max value in colour scheme.  Minimum value will be -1 * max value.
     """
 
     basemap_dict = _plot_basemap(difference_matrix)
@@ -286,9 +309,10 @@ def _plot_monte_carlo_diff(
         full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
 
-    max_colour_value = numpy.nanpercentile(
-        numpy.absolute(diff_matrix_to_plot), max_colour_percentile
-    )
+    if max_colour_percentile is not None:
+        max_colour_value = numpy.nanpercentile(
+            numpy.absolute(diff_matrix_to_plot), max_colour_percentile
+        )
 
     colour_norm_object = pyplot.Normalize(
         vmin=-max_colour_value, vmax=max_colour_value)
