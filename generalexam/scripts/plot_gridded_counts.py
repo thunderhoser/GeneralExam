@@ -13,6 +13,8 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
+TIME_INTERVAL_SEC = 10800
+
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
 BORDER_COLOUR = numpy.full(3, 0.)
@@ -247,6 +249,14 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
         print('Reading data from: "{0:s}"...'.format(count_file_name))
         front_count_dict = climo_utils.read_gridded_counts(count_file_name)
 
+        first_time_unix_sec = front_count_dict[climo_utils.FIRST_TIME_KEY]
+        last_time_unix_sec = front_count_dict[climo_utils.LAST_TIME_KEY]
+
+        first_time_string = time_conversion.unix_sec_to_string(
+            first_time_unix_sec, TITLE_TIME_FORMAT)
+        last_time_string = time_conversion.unix_sec_to_string(
+            last_time_unix_sec, TITLE_TIME_FORMAT)
+
         if plot_frequency:
             warm_front_matrix = front_count_dict[climo_utils.NUM_WF_LABELS_KEY]
             cold_front_matrix = front_count_dict[climo_utils.NUM_CF_LABELS_KEY]
@@ -260,14 +270,29 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
             warm_front_matrix = front_count_dict[climo_utils.NUM_UNIQUE_WF_KEY]
             cold_front_matrix = front_count_dict[climo_utils.NUM_UNIQUE_CF_KEY]
 
-            wf_title_string = 'Number'
+            first_year = int(first_time_string[:4])
+            first_year_first_time_unix_sec = (
+                time_conversion.first_and_last_times_in_year(first_year)[0]
+            )
 
-        first_time_string = time_conversion.unix_sec_to_string(
-            front_count_dict[climo_utils.FIRST_TIME_KEY], TITLE_TIME_FORMAT
-        )
-        last_time_string = time_conversion.unix_sec_to_string(
-            front_count_dict[climo_utils.LAST_TIME_KEY], TITLE_TIME_FORMAT
-        )
+            last_year = int(last_time_string[:4])
+            last_year_last_time_unix_sec = (
+                time_conversion.first_and_last_times_in_year(last_year)[1]
+            )
+            last_year_last_time_unix_sec += 1 - TIME_INTERVAL_SEC
+
+            file_has_full_years = (
+                first_time_unix_sec == first_year_first_time_unix_sec and
+                last_time_unix_sec == last_year_last_time_unix_sec
+            )
+
+            if file_has_full_years:
+                num_years = last_year - first_year + 1
+                warm_front_matrix = warm_front_matrix / num_years
+                cold_front_matrix = cold_front_matrix / num_years
+                wf_title_string = 'Annual number'
+            else:
+                wf_title_string = 'Number'
 
         wf_title_string += ' of warm fronts from {0:s} to {1:s}'.format(
             first_time_string, last_time_string)
