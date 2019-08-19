@@ -88,11 +88,13 @@ MAX_PERCENTILE_HELP_STRING = (
 
 WF_COLOUR_MAXIMA_HELP_STRING = (
     '[used only if `{0:s}` is negative] List of max values for warm-front maps.'
-    '  This list should have 2 elements [length, area].')
+    '  This list should have 2 elements [length (km), area (x 1000 km^2)].'
+)
 
 CF_COLOUR_MAXIMA_HELP_STRING = (
     '[used only if `{0:s}` is negative] List of max values for cold-front maps.'
-    '  This list should have 2 elements [length, area].')
+    '  This list should have 2 elements [length (km), area (x 1000 km^2)].'
+)
 
 MC_COLOUR_MAXIMA_HELP_STRING = (
     '[used only if `{0:s}` is negative] List of max values for the two types of'

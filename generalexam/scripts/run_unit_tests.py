@@ -20,7 +20,8 @@ def _run():
     test_file_names = glob.glob(test_file_pattern)
 
     for this_file_name in test_file_names:
-        if 'run_monte_carlo_test.py' in this_file_name:
+        if ('run_monte_carlo_test.py' in this_file_name
+                or 'run_mann_kendall_test.py' in this_file_name):
             continue
 
         print('Running file: "{0:s}"...'.format(this_file_name))
