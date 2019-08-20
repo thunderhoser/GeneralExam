@@ -16,6 +16,8 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
+MASK_IF_NUM_LABELS_BELOW = 10
+
 TITLE_FONT_SIZE = 16
 FIGURE_RESOLUTION_DPI = 300
 
@@ -189,6 +191,13 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
     property_name = mann_kendall_dict[climo_utils.PROPERTY_NAME_KEY]
     trend_matrix_year01 = mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
+    significance_matrix = mann_kendall_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+    num_labels_matrix = mann_kendall_dict[climo_utils.NUM_LABELS_MATRIX_KEY]
+
+    significance_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = False
+    trend_matrix_year01[
+        num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+    ] = numpy.nan
 
     if property_name in [climo_utils.WF_LENGTH_PROPERTY_NAME,
                          climo_utils.CF_LENGTH_PROPERTY_NAME]:

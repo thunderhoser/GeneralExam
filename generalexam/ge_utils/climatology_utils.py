@@ -86,6 +86,7 @@ INPUT_FILE_CHAR_DIM_KEY = 'input_file_char'
 BASELINE_MATRIX_KEY = 'baseline_mean_matrix'
 TRIAL_MATRIX_KEY = 'trial_mean_matrix'
 SIGNIFICANCE_MATRIX_KEY = 'significance_matrix'
+NUM_LABELS_MATRIX_KEY = 'num_labels_matrix'
 BASELINE_INPUT_FILES_KEY = 'baseline_input_file_names'
 TRIAL_INPUT_FILES_KEY = 'trial_input_file_names'
 
@@ -1359,7 +1360,7 @@ def find_mann_kendall_file(directory_name, property_name,
 
 def write_mann_kendall_test(
         netcdf_file_name, trend_matrix_year01, significance_matrix,
-        property_name, input_file_names, confidence_level):
+        num_labels_matrix, property_name, input_file_names, confidence_level):
     """Writes results of Mann-Kendall test to NetCDF file.
 
     M = number of rows in grid
@@ -1370,6 +1371,8 @@ def write_mann_kendall_test(
         grid cell.
     :param significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between means is significant.
+    :param num_labels_matrix: M-by-N numpy array with number of front labels
+        used to conduct test at each grid cell.
     :param property_name: Name of property.  Must be accepted by
         `_check_property`.
     :param input_file_names: 1-D list of paths to input files (readable by
@@ -1384,6 +1387,11 @@ def write_mann_kendall_test(
     error_checking.assert_is_boolean_numpy_array(significance_matrix)
     error_checking.assert_is_numpy_array(
         significance_matrix, exact_dimensions=expected_dim)
+
+    error_checking.assert_is_integer_numpy_array(num_labels_matrix)
+    error_checking.assert_is_geq_numpy_array(num_labels_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_labels_matrix, exact_dimensions=expected_dim)
 
     _check_property(property_name)
 
@@ -1433,6 +1441,12 @@ def write_mann_kendall_test(
         significance_matrix.astype(int)
     )
 
+    dataset_object.createVariable(
+        NUM_LABELS_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_LABELS_MATRIX_KEY][:] = num_labels_matrix
+
     this_string_type = 'S{0:d}'.format(num_file_name_chars)
     this_char_array = netCDF4.stringtochar(numpy.array(
         input_file_names, dtype=this_string_type
@@ -1455,6 +1469,7 @@ def read_mann_kendall_test(netcdf_file_name):
     mann_kendall_dict["trend_matrix_year01"]: See doc for
         `write_mann_kendall_test`.
     mann_kendall_dict["significance_matrix"]: Same.
+    mann_kendall_dict["num_labels_matrix"]: Same.
     mann_kendall_dict["property_name"]: Same.
     mann_kendall_dict["input_file_names"]: Same.
     mann_kendall_dict["confidence_level"]: Same.
@@ -1470,6 +1485,9 @@ def read_mann_kendall_test(netcdf_file_name):
         ),
         SIGNIFICANCE_MATRIX_KEY: numpy.array(
             dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:], dtype=bool
+        ),
+        NUM_LABELS_MATRIX_KEY: numpy.array(
+            dataset_object.variables[NUM_LABELS_MATRIX_KEY][:], dtype=int
         ),
         INPUT_FILES_KEY: [
             str(s) for s in

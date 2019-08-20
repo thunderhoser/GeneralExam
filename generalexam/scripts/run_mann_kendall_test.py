@@ -11,6 +11,9 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 TIME_INTERVAL_SEC = 10800
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+WF_FREQUENCY_KEY = 'wf_frequency_matrix'
+CF_FREQUENCY_KEY = 'cf_frequency_matrix'
+
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 FILE_TYPE_ARG_NAME = 'file_type_string'
 FIRST_YEAR_ARG_NAME = 'first_year'
@@ -145,13 +148,23 @@ def _read_frequencies(input_file_name_matrix):
     :return: wf_frequency_matrix: T-by-M-by-N numpy array.
         wf_frequency_matrix[t, i, j] is the frequency of warm fronts (fraction
         of time steps with warm fronts) at grid cell [i, j] in the [t]th year.
-    :return: cf_frequency_matrix: Same but for cold fronts.
+    :return: front_count_dict: Dictionary with the following keys.
+    front_count_dict["num_wf_labels_matrix"]: M-by-N numpy array with number of
+        WF labels used at each grid cell.
+    front_count_dict["wf_frequency_matrix"]: T-by-M-by-N numpy array with
+        warm-front frequency at each grid cell in each year.
+    front_count_dict["num_cf_labels_matrix"]: M-by-N numpy array with number of
+        CF labels used at each grid cell.
+    front_count_dict["cf_frequency_matrix"]: T-by-M-by-N numpy array with
+        cold-front frequency at each grid cell in each year.
     """
 
     num_years = input_file_name_matrix.shape[0]
     num_months = input_file_name_matrix.shape[1]
 
+    num_wf_labels_matrix = None
     wf_frequency_matrix = None
+    num_cf_labels_matrix = None
     cf_frequency_matrix = None
 
     for i in range(num_years):
@@ -182,15 +195,15 @@ def _read_frequencies(input_file_name_matrix):
 
             if wf_frequency_matrix is None:
                 dimensions = (num_years,) + this_num_wf_matrix.shape
+                num_wf_labels_matrix = numpy.full(dimensions, 0.)
                 wf_frequency_matrix = numpy.full(dimensions, 0.)
+                num_cf_labels_matrix = numpy.full(dimensions, 0.)
                 cf_frequency_matrix = numpy.full(dimensions, 0.)
 
-            wf_frequency_matrix[i, ...] = (
-                wf_frequency_matrix[i, ...] + this_num_wf_matrix
-            )
-            cf_frequency_matrix[i, ...] = (
-                cf_frequency_matrix[i, ...] + this_num_cf_matrix
-            )
+            num_wf_labels_matrix[i, ...] += this_num_wf_matrix
+            wf_frequency_matrix[i, ...] += this_num_wf_matrix
+            num_cf_labels_matrix[i, ...] += this_num_cf_matrix
+            cf_frequency_matrix[i, ...] += this_num_cf_matrix
 
         wf_frequency_matrix[i, ...] = (
             wf_frequency_matrix[i, ...] / num_times_in_year
@@ -199,7 +212,19 @@ def _read_frequencies(input_file_name_matrix):
             cf_frequency_matrix[i, ...] / num_times_in_year
         )
 
-    return wf_frequency_matrix, cf_frequency_matrix
+    num_wf_labels_matrix = numpy.round(
+        numpy.sum(num_wf_labels_matrix, axis=0)
+    ).astype(int)
+    num_cf_labels_matrix = numpy.round(
+        numpy.sum(num_cf_labels_matrix, axis=0)
+    ).astype(int)
+
+    return {
+        climo_utils.NUM_WF_LABELS_KEY: num_wf_labels_matrix,
+        WF_FREQUENCY_KEY: wf_frequency_matrix,
+        climo_utils.NUM_CF_LABELS_KEY: num_cf_labels_matrix,
+        CF_FREQUENCY_KEY: cf_frequency_matrix
+    }
 
 
 def _read_statistics(input_file_name_matrix):
@@ -211,11 +236,15 @@ def _read_statistics(input_file_name_matrix):
 
     :param input_file_name_matrix: See output doc for `_find_input_files`.
     :return: front_statistic_dict: Dictionary with the following keys.
+    front_statistic_dict["num_wf_labels_matrix"]: M-by-N numpy array with number
+        of WF labels used at each grid cell.
     front_statistic_dict["mean_wf_length_matrix_metres"]: T-by-M-by-N numpy
         array.  wf_length_matrix_metres[t, i, j] is the average length of warm
         fronts at grid cell [i, j] in the [t]th year.
     front_statistic_dict["mean_cf_length_matrix_metres"]: Same but for cold-
         front length.
+    front_statistic_dict["num_cf_labels_matrix"]: M-by-N numpy array with number
+        of CF labels used at each grid cell.
     front_statistic_dict["mean_wf_area_matrix_m2"]: Same but for warm-front
         area.
     front_statistic_dict["mean_cf_area_matrix_m2"]: Same but for cold-front
@@ -253,10 +282,10 @@ def _read_statistics(input_file_name_matrix):
                     this_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY].shape
                 )
 
-                num_wf_labels_matrix = numpy.full(dimensions, 0, dtype=float)
+                num_wf_labels_matrix = numpy.full(dimensions, 0.)
                 sum_wf_length_matrix_metres = numpy.full(dimensions, 0.)
                 sum_wf_area_matrix_m2 = numpy.full(dimensions, 0.)
-                num_cf_labels_matrix = numpy.full(dimensions, 0, dtype=float)
+                num_cf_labels_matrix = numpy.full(dimensions, 0.)
                 sum_cf_length_matrix_metres = numpy.full(dimensions, 0.)
                 sum_cf_area_matrix_m2 = numpy.full(dimensions, 0.)
 
@@ -294,7 +323,7 @@ def _read_statistics(input_file_name_matrix):
     num_wf_labels_matrix[num_wf_labels_matrix == 0] = numpy.nan
     num_cf_labels_matrix[num_cf_labels_matrix == 0] = numpy.nan
 
-    return {
+    front_statistic_dict = {
         climo_utils.MEAN_WF_LENGTHS_KEY:
             sum_wf_length_matrix_metres / num_wf_labels_matrix,
         climo_utils.MEAN_WF_AREAS_KEY:
@@ -304,6 +333,20 @@ def _read_statistics(input_file_name_matrix):
         climo_utils.MEAN_CF_AREAS_KEY:
             sum_cf_area_matrix_m2 / num_cf_labels_matrix
     }
+
+    num_wf_labels_matrix = numpy.round(
+        numpy.nansum(num_wf_labels_matrix, axis=0)
+    ).astype(int)
+    num_cf_labels_matrix = numpy.round(
+        numpy.nansum(num_cf_labels_matrix, axis=0)
+    ).astype(int)
+
+    front_statistic_dict.update({
+        climo_utils.NUM_WF_LABELS_KEY: num_wf_labels_matrix,
+        climo_utils.NUM_CF_LABELS_KEY: num_cf_labels_matrix
+    })
+
+    return front_statistic_dict
 
 
 def _mk_test_frequency(frequency_matrix, confidence_level):
@@ -468,12 +511,11 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
     input_file_name_list = numpy.ravel(input_file_name_matrix).tolist()
 
     if file_type_string == climo_utils.FRONT_COUNTS_STRING:
-        wf_frequency_matrix, cf_frequency_matrix = _read_frequencies(
-            input_file_name_matrix)
+        front_count_dict = _read_frequencies(input_file_name_matrix)
         print(SEPARATOR_STRING)
 
         wf_trend_matrix_year01, wf_significance_matrix = _mk_test_frequency(
-            frequency_matrix=wf_frequency_matrix,
+            frequency_matrix=front_count_dict[WF_FREQUENCY_KEY],
             confidence_level=confidence_level)
         print(SEPARATOR_STRING)
 
@@ -488,12 +530,13 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
             netcdf_file_name=this_output_file_name,
             trend_matrix_year01=wf_trend_matrix_year01,
             significance_matrix=wf_significance_matrix,
+            num_labels_matrix=front_count_dict[climo_utils.NUM_WF_LABELS_KEY],
             property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
             input_file_names=input_file_name_list,
             confidence_level=confidence_level)
 
         cf_trend_matrix_year01, cf_significance_matrix = _mk_test_frequency(
-            frequency_matrix=cf_frequency_matrix,
+            frequency_matrix=front_count_dict[CF_FREQUENCY_KEY],
             confidence_level=confidence_level)
         print(SEPARATOR_STRING)
 
@@ -508,6 +551,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
             netcdf_file_name=this_output_file_name,
             trend_matrix_year01=cf_trend_matrix_year01,
             significance_matrix=cf_significance_matrix,
+            num_labels_matrix=front_count_dict[climo_utils.NUM_CF_LABELS_KEY],
             property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
             input_file_names=input_file_name_list,
             confidence_level=confidence_level)
@@ -533,6 +577,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=wf_length_matrix_m_y01,
         significance_matrix=wf_length_sig_matrix,
+        num_labels_matrix=front_statistic_dict[climo_utils.NUM_WF_LABELS_KEY],
         property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
@@ -553,6 +598,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=wf_area_matrix_m2_y01,
         significance_matrix=wf_area_sig_matrix,
+        num_labels_matrix=front_statistic_dict[climo_utils.NUM_WF_LABELS_KEY],
         property_name=climo_utils.WF_AREA_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
@@ -573,6 +619,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=cf_length_matrix_m_y01,
         significance_matrix=cf_length_sig_matrix,
+        num_labels_matrix=front_statistic_dict[climo_utils.NUM_CF_LABELS_KEY],
         property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
@@ -593,6 +640,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=cf_area_matrix_m2_y01,
         significance_matrix=cf_area_sig_matrix,
+        num_labels_matrix=front_statistic_dict[climo_utils.NUM_CF_LABELS_KEY],
         property_name=climo_utils.CF_AREA_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
