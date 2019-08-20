@@ -252,7 +252,7 @@ def _fill_nans_in_series(data_series):
 
     if len(real_indices) == 1:
         data_series[nan_indices] = data_series[real_indices[0]]
-        return
+        return data_series
 
     num_times = len(data_series)
     time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=float)
@@ -304,11 +304,8 @@ def _mk_test_one_statistic(statistic_matrix, confidence_level):
                 continue
 
             these_values = _fill_nans_in_series(these_values)
-            try:
-                this_result_tuple = pymannkendall.original_test(
-                    x=these_values, alpha=1. - confidence_level)
-            except:
-                print(these_values)
+            this_result_tuple = pymannkendall.original_test(
+                x=these_values, alpha=1. - confidence_level)
 
             trend_matrix_year01[i, j] = this_result_tuple.slope
             significance_matrix[i, j] = this_result_tuple.h
