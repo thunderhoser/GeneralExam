@@ -89,6 +89,10 @@ SIGNIFICANCE_MATRIX_KEY = 'significance_matrix'
 BASELINE_INPUT_FILES_KEY = 'baseline_input_file_names'
 TRIAL_INPUT_FILES_KEY = 'trial_input_file_names'
 
+TREND_MATRIX_KEY = 'trend_matrix_year01'
+INPUT_FILES_KEY = 'input_file_names'
+INPUT_FILE_DIM_KEY = 'input_file'
+
 
 def _check_season(season_string):
     """Error-checks season.
@@ -1150,7 +1154,7 @@ def write_monte_carlo_test(
     :param property_name: Name of property.  Must be accepted by
         `_check_property`.
     :param baseline_input_file_names: 1-D list of paths to input files for first
-        composite (readable by `read_gridded_properties`).
+        composite (readable by `read_gridded_counts` or `read_gridded_stats`).
     :param trial_input_file_names: Same but for second composite.
     :param num_iterations: Number of iterations for Monte Carlo test.
     :param confidence_level: Confidence level for Monte Carlo test (used to
@@ -1321,6 +1325,160 @@ def read_monte_carlo_test(netcdf_file_name):
 
     dataset_object.close()
     return monte_carlo_dict
+
+
+def find_mann_kendall_file(directory_name, property_name,
+                           raise_error_if_missing=True):
+    """Finds NetCDF file with results of Mann-Kendall test.
+
+    :param directory_name: Name of directory.
+    :param property_name: Same.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: netcdf_file_name: Path to file with Mann-Kendall results.  If file
+        is missing and `raise_error_if_missing = False`, this is the *expected*
+        path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    _check_property(property_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    netcdf_file_name = '{0:s}/mann-kendall-test_{1:s}.nc'.format(
+        directory_name, property_name.replace('_', '-')
+    )
+
+    if raise_error_if_missing and not os.path.isfile(netcdf_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            netcdf_file_name)
+        raise ValueError(error_string)
+
+    return netcdf_file_name
+
+
+def write_mann_kendall_test(
+        netcdf_file_name, trend_matrix_year01, significance_matrix,
+        property_name, input_file_names, confidence_level):
+    """Writes results of Mann-Kendall test to NetCDF file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param netcdf_file_name: Path to output file.
+    :param trend_matrix_year01: M-by-N numpy array with annual trend at each
+        grid cell.
+    :param significance_matrix: M-by-N numpy array of Boolean flags,
+        indicating where difference between means is significant.
+    :param property_name: Name of property.  Must be accepted by
+        `_check_property`.
+    :param input_file_names: 1-D list of paths to input files (readable by
+        `read_gridded_counts` or `read_gridded_stats`).
+    :param confidence_level: Confidence level for test (used to determine where
+        linear trend over time is significant).
+    """
+
+    error_checking.assert_is_numpy_array(trend_matrix_year01, num_dimensions=2)
+    expected_dim = numpy.array(trend_matrix_year01.shape, dtype=int)
+
+    error_checking.assert_is_boolean_numpy_array(significance_matrix)
+    error_checking.assert_is_numpy_array(
+        significance_matrix, exact_dimensions=expected_dim)
+
+    _check_property(property_name)
+
+    error_checking.assert_is_string_list(input_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(input_file_names), num_dimensions=1
+    )
+
+    error_checking.assert_is_geq(confidence_level, 0.9)
+    error_checking.assert_is_less_than(confidence_level, 1.)
+
+    # Open file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    # Set global attributes and dimensions.
+    dataset_object.setncattr(PROPERTY_NAME_KEY, str(property_name))
+    dataset_object.setncattr(CONFIDENCE_LEVEL_KEY, confidence_level)
+
+    num_file_name_chars = max([
+        len(f) for f in input_file_names
+    ])
+
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, trend_matrix_year01.shape[0]
+    )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, trend_matrix_year01.shape[1]
+    )
+    dataset_object.createDimension(INPUT_FILE_DIM_KEY, len(input_file_names))
+    dataset_object.createDimension(
+        INPUT_FILE_CHAR_DIM_KEY, num_file_name_chars
+    )
+
+    dataset_object.createVariable(
+        TREND_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[TREND_MATRIX_KEY][:] = trend_matrix_year01
+
+    dataset_object.createVariable(
+        SIGNIFICANCE_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:] = (
+        significance_matrix.astype(int)
+    )
+
+    this_string_type = 'S{0:d}'.format(num_file_name_chars)
+    this_char_array = netCDF4.stringtochar(numpy.array(
+        input_file_names, dtype=this_string_type
+    ))
+
+    dataset_object.createVariable(
+        INPUT_FILES_KEY, datatype='S1',
+        dimensions=(INPUT_FILE_DIM_KEY, INPUT_FILE_CHAR_DIM_KEY)
+    )
+    dataset_object.variables[INPUT_FILES_KEY][:] = numpy.array(this_char_array)
+
+    dataset_object.close()
+
+
+def read_mann_kendall_test(netcdf_file_name):
+    """Reads results of Mann-Kendall test from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: mann_kendall_dict: Dictionary with the following keys.
+    mann_kendall_dict["trend_matrix_year01"]: See doc for
+        `write_mann_kendall_test`.
+    mann_kendall_dict["significance_matrix"]: Same.
+    mann_kendall_dict["property_name"]: Same.
+    mann_kendall_dict["input_file_names"]: Same.
+    mann_kendall_dict["confidence_level"]: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    mann_kendall_dict = {
+        PROPERTY_NAME_KEY: str(getattr(dataset_object, PROPERTY_NAME_KEY)),
+        CONFIDENCE_LEVEL_KEY: getattr(dataset_object, CONFIDENCE_LEVEL_KEY),
+        TREND_MATRIX_KEY: numpy.array(
+            dataset_object.variables[TREND_MATRIX_KEY][:], dtype=float
+        ),
+        SIGNIFICANCE_MATRIX_KEY: numpy.array(
+            dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:], dtype=bool
+        ),
+        INPUT_FILES_KEY: [
+            str(s) for s in
+            netCDF4.chartostring(dataset_object.variables[INPUT_FILES_KEY][:])
+        ]
+    }
+
+    dataset_object.close()
+    return mann_kendall_dict
 
 
 def find_aggregated_file(

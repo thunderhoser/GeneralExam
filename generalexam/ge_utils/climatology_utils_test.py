@@ -144,14 +144,7 @@ BASIC_FILE_TIME_UNIX_SEC = 0
 LABEL_FILE_NAME = 'foo/197001/front-labels_1970-01-01-000000.nc'
 PROPERTY_FILE_NAME = 'foo/197001/front-properties_1970-01-01-000000.nc'
 
-# The following constants are used to test find_monte_carlo_file.
-MONTE_CARLO_PROPERTY_NAME = climo_utils.WF_LENGTH_PROPERTY_NAME
-FIRST_MONTE_CARLO_ROW = 10
-FIRST_MONTE_CARLO_COLUMN = 20
-MONTE_CARLO_FILE_NAME = (
-    'foo/monte-carlo-test_wf-length_first-row=010_first-column=020.nc')
-
-# The following constants are used to test find_statistic_file.
+# The following constants are used to test find_aggregated_file.
 FIRST_AGG_TIME_UNIX_SEC = 0
 LAST_AGG_TIME_UNIX_SEC = 86399
 HOURS_IN_AGGREGATE = numpy.array([18, 21], dtype=int)
@@ -164,6 +157,17 @@ COUNT_FILE_NAME = (
 STATISTIC_FILE_NAME = (
     'foo/front-statistics_1970-01-01-000000_1970-01-01-235959_hours=18-21utc_'
     'months=jfd.nc')
+
+# The following constants are used to test find_monte_carlo_file.
+MONTE_CARLO_PROPERTY_NAME = climo_utils.WF_LENGTH_PROPERTY_NAME
+FIRST_MONTE_CARLO_ROW = 10
+FIRST_MONTE_CARLO_COLUMN = 20
+MONTE_CARLO_FILE_NAME = (
+    'foo/monte-carlo-test_wf-length_first-row=010_first-column=020.nc')
+
+# The following constants are used to test find_mann_kendall_file.
+MANN_KENDALL_PROPERTY_NAME = climo_utils.CF_FREQ_PROPERTY_NAME
+MANN_KENDALL_FILE_NAME = 'foo/mann-kendall-test_cf-frequency.nc'
 
 
 class ClimatologyUtilsTests(unittest.TestCase):
@@ -412,7 +416,7 @@ class ClimatologyUtilsTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == MONTE_CARLO_FILE_NAME)
 
-    def test_find_count_file(self):
+    def test_find_aggregated_file_counts(self):
         """Ensures correct output from find_aggregated_file.
 
         In this case the file type is front counts.
@@ -428,7 +432,7 @@ class ClimatologyUtilsTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == COUNT_FILE_NAME)
 
-    def test_find_statistic_file(self):
+    def test_find_aggregated_file_stats(self):
         """Ensures correct output from find_aggregated_file.
 
         In this case the file type is front statistics.
@@ -443,6 +447,16 @@ class ClimatologyUtilsTests(unittest.TestCase):
             raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == STATISTIC_FILE_NAME)
+
+    def test_find_mann_kendall_file(self):
+        """Ensures correct output from find_mann_kendall_file."""
+
+        this_file_name = climo_utils.find_mann_kendall_file(
+            directory_name=DIRECTORY_NAME,
+            property_name=MANN_KENDALL_PROPERTY_NAME,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == MANN_KENDALL_FILE_NAME)
 
 
 if __name__ == '__main__':
