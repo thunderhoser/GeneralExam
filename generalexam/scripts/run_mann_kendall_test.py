@@ -213,10 +213,10 @@ def _read_frequencies(input_file_name_matrix):
         )
 
     num_wf_labels_matrix = numpy.round(
-        numpy.sum(num_wf_labels_matrix, axis=0)
+        numpy.nansum(num_wf_labels_matrix, axis=0)
     ).astype(int)
     num_cf_labels_matrix = numpy.round(
-        numpy.sum(num_cf_labels_matrix, axis=0)
+        numpy.nansum(num_cf_labels_matrix, axis=0)
     ).astype(int)
 
     return {
