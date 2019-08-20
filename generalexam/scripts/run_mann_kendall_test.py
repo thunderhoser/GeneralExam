@@ -359,14 +359,41 @@ def _run(input_dir_name, file_type_string, first_year, last_year,
             confidence_level=confidence_level)
         print(SEPARATOR_STRING)
 
-        # TODO(thunderhoser): Write output file here.
+        this_output_file_name = climo_utils.find_mann_kendall_file(
+            directory_name=output_dir_name,
+            property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
+            raise_error_if_missing=False)
+
+        print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
+        climo_utils.write_mann_kendall_test(
+            netcdf_file_name=this_output_file_name,
+            trend_matrix_year01=wf_trend_matrix_year01,
+            significance_matrix=wf_significance_matrix,
+            property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
+            input_file_names=input_file_names,
+            confidence_level=confidence_level)
 
         cf_trend_matrix_year01, cf_significance_matrix = _mk_test_frequency(
             frequency_matrix=cf_frequency_matrix,
             confidence_level=confidence_level)
         print(SEPARATOR_STRING)
 
-        # TODO(thunderhoser): Write output file here.
+        this_output_file_name = climo_utils.find_mann_kendall_file(
+            directory_name=output_dir_name,
+            property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
+            raise_error_if_missing=False)
+
+        print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
+        climo_utils.write_mann_kendall_test(
+            netcdf_file_name=this_output_file_name,
+            trend_matrix_year01=cf_trend_matrix_year01,
+            significance_matrix=cf_significance_matrix,
+            property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
+            input_file_names=input_file_names,
+            confidence_level=confidence_level)
+
         return
 
     front_statistic_dict = _read_statistics(input_file_names)
@@ -377,28 +404,80 @@ def _run(input_dir_name, file_type_string, first_year, last_year,
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
 
-    # TODO(thunderhoser): Write output file here.
+    this_output_file_name = climo_utils.find_mann_kendall_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
+        raise_error_if_missing=False)
+
+    print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
+    climo_utils.write_mann_kendall_test(
+        netcdf_file_name=this_output_file_name,
+        trend_matrix_year01=wf_length_matrix_m_y01,
+        significance_matrix=wf_length_sig_matrix,
+        property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
+        input_file_names=input_file_names,
+        confidence_level=confidence_level)
 
     wf_area_matrix_m2_y01, wf_area_sig_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
 
-    # TODO(thunderhoser): Write output file here.
+    this_output_file_name = climo_utils.find_mann_kendall_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.WF_AREA_PROPERTY_NAME,
+        raise_error_if_missing=False)
+
+    print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
+    climo_utils.write_mann_kendall_test(
+        netcdf_file_name=this_output_file_name,
+        trend_matrix_year01=wf_area_matrix_m2_y01,
+        significance_matrix=wf_area_sig_matrix,
+        property_name=climo_utils.WF_AREA_PROPERTY_NAME,
+        input_file_names=input_file_names,
+        confidence_level=confidence_level)
 
     cf_length_matrix_m_y01, cf_length_sig_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
 
-    # TODO(thunderhoser): Write output file here.
+    this_output_file_name = climo_utils.find_mann_kendall_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
+        raise_error_if_missing=False)
+
+    print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
+    climo_utils.write_mann_kendall_test(
+        netcdf_file_name=this_output_file_name,
+        trend_matrix_year01=cf_length_matrix_m_y01,
+        significance_matrix=cf_length_sig_matrix,
+        property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
+        input_file_names=input_file_names,
+        confidence_level=confidence_level)
 
     cf_area_matrix_m2_y01, cf_area_sig_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
 
-    # TODO(thunderhoser): Write output file here.
+    this_output_file_name = climo_utils.find_mann_kendall_file(
+        directory_name=output_dir_name,
+        property_name=climo_utils.CF_AREA_PROPERTY_NAME,
+        raise_error_if_missing=False)
+
+    print('Writing results to: "{0:s}"...'.format(this_output_file_name))
+
+    climo_utils.write_mann_kendall_test(
+        netcdf_file_name=this_output_file_name,
+        trend_matrix_year01=cf_area_matrix_m2_y01,
+        significance_matrix=cf_area_sig_matrix,
+        property_name=climo_utils.CF_AREA_PROPERTY_NAME,
+        input_file_names=input_file_names,
+        confidence_level=confidence_level)
 
 
 if __name__ == '__main__':
