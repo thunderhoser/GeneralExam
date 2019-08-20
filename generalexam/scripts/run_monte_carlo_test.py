@@ -669,11 +669,15 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         )
         print(SEPARATOR_STRING)
 
-        this_num_labels_matrix = numpy.round(numpy.nansum(
-            baseline_statistic_dict[climo_utils.NUM_WF_LABELS_KEY] +
-            trial_statistic_dict[climo_utils.NUM_WF_LABELS_KEY],
-            axis=0
-        )).astype(int)
+        this_num_labels_matrix = (
+            numpy.nansum(
+                baseline_statistic_dict[climo_utils.NUM_WF_LABELS_KEY], axis=0
+            )
+            + numpy.nansum(
+                trial_statistic_dict[climo_utils.NUM_WF_LABELS_KEY], axis=0
+            )
+        )
+        this_num_labels_matrix = numpy.round(this_num_labels_matrix).astype(int)
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -747,11 +751,15 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         )
         print(SEPARATOR_STRING)
 
-        this_num_labels_matrix = numpy.round(numpy.nansum(
-            baseline_statistic_dict[climo_utils.NUM_CF_LABELS_KEY] +
-            trial_statistic_dict[climo_utils.NUM_CF_LABELS_KEY],
-            axis=0
-        )).astype(int)
+        this_num_labels_matrix = (
+            numpy.nansum(
+                baseline_statistic_dict[climo_utils.NUM_CF_LABELS_KEY], axis=0
+            )
+            + numpy.nansum(
+                trial_statistic_dict[climo_utils.NUM_CF_LABELS_KEY], axis=0
+            )
+        )
+        this_num_labels_matrix = numpy.round(this_num_labels_matrix).astype(int)
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -836,11 +844,11 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
     )
     print(SEPARATOR_STRING)
 
-    this_num_labels_matrix = numpy.round(numpy.nansum(
-        baseline_count_dict[climo_utils.NUM_WF_LABELS_KEY] +
-        trial_count_dict[climo_utils.NUM_WF_LABELS_KEY],
-        axis=0
-    )).astype(int)
+    this_num_labels_matrix = (
+        numpy.nansum(baseline_count_dict[climo_utils.NUM_WF_LABELS_KEY], axis=0)
+        + numpy.nansum(trial_count_dict[climo_utils.NUM_WF_LABELS_KEY], axis=0)
+    )
+    this_num_labels_matrix = numpy.round(this_num_labels_matrix).astype(int)
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
@@ -875,11 +883,11 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
     )
     print(SEPARATOR_STRING)
 
-    this_num_labels_matrix = numpy.round(numpy.nansum(
-        baseline_count_dict[climo_utils.NUM_CF_LABELS_KEY] +
-        trial_count_dict[climo_utils.NUM_CF_LABELS_KEY],
-        axis=0
-    )).astype(int)
+    this_num_labels_matrix = (
+        numpy.nansum(baseline_count_dict[climo_utils.NUM_CF_LABELS_KEY], axis=0)
+        + numpy.nansum(trial_count_dict[climo_utils.NUM_CF_LABELS_KEY], axis=0)
+    )
+    this_num_labels_matrix = numpy.round(this_num_labels_matrix).astype(int)
 
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
