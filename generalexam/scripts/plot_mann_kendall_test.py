@@ -16,7 +16,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
-MASK_IF_NUM_LABELS_BELOW = 30
+MASK_IF_NUM_LABELS_BELOW = 100
 
 TITLE_FONT_SIZE = 16
 FIGURE_RESOLUTION_DPI = 300
