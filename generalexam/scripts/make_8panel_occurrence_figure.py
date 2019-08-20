@@ -1,6 +1,6 @@
 """Makes 8-panel front-occurrence figure."""
 
-import os.path
+import os
 import argparse
 import numpy
 import matplotlib
@@ -14,6 +14,8 @@ from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
+
+# TODO(thunderhoser): Remove temp files.
 
 NUM_YEARS = 40
 FIRST_TIME_UNIX_SEC = time_conversion.first_and_last_times_in_year(1979)[0]
@@ -29,7 +31,7 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
 }
 
 MAX_WF_FREQUENCY = 0.08
-MAX_CF_FREQUENCY = 0.12
+MAX_CF_FREQUENCY = 0.14
 MAX_WF_COUNT = 20
 MAX_CF_COUNT = 30
 
@@ -267,6 +269,10 @@ def _run(count_dir_name, front_type_string, output_file_name):
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
         output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+
+    for this_file_name in panel_file_names:
+        print('Removing temporary file "{0:s}"...'.format(this_file_name))
+        os.remove(this_file_name)
 
 
 if __name__ == '__main__':
