@@ -247,11 +247,15 @@ def _fill_nans_in_series(data_series):
     if not numpy.any(nan_flags):
         return data_series
 
-    num_times = len(data_series)
-    time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=float)
-
     nan_indices = numpy.where(nan_flags)[0]
     real_indices = numpy.where(numpy.invert(nan_flags))[0]
+
+    if len(real_indices) == 1:
+        data_series[nan_indices] = data_series[real_indices[0]]
+        return
+
+    num_times = len(data_series)
+    time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=float)
 
     interp_object = scipy_interp1d(
         time_indices[real_indices], data_series[real_indices],
