@@ -15,6 +15,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 
 # TODO(thunderhoser): Making these constants is a HACK.
+MASK_IF_NUM_LABELS_BELOW = 10
 NUM_ROWS_IN_CNN_PATCH = 16
 NUM_COLUMNS_IN_CNN_PATCH = 16
 
@@ -467,11 +468,18 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         this_output_file_name = '{0:s}/mean_wf_length.jpg'.format(
             output_dir_name)
 
+        num_wf_labels_matrix = front_statistic_dict[
+            climo_utils.NUM_WF_LABELS_KEY
+        ]
+        mean_wf_length_matrix_km = (
+            front_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY] * METRES_TO_KM
+        )
+        mean_wf_length_matrix_km[
+            num_wf_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+        ] = numpy.nan
+
         _plot_one_statistic(
-            statistic_matrix=(
-                front_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY] *
-                METRES_TO_KM
-            ),
+            statistic_matrix=mean_wf_length_matrix_km,
             colour_map_object=length_colour_map_object,
             max_colour_percentile=max_colour_percentile,
             max_colour_value=wf_colour_maxima[0],
@@ -483,11 +491,18 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         this_output_file_name = '{0:s}/mean_cf_length.jpg'.format(
             output_dir_name)
 
+        num_cf_labels_matrix = front_statistic_dict[
+            climo_utils.NUM_CF_LABELS_KEY
+        ]
+        mean_cf_length_matrix_km = (
+            front_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY] * METRES_TO_KM
+        )
+        mean_cf_length_matrix_km[
+            num_cf_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+        ] = numpy.nan
+
         _plot_one_statistic(
-            statistic_matrix=(
-                front_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY] *
-                METRES_TO_KM
-            ),
+            statistic_matrix=mean_cf_length_matrix_km,
             colour_map_object=length_colour_map_object,
             max_colour_percentile=max_colour_percentile,
             max_colour_value=cf_colour_maxima[0],
@@ -499,11 +514,16 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         )
         this_output_file_name = '{0:s}/mean_wf_area.jpg'.format(output_dir_name)
 
+        mean_wf_area_matrix_thousand_km2 = (
+            front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] *
+            METRES2_TO_THOUSAND_KM2
+        )
+        mean_wf_area_matrix_thousand_km2[
+            num_wf_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+        ] = numpy.nan
+
         _plot_one_statistic(
-            statistic_matrix=(
-                front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY] *
-                METRES2_TO_THOUSAND_KM2
-            ),
+            statistic_matrix=mean_wf_area_matrix_thousand_km2,
             colour_map_object=area_colour_map_object,
             max_colour_percentile=max_colour_percentile,
             max_colour_value=wf_colour_maxima[1],
@@ -514,11 +534,16 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
             'Mean WF area', 'Mean CF area')
         this_output_file_name = '{0:s}/mean_cf_area.jpg'.format(output_dir_name)
 
+        mean_cf_area_matrix_thousand_km2 = (
+            front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] *
+            METRES2_TO_THOUSAND_KM2
+        )
+        mean_cf_area_matrix_thousand_km2[
+            num_cf_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+        ] = numpy.nan
+
         _plot_one_statistic(
-            statistic_matrix=(
-                front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY] *
-                METRES2_TO_THOUSAND_KM2
-            ),
+            statistic_matrix=mean_cf_area_matrix_thousand_km2,
             colour_map_object=area_colour_map_object,
             max_colour_percentile=max_colour_percentile,
             max_colour_value=cf_colour_maxima[1],
