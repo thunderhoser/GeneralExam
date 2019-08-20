@@ -14,6 +14,7 @@ from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
 TIME_INTERVAL_SEC = 10800
+MASK_IF_NUM_LABELS_BELOW = 100
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
@@ -356,22 +357,30 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
 
         colour_map_object = cf_colour_map_object
 
+    num_labels_matrix = monte_carlo_dict[climo_utils.NUM_LABELS_MATRIX_KEY]
+    baseline_freq_matrix = monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
+    baseline_freq_matrix[
+        num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+    ] = numpy.nan
+
+    trial_freq_matrix = monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
+    trial_freq_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = numpy.nan
+
+    significance_matrix = monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+    significance_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = False
+
     if max_colour_percentile is None:
         max_colour_value = monte_carlo_colour_maxima[0]
     else:
-        concat_data_matrix = numpy.concatenate(
-            (
-                monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY],
-                monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
-            ), axis=0
+        concat_freq_matrix = numpy.concatenate(
+            (baseline_freq_matrix, trial_freq_matrix), axis=0
         )
 
         max_colour_value = numpy.nanpercentile(
-            concat_data_matrix, max_colour_percentile)
+            concat_freq_matrix, max_colour_percentile)
 
     _plot_one_front_type(
-        count_or_frequency_matrix=monte_carlo_dict[
-            climo_utils.BASELINE_MATRIX_KEY],
+        count_or_frequency_matrix=baseline_freq_matrix,
         colour_map_object=colour_map_object, max_colour_value=max_colour_value,
         plot_frequency=True, title_string=this_title_string,
         output_file_name=this_output_file_name)
@@ -381,8 +390,7 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
         'baseline.jpg', 'trial.jpg')
 
     _plot_one_front_type(
-        count_or_frequency_matrix=monte_carlo_dict[
-            climo_utils.TRIAL_MATRIX_KEY],
+        count_or_frequency_matrix=trial_freq_matrix,
         colour_map_object=colour_map_object, max_colour_value=max_colour_value,
         plot_frequency=True, title_string=this_title_string,
         output_file_name=this_output_file_name)
@@ -396,12 +404,8 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
         'trial.jpg', 'difference.jpg')
 
     plot_gridded_stats._plot_monte_carlo_diff(
-        difference_matrix=(
-            monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] -
-            monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
-        ),
-        significance_matrix=monte_carlo_dict[
-            climo_utils.SIGNIFICANCE_MATRIX_KEY],
+        difference_matrix=trial_freq_matrix - baseline_freq_matrix,
+        significance_matrix=significance_matrix,
         colour_map_object=diff_colour_map_object,
         max_colour_percentile=max_colour_percentile,
         max_colour_value=monte_carlo_colour_maxima[1],

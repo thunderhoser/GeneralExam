@@ -599,24 +599,34 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         conversion_ratio = METRES2_TO_THOUSAND_KM2
         colour_map_object = area_colour_map_object
 
+    num_labels_matrix = monte_carlo_dict[climo_utils.NUM_LABELS_MATRIX_KEY]
+    baseline_mean_matrix = (
+        monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY] * conversion_ratio
+    )
+    baseline_mean_matrix[
+        num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+    ] = numpy.nan
+
+    trial_mean_matrix = (
+        monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] * conversion_ratio
+    )
+    trial_mean_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = numpy.nan
+
+    significance_matrix = monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+    significance_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = False
+
     if max_colour_percentile is None:
         max_colour_value = monte_carlo_colour_maxima[0]
     else:
-        concat_data_matrix = conversion_ratio * numpy.concatenate(
-            (
-                monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY],
-                monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
-            ), axis=0
+        concat_mean_matrix = numpy.concatenate(
+            (baseline_mean_matrix, trial_mean_matrix), axis=0
         )
 
         max_colour_value = numpy.nanpercentile(
-            concat_data_matrix, max_colour_percentile)
+            concat_mean_matrix, max_colour_percentile)
 
     _plot_one_statistic(
-        statistic_matrix=(
-            monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY] *
-            conversion_ratio
-        ),
+        statistic_matrix=baseline_mean_matrix,
         colour_map_object=colour_map_object, max_colour_value=max_colour_value,
         title_string=this_title_string, output_file_name=this_output_file_name)
 
@@ -625,10 +635,7 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         'baseline-mean.jpg', 'trial-mean.jpg')
 
     _plot_one_statistic(
-        statistic_matrix=(
-            monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] *
-            conversion_ratio
-        ),
+        statistic_matrix=trial_mean_matrix,
         colour_map_object=colour_map_object, max_colour_value=max_colour_value,
         title_string=this_title_string, output_file_name=this_output_file_name)
 
@@ -639,15 +646,9 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
     this_output_file_name = this_output_file_name.replace(
         'trial-mean.jpg', 'difference.jpg')
 
-    difference_matrix = conversion_ratio * (
-        monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] -
-        monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
-    )
-
     _plot_monte_carlo_diff(
-        difference_matrix=difference_matrix,
-        significance_matrix=monte_carlo_dict[
-            climo_utils.SIGNIFICANCE_MATRIX_KEY],
+        difference_matrix=trial_mean_matrix - baseline_mean_matrix,
+        significance_matrix=significance_matrix,
         colour_map_object=diff_colour_map_object,
         max_colour_percentile=max_colour_percentile,
         max_colour_value=monte_carlo_colour_maxima[1],
