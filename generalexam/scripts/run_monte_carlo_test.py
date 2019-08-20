@@ -669,6 +669,12 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         )
         print(SEPARATOR_STRING)
 
+        this_num_labels_matrix = numpy.round(numpy.nansum(
+            baseline_statistic_dict[climo_utils.NUM_WF_LABELS_KEY] +
+            trial_statistic_dict[climo_utils.NUM_WF_LABELS_KEY],
+            axis=0
+        )).astype(int)
+
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
             property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
@@ -682,6 +688,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
             significance_matrix=this_sig_matrix,
+            num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -717,6 +724,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
             significance_matrix=this_sig_matrix,
+            num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.WF_AREA_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -738,6 +746,12 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
                 confidence_level=confidence_level)
         )
         print(SEPARATOR_STRING)
+
+        this_num_labels_matrix = numpy.round(numpy.nansum(
+            baseline_statistic_dict[climo_utils.NUM_CF_LABELS_KEY] +
+            trial_statistic_dict[climo_utils.NUM_CF_LABELS_KEY],
+            axis=0
+        )).astype(int)
 
         this_output_file_name = climo_utils.find_monte_carlo_file(
             directory_name=output_dir_name,
@@ -752,6 +766,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
             significance_matrix=this_sig_matrix,
+            num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -787,6 +802,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
             significance_matrix=this_sig_matrix,
+            num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.CF_AREA_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
             trial_input_file_names=trial_input_file_names,
@@ -820,6 +836,12 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
     )
     print(SEPARATOR_STRING)
 
+    this_num_labels_matrix = numpy.round(numpy.nansum(
+        baseline_count_dict[climo_utils.NUM_WF_LABELS_KEY] +
+        trial_count_dict[climo_utils.NUM_WF_LABELS_KEY],
+        axis=0
+    )).astype(int)
+
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
         property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
@@ -833,6 +855,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         baseline_mean_matrix=this_baseline_freq_matrix,
         trial_mean_matrix=this_trial_freq_matrix,
         significance_matrix=this_sig_matrix,
+        num_labels_matrix=this_num_labels_matrix,
         property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
         baseline_input_file_names=baseline_input_file_names,
         trial_input_file_names=trial_input_file_names,
@@ -852,6 +875,12 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
     )
     print(SEPARATOR_STRING)
 
+    this_num_labels_matrix = numpy.round(numpy.nansum(
+        baseline_count_dict[climo_utils.NUM_CF_LABELS_KEY] +
+        trial_count_dict[climo_utils.NUM_CF_LABELS_KEY],
+        axis=0
+    )).astype(int)
+
     this_output_file_name = climo_utils.find_monte_carlo_file(
         directory_name=output_dir_name,
         property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
@@ -865,6 +894,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         baseline_mean_matrix=this_baseline_freq_matrix,
         trial_mean_matrix=this_trial_freq_matrix,
         significance_matrix=this_sig_matrix,
+        num_labels_matrix=this_num_labels_matrix,
         property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
         baseline_input_file_names=baseline_input_file_names,
         trial_input_file_names=trial_input_file_names,

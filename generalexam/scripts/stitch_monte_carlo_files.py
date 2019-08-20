@@ -115,14 +115,12 @@ def _run(input_dir_name, property_name, output_dir_name):
 
     num_rows_total = 1 + numpy.max(last_row_by_file)
     num_columns_total = 1 + numpy.max(last_column_by_file)
+    dimensions = (num_rows_total, num_columns_total)
 
-    baseline_mean_matrix = numpy.full(
-        (num_rows_total, num_columns_total), numpy.nan
-    )
-    trial_mean_matrix = baseline_mean_matrix + 0.
-    significance_matrix = numpy.full(
-        (num_rows_total, num_columns_total), False, dtype=bool
-    )
+    baseline_mean_matrix = numpy.full(dimensions, numpy.nan)
+    trial_mean_matrix = numpy.full(dimensions, numpy.nan)
+    significance_matrix = numpy.full(dimensions, False, dtype=bool)
+    num_labels_matrix = numpy.full(dimensions, -1, dtype=int)
 
     baseline_input_file_names = []
     trial_input_file_names = []
@@ -181,6 +179,11 @@ def _run(input_dir_name, property_name, output_dir_name):
                 first_grid_columns[k]:(this_last_column + 1)
             ] = this_monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
 
+            num_labels_matrix[
+                first_grid_rows[j]:(this_last_row + 1),
+                first_grid_columns[k]:(this_last_column + 1)
+            ] = this_monte_carlo_dict[climo_utils.NUM_LABELS_MATRIX_KEY]
+
             baseline_input_file_names += this_monte_carlo_dict[
                 climo_utils.BASELINE_INPUT_FILES_KEY]
             trial_input_file_names += this_monte_carlo_dict[
@@ -199,7 +202,8 @@ def _run(input_dir_name, property_name, output_dir_name):
         netcdf_file_name=output_file_name,
         baseline_mean_matrix=baseline_mean_matrix,
         trial_mean_matrix=trial_mean_matrix,
-        significance_matrix=significance_matrix, property_name=property_name,
+        significance_matrix=significance_matrix,
+        num_labels_matrix=num_labels_matrix, property_name=property_name,
         baseline_input_file_names=baseline_input_file_names,
         trial_input_file_names=trial_input_file_names,
         num_iterations=num_iterations, confidence_level=confidence_level,

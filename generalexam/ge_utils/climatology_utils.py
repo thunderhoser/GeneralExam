@@ -1138,9 +1138,9 @@ def find_many_monte_carlo_files(
 
 def write_monte_carlo_test(
         netcdf_file_name, baseline_mean_matrix, trial_mean_matrix,
-        significance_matrix, property_name, baseline_input_file_names,
-        trial_input_file_names, num_iterations, confidence_level,
-        first_grid_row, first_grid_column):
+        significance_matrix, num_labels_matrix, property_name,
+        baseline_input_file_names, trial_input_file_names, num_iterations,
+        confidence_level, first_grid_row, first_grid_column):
     """Writes results of Monte Carlo test to NetCDF file.
 
     M = number of rows in subgrid (the part of the grid sent to this method)
@@ -1152,6 +1152,8 @@ def write_monte_carlo_test(
     :param trial_mean_matrix: M-by-N numpy array with mean values in trial set.
     :param significance_matrix: M-by-N numpy array of Boolean flags,
         indicating where difference between means is significant.
+    :param num_labels_matrix: M-by-N numpy array with number of front labels
+        used to conduct test at each grid cell.
     :param property_name: Name of property.  Must be accepted by
         `_check_property`.
     :param baseline_input_file_names: 1-D list of paths to input files for first
@@ -1174,6 +1176,11 @@ def write_monte_carlo_test(
     error_checking.assert_is_boolean_numpy_array(significance_matrix)
     error_checking.assert_is_numpy_array(
         significance_matrix, exact_dimensions=expected_dim)
+
+    error_checking.assert_is_integer_numpy_array(num_labels_matrix)
+    error_checking.assert_is_geq_numpy_array(num_labels_matrix, 0)
+    error_checking.assert_is_numpy_array(
+        num_labels_matrix, exact_dimensions=expected_dim)
 
     _check_property(property_name)
 
@@ -1248,6 +1255,12 @@ def write_monte_carlo_test(
         significance_matrix.astype(int)
     )
 
+    dataset_object.createVariable(
+        NUM_LABELS_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[NUM_LABELS_MATRIX_KEY][:] = num_labels_matrix
+
     this_string_type = 'S{0:d}'.format(num_file_name_chars)
     this_char_array = netCDF4.stringtochar(numpy.array(
         baseline_input_file_names, dtype=this_string_type
@@ -1283,6 +1296,7 @@ def read_monte_carlo_test(netcdf_file_name):
         `write_monte_carlo_test`.
     monte_carlo_dict["trial_mean_matrix"]: Same.
     monte_carlo_dict["significance_matrix"]: Same.
+    monte_carlo_dict["num_labels_matrix"]: Same.
     monte_carlo_dict["property_name"]: Same.
     monte_carlo_dict["baseline_input_file_names"]: Same.
     monte_carlo_dict["trial_input_file_names"]: Same.
@@ -1309,6 +1323,9 @@ def read_monte_carlo_test(netcdf_file_name):
         ),
         SIGNIFICANCE_MATRIX_KEY: numpy.array(
             dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:], dtype=bool
+        ),
+        NUM_LABELS_MATRIX_KEY: numpy.array(
+            dataset_object.variables[NUM_LABELS_MATRIX_KEY][:], dtype=int
         ),
         BASELINE_INPUT_FILES_KEY: [
             str(s) for s in
