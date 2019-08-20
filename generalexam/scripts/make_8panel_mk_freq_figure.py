@@ -14,6 +14,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
+FRACTION_TO_PERCENT = 100.
 MASK_IF_NUM_LABELS_BELOW = 100
 
 PROPERTY_NAMES = [
@@ -208,8 +209,10 @@ def _run(top_input_dir_name, output_file_name):
 
             this_num_labels_matrix = this_mann_kendall_dict[
                 climo_utils.NUM_LABELS_MATRIX_KEY]
-            this_trend_matrix_year01 = this_mann_kendall_dict[
-                climo_utils.TREND_MATRIX_KEY]
+            this_trend_matrix_year01 = (
+                FRACTION_TO_PERCENT *
+                this_mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
+            )
             this_significance_matrix = this_mann_kendall_dict[
                 climo_utils.SIGNIFICANCE_MATRIX_KEY]
 
