@@ -15,7 +15,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 
 # TODO(thunderhoser): Making these constants is a HACK.
-MASK_IF_NUM_LABELS_BELOW = 10
+MASK_IF_NUM_LABELS_BELOW = 100
 NUM_ROWS_IN_CNN_PATCH = 16
 NUM_COLUMNS_IN_CNN_PATCH = 16
 
