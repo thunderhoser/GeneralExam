@@ -304,8 +304,11 @@ def _mk_test_one_statistic(statistic_matrix, confidence_level):
                 continue
 
             these_values = _fill_nans_in_series(these_values)
-            this_result_tuple = pymannkendall.original_test(
-                x=these_values, alpha=1. - confidence_level)
+            try:
+                this_result_tuple = pymannkendall.original_test(
+                    x=these_values, alpha=1. - confidence_level)
+            except:
+                print(these_values)
 
             trend_matrix_year01[i, j] = this_result_tuple.slope
             significance_matrix[i, j] = this_result_tuple.h
