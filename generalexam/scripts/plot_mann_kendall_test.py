@@ -19,6 +19,7 @@ from generalexam.scripts import plot_gridded_stats
 TITLE_FONT_SIZE = 16
 FIGURE_RESOLUTION_DPI = 300
 
+FRACTION_TO_PERCENT = 100
 METRES_TO_KM = 1e-3
 METRES2_TO_THOUSAND_KM2 = 1e-9
 
@@ -197,6 +198,10 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
                          climo_utils.CF_AREA_PROPERTY_NAME]:
         trend_matrix_year01 = trend_matrix_year01 * METRES2_TO_THOUSAND_KM2
 
+    if property_name in [climo_utils.WF_FREQ_PROPERTY_NAME,
+                         climo_utils.CF_FREQ_PROPERTY_NAME]:
+        trend_matrix_year01 = trend_matrix_year01 * FRACTION_TO_PERCENT
+
     if property_name == climo_utils.WF_LENGTH_PROPERTY_NAME:
         title_string = 'Trend in mean WF length (km per year)'
     elif property_name == climo_utils.CF_LENGTH_PROPERTY_NAME:
@@ -206,9 +211,9 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     elif property_name == climo_utils.CF_AREA_PROPERTY_NAME:
         title_string = r'Trend in mean CF area ($\times$ 1000 km$^2$ per year)'
     elif property_name == climo_utils.WF_FREQ_PROPERTY_NAME:
-        title_string = 'Trend in WF occurrence (frequency per year)'
+        title_string = 'Trend in WF frequency (percent per year)'
     elif property_name == climo_utils.CF_FREQ_PROPERTY_NAME:
-        title_string = 'Trend in CF occurrence (frequency per year)'
+        title_string = 'Trend in CF frequency (percent per year)'
 
     output_file_name = '{0:s}/{1:s}_trend.jpg'.format(
         output_dir_name, property_name)
