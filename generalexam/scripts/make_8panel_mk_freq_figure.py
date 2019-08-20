@@ -166,12 +166,12 @@ def _plot_one_trend(
     pyplot.close()
 
 
-def _run(input_dir_name, output_file_name):
+def _run(top_input_dir_name, output_file_name):
     """Makes 8-panel figure with results of Mann-Kendall test for frequency.
 
     This is effectively the main method.
 
-    :param input_dir_name: See documentation at top of file.
+    :param top_input_dir_name: See documentation at top of file.
     :param output_file_name: Same.
     """
 
@@ -193,8 +193,13 @@ def _run(input_dir_name, output_file_name):
 
     for i in range(num_seasons):
         for j in range(num_properties):
+            this_input_dir_name = '{0:s}/{1:s}'.format(
+                top_input_dir_name, season_strings_verbose[i]
+            )
+            
             this_file_name = climo_utils.find_mann_kendall_file(
-                directory_name=input_dir_name, property_name=PROPERTY_NAMES[j],
+                directory_name=this_input_dir_name,
+                property_name=PROPERTY_NAMES[j],
                 raise_error_if_missing=True)
 
             print('Reading data from file: "{0:s}"...'.format(this_file_name))
@@ -257,6 +262,6 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
