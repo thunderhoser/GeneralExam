@@ -1,4 +1,4 @@
-"""Makes 8-panel figure with Mann-Kendall results for either freq or length."""
+"""Makes 8-panel figure with Monte Carlo results for either freq or length."""
 
 import os
 import argparse
@@ -15,13 +15,21 @@ from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
 METRES_TO_KM = 0.001
-FRACTION_TO_PERCENT = 100.
+METRES2_TO_THOUSAND_KM2 = 1e-9
 MASK_IF_NUM_LABELS_BELOW = 100
 
 FIRST_TIME_UNIX_SEC = time_conversion.first_and_last_times_in_year(1979)[0]
 LAST_TIME_UNIX_SEC = (
     time_conversion.first_and_last_times_in_year(2018)[1] - 10799
 )
+
+COMPOSITE_NAMES_ABBREV = [
+    'strong_la_nina', 'la_nina', 'el_nino', 'strong_el_nino'
+]
+COMPOSITE_NAMES_VERBOSE = [
+    r'strong La Ni$\tilde{n}$a', r'La Ni$\tilde{n}$a', r'El Ni$\tilde{n}$o',
+    r'strong El Ni$\tilde{n}$o'
+]
 
 SEASON_ABBREV_TO_VERBOSE_DICT = {
     climo_utils.WINTER_STRING: 'winter',
@@ -35,10 +43,15 @@ SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
 SIG_MARKER_SIZE = 1.
 SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
 
-MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
-MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
-MAX_WF_LENGTH_TREND_KM_YEAR01 = 15.
-MAX_CF_LENGTH_TREND_KM_YEAR01 = 20.
+PROPERTY_TO_MAX_COLOUR_VALUE_DICT = {
+    climo_utils.WF_FREQ_PROPERTY_NAME: 0.015,
+    climo_utils.WF_LENGTH_PROPERTY_NAME: 750.,
+    climo_utils.WF_AREA_PROPERTY_NAME: 250.,
+    climo_utils.CF_FREQ_PROPERTY_NAME: 0.02,
+    climo_utils.CF_LENGTH_PROPERTY_NAME: 1250.,
+    climo_utils.CF_AREA_PROPERTY_NAME: 400.
+}
+
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
 
 BORDER_COLOUR = numpy.full(3, 152. / 255)
@@ -47,17 +60,18 @@ FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
-PLOT_FREQUENCY_ARG_NAME = 'plot_frequency'
+PROPERTY_ARG_NAME = 'property_name'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
-    '`climatology_utils.find_mann_kendall_file` and read by '
-    '`climatology_utils.read_mann_kendall_test`.')
+    '`climatology_utils.find_monte_carlo_file` and read by '
+    '`climatology_utils.read_monte_carlo_test`.')
 
-PLOT_FREQUENCY_HELP_STRING = (
-    'Boolean flag.  If 1, will plot trends for WF and CF frequency.  If 0, will'
-    ' plot trends for WF and CF length.')
+PROPERTY_HELP_STRING = (
+    'Will plot Monte Carlo tests for this property.  Must be in the following '
+    'list:\n{0:s}'
+).format(str(climo_utils.VALID_PROPERTY_NAMES))
 
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
@@ -67,27 +81,27 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_FREQUENCY_ARG_NAME, type=int, required=True,
-    help=PLOT_FREQUENCY_HELP_STRING)
+    '--' + PROPERTY_ARG_NAME, type=str, required=True,
+    help=PROPERTY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _plot_one_trend(
-        trend_matrix_year01, significance_matrix, max_colour_value,
+def _plot_one_difference(
+        difference_matrix, significance_matrix, max_colour_value,
         plot_latitudes, plot_longitudes, plot_colour_bar, title_string,
         output_file_name):
-    """Plots trend for one front type in one season.
+    """Plots difference for one composite in one season.
 
     M = number of rows in grid
     N = number of columns in grid
 
-    :param trend_matrix_year01: M-by-N numpy array with linear trend (per year)
-        at each grid cell.
+    :param difference_matrix: M-by-N numpy array with differences (trial period
+        minus baseline period).
     :param significance_matrix: M-by-N numpy array of Boolean flags, indicating
-        where trend is significant.
+        where difference is significant.
     :param max_colour_value: Max value in colour scheme.
     :param plot_latitudes: Boolean flag.  Determines whether or not numbers will
         be plotted on y-axis.
@@ -100,7 +114,7 @@ def _plot_one_trend(
     """
 
     basemap_dict = plot_gridded_stats._plot_basemap(
-        trend_matrix_year01, border_colour=BORDER_COLOUR)
+        difference_matrix, border_colour=BORDER_COLOUR)
 
     axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
     basemap_object = basemap_dict[plot_gridded_stats.BASEMAP_OBJECT_KEY]
@@ -109,7 +123,7 @@ def _plot_one_trend(
     full_grid_column_limits = basemap_dict[
         plot_gridded_stats.FULL_GRID_COLUMNS_KEY]
 
-    trend_matrix_to_plot_year01 = trend_matrix_year01[
+    difference_matrix_to_plot = difference_matrix[
         full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
         full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
@@ -123,7 +137,7 @@ def _plot_one_trend(
         vmin=-max_colour_value, vmax=max_colour_value)
 
     prediction_plotting.plot_gridded_counts(
-        count_or_frequency_matrix=trend_matrix_to_plot_year01,
+        count_or_frequency_matrix=difference_matrix_to_plot,
         axes_object=axes_object, basemap_object=basemap_object,
         colour_map_object=COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object, full_grid_name=full_grid_name,
@@ -153,7 +167,7 @@ def _plot_one_trend(
     if plot_colour_bar:
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object,
-            data_matrix=trend_matrix_to_plot_year01,
+            data_matrix=difference_matrix_to_plot,
             colour_map_object=COLOUR_MAP_OBJECT,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True,
@@ -179,111 +193,93 @@ def _plot_one_trend(
     pyplot.close()
 
 
-def _run(top_input_dir_name, plot_frequency, output_file_name):
-    """Makes 8-panel figure with Mann-Kendall results for either freq or length.
+def _run(top_input_dir_name, property_name, output_file_name):
+    """Makes 8-panel figure with Monte Carlo results for either freq or length.
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
-    :param plot_frequency: Same.
+    :param property_name: Same.
     :param output_file_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
+    conversion_ratio = None
+    max_colour_value = PROPERTY_TO_MAX_COLOUR_VALUE_DICT[property_name]
+
+    if property_name in [climo_utils.WF_FREQ_PROPERTY_NAME,
+                         climo_utils.CF_FREQ_PROPERTY_NAME]:
+        conversion_ratio = 1.
+    elif property_name in [climo_utils.WF_LENGTH_PROPERTY_NAME,
+                           climo_utils.CF_LENGTH_PROPERTY_NAME]:
+        conversion_ratio = METRES_TO_KM
+    elif property_name in [climo_utils.WF_AREA_PROPERTY_NAME,
+                           climo_utils.CF_AREA_PROPERTY_NAME]:
+        conversion_ratio = METRES2_TO_THOUSAND_KM2
 
     season_strings_abbrev = climo_utils.VALID_SEASON_STRINGS
     season_strings_verbose = [
         SEASON_ABBREV_TO_VERBOSE_DICT[a] for a in season_strings_abbrev
     ]
 
-    if plot_frequency:
-        conversion_ratio = FRACTION_TO_PERCENT
-        property_names = [
-            climo_utils.WF_FREQ_PROPERTY_NAME, climo_utils.CF_FREQ_PROPERTY_NAME
-        ]
-    else:
-        conversion_ratio = METRES_TO_KM
-        property_names = [
-            climo_utils.WF_LENGTH_PROPERTY_NAME,
-            climo_utils.CF_LENGTH_PROPERTY_NAME
-        ]
-
-    front_type_abbrevs = ['wf', 'cf']
-
     output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
     extensionless_output_file_name = '{0:s}/{1:s}'.format(
         output_dir_name, os.path.splitext(pathless_output_file_name)[0]
     )
 
+    num_composites = len(COMPOSITE_NAMES_ABBREV)
     num_seasons = len(season_strings_abbrev)
-    num_properties = len(property_names)
     panel_file_names = []
 
-    for i in range(num_seasons):
-        for j in range(num_properties):
-            this_input_dir_name = '{0:s}/{1:s}'.format(
-                top_input_dir_name, season_strings_verbose[i]
+    for i in range(num_composites):
+        for j in range(num_seasons):
+            this_input_dir_name = '{0:s}/{1:s}/{2:s}/stitched'.format(
+                top_input_dir_name, COMPOSITE_NAMES_ABBREV[i],
+                season_strings_abbrev[j]
             )
 
-            this_file_name = climo_utils.find_mann_kendall_file(
-                directory_name=this_input_dir_name,
-                property_name=property_names[j],
+            this_input_file_name = climo_utils.find_monte_carlo_file(
+                directory_name=this_input_dir_name, property_name=property_name,
+                first_grid_row=0, first_grid_column=0,
                 raise_error_if_missing=True)
 
-            print('Reading data from file: "{0:s}"...'.format(this_file_name))
-            this_mann_kendall_dict = climo_utils.read_mann_kendall_test(
-                this_file_name)
+            print('Reading data from: "{0:s}"...'.format(this_input_file_name))
+            this_monte_carlo_dict = climo_utils.read_monte_carlo_test(
+                this_input_file_name)
 
-            this_num_labels_matrix = this_mann_kendall_dict[
+            this_num_labels_matrix = this_monte_carlo_dict[
                 climo_utils.NUM_LABELS_MATRIX_KEY]
-            this_trend_matrix_year01 = (
-                conversion_ratio *
-                this_mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
+            this_difference_matrix = conversion_ratio * (
+                this_monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] -
+                this_monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
             )
-            this_significance_matrix = this_mann_kendall_dict[
+            this_significance_matrix = this_monte_carlo_dict[
                 climo_utils.SIGNIFICANCE_MATRIX_KEY]
 
-            this_trend_matrix_year01[
+            this_difference_matrix[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
             ] = numpy.nan
             this_significance_matrix[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
             ] = False
 
-            if plot_frequency:
-                this_title_string = '{0:s}-frequency trend in {1:s}'.format(
-                    front_type_abbrevs[j].upper(), season_strings_verbose[i]
-                )
-            else:
-                this_title_string = (
-                    '{0:s}-length trend (km per year) in {1:s}'
-                ).format(
-                    front_type_abbrevs[j].upper(), season_strings_verbose[i]
-                )
+            this_title_string = (
+                'Composite difference ({0:s} minus neutral) in {1:s}'
+            ).format(COMPOSITE_NAMES_VERBOSE[i], season_strings_verbose[j])
 
             this_output_file_name = '{0:s}_{1:s}_{2:s}.jpg'.format(
-                extensionless_output_file_name, front_type_abbrevs[j],
-                season_strings_abbrev[i]
+                extensionless_output_file_name, COMPOSITE_NAMES_ABBREV[i],
+                season_strings_abbrev[j]
             )
             panel_file_names.append(this_output_file_name)
 
-            if plot_frequency:
-                if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_FREQ_TREND_PERCENT_YEAR01
-                else:
-                    this_max_colour_value = MAX_CF_FREQ_TREND_PERCENT_YEAR01
-            else:
-                if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_LENGTH_TREND_KM_YEAR01
-                else:
-                    this_max_colour_value = MAX_CF_LENGTH_TREND_KM_YEAR01
-
-            _plot_one_trend(
-                trend_matrix_year01=this_trend_matrix_year01,
+            _plot_one_difference(
+                difference_matrix=this_difference_matrix,
                 significance_matrix=this_significance_matrix,
-                max_colour_value=this_max_colour_value,
-                plot_latitudes=j == 0, plot_longitudes=i == num_seasons - 1,
-                plot_colour_bar=i == num_seasons - 1,
+                max_colour_value=max_colour_value,
+                plot_latitudes=j == 0, plot_longitudes=i == num_composites - 1,
+                plot_colour_bar=i == num_composites - 1,
                 title_string=this_title_string,
                 output_file_name=panel_file_names[-1]
             )
@@ -291,7 +287,7 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
     print('Concatenating panels to: "{0:s}"...'.format(output_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=output_file_name,
-        num_panel_rows=num_seasons, num_panel_columns=num_properties)
+        num_panel_rows=num_composites, num_panel_columns=num_seasons)
 
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
@@ -307,6 +303,6 @@ if __name__ == '__main__':
 
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
-        plot_frequency=bool(getattr(INPUT_ARG_OBJECT, PLOT_FREQUENCY_ARG_NAME)),
+        property_name=getattr(INPUT_ARG_OBJECT, PROPERTY_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
