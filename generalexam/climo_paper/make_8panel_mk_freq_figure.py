@@ -38,6 +38,7 @@ MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
 MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
 
+BORDER_COLOUR = numpy.full(3, 152. / 255)
 TITLE_FONT_SIZE = 30
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
@@ -86,7 +87,9 @@ def _plot_one_trend(
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
-    basemap_dict = plot_gridded_stats._plot_basemap(trend_matrix_year01)
+    basemap_dict = plot_gridded_stats._plot_basemap(
+        trend_matrix_year01, border_colour=BORDER_COLOUR)
+
     axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
     basemap_object = basemap_dict[plot_gridded_stats.BASEMAP_OBJECT_KEY]
     full_grid_name = basemap_dict[plot_gridded_stats.FULL_GRID_NAME_KEY]

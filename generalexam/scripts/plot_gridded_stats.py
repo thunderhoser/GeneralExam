@@ -150,12 +150,13 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_basemap(full_data_matrix):
+def _plot_basemap(full_data_matrix, border_colour=BORDER_COLOUR):
     """Plots basemap.
 
     "Subgrid" = part of full grid to be plotted.
 
     :param full_data_matrix: 2-D numpy array of data values.
+    :param border_colour: Border colour (length-3 numpy array).
     :return: basemap_dict: Dictionary with the following keys.
     basemap_dict["axes_object"]: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
@@ -221,11 +222,11 @@ def _plot_basemap(full_data_matrix):
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
+        num_parallels=NUM_PARALLELS, line_colour=BORDER_COLOUR)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+        num_meridians=NUM_MERIDIANS, line_colour=BORDER_COLOUR)
 
     subgrid_data_matrix = full_data_matrix[
         full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
