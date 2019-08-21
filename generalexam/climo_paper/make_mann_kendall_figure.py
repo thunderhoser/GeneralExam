@@ -37,6 +37,8 @@ SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
 
 MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
 MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
+MAX_WF_LENGTH_TREND_KM_YEAR01 = 15.
+MAX_CF_LENGTH_TREND_KM_YEAR01 = 20.
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
 
 BORDER_COLOUR = numpy.full(3, 152. / 255)
@@ -271,25 +273,18 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
                 else:
                     this_max_colour_value = MAX_CF_FREQ_TREND_PERCENT_YEAR01
             else:
-                this_max_colour_value = numpy.nanpercentile(
-                    this_trend_matrix_year01, 99)
-
-            # _plot_one_trend(
-            #     trend_matrix_year01=this_trend_matrix_year01,
-            #     significance_matrix=this_significance_matrix,
-            #     max_colour_value=this_max_colour_value,
-            #     plot_latitudes=j == 0, plot_longitudes=i == num_seasons - 1,
-            #     plot_colour_bar=i == num_seasons - 1,
-            #     title_string=this_title_string,
-            #     output_file_name=panel_file_names[-1]
-            # )
+                if front_type_abbrevs[j] == 'wf':
+                    this_max_colour_value = MAX_WF_LENGTH_TREND_KM_YEAR01
+                else:
+                    this_max_colour_value = MAX_CF_LENGTH_TREND_KM_YEAR01
 
             _plot_one_trend(
                 trend_matrix_year01=this_trend_matrix_year01,
                 significance_matrix=this_significance_matrix,
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=j == 0, plot_longitudes=i == num_seasons - 1,
-                plot_colour_bar=True, title_string=this_title_string,
+                plot_colour_bar=i == num_seasons - 1,
+                title_string=this_title_string,
                 output_file_name=panel_file_names[-1]
             )
 
