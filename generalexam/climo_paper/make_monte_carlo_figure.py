@@ -55,7 +55,7 @@ PROPERTY_TO_MAX_COLOUR_VALUE_DICT = {
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
 
 BORDER_COLOUR = numpy.full(3, 152. / 255)
-TITLE_FONT_SIZE = 30
+TITLE_FONT_SIZE = 26
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -232,8 +232,8 @@ def _run(top_input_dir_name, property_name, output_file_name):
     num_seasons = len(season_strings_abbrev)
     panel_file_names = []
 
-    for i in range(num_composites):
-        for j in range(num_seasons):
+    for j in range(num_seasons):
+        for i in range(num_composites):
             this_input_dir_name = '{0:s}/{1:s}/{2:s}/stitched'.format(
                 top_input_dir_name, COMPOSITE_NAMES_ABBREV[i],
                 season_strings_abbrev[j]
