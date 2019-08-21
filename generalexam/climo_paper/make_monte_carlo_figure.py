@@ -278,8 +278,8 @@ def _run(top_input_dir_name, property_name, output_file_name):
                 difference_matrix=this_difference_matrix,
                 significance_matrix=this_significance_matrix,
                 max_colour_value=max_colour_value,
-                plot_latitudes=j == 0, plot_longitudes=i == num_composites - 1,
-                plot_colour_bar=i == num_composites - 1,
+                plot_latitudes=i == 0, plot_longitudes=j == num_seasons - 1,
+                plot_colour_bar=j == num_seasons - 1,
                 title_string=this_title_string,
                 output_file_name=panel_file_names[-1]
             )
@@ -287,7 +287,7 @@ def _run(top_input_dir_name, property_name, output_file_name):
     print('Concatenating panels to: "{0:s}"...'.format(output_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=output_file_name,
-        num_panel_rows=num_composites, num_panel_columns=num_seasons)
+        num_panel_rows=num_seasons, num_panel_columns=num_composites)
 
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
