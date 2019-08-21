@@ -132,7 +132,7 @@ def _plot_one_trend(
         marker=plot_gridded_stats.SIG_MARKER_TYPE,
         markerfacecolor=plot_gridded_stats.SIG_MARKER_COLOUR,
         markeredgecolor=plot_gridded_stats.SIG_MARKER_COLOUR,
-        markersize=plot_gridded_stats.SIG_MARKER_SIZE,
+        markersize=1,
         markeredgewidth=plot_gridded_stats.SIG_MARKER_EDGE_WIDTH,
         transform=axes_object.transAxes)
 
