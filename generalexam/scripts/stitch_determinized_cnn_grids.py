@@ -99,14 +99,16 @@ def _run(top_inner_grid_dir_name, top_outer_grid_dir_name, first_time_string,
 
         this_predicted_label_matrix = this_outer_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
-        this_predicted_label_matrix[:, 100:-100, 100:-100] = (
-            this_inner_prediction_dict[prediction_io.PREDICTED_LABELS_KEY]
+        this_predicted_label_matrix[:, 120:-120, 120:-120] = (
+            this_inner_prediction_dict[prediction_io.PREDICTED_LABELS_KEY][
+                :, 20:-20, 20:-20]
         )
 
         this_class_prob_matrix = this_outer_prediction_dict[
             prediction_io.CLASS_PROBABILITIES_KEY]
-        this_class_prob_matrix[:, 100:-100, 100:-100, :] = (
-            this_inner_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY]
+        this_class_prob_matrix[:, 120:-120, 120:-120, :] = (
+            this_inner_prediction_dict[prediction_io.CLASS_PROBABILITIES_KEY][
+                :, 20:-20, 20:-20, :]
         )
 
         this_output_file_name = prediction_io.find_file(
