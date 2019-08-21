@@ -1,4 +1,4 @@
-"""Makes 8-panel figure with results of Mann-Kendall test for frequency."""
+"""Makes 8-panel figure with Mann-Kendall results for either freq or length."""
 
 import os
 import argparse
@@ -14,13 +14,9 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
+METRES_TO_KM = 0.001
 FRACTION_TO_PERCENT = 100.
 MASK_IF_NUM_LABELS_BELOW = 100
-
-PROPERTY_NAMES = [
-    climo_utils.WF_FREQ_PROPERTY_NAME, climo_utils.CF_FREQ_PROPERTY_NAME
-]
-FRONT_TYPE_ABBREVS = ['wf', 'cf']
 
 FIRST_TIME_UNIX_SEC = time_conversion.first_and_last_times_in_year(1979)[0]
 LAST_TIME_UNIX_SEC = (
@@ -34,6 +30,11 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
     climo_utils.FALL_STRING: 'fall'
 }
 
+SIG_MARKER_TYPE = plot_gridded_stats.SIG_MARKER_TYPE
+SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
+SIG_MARKER_SIZE = 1.
+SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
+
 MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
 MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
@@ -44,6 +45,7 @@ FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
+PLOT_FREQUENCY_ARG_NAME = 'plot_frequency'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -51,12 +53,20 @@ INPUT_DIR_HELP_STRING = (
     '`climatology_utils.find_mann_kendall_file` and read by '
     '`climatology_utils.read_mann_kendall_test`.')
 
+PLOT_FREQUENCY_HELP_STRING = (
+    'Boolean flag.  If 1, will plot trends for WF and CF frequency.  If 0, will'
+    ' plot trends for WF and CF length.')
+
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
     help=INPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + PLOT_FREQUENCY_ARG_NAME, type=int, required=True,
+    help=PLOT_FREQUENCY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -129,12 +139,9 @@ def _plot_one_trend(
 
     axes_object.plot(
         significant_x_coords, significant_y_coords, linestyle='None',
-        marker=plot_gridded_stats.SIG_MARKER_TYPE,
-        markerfacecolor=plot_gridded_stats.SIG_MARKER_COLOUR,
-        markeredgecolor=plot_gridded_stats.SIG_MARKER_COLOUR,
-        markersize=1,
-        markeredgewidth=plot_gridded_stats.SIG_MARKER_EDGE_WIDTH,
-        transform=axes_object.transAxes)
+        marker=SIG_MARKER_TYPE, markersize=SIG_MARKER_SIZE,
+        markerfacecolor=SIG_MARKER_COLOUR, markeredgecolor=SIG_MARKER_COLOUR,
+        markeredgewidth=SIG_MARKER_EDGE_WIDTH, transform=axes_object.transAxes)
 
     if not plot_latitudes:
         axes_object.set_yticklabels([])
@@ -170,12 +177,13 @@ def _plot_one_trend(
     pyplot.close()
 
 
-def _run(top_input_dir_name, output_file_name):
-    """Makes 8-panel figure with results of Mann-Kendall test for frequency.
+def _run(top_input_dir_name, plot_frequency, output_file_name):
+    """Makes 8-panel figure with Mann-Kendall results for either freq or length.
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
+    :param plot_frequency: Same.
     :param output_file_name: Same.
     """
 
@@ -186,13 +194,27 @@ def _run(top_input_dir_name, output_file_name):
         SEASON_ABBREV_TO_VERBOSE_DICT[a] for a in season_strings_abbrev
     ]
 
+    if plot_frequency:
+        conversion_ratio = FRACTION_TO_PERCENT
+        property_names = [
+            climo_utils.WF_FREQ_PROPERTY_NAME, climo_utils.CF_FREQ_PROPERTY_NAME
+        ]
+    else:
+        conversion_ratio = METRES_TO_KM
+        property_names = [
+            climo_utils.WF_LENGTH_PROPERTY_NAME,
+            climo_utils.CF_LENGTH_PROPERTY_NAME
+        ]
+
+    front_type_abbrevs = ['wf', 'cf']
+
     output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
     extensionless_output_file_name = '{0:s}/{1:s}'.format(
         output_dir_name, os.path.splitext(pathless_output_file_name)[0]
     )
 
     num_seasons = len(season_strings_abbrev)
-    num_properties = len(PROPERTY_NAMES)
+    num_properties = len(property_names)
     panel_file_names = []
 
     for i in range(num_seasons):
@@ -200,10 +222,10 @@ def _run(top_input_dir_name, output_file_name):
             this_input_dir_name = '{0:s}/{1:s}'.format(
                 top_input_dir_name, season_strings_verbose[i]
             )
-            
+
             this_file_name = climo_utils.find_mann_kendall_file(
                 directory_name=this_input_dir_name,
-                property_name=PROPERTY_NAMES[j],
+                property_name=property_names[j],
                 raise_error_if_missing=True)
 
             print('Reading data from file: "{0:s}"...'.format(this_file_name))
@@ -213,7 +235,7 @@ def _run(top_input_dir_name, output_file_name):
             this_num_labels_matrix = this_mann_kendall_dict[
                 climo_utils.NUM_LABELS_MATRIX_KEY]
             this_trend_matrix_year01 = (
-                FRACTION_TO_PERCENT *
+                conversion_ratio *
                 this_mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
             )
             this_significance_matrix = this_mann_kendall_dict[
@@ -226,19 +248,31 @@ def _run(top_input_dir_name, output_file_name):
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
             ] = False
 
-            this_title_string = '{0:s}-frequency trend in {1:s}'.format(
-                FRONT_TYPE_ABBREVS[j].upper(), season_strings_verbose[i]
-            )
+            if plot_frequency:
+                this_title_string = '{0:s}-frequency trend in {1:s}'.format(
+                    front_type_abbrevs[j].upper(), season_strings_verbose[i]
+                )
+            else:
+                this_title_string = (
+                    '{0:s}-length trend (km per year) in {1:s}'
+                ).format(
+                    front_type_abbrevs[j].upper(), season_strings_verbose[i]
+                )
+
             this_output_file_name = '{0:s}_{1:s}_{2:s}.jpg'.format(
-                extensionless_output_file_name, FRONT_TYPE_ABBREVS[j],
+                extensionless_output_file_name, front_type_abbrevs[j],
                 season_strings_abbrev[i]
             )
             panel_file_names.append(this_output_file_name)
 
-            if FRONT_TYPE_ABBREVS[j] == 'wf':
-                this_max_colour_value = MAX_WF_FREQ_TREND_PERCENT_YEAR01
+            if plot_frequency:
+                if front_type_abbrevs[j] == 'wf':
+                    this_max_colour_value = MAX_WF_FREQ_TREND_PERCENT_YEAR01
+                else:
+                    this_max_colour_value = MAX_CF_FREQ_TREND_PERCENT_YEAR01
             else:
-                this_max_colour_value = MAX_CF_FREQ_TREND_PERCENT_YEAR01
+                this_max_colour_value = numpy.nanpercentile(
+                    this_trend_matrix_year01, 99)
 
             _plot_one_trend(
                 trend_matrix_year01=this_trend_matrix_year01,
@@ -269,5 +303,6 @@ if __name__ == '__main__':
 
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        plot_frequency=bool(getattr(INPUT_ARG_OBJECT, PLOT_FREQUENCY_ARG_NAME)),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
