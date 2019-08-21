@@ -45,10 +45,10 @@ SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
 
 PROPERTY_TO_MAX_COLOUR_VALUE_DICT = {
     climo_utils.WF_FREQ_PROPERTY_NAME: 0.015,
-    climo_utils.WF_LENGTH_PROPERTY_NAME: 750.,
+    climo_utils.WF_LENGTH_PROPERTY_NAME: 500.,
     climo_utils.WF_AREA_PROPERTY_NAME: 250.,
     climo_utils.CF_FREQ_PROPERTY_NAME: 0.02,
-    climo_utils.CF_LENGTH_PROPERTY_NAME: 1250.,
+    climo_utils.CF_LENGTH_PROPERTY_NAME: 1000.,
     climo_utils.CF_AREA_PROPERTY_NAME: 400.
 }
 
