@@ -24,7 +24,7 @@ METRES2_TO_THOUSAND_KM2 = 1e-9
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
-BORDER_COLOUR = numpy.full(3, 0.)
+DEFAULT_BORDER_COLOUR = numpy.full(3, 0.)
 
 MIN_LATITUDE_DEG = 5.
 MIN_LONGITUDE_DEG = 200.
@@ -150,7 +150,7 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_basemap(full_data_matrix, border_colour=BORDER_COLOUR):
+def _plot_basemap(full_data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
     """Plots basemap.
 
     "Subgrid" = part of full grid to be plotted.
@@ -210,23 +210,23 @@ def _plot_basemap(full_data_matrix, border_colour=BORDER_COLOUR):
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
+        line_colour=border_colour)
 
     plotting_utils.plot_countries(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
+        line_colour=border_colour)
 
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
+        line_colour=border_colour)
 
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS, line_colour=BORDER_COLOUR)
+        num_parallels=NUM_PARALLELS, line_colour=border_colour)
 
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS, line_colour=BORDER_COLOUR)
+        num_meridians=NUM_MERIDIANS, line_colour=border_colour)
 
     subgrid_data_matrix = full_data_matrix[
         full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
