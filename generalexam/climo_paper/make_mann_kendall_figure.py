@@ -274,13 +274,22 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
                 this_max_colour_value = numpy.nanpercentile(
                     this_trend_matrix_year01, 99)
 
+            # _plot_one_trend(
+            #     trend_matrix_year01=this_trend_matrix_year01,
+            #     significance_matrix=this_significance_matrix,
+            #     max_colour_value=this_max_colour_value,
+            #     plot_latitudes=j == 0, plot_longitudes=i == num_seasons - 1,
+            #     plot_colour_bar=i == num_seasons - 1,
+            #     title_string=this_title_string,
+            #     output_file_name=panel_file_names[-1]
+            # )
+
             _plot_one_trend(
                 trend_matrix_year01=this_trend_matrix_year01,
                 significance_matrix=this_significance_matrix,
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=j == 0, plot_longitudes=i == num_seasons - 1,
-                plot_colour_bar=i == num_seasons - 1,
-                title_string=this_title_string,
+                plot_colour_bar=True, title_string=this_title_string,
                 output_file_name=panel_file_names[-1]
             )
 
