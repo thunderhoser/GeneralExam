@@ -56,6 +56,7 @@ REQUIRED_KEYS = [
     BSS_BY_CLASS_KEY
 ]
 
+TICK_LABEL_FONT_SIZE = 25
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
@@ -853,7 +854,9 @@ def plot_scores_2d(
     y_tick_values = numpy.linspace(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
 
-    pyplot.xticks(x_tick_values, x_tick_label_strings, rotation=90.)
-    pyplot.yticks(y_tick_values, y_tick_label_strings)
+    pyplot.xticks(x_tick_values, x_tick_label_strings, rotation=90.,
+                  fontsize=TICK_LABEL_FONT_SIZE)
+    pyplot.yticks(y_tick_values, y_tick_label_strings,
+                  fontsize=TICK_LABEL_FONT_SIZE)
 
     return axes_object
