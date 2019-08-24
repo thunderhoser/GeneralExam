@@ -57,7 +57,7 @@ NUM_EXAMPLES_ARG_NAME = 'num_examples'
 EXAMPLE_INDICES_ARG_NAME = 'example_indices'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 COLOUR_MAP_ARG_NAME = 'thetaw_colour_map_name'
-MAX_PERCENTILE_ARG_NAME = 'thetaw_max_colour_percentile'
+MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
@@ -87,10 +87,9 @@ COLOUR_MAP_HELP_STRING = (
     'argument supports only pyplot colour maps.')
 
 MAX_PERCENTILE_HELP_STRING = (
-    'Determines max value in each colour map.  Max wet-bulb potential '
-    'temperature (theta_w) for each example will be the [q]th percentile of all'
-    ' theta_w values in the grid, where q = `{0:s}`.  Minimum value will be '
-    '[100 - q]th percentile.'
+    'Determines max value in each colour map.  Max theta_w for each example '
+    'will be the [q]th percentile of all theta_w values in the grid, where '
+    'q = `{0:s}`.  Minimum value will be [100 - q]th percentile.'
 ).format(MAX_PERCENTILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
@@ -134,7 +133,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _run(example_file_name, top_front_line_dir_name, num_examples,
          example_indices, pressure_level_mb, thetaw_colour_map_name,
-         thetaw_max_colour_percentile, output_dir_name):
+         max_colour_percentile, output_dir_name):
     """Plots one or more input examples.
 
     This is effectively the main method.
@@ -145,7 +144,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     :param example_indices: Same.
     :param pressure_level_mb: Same.
     :param thetaw_colour_map_name: Same.
-    :param thetaw_max_colour_percentile: Same.
+    :param max_colour_percentile: Same.
     :param output_dir_name: Same.
     """
 
@@ -157,8 +156,8 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     else:
         error_checking.assert_is_greater(num_examples, 0)
 
-    error_checking.assert_is_geq(thetaw_max_colour_percentile, 0)
-    error_checking.assert_is_leq(thetaw_max_colour_percentile, 100)
+    error_checking.assert_is_geq(max_colour_percentile, 0)
+    error_checking.assert_is_leq(max_colour_percentile, 100)
     thetaw_colour_map_object = pyplot.cm.get_cmap(thetaw_colour_map_name)
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -167,13 +166,15 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
     print('Reading normalized examples from: "{0:s}"...'.format(
         example_file_name))
 
+    pressure_array_mb = numpy.full(
+        len(PREDICTOR_NAMES), pressure_level_mb, dtype=int
+    )
+
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name, num_half_rows_to_keep=NUM_HALF_ROWS,
         num_half_columns_to_keep=NUM_HALF_COLUMNS,
         predictor_names_to_keep=PREDICTOR_NAMES,
-        pressure_levels_to_keep_mb=numpy.full(
-            len(PREDICTOR_NAMES), pressure_level_mb, dtype=int)
-    )
+        pressure_levels_to_keep_mb=pressure_array_mb)
 
     # TODO(thunderhoser): This is a HACK (assuming that normalization method is
     # z-score and not min-max).
@@ -237,6 +238,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             examples_io.PREDICTOR_MATRIX_KEY][i, ..., u_wind_index]
         this_v_wind_matrix_m_s01 = example_dict[
             examples_io.PREDICTOR_MATRIX_KEY][i, ..., v_wind_index]
+
         this_cos_matrix = rotation_cosine_matrix[
             this_first_row_index:(this_last_row_index + 1),
             this_first_column_index:(this_last_column_index + 1)
@@ -263,18 +265,6 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             last_column_in_full_grid=this_last_column_index,
             resolution_string='i')
 
-        parallel_spacing_deg = numpy.round(
-            (basemap_object.urcrnrlat - basemap_object.llcrnrlat) /
-            (NUM_PARALLELS - 1)
-        )
-        meridian_spacing_deg = numpy.round(
-            (basemap_object.urcrnrlon - basemap_object.llcrnrlon) /
-            (NUM_MERIDIANS - 1)
-        )
-
-        parallel_spacing_deg = max([parallel_spacing_deg, 1.])
-        meridian_spacing_deg = max([meridian_spacing_deg, 1.])
-
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
@@ -286,40 +276,43 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_parallels(
             basemap_object=basemap_object, axes_object=axes_object,
-            bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-            parallel_spacing_deg=parallel_spacing_deg)
+            min_latitude_deg=-90., max_latitude_deg=90.,
+            num_parallels=NUM_PARALLELS)
         plotting_utils.plot_meridians(
             basemap_object=basemap_object, axes_object=axes_object,
-            bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-            meridian_spacing_deg=meridian_spacing_deg)
+            min_longitude_deg=0., max_longitude_deg=360.,
+            num_meridians=NUM_MERIDIANS)
 
         this_thetaw_matrix_kelvins = example_dict[
-            examples_io.PREDICTOR_MATRIX_KEY][i, ..., thetaw_index]
+            examples_io.PREDICTOR_MATRIX_KEY
+        ][i, ..., thetaw_index]
 
         this_min_value = numpy.percentile(
-            this_thetaw_matrix_kelvins, 100. - thetaw_max_colour_percentile)
+            this_thetaw_matrix_kelvins, 100. - max_colour_percentile)
         this_max_value = numpy.percentile(
-            this_thetaw_matrix_kelvins, thetaw_max_colour_percentile)
+            this_thetaw_matrix_kelvins, max_colour_percentile)
 
         nwp_plotting.plot_subgrid(
             field_matrix=this_thetaw_matrix_kelvins,
             model_name=nwp_model_utils.NARR_MODEL_NAME,
-            grid_id=nwp_model_utils.NAME_OF_221GRID, axes_object=axes_object,
-            basemap_object=basemap_object, colour_map=thetaw_colour_map_object,
-            min_value_in_colour_map=this_min_value,
-            max_value_in_colour_map=this_max_value,
+            grid_id=nwp_model_utils.NAME_OF_221GRID,
+            axes_object=axes_object, basemap_object=basemap_object,
+            colour_map_object=thetaw_colour_map_object,
+            min_colour_value=this_min_value, max_colour_value=this_max_value,
             first_row_in_full_grid=this_first_row_index,
             first_column_in_full_grid=this_first_column_index)
 
-        colour_bar_object = plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=axes_object,
-            values_to_colour=this_thetaw_matrix_kelvins,
-            colour_map=thetaw_colour_map_object, colour_min=this_min_value,
-            colour_max=this_max_value, orientation='vertical',
-            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
+        colour_bar_object = plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=axes_object,
+            data_matrix=this_thetaw_matrix_kelvins,
+            colour_map_object=thetaw_colour_map_object,
+            min_value=this_min_value, max_value=this_max_value,
+            orientation_string='horizontal', extend_min=True, extend_max=True,
+            fraction_of_axis_length=0.8)
 
         colour_bar_object.set_label(
-            r'Wet-bulb potential temperature ($^{\circ}$C)')
+            r'Wet-bulb potential temperature ($^{\circ}$C)'
+        )
 
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
@@ -363,13 +356,22 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
                 front_type_string=this_polyline_table[
                     front_utils.FRONT_TYPE_COLUMN].values[j],
                 marker_colour=this_colour, marker_size=FRONT_MARKER_SIZE,
-                marker_spacing_metres=FRONT_SPACING_METRES)
+                marker_spacing_metres=FRONT_SPACING_METRES
+            )
 
+        title_string = 'Predictors at {0:s}'.format(
+            'surface'
+            if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+            else '{0:d} mb'.format(pressure_level_mb)
+        )
+
+        pyplot.title(title_string)
         this_output_file_name = '{0:s}/example{1:06d}.jpg'.format(
             output_dir_name, i)
 
         print('Saving figure to: "{0:s}"...'.format(this_output_file_name))
-        pyplot.savefig(this_output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.savefig(this_output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                       pad_inches=0, bbox_inches='tight')
         pyplot.close()
 
 
@@ -384,7 +386,7 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, EXAMPLE_INDICES_ARG_NAME), dtype=int),
         pressure_level_mb=getattr(INPUT_ARG_OBJECT, PRESSURE_LEVEL_ARG_NAME),
         thetaw_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        thetaw_max_colour_percentile=getattr(
+        max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

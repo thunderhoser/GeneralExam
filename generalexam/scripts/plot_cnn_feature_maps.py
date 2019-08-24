@@ -22,6 +22,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 
@@ -111,21 +112,21 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
     min_colour_value = -1 * max_colour_value
 
     for i in range(num_examples):
-        _, these_axes_objects = (
+        _, this_axes_object_matrix = (
             feature_map_plotting.plot_many_2d_feature_maps(
                 feature_matrix=feature_matrix[i, ...],
                 annotation_string_by_panel=annotation_string_by_channel,
                 num_panel_rows=num_panel_rows,
-                colour_map_object=pyplot.cm.seismic,
+                colour_map_object=COLOUR_MAP_OBJECT,
                 min_colour_value=min_colour_value,
                 max_colour_value=max_colour_value)
         )
 
-        plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=these_axes_objects,
-            values_to_colour=feature_matrix[i, ...],
-            colour_map=pyplot.cm.seismic, colour_min=min_colour_value,
-            colour_max=max_colour_value, orientation='horizontal',
+        plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=this_axes_object_matrix,
+            data_matrix=feature_matrix[i, ...],
+            colour_map_object=COLOUR_MAP_OBJECT, min_value=min_colour_value,
+            max_value=max_colour_value, orientation_string='horizontal',
             extend_min=True, extend_max=True)
 
         # this_title_string = 'Layer "{0:s}", example {1:d}'.format(layer_name, i)
@@ -135,7 +136,8 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
             output_dir_name, i)
 
         print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
-        pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                       pad_inches=0, bbox_inches='tight')
         pyplot.close()
 
 
@@ -163,15 +165,16 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
     print('Reading model from: "{0:s}"...'.format(model_file_name))
     model_object = ge_cnn.read_model(model_file_name)
+    model_metafile_name = ge_cnn.find_metafile(model_file_name=model_file_name)
     num_half_rows, num_half_columns = ge_cnn.model_to_grid_dimensions(
         model_object)
 
-    model_metafile_name = ge_cnn.find_metafile(model_file_name=model_file_name)
-    print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
+    print('Reading metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = ge_cnn.read_metadata(model_metafile_name)
 
     print('Reading normalized examples from: "{0:s}"...'.format(
         example_file_name))
+
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
@@ -202,10 +205,12 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
     for k in range(num_layers):
         print('Creating feature maps for layer "{0:s}"...'.format(
-            layer_names[k]))
+            layer_names[k]
+        ))
 
         this_partial_model_object = gg_cnn.model_to_feature_generator(
-            model_object=model_object, feature_layer_name=layer_names[k])
+            model_object=model_object, feature_layer_name=layer_names[k]
+        )
 
         feature_matrix_by_layer[k] = this_partial_model_object.predict(
             predictor_matrix, batch_size=num_examples)
@@ -215,7 +220,8 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(
-            top_output_dir_name, layer_names[k])
+            top_output_dir_name, layer_names[k]
+        )
         file_system_utils.mkdir_recursive_if_necessary(
             directory_name=this_output_dir_name)
 
