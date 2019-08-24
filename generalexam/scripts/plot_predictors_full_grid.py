@@ -12,7 +12,6 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
-from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import fronts_io
 from generalexam.ge_io import predictor_io
 from generalexam.ge_io import wpc_bulletin_input
@@ -39,7 +38,7 @@ WIND_FIELD_NAMES = [
 ]
 
 NUM_PARALLELS = 8
-NUM_MERIDIANS = 6
+NUM_MERIDIANS = 8
 MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
 MAX_LATITUDE_DEG = 80.
@@ -81,7 +80,7 @@ LAST_TIME_ARG_NAME = 'last_time_string'
 PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 THERMAL_FIELD_ARG_NAME = 'thermal_field_name'
 THERMAL_CMAP_ARG_NAME = 'thermal_colour_map_name'
-MAX_PERCENTILE_ARG_NAME = 'max_thermal_prctile_for_colours'
+MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -191,9 +190,9 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_one_time(
         predictor_matrix, predictor_names, front_polyline_table, high_low_table,
-        thermal_colour_map_object, max_thermal_prctile_for_colours,
-        full_grid_name, full_grid_row_limits, full_grid_column_limits,
-        title_string, letter_label, output_file_name):
+        thermal_colour_map_object, max_colour_percentile, full_grid_name,
+        full_grid_row_limits, full_grid_column_limits, title_string,
+        letter_label, output_file_name):
     """Plots predictors at one time.
 
     M = number of rows in grid
@@ -207,7 +206,7 @@ def _plot_one_time(
     :param high_low_table: pandas DataFrame returned by
         `wpc_bulletin_input.read_highs_and_lows`.
     :param thermal_colour_map_object: See documentation at top of file.
-    :param max_thermal_prctile_for_colours: Same.
+    :param max_colour_percentile: Same.
     :param full_grid_name: Name of full grid.
     :param full_grid_row_limits: length-2 numpy array with first and last
         full-grid rows in `predictor_matrix`.  If full_grid_row_limits = [i, k],
@@ -227,16 +226,6 @@ def _plot_one_time(
         last_column_in_full_grid=full_grid_column_limits[1]
     )
 
-    parallel_spacing_deg = numpy.round(
-        (MAX_LATITUDE_DEG - MIN_LATITUDE_DEG) / (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = numpy.round(
-        (MAX_LONGITUDE_DEG - MIN_LONGITUDE_DEG) / (NUM_MERIDIANS - 1)
-    )
-
-    parallel_spacing_deg = max([parallel_spacing_deg, 1.])
-    meridian_spacing_deg = max([meridian_spacing_deg, 1.])
-
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
@@ -246,14 +235,62 @@ def _plot_one_time(
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
+
+    # latitude_matrix_deg, longitude_matrix_deg = (
+    #     nwp_model_utils.get_latlng_grid_point_matrices(
+    #         model_name=nwp_model_utils.NARR_MODEL_NAME,
+    #         grid_name=nwp_model_utils.NAME_OF_221GRID)
+    # )
+    #
+    # this_latitude_matrix_deg = latitude_matrix_deg[
+    #     full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+    #     full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
+    # ]
+    # this_longitude_matrix_deg = longitude_matrix_deg[
+    #     full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+    #     full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
+    # ]
+    #
+    # plotting_utils.plot_parallels(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     min_latitude_deg=numpy.min(this_latitude_matrix_deg),
+    #     max_latitude_deg=numpy.max(this_latitude_matrix_deg),
+    #     num_parallels=NUM_PARALLELS
+    # )
+    # plotting_utils.plot_meridians(
+    #     basemap_object=basemap_object, axes_object=axes_object,
+    #     min_longitude_deg=numpy.min(this_longitude_matrix_deg),
+    #     max_longitude_deg=numpy.max(this_longitude_matrix_deg),
+    #     num_meridians=NUM_MERIDIANS
+    # )
+
+    bottom_left_longitude_deg, bottom_left_latitude_deg = basemap_object(
+        basemap_object.llcrnrx, basemap_object.llcrnry, inverse=True)
+    top_left_longitude_deg, top_left_latitude_deg = basemap_object(
+        basemap_object.llcrnrx, basemap_object.urcrnry, inverse=True)
+    bottom_right_longitude_deg, bottom_right_latitude_deg = basemap_object(
+        basemap_object.urcrnrx, basemap_object.llcrnry, inverse=True)
+    top_right_longitude_deg, top_right_latitude_deg = basemap_object(
+        basemap_object.urcrnrx, basemap_object.urcrnry, inverse=True)
+
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg)
+        min_latitude_deg=min([
+            bottom_left_latitude_deg, bottom_right_latitude_deg
+        ]),
+        max_latitude_deg=max([top_left_latitude_deg, top_right_latitude_deg]),
+        num_parallels=NUM_PARALLELS
+    )
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg)
+        min_longitude_deg=min([
+            bottom_left_longitude_deg, top_left_longitude_deg
+        ]),
+        max_longitude_deg=max([
+            bottom_right_longitude_deg, top_right_longitude_deg
+        ]),
+        num_meridians=NUM_MERIDIANS
+    )
 
     num_predictors = len(predictor_names)
 
@@ -262,27 +299,40 @@ def _plot_one_time(
             continue
 
         min_colour_value = numpy.nanpercentile(
-            predictor_matrix[..., j], 100. - max_thermal_prctile_for_colours)
+            predictor_matrix[..., j], 100. - max_colour_percentile
+        )
         max_colour_value = numpy.nanpercentile(
-            predictor_matrix[..., j], max_thermal_prctile_for_colours)
+            predictor_matrix[..., j], max_colour_percentile
+        )
 
         nwp_plotting.plot_subgrid(
             field_matrix=predictor_matrix[..., j],
             model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
             axes_object=axes_object, basemap_object=basemap_object,
-            colour_map=thermal_colour_map_object,
-            min_value_in_colour_map=min_colour_value,
-            max_value_in_colour_map=max_colour_value,
+            colour_map_object=thermal_colour_map_object,
+            min_colour_value=min_colour_value,
+            max_colour_value=max_colour_value,
             first_row_in_full_grid=full_grid_row_limits[0],
             first_column_in_full_grid=full_grid_column_limits[0]
         )
 
-        plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=axes_object,
-            values_to_colour=predictor_matrix[..., j],
-            colour_map=thermal_colour_map_object, colour_min=min_colour_value,
-            colour_max=max_colour_value, orientation='vertical',
-            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
+        colour_bar_object = plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=axes_object,
+            data_matrix=predictor_matrix[..., j],
+            colour_map_object=thermal_colour_map_object,
+            min_value=min_colour_value, max_value=max_colour_value,
+            orientation_string='horizontal', extend_min=True, extend_max=True,
+            fraction_of_axis_length=0.8)
+
+        # TODO(thunderhoser): This is a HACK.
+        colour_bar_object.set_label(
+            r'Wet-bulb potential temperature ($^{\circ}$C)'
+        )
+
+        tick_values = colour_bar_object.ax.get_xticks()
+        tick_strings = ['{0:.1f}'.format(x) for x in tick_values]
+        colour_bar_object.ax.set_xticks(tick_values)
+        colour_bar_object.ax.set_xticklabels(tick_strings)
 
     u_wind_index = predictor_names.index(
         predictor_utils.U_WIND_GRID_RELATIVE_NAME)
@@ -347,28 +397,27 @@ def _plot_one_time(
             axes_object=axes_object, basemap_object=basemap_object,
             front_type_string=front_polyline_table[
                 front_utils.FRONT_TYPE_COLUMN].values[i],
-            marker_colour=this_colour)
+            marker_colour=this_colour
+        )
 
     pyplot.title(title_string)
 
     if letter_label is not None:
-        plotting_utils.annotate_axes(
+        plotting_utils.label_axes(
             axes_object=axes_object,
-            annotation_string='({0:s})'.format(letter_label)
+            label_string='({0:s})'.format(letter_label)
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                   pad_inches=0, bbox_inches='tight')
     pyplot.close()
-
-    imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
-                                      output_file_name=output_file_name)
 
 
 def _run(top_predictor_dir_name, top_front_line_dir_name,
          top_wpc_bulletin_dir_name, first_time_string, last_time_string,
          pressure_level_mb, thermal_field_name, thermal_colour_map_name,
-         max_thermal_prctile_for_colours, first_letter_label, letter_interval,
+         max_colour_percentile, first_letter_label, letter_interval,
          output_dir_name):
     """Plots predictors on full NARR grid.
 
@@ -382,7 +431,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
     :param pressure_level_mb: Same.
     :param thermal_field_name: Same.
     :param thermal_colour_map_name: Same.
-    :param max_thermal_prctile_for_colours: Same.
+    :param max_colour_percentile: Same.
     :param first_letter_label: Same.
     :param letter_interval: Same.
     :param output_dir_name: Same.
@@ -517,11 +566,6 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             predictor_utils.DATA_MATRIX_KEY
         ][0, ...]
 
-        # for j in range(len(predictor_names)):
-        #     this_predictor_matrix[..., j] = utils.fill_nans(
-        #         this_predictor_matrix[..., j]
-        #     )
-
         this_predictor_matrix = this_predictor_matrix[
             full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
             full_grid_column_limits[0]:(full_grid_column_limits[1] + 1),
@@ -575,7 +619,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             front_polyline_table=this_polyline_table,
             high_low_table=this_high_low_table,
             thermal_colour_map_object=thermal_colour_map_object,
-            max_thermal_prctile_for_colours=max_thermal_prctile_for_colours,
+            max_colour_percentile=max_colour_percentile,
             full_grid_name=full_grid_name,
             full_grid_row_limits=full_grid_row_limits,
             full_grid_column_limits=full_grid_column_limits,
@@ -600,7 +644,7 @@ if __name__ == '__main__':
         thermal_field_name=getattr(INPUT_ARG_OBJECT, THERMAL_FIELD_ARG_NAME),
         thermal_colour_map_name=getattr(
             INPUT_ARG_OBJECT, THERMAL_CMAP_ARG_NAME),
-        max_thermal_prctile_for_colours=getattr(
+        max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
         letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
