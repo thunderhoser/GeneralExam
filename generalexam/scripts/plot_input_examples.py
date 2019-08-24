@@ -274,14 +274,28 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         plotting_utils.plot_states_and_provinces(
             basemap_object=basemap_object, axes_object=axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
+
+        this_latitude_matrix_deg = latitude_matrix_deg[
+            this_first_row_index:(this_last_row_index + 1),
+            this_first_column_index:(this_last_column_index + 1)
+        ]
+        this_longitude_matrix_deg = longitude_matrix_deg[
+            this_first_row_index:(this_last_row_index + 1),
+            this_first_column_index:(this_last_column_index + 1)
+        ]
+
         plotting_utils.plot_parallels(
             basemap_object=basemap_object, axes_object=axes_object,
-            min_latitude_deg=-90., max_latitude_deg=90.,
-            num_parallels=NUM_PARALLELS)
+            min_latitude_deg=numpy.min(this_latitude_matrix_deg),
+            max_latitude_deg=numpy.max(this_latitude_matrix_deg),
+            num_parallels=NUM_PARALLELS
+        )
         plotting_utils.plot_meridians(
             basemap_object=basemap_object, axes_object=axes_object,
-            min_longitude_deg=0., max_longitude_deg=360.,
-            num_meridians=NUM_MERIDIANS)
+            min_longitude_deg=numpy.min(this_longitude_matrix_deg),
+            max_longitude_deg=numpy.max(this_longitude_matrix_deg),
+            num_meridians=NUM_MERIDIANS
+        )
 
         this_thetaw_matrix_kelvins = example_dict[
             examples_io.PREDICTOR_MATRIX_KEY
@@ -313,6 +327,10 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         colour_bar_object.set_label(
             r'Wet-bulb potential temperature ($^{\circ}$C)'
         )
+
+        tick_values = colour_bar_object.ax.get_xticks()
+        colour_bar_object.ax.set_xticks(tick_values)
+        colour_bar_object.ax.set_xticklabels(tick_values)
 
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
