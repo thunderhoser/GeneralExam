@@ -85,7 +85,8 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
+def _plot_feature_maps_one_layer(feature_matrix, example_indices, layer_name,
+                                 output_dir_name):
     """Plots all feature maps for one layer.
 
     E = number of examples
@@ -94,6 +95,8 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
     C = number of channels
 
     :param feature_matrix: E-by-M-by-N-by-C numpy array of feature values.
+    :param example_indices: length-E numpy array of indices.  Will be used only
+        to name output files.
     :param layer_name: Name of layer that output feature values.
     :param output_dir_name: Name of output directory for this layer.
     """
@@ -133,7 +136,8 @@ def _plot_feature_maps_one_layer(feature_matrix, layer_name, output_dir_name):
         # pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_figure_file_name = '{0:s}/example{1:06d}.jpg'.format(
-            output_dir_name, i)
+            output_dir_name, example_indices[i]
+        )
 
         print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
         pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -227,7 +231,8 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
 
         _plot_feature_maps_one_layer(
             feature_matrix=feature_matrix_by_layer[k],
-            layer_name=layer_names[k], output_dir_name=this_output_dir_name)
+            example_indices=example_indices, layer_name=layer_names[k],
+            output_dir_name=this_output_dir_name)
         print(SEPARATOR_STRING)
 
 
