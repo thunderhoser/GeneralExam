@@ -5,6 +5,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import temperature_conversions as temperature_conv
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -297,17 +298,17 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             num_meridians=NUM_MERIDIANS
         )
 
-        this_thetaw_matrix_kelvins = example_dict[
-            examples_io.PREDICTOR_MATRIX_KEY
-        ][i, ..., thetaw_index]
+        this_thetaw_matrix_celsius = temperature_conv.kelvins_to_celsius(
+            example_dict[examples_io.PREDICTOR_MATRIX_KEY][i, ..., thetaw_index]
+        )
 
         this_min_value = numpy.percentile(
-            this_thetaw_matrix_kelvins, 100. - max_colour_percentile)
+            this_thetaw_matrix_celsius, 100. - max_colour_percentile)
         this_max_value = numpy.percentile(
-            this_thetaw_matrix_kelvins, max_colour_percentile)
+            this_thetaw_matrix_celsius, max_colour_percentile)
 
         nwp_plotting.plot_subgrid(
-            field_matrix=this_thetaw_matrix_kelvins,
+            field_matrix=this_thetaw_matrix_celsius,
             model_name=nwp_model_utils.NARR_MODEL_NAME,
             grid_id=nwp_model_utils.NAME_OF_221GRID,
             axes_object=axes_object, basemap_object=basemap_object,
@@ -318,7 +319,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
 
         colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object,
-            data_matrix=this_thetaw_matrix_kelvins,
+            data_matrix=this_thetaw_matrix_celsius,
             colour_map_object=thetaw_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
             orientation_string='horizontal', extend_min=True, extend_max=True,
@@ -329,8 +330,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         )
 
         tick_values = colour_bar_object.ax.get_xticks()
+        tick_strings = ['{0:.1f}'.format(x) for x in tick_values]
         colour_bar_object.ax.set_xticks(tick_values)
-        colour_bar_object.ax.set_xticklabels(tick_values)
+        colour_bar_object.ax.set_xticklabels(tick_strings)
 
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
