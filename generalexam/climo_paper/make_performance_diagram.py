@@ -98,6 +98,9 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     )
     pod_errors = numpy.reshape(pod_errors, (pod_errors.size, 1))
 
+    success_ratio_errors = numpy.maximum(success_ratio_errors, 0.01)
+    pod_errors = numpy.maximum(pod_errors, 0.01)
+
     axes_object.errorbar(
         mean_success_ratio, mean_pod,
         xerr=success_ratio_errors, yerr=pod_errors,
