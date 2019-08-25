@@ -1223,12 +1223,14 @@ def read_narr_mask(pickle_file_name):
     num_cold_fronts_matrix = None
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    mask_matrix = pickle.load(pickle_file_handle)
+    mask_matrix = pickle.load(pickle_file_handle, encoding='latin1')
     check_narr_mask(mask_matrix)
 
     try:
-        num_warm_fronts_matrix = pickle.load(pickle_file_handle)
-        num_cold_fronts_matrix = pickle.load(pickle_file_handle)
+        num_warm_fronts_matrix = pickle.load(
+            pickle_file_handle, encoding='latin1')
+        num_cold_fronts_matrix = pickle.load(
+            pickle_file_handle, encoding='latin1')
     except EOFError:
         pass
 
