@@ -105,7 +105,7 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
         mean_success_ratio, mean_pod,
         xerr=success_ratio_errors, yerr=pod_errors,
         ecolor=ERROR_BAR_COLOUR, elinewidth=ERROR_BAR_LINE_WIDTH,
-        capsize=ERROR_BAR_CAP_SIZE, capthick=ERROR_BAR_LINE_WIDTH)
+        capsize=ERROR_BAR_CAP_SIZE, capthick=ERROR_BAR_LINE_WIDTH, zorder=1e6)
 
     label_string = '{0:d} km'.format(
         int(numpy.round(neigh_distance_metres * METRES_TO_KM))
