@@ -781,7 +781,7 @@ def read_file(pickle_file_name):
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    result_dict = pickle.load(pickle_file_handle)
+    result_dict = pickle.load(pickle_file_handle, encoding='latin1')
     pickle_file_handle.close()
 
     missing_keys = list(set(REQUIRED_KEYS) - set(result_dict.keys()))
