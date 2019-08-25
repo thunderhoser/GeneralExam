@@ -160,20 +160,20 @@ def _do_eval_one_neigh_distance(
 
         print(SEPARATOR_STRING)
 
-    min_pod = numpy.nanpercentile(pod_values, 50. * (1 - confidence_level))
-    max_pod = numpy.nanpercentile(pod_values, 50. * (1 + confidence_level))
-    min_success_ratio = numpy.nanpercentile(
+    min_pod = numpy.percentile(pod_values, 50. * (1 - confidence_level))
+    max_pod = numpy.percentile(pod_values, 50. * (1 + confidence_level))
+    min_success_ratio = numpy.percentile(
         success_ratios, 50. * (1 - confidence_level)
     )
-    max_success_ratio = numpy.nanpercentile(
+    max_success_ratio = numpy.percentile(
         success_ratios, 50. * (1 + confidence_level)
     )
-    min_csi = numpy.nanpercentile(csi_values, 50. * (1 - confidence_level))
-    max_csi = numpy.nanpercentile(csi_values, 50. * (1 + confidence_level))
-    min_frequency_bias = numpy.nanpercentile(
+    min_csi = numpy.percentile(csi_values, 50. * (1 - confidence_level))
+    max_csi = numpy.percentile(csi_values, 50. * (1 + confidence_level))
+    min_frequency_bias = numpy.percentile(
         frequency_biases, 50. * (1 - confidence_level)
     )
-    max_frequency_bias = numpy.nanpercentile(
+    max_frequency_bias = numpy.percentile(
         frequency_biases, 50. * (1 + confidence_level)
     )
 
