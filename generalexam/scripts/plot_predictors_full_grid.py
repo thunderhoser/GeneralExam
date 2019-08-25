@@ -235,62 +235,12 @@ def _plot_one_time(
     plotting_utils.plot_states_and_provinces(
         basemap_object=basemap_object, axes_object=axes_object,
         line_colour=BORDER_COLOUR)
-
-    # latitude_matrix_deg, longitude_matrix_deg = (
-    #     nwp_model_utils.get_latlng_grid_point_matrices(
-    #         model_name=nwp_model_utils.NARR_MODEL_NAME,
-    #         grid_name=nwp_model_utils.NAME_OF_221GRID)
-    # )
-    #
-    # this_latitude_matrix_deg = latitude_matrix_deg[
-    #     full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
-    #     full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
-    # ]
-    # this_longitude_matrix_deg = longitude_matrix_deg[
-    #     full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
-    #     full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
-    # ]
-    #
-    # plotting_utils.plot_parallels(
-    #     basemap_object=basemap_object, axes_object=axes_object,
-    #     min_latitude_deg=numpy.min(this_latitude_matrix_deg),
-    #     max_latitude_deg=numpy.max(this_latitude_matrix_deg),
-    #     num_parallels=NUM_PARALLELS
-    # )
-    # plotting_utils.plot_meridians(
-    #     basemap_object=basemap_object, axes_object=axes_object,
-    #     min_longitude_deg=numpy.min(this_longitude_matrix_deg),
-    #     max_longitude_deg=numpy.max(this_longitude_matrix_deg),
-    #     num_meridians=NUM_MERIDIANS
-    # )
-
-    bottom_left_longitude_deg, bottom_left_latitude_deg = basemap_object(
-        basemap_object.llcrnrx, basemap_object.llcrnry, inverse=True)
-    top_left_longitude_deg, top_left_latitude_deg = basemap_object(
-        basemap_object.llcrnrx, basemap_object.urcrnry, inverse=True)
-    bottom_right_longitude_deg, bottom_right_latitude_deg = basemap_object(
-        basemap_object.urcrnrx, basemap_object.llcrnry, inverse=True)
-    top_right_longitude_deg, top_right_latitude_deg = basemap_object(
-        basemap_object.urcrnrx, basemap_object.urcrnry, inverse=True)
-
     plotting_utils.plot_parallels(
         basemap_object=basemap_object, axes_object=axes_object,
-        min_latitude_deg=min([
-            bottom_left_latitude_deg, bottom_right_latitude_deg
-        ]),
-        max_latitude_deg=max([top_left_latitude_deg, top_right_latitude_deg]),
-        num_parallels=NUM_PARALLELS
-    )
+        num_parallels=NUM_PARALLELS)
     plotting_utils.plot_meridians(
         basemap_object=basemap_object, axes_object=axes_object,
-        min_longitude_deg=min([
-            bottom_left_longitude_deg, top_left_longitude_deg
-        ]),
-        max_longitude_deg=max([
-            bottom_right_longitude_deg, top_right_longitude_deg
-        ]),
-        num_meridians=NUM_MERIDIANS
-    )
+        num_meridians=NUM_MERIDIANS)
 
     num_predictors = len(predictor_names)
 
@@ -330,9 +280,8 @@ def _plot_one_time(
         )
 
         tick_values = colour_bar_object.ax.get_xticks()
-        tick_strings = ['{0:.1f}'.format(x) for x in tick_values]
         colour_bar_object.ax.set_xticks(tick_values)
-        colour_bar_object.ax.set_xticklabels(tick_strings)
+        colour_bar_object.ax.set_xticklabels(tick_values)
 
     u_wind_index = predictor_names.index(
         predictor_utils.U_WIND_GRID_RELATIVE_NAME)

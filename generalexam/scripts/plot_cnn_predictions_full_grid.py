@@ -12,7 +12,6 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import nwp_plotting
-from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
 from generalexam.plotting import front_plotting
@@ -24,18 +23,17 @@ TIME_INTERVAL_SECONDS = 10800
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
-BORDER_COLOUR = numpy.full(3, 0.)
-
-# MIN_LATITUDE_DEG = 20.
-# MIN_LONGITUDE_DEG = 220.
-# MAX_LATITUDE_DEG = 80.
-# MAX_LONGITUDE_DEG = 290.
-
-MIN_LATITUDE_DEG = 5.
-MIN_LONGITUDE_DEG = 200.
+MIN_LATITUDE_DEG = 20.
+MIN_LONGITUDE_DEG = 220.
 MAX_LATITUDE_DEG = 80.
-MAX_LONGITUDE_DEG = 310.
+MAX_LONGITUDE_DEG = 290.
 
+# MIN_LATITUDE_DEG = 5.
+# MIN_LONGITUDE_DEG = 200.
+# MAX_LATITUDE_DEG = 80.
+# MAX_LONGITUDE_DEG = 310.
+
+BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
@@ -247,19 +245,17 @@ def _plot_one_time(
                 extend_min=True, extend_max=False, fraction_of_axis_length=0.9)
 
     # pyplot.title(title_string)
-    #
-    # if letter_label is not None:
-    #     plotting_utils.annotate_axes(
-    #         axes_object=axes_object,
-    #         annotation_string='({0:s})'.format(letter_label)
-    #     )
+
+    if letter_label is not None:
+        plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(letter_label)
+        )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
+    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+                   pad_inches=0, bbox_inches='tight')
     pyplot.close()
-
-    imagemagick_utils.trim_whitespace(
-        input_file_name=output_file_name, output_file_name=output_file_name)
 
 
 def _run(prediction_dir_name, plot_deterministic, first_time_string,
