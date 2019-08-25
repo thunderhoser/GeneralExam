@@ -163,7 +163,6 @@ def _run(input_prediction_dir_name, mask_file_name, first_time_string,
             first_time_unix_sec=valid_times_unix_sec[i],
             last_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
-        print(this_input_file_name)
 
         if not os.path.isfile(this_input_file_name):
             continue

@@ -3,8 +3,10 @@
 import os.path
 import argparse
 import numpy
+from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import prediction_io
 from generalexam.machine_learning import neigh_evaluation
 
@@ -20,6 +22,8 @@ PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 NEIGH_DISTANCES_ARG_NAME = 'neigh_distances_metres'
+NUM_BOOTSTRAP_ARG_NAME = 'num_bootstrap_reps'
+CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 PREDICTION_DIR_HELP_STRING = (
@@ -34,6 +38,15 @@ TIME_HELP_STRING = (
 
 NEIGH_DISTANCES_HELP_STRING = (
     'List of neighbourhood distances.  Evaluation will be done for each.')
+
+NUM_BOOTSTRAP_HELP_STRING = (
+    'Number of bootstrap replicates.  If you do not want bootstrapping, leave '
+    'this alone.')
+
+CONFIDENCE_LEVEL_HELP_STRING = (
+    '[used only if `{0:s}` > 1] Confidence level for bootstrapping, in range '
+    '0...1.'
+).format(NUM_BOOTSTRAP_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Files will be written here by '
@@ -56,13 +69,22 @@ INPUT_ARG_PARSER.add_argument(
     help=NEIGH_DISTANCES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_BOOTSTRAP_ARG_NAME, type=int, required=False, default=1,
+    help=NUM_BOOTSTRAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
+    help=CONFIDENCE_LEVEL_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _do_eval_one_neigh_distance(
         predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
-        prediction_file_names, output_file_name):
+        num_bootstrap_reps, confidence_level, prediction_file_names,
+        output_file_name):
     """Does evaluation with one neighbourhood distance.
 
     T = number of time steps
@@ -73,69 +95,111 @@ def _do_eval_one_neigh_distance(
         (in range 0...2).
     :param actual_label_matrix: Same but for actual labels.
     :param neigh_distance_metres: Neighbourhood distance.
+    :param num_bootstrap_reps: See documentation at top of file.
+    :param confidence_level: Same.
     :param prediction_file_names: length-T list of paths to input (prediction)
         files.
     :param output_file_name: Path to output file.
     """
 
-    (binary_ct_as_dict, prediction_oriented_ct_matrix, actual_oriented_ct_matrix
-    ) = neigh_evaluation.make_contingency_tables(
-        predicted_label_matrix=predicted_label_matrix,
-        actual_label_matrix=actual_label_matrix,
-        neigh_distance_metres=neigh_distance_metres)
+    num_times = predicted_label_matrix.shape[0]
+    time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=int)
 
-    print(SEPARATOR_STRING)
+    list_of_binary_ct_dicts = [None] * num_bootstrap_reps
+    prediction_oriented_ct_matrix = None
+    actual_oriented_ct_matrix = None
+
+    pod_values = numpy.full(num_bootstrap_reps, numpy.nan)
+    success_ratios = numpy.full(num_bootstrap_reps, numpy.nan)
+    csi_values = numpy.full(num_bootstrap_reps, numpy.nan)
+    frequency_biases = numpy.full(num_bootstrap_reps, numpy.nan)
+
+    for i in range(num_bootstrap_reps):
+        these_time_indices = bootstrapping.draw_sample(time_indices)[-1]
+
+        (list_of_binary_ct_dicts[i], this_prediction_oriented_matrix,
+         this_actual_oriented_matrix
+        ) = neigh_evaluation.make_contingency_tables(
+            predicted_label_matrix=predicted_label_matrix[
+                these_time_indices, ...],
+            actual_label_matrix=actual_label_matrix[these_time_indices, ...],
+            neigh_distance_metres=neigh_distance_metres
+        )
+
+        if prediction_oriented_ct_matrix is None:
+            dimensions = (
+                (num_bootstrap_reps,) + this_prediction_oriented_matrix.shape
+            )
+            prediction_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+            actual_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+
+        prediction_oriented_ct_matrix[i, ...] = this_prediction_oriented_matrix
+        actual_oriented_ct_matrix[i, ...] = this_actual_oriented_matrix
+
+        pod_values[i] = neigh_evaluation.get_binary_pod(
+            list_of_binary_ct_dicts[i]
+        )
+        success_ratios[i] = neigh_evaluation.get_binary_success_ratio(
+            list_of_binary_ct_dicts[i]
+        )
+        csi_values[i] = neigh_evaluation.get_binary_csi(
+            list_of_binary_ct_dicts[i]
+        )
+        frequency_biases[i] = neigh_evaluation.get_binary_frequency_bias(
+            list_of_binary_ct_dicts[i]
+        )
+
+        print((
+            'Scores for {0:d}th bootstrap replicate, {1:.1f}-km neighbourhood: '
+            'POD = {2:.4f}, success ratio = {3:.4f}, CSI = {4:.4f}, freq bias ='
+            ' {5:.4f}'
+        ).format(
+            i, neigh_distance_metres * METRES_TO_KM,
+            pod_values[i], success_ratios[i], csi_values[i], frequency_biases[i]
+        ))
+
+        print(SEPARATOR_STRING)
+
+    min_pod = numpy.nanpercentile(pod_values, 50. * (1 - confidence_level))
+    max_pod = numpy.nanpercentile(pod_values, 50. * (1 + confidence_level))
+    min_success_ratio = numpy.nanpercentile(
+        success_ratios, 50. * (1 - confidence_level)
+    )
+    max_success_ratio = numpy.nanpercentile(
+        success_ratios, 50. * (1 + confidence_level)
+    )
+    min_csi = numpy.nanpercentile(csi_values, 50. * (1 - confidence_level))
+    max_csi = numpy.nanpercentile(csi_values, 50. * (1 + confidence_level))
+    min_frequency_bias = numpy.nanpercentile(
+        frequency_biases, 50. * (1 - confidence_level)
+    )
+    max_frequency_bias = numpy.nanpercentile(
+        frequency_biases, 50. * (1 + confidence_level)
+    )
 
     print((
-        'Binary (2-class) contingency table for {0:f}-km neigh distance:\n'
-    ).format(neigh_distance_metres * METRES_TO_KM))
-    print(binary_ct_as_dict)
-
-    print((
-        '\nPrediction-oriented 3-class contingency table for {0:f}-km neigh '
-        'distance:\n'
-    ).format(neigh_distance_metres * METRES_TO_KM))
-    print(prediction_oriented_ct_matrix)
-
-    print((
-        '\nActual-oriented 3-class contingency table for {0:f}-km neigh '
-        'distance:\n'
-    ).format(neigh_distance_metres * METRES_TO_KM))
-    print(actual_oriented_ct_matrix)
-    print('\n')
-
-    binary_pod = neigh_evaluation.get_binary_pod(binary_ct_as_dict)
-    binary_success_ratio = neigh_evaluation.get_binary_success_ratio(
-        binary_ct_as_dict)
-    binary_csi = neigh_evaluation.get_binary_csi(binary_ct_as_dict)
-    binary_frequency_bias = neigh_evaluation.get_binary_frequency_bias(
-        binary_ct_as_dict)
-
-    print('Binary POD for {0:f}-km neigh distance = {1:.4f}'.format(
-        neigh_distance_metres * METRES_TO_KM, binary_pod
+        '{0:.1f}% confidence interval for POD = [{1:.4f}, {2:.4f}] ... '
+        'success ratio = [{3:.4f}, {4:.4f}] ... CSI = [{5:.4f}, {6:.4f}] ... '
+        'frequency bias = [{7:.4f}, {8:.4f}]\n'
+    ).format(
+        100 * confidence_level, min_pod, max_pod,
+        min_success_ratio, max_success_ratio, min_csi, max_csi,
+        min_frequency_bias, max_frequency_bias
     ))
-    print('Binary success ratio for {0:f}-km neigh distance = {1:.4f}'.format(
-        neigh_distance_metres * METRES_TO_KM, binary_success_ratio
-    ))
-    print('Binary CSI for {0:f}-km neigh distance = {1:.4f}'.format(
-        neigh_distance_metres * METRES_TO_KM, binary_csi
-    ))
-    print((
-        'Binary frequency bias for {0:f}-km neigh distance = {1:.4f}\n'
-    ).format(neigh_distance_metres * METRES_TO_KM, binary_frequency_bias))
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
     neigh_evaluation.write_results(
         pickle_file_name=output_file_name,
         prediction_file_names=prediction_file_names,
         neigh_distance_metres=neigh_distance_metres,
-        binary_ct_as_dict=binary_ct_as_dict,
+        list_of_binary_ct_dicts=list_of_binary_ct_dicts,
         prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
         actual_oriented_ct_matrix=actual_oriented_ct_matrix)
 
 
 def _run(prediction_dir_name, first_time_string, last_time_string,
-         neigh_distances_metres, output_dir_name):
+         neigh_distances_metres, num_bootstrap_reps, confidence_level,
+         output_dir_name):
     """Runs neigh evaluation on gridded deterministic labels from CNN.
 
     This is effectively the main method.
@@ -144,8 +208,15 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param neigh_distances_metres: Same.
+    :param num_bootstrap_reps: Same.
+    :param confidence_level: Same.
     :param output_dir_name: Same.
     """
+
+    num_bootstrap_reps = max([num_bootstrap_reps, 1])
+    if num_bootstrap_reps > 1:
+        error_checking.assert_is_geq(confidence_level, 0.9)
+        error_checking.assert_is_less_than(confidence_level, 1.)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
         first_time_string, INPUT_TIME_FORMAT)
@@ -198,7 +269,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         print(SEPARATOR_STRING)
 
         this_output_file_name = (
-            '{0:s}/evaluation_neigh-distance-metres={1:06d}'
+            '{0:s}/evaluation_neigh-distance-metres={1:06d}.p'
         ).format(
             output_dir_name, int(numpy.round(this_neigh_distance_metres))
         )
@@ -207,6 +278,8 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             predicted_label_matrix=predicted_label_matrix,
             actual_label_matrix=actual_label_matrix,
             neigh_distance_metres=this_neigh_distance_metres,
+            num_bootstrap_reps=num_bootstrap_reps,
+            confidence_level=confidence_level,
             prediction_file_names=prediction_file_names,
             output_file_name=this_output_file_name)
 
@@ -221,5 +294,7 @@ if __name__ == '__main__':
         neigh_distances_metres=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEIGH_DISTANCES_ARG_NAME), dtype=float
         ),
+        num_bootstrap_reps=getattr(INPUT_ARG_OBJECT, NUM_BOOTSTRAP_ARG_NAME),
+        confidence_level=getattr(INPUT_ARG_OBJECT, CONFIDENCE_LEVEL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

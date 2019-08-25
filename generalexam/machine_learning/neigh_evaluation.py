@@ -27,11 +27,12 @@ NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 PREDICTION_FILES_KEY = 'prediction_file_names'
 NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
 BINARY_CONTINGENCY_TABLE_KEY = 'binary_ct_as_dict'
+BINARY_CONTINGENCY_TABLES_KEY = 'list_of_binary_ct_dicts'
 PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
 ACTUAL_ORIENTED_CT_KEY = 'actual_oriented_ct_matrix'
 
 REQUIRED_KEYS = [
-    PREDICTION_FILES_KEY, NEIGH_DISTANCE_KEY, BINARY_CONTINGENCY_TABLE_KEY,
+    PREDICTION_FILES_KEY, NEIGH_DISTANCE_KEY, BINARY_CONTINGENCY_TABLES_KEY,
     PREDICTION_ORIENTED_CT_KEY, ACTUAL_ORIENTED_CT_KEY
 ]
 
@@ -682,17 +683,24 @@ def get_binary_frequency_bias(binary_ct_as_dict):
 
 def write_results(
         pickle_file_name, prediction_file_names, neigh_distance_metres,
-        binary_ct_as_dict, prediction_oriented_ct_matrix,
+        list_of_binary_ct_dicts, prediction_oriented_ct_matrix,
         actual_oriented_ct_matrix):
     """Writes results of neighbourhood evaluation to Pickle file.
+
+    B = number of bootstrap replicates
 
     :param pickle_file_name: Path to output file.
     :param prediction_file_names: 1-D list of paths to input files (readable by
         `prediction_io.read_file`).
     :param neigh_distance_metres: Neighbourhood distance.
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :param prediction_oriented_ct_matrix: Same.
-    :param actual_oriented_ct_matrix: Same.
+    :param list_of_binary_ct_dicts: length-B list of binary contingency tables
+        created by `make_contingency_tables`.
+    :param prediction_oriented_ct_matrix: B-by-3-by-3 numpy array, where
+        prediction_oriented_ct_matrix[i, ...] is the prediction-oriented
+        contingency table, created by `make_contingency_tables`, for the [i]th
+        bootstrap replicate.
+    :param actual_oriented_ct_matrix: Same but with actual-oriented contingency
+        tables.
     """
 
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
@@ -701,21 +709,25 @@ def write_results(
         numpy.array(prediction_file_names), num_dimensions=1
     )
 
+    error_checking.assert_is_list(list_of_binary_ct_dicts)
+
     num_classes = len(FRONT_TYPE_ENUMS)
+    num_bootstrap_reps = len(list_of_binary_ct_dicts)
+    these_expected_dim = numpy.array(
+        [num_bootstrap_reps, num_classes, num_classes], dtype=int
+    )
 
     error_checking.assert_is_numpy_array(
-        prediction_oriented_ct_matrix,
-        exact_dimensions=numpy.array([num_classes, num_classes], dtype=int)
+        prediction_oriented_ct_matrix, exact_dimensions=these_expected_dim
     )
     error_checking.assert_is_numpy_array(
-        actual_oriented_ct_matrix,
-        exact_dimensions=numpy.array([num_classes, num_classes], dtype=int)
+        actual_oriented_ct_matrix, exact_dimensions=these_expected_dim
     )
 
     evaluation_dict = {
         PREDICTION_FILES_KEY: prediction_file_names,
         NEIGH_DISTANCE_KEY: neigh_distance_metres,
-        BINARY_CONTINGENCY_TABLE_KEY: binary_ct_as_dict,
+        BINARY_CONTINGENCY_TABLES_KEY: list_of_binary_ct_dicts,
         PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,
         ACTUAL_ORIENTED_CT_KEY: actual_oriented_ct_matrix
     }
