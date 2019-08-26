@@ -574,9 +574,51 @@ def make_contingency_tables(
             this_num_actual_by_class[front_utils.COLD_FRONT_ENUM]
         )
 
-    if not normalize:
-        return (binary_ct_as_dict, prediction_oriented_ct_matrix,
-                actual_oriented_ct_matrix)
+    if normalize:
+        prediction_oriented_ct_matrix, actual_oriented_ct_matrix = (
+            normalize_contingency_tables(
+                prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
+                actual_oriented_ct_matrix=actual_oriented_ct_matrix)
+        )
+
+    return (binary_ct_as_dict, prediction_oriented_ct_matrix,
+            actual_oriented_ct_matrix)
+
+
+def normalize_contingency_tables(prediction_oriented_ct_matrix,
+                                 actual_oriented_ct_matrix):
+    """Normalizes 3-class contingency tables.
+
+    :param prediction_oriented_ct_matrix: See output doc for
+        `make_contingency_tables` with `normalize == False`.
+    :param actual_oriented_ct_matrix: Same.
+    :return: prediction_oriented_ct_matrix: See output doc for
+        `make_contingency_tables` with `normalize == True`.
+    :return: actual_oriented_ct_matrix: Same.
+    """
+
+    num_classes = len(FRONT_TYPE_ENUMS)
+    expected_dim = numpy.array([num_classes, num_classes], dtype=int)
+
+    error_checking.assert_is_numpy_array(
+        prediction_oriented_ct_matrix, exact_dimensions=expected_dim)
+    assert numpy.all(numpy.isnan(prediction_oriented_ct_matrix[0, ...]))
+    error_checking.assert_is_numpy_array_without_nan(
+        prediction_oriented_ct_matrix[1:, ...]
+    )
+    error_checking.assert_is_geq_numpy_array(
+        prediction_oriented_ct_matrix[1:, ...], 0
+    )
+
+    error_checking.assert_is_numpy_array(
+        actual_oriented_ct_matrix, exact_dimensions=expected_dim)
+    assert numpy.all(numpy.isnan(actual_oriented_ct_matrix[..., 0]))
+    error_checking.assert_is_numpy_array_without_nan(
+        actual_oriented_ct_matrix[..., 1:]
+    )
+    error_checking.assert_is_geq_numpy_array(
+        actual_oriented_ct_matrix[..., 1:], 0
+    )
 
     for k in range(1, num_classes):
         if numpy.sum(prediction_oriented_ct_matrix[k, :]) == 0:
@@ -596,8 +638,7 @@ def make_contingency_tables(
                 numpy.sum(actual_oriented_ct_matrix[:, k])
             )
 
-    return (binary_ct_as_dict, prediction_oriented_ct_matrix,
-            actual_oriented_ct_matrix)
+    return prediction_oriented_ct_matrix, actual_oriented_ct_matrix
 
 
 def get_binary_pod(binary_ct_as_dict):
