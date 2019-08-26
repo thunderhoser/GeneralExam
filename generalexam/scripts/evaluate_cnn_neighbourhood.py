@@ -284,6 +284,8 @@ def _do_eval_one_neigh_distance(
          actual_oriented_ct_matrix[k, ...]
         ) = _bootstrap_contingency_tables(match_dict)
 
+        print(list_of_binary_ct_dicts[k])
+
         pod_values[k] = neigh_evaluation.get_binary_pod(
             list_of_binary_ct_dicts[k]
         )
