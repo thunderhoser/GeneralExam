@@ -267,6 +267,10 @@ def _do_eval_one_neigh_distance(
 
     print(SEPARATOR_STRING)
 
+    print(this_prediction_oriented_matrix)
+    print(this_actual_oriented_matrix)
+    print(SEPARATOR_STRING)
+
     match_dict = _decompose_contingency_tables(
         prediction_oriented_ct_matrix=this_prediction_oriented_matrix,
         actual_oriented_ct_matrix=this_actual_oriented_matrix)
@@ -378,25 +382,25 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
 
+    num_times = len(valid_times_unix_sec)
+    prediction_file_names = [None] * num_times
     predicted_label_matrix = None
     actual_label_matrix = None
-    prediction_file_names = []
 
-    for this_time_unix_sec in valid_times_unix_sec:
-        this_file_name = prediction_io.find_file(
+    for i in range(num_times):
+        prediction_file_names[i] = prediction_io.find_file(
             directory_name=prediction_dir_name,
-            first_time_unix_sec=this_time_unix_sec,
-            last_time_unix_sec=this_time_unix_sec,
+            first_time_unix_sec=valid_times_unix_sec[i],
+            last_time_unix_sec=valid_times_unix_sec[i],
             raise_error_if_missing=False)
 
-        if not os.path.isfile(this_file_name):
+        if not os.path.isfile(prediction_file_names[i]):
             continue
 
-        prediction_file_names.append(this_file_name)
-
-        print('Reading data from: "{0:s}"...'.format(this_file_name))
+        print('Reading data from: "{0:s}"...'.format(prediction_file_names[i]))
         this_prediction_dict = prediction_io.read_file(
-            netcdf_file_name=this_file_name, read_deterministic=True)
+            netcdf_file_name=prediction_file_names[i], read_deterministic=True
+        )
 
         this_predicted_label_matrix = this_prediction_dict[
             prediction_io.PREDICTED_LABELS_KEY]
@@ -404,16 +408,12 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
             prediction_io.TARGET_MATRIX_KEY]
 
         if predicted_label_matrix is None:
-            predicted_label_matrix = this_predicted_label_matrix + 0
-            actual_label_matrix = this_actual_label_matrix + 0
-        else:
-            predicted_label_matrix = numpy.concatenate(
-                (predicted_label_matrix, this_predicted_label_matrix),
-                axis=0
-            )
-            actual_label_matrix = numpy.concatenate(
-                (actual_label_matrix, this_actual_label_matrix), axis=0
-            )
+            dimensions = (num_times,) + this_actual_label_matrix.shape
+            predicted_label_matrix = numpy.full(dimensions, -1, dtype=int)
+            actual_label_matrix = numpy.full(dimensions, -1, dtype=int)
+
+        predicted_label_matrix[i, ...] = this_predicted_label_matrix
+        actual_label_matrix[i, ...] = this_actual_label_matrix
 
     for this_neigh_distance_metres in neigh_distances_metres:
         print(SEPARATOR_STRING)
