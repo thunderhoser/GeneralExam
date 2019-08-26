@@ -15,8 +15,14 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
 
+NUM_CLASSES = 3
 METRES_TO_KM = 0.001
 TIME_INTERVAL_SECONDS = 10800
+
+PREDICTED_LABELS_KEY = 'predicted_front_enums'
+PREDICTED_TO_ACTUAL_FRONTS_KEY = 'predicted_to_actual_front_enums'
+ACTUAL_LABELS_KEY = 'actual_front_enums'
+ACTUAL_TO_PREDICTED_FRONTS_KEY = 'actual_to_predicted_front_enums'
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
@@ -81,6 +87,154 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _decompose_contingency_tables(
+        prediction_oriented_ct_matrix, actual_oriented_ct_matrix):
+    """Decomposes 3-class contingency tables into prediction-observation pairs.
+
+    P = number of predicted fronts
+    A = number of actual fronts
+
+    :param prediction_oriented_ct_matrix: numpy array created by
+        `neigh_evaluation.make_contingency_tables`.
+    :param actual_oriented_ct_matrix: Same.
+    :return: match_dict: Dictionary with the following keys.
+    match_dict["predicted_front_enums"]: length-P numpy array of predicted
+        labels (integers).
+    match_dict["predicted_to_actual_front_enums"]: length-P numpy array of
+        corresponding actual labels (integers).
+    match_dict["actual_front_enums"]: length-A numpy array of actual labels
+        (integers).
+    match_dict["actual_to_predicted_front_enums"]: length-A numpy array of
+        corresponding predicted labels (integers).
+    """
+
+    predicted_front_enums = numpy.array([], dtype=int)
+    predicted_to_actual_front_enums = numpy.array([], dtype=int)
+
+    for i in range(1, NUM_CLASSES):
+        for j in range(NUM_CLASSES):
+            this_num_examples = int(numpy.round(
+                prediction_oriented_ct_matrix[i, j]
+            ))
+
+            predicted_front_enums = numpy.concatenate((
+                predicted_front_enums,
+                numpy.full(this_num_examples, i, dtype=int)
+            ))
+
+            predicted_to_actual_front_enums = numpy.concatenate((
+                predicted_to_actual_front_enums,
+                numpy.full(this_num_examples, j, dtype=int)
+            ))
+
+    actual_front_enums = numpy.array([], dtype=int)
+    actual_to_predicted_front_enums = numpy.array([], dtype=int)
+
+    for i in range(NUM_CLASSES):
+        for j in range(1, NUM_CLASSES):
+            this_num_examples = int(numpy.round(
+                actual_oriented_ct_matrix[i, j]
+            ))
+
+            actual_front_enums = numpy.concatenate((
+                actual_front_enums,
+                numpy.full(this_num_examples, j, dtype=int)
+            ))
+
+            actual_to_predicted_front_enums = numpy.concatenate((
+                actual_to_predicted_front_enums,
+                numpy.full(this_num_examples, i, dtype=int)
+            ))
+
+    return {
+        PREDICTED_LABELS_KEY: predicted_front_enums,
+        PREDICTED_TO_ACTUAL_FRONTS_KEY: predicted_to_actual_front_enums,
+        ACTUAL_LABELS_KEY: actual_front_enums,
+        ACTUAL_TO_PREDICTED_FRONTS_KEY: actual_to_predicted_front_enums
+    }
+
+
+def _bootstrap_contingency_tables(match_dict, test_mode=False):
+    """Makes contingency tables for one bootstrap replicate.
+
+    :param match_dict: Dictionary created by `_decompose_contingency_tables`.
+    :param test_mode: Never mind.  Just leave this alone.
+    :return: binary_ct_as_dict: See doc for
+        `neigh_evaluation.make_contingency_tables`.
+    :return: prediction_oriented_ct_matrix: Same.
+    :return: actual_oriented_ct_matrix: Same.
+    """
+
+    predicted_front_enums = match_dict[PREDICTED_LABELS_KEY]
+    predicted_to_actual_front_enums = match_dict[
+        PREDICTED_TO_ACTUAL_FRONTS_KEY]
+    actual_front_enums = match_dict[ACTUAL_LABELS_KEY]
+    actual_to_predicted_front_enums = match_dict[
+        ACTUAL_TO_PREDICTED_FRONTS_KEY]
+
+    num_predicted_fronts = len(predicted_front_enums)
+    predicted_front_indices = numpy.linspace(
+        0, num_predicted_fronts - 1, num=num_predicted_fronts, dtype=int)
+
+    num_actual_fronts = len(actual_front_enums)
+    actual_front_indices = numpy.linspace(
+        0, num_actual_fronts - 1, num=num_actual_fronts, dtype=int)
+
+    dimensions = (NUM_CLASSES, NUM_CLASSES)
+    prediction_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+    actual_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+    binary_ct_as_dict = dict()
+
+    if test_mode:
+        these_indices = predicted_front_indices + 0
+    else:
+        these_indices = bootstrapping.draw_sample(predicted_front_indices)[-1]
+
+    for i in range(1, NUM_CLASSES):
+        for j in range(NUM_CLASSES):
+            prediction_oriented_ct_matrix[i, j] = numpy.sum(numpy.logical_and(
+                predicted_front_enums[these_indices] == i,
+                predicted_to_actual_front_enums[these_indices] == j
+            ))
+
+    binary_ct_as_dict[neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY] = (
+        numpy.sum(
+            predicted_front_enums[these_indices] ==
+            predicted_to_actual_front_enums[these_indices]
+        )
+    )
+
+    binary_ct_as_dict[neigh_evaluation.NUM_FALSE_POSITIVES_KEY] = numpy.sum(
+        predicted_front_enums[these_indices] !=
+        predicted_to_actual_front_enums[these_indices]
+    )
+
+    if test_mode:
+        these_indices = actual_front_indices + 0
+    else:
+        these_indices = bootstrapping.draw_sample(actual_front_indices)[-1]
+
+    for i in range(NUM_CLASSES):
+        for j in range(1, NUM_CLASSES):
+            actual_oriented_ct_matrix[i, j] = numpy.sum(numpy.logical_and(
+                actual_front_enums[these_indices] == j,
+                actual_to_predicted_front_enums[these_indices] == i
+            ))
+
+    binary_ct_as_dict[neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY] = numpy.sum(
+        actual_front_enums[these_indices] ==
+        actual_to_predicted_front_enums[these_indices]
+    )
+
+    binary_ct_as_dict[neigh_evaluation.NUM_FALSE_NEGATIVES_KEY] = numpy.sum(
+        actual_front_enums[these_indices] !=
+        actual_to_predicted_front_enums[these_indices]
+    )
+
+    return (binary_ct_as_dict, prediction_oriented_ct_matrix,
+            actual_oriented_ct_matrix)
+
+
 def _do_eval_one_neigh_distance(
         predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
         num_bootstrap_reps, confidence_level, prediction_file_names,
@@ -102,51 +256,45 @@ def _do_eval_one_neigh_distance(
     :param output_file_name: Path to output file.
     """
 
-    num_times = predicted_label_matrix.shape[0]
-    time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=int)
+    _, this_prediction_oriented_matrix, this_actual_oriented_matrix = (
+        neigh_evaluation.make_contingency_tables(
+            predicted_label_matrix=predicted_label_matrix,
+            actual_label_matrix=actual_label_matrix,
+            neigh_distance_metres=neigh_distance_metres)
+    )
 
-    list_of_binary_ct_dicts = [None] * num_bootstrap_reps
-    prediction_oriented_ct_matrix = None
-    actual_oriented_ct_matrix = None
+    print(SEPARATOR_STRING)
+
+    match_dict = _decompose_contingency_tables(
+        prediction_oriented_ct_matrix=this_prediction_oriented_matrix,
+        actual_oriented_ct_matrix=this_actual_oriented_matrix)
+
+    dimensions = (num_bootstrap_reps, NUM_CLASSES, NUM_CLASSES)
+    prediction_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+    actual_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+    list_of_binary_ct_dicts = [dict()] * num_bootstrap_reps
 
     pod_values = numpy.full(num_bootstrap_reps, numpy.nan)
     success_ratios = numpy.full(num_bootstrap_reps, numpy.nan)
     csi_values = numpy.full(num_bootstrap_reps, numpy.nan)
     frequency_biases = numpy.full(num_bootstrap_reps, numpy.nan)
 
-    for i in range(num_bootstrap_reps):
-        these_time_indices = bootstrapping.draw_sample(time_indices)[-1]
+    for k in range(num_bootstrap_reps):
+        (list_of_binary_ct_dicts[k], prediction_oriented_ct_matrix[k, ...],
+         actual_oriented_ct_matrix[k, ...]
+        ) = _bootstrap_contingency_tables(match_dict)
 
-        (list_of_binary_ct_dicts[i], this_prediction_oriented_matrix,
-         this_actual_oriented_matrix
-        ) = neigh_evaluation.make_contingency_tables(
-            predicted_label_matrix=predicted_label_matrix[
-                these_time_indices, ...],
-            actual_label_matrix=actual_label_matrix[these_time_indices, ...],
-            neigh_distance_metres=neigh_distance_metres
+        pod_values[k] = neigh_evaluation.get_binary_pod(
+            list_of_binary_ct_dicts[k]
         )
-
-        if prediction_oriented_ct_matrix is None:
-            dimensions = (
-                (num_bootstrap_reps,) + this_prediction_oriented_matrix.shape
-            )
-            prediction_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
-            actual_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
-
-        prediction_oriented_ct_matrix[i, ...] = this_prediction_oriented_matrix
-        actual_oriented_ct_matrix[i, ...] = this_actual_oriented_matrix
-
-        pod_values[i] = neigh_evaluation.get_binary_pod(
-            list_of_binary_ct_dicts[i]
+        success_ratios[k] = neigh_evaluation.get_binary_success_ratio(
+            list_of_binary_ct_dicts[k]
         )
-        success_ratios[i] = neigh_evaluation.get_binary_success_ratio(
-            list_of_binary_ct_dicts[i]
+        csi_values[k] = neigh_evaluation.get_binary_csi(
+            list_of_binary_ct_dicts[k]
         )
-        csi_values[i] = neigh_evaluation.get_binary_csi(
-            list_of_binary_ct_dicts[i]
-        )
-        frequency_biases[i] = neigh_evaluation.get_binary_frequency_bias(
-            list_of_binary_ct_dicts[i]
+        frequency_biases[k] = neigh_evaluation.get_binary_frequency_bias(
+            list_of_binary_ct_dicts[k]
         )
 
         print((
@@ -154,8 +302,8 @@ def _do_eval_one_neigh_distance(
             'POD = {2:.4f}, success ratio = {3:.4f}, CSI = {4:.4f}, freq bias ='
             ' {5:.4f}'
         ).format(
-            i, neigh_distance_metres * METRES_TO_KM,
-            pod_values[i], success_ratios[i], csi_values[i], frequency_biases[i]
+            k, neigh_distance_metres * METRES_TO_KM,
+            pod_values[k], success_ratios[k], csi_values[k], frequency_biases[k]
         ))
 
         print(SEPARATOR_STRING)
