@@ -407,6 +407,9 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         this_actual_label_matrix = this_prediction_dict[
             prediction_io.TARGET_MATRIX_KEY]
 
+        print(this_predicted_label_matrix.shape)
+        print(this_actual_label_matrix.shape)
+
         if predicted_label_matrix is None:
             dimensions = (num_times,) + this_actual_label_matrix.shape
             predicted_label_matrix = numpy.full(dimensions, -1, dtype=int)
