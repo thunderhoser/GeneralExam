@@ -165,6 +165,8 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
     :return: actual_oriented_ct_matrix: Same.
     """
 
+    print(match_dict)
+
     predicted_front_enums = match_dict[PREDICTED_LABELS_KEY]
     predicted_to_actual_front_enums = match_dict[
         PREDICTED_TO_ACTUAL_FRONTS_KEY]
@@ -283,8 +285,6 @@ def _do_eval_one_neigh_distance(
         (list_of_binary_ct_dicts[k], prediction_oriented_ct_matrix[k, ...],
          actual_oriented_ct_matrix[k, ...]
         ) = _bootstrap_contingency_tables(match_dict)
-
-        print(list_of_binary_ct_dicts[k])
 
         pod_values[k] = neigh_evaluation.get_binary_pod(
             list_of_binary_ct_dicts[k]
