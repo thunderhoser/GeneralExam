@@ -94,8 +94,8 @@ def _decompose_contingency_tables(
     P = number of predicted fronts
     A = number of actual fronts
 
-    :param prediction_oriented_ct_matrix: numpy array created by
-        `neigh_evaluation.make_contingency_tables`.
+    :param prediction_oriented_ct_matrix: See doc for
+        `neigh_evaluation.make_contingency_tables` with `normalize == False`.
     :param actual_oriented_ct_matrix: Same.
     :return: match_dict: Dictionary with the following keys.
     match_dict["predicted_front_enums"]: length-P numpy array of predicted
@@ -160,7 +160,7 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
     :param match_dict: Dictionary created by `_decompose_contingency_tables`.
     :param test_mode: Never mind.  Just leave this alone.
     :return: binary_ct_as_dict: See doc for
-        `neigh_evaluation.make_contingency_tables`.
+        `neigh_evaluation.make_contingency_tables` with `normalize == True`.
     :return: prediction_oriented_ct_matrix: Same.
     :return: actual_oriented_ct_matrix: Same.
     """
@@ -262,7 +262,7 @@ def _do_eval_one_neigh_distance(
         neigh_evaluation.make_contingency_tables(
             predicted_label_matrix=predicted_label_matrix,
             actual_label_matrix=actual_label_matrix,
-            neigh_distance_metres=neigh_distance_metres)
+            neigh_distance_metres=neigh_distance_metres, normalize=False)
     )
 
     print(SEPARATOR_STRING)

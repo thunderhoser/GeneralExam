@@ -516,7 +516,7 @@ class NeighEvaluationTests(unittest.TestCase):
                 PREDICTED_LABEL_MATRIX, axis=0) + 0,
             actual_label_matrix=numpy.expand_dims(
                 ACTUAL_LABEL_MATRIX, axis=0) + 0,
-            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
+            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES, normalize=True,
             grid_spacing_metres=GRID_SPACING_METRES)
 
         self.assertTrue(this_binary_ct_as_dict == BINARY_CT_AS_DICT_SMALL_NEIGH)
@@ -547,7 +547,7 @@ class NeighEvaluationTests(unittest.TestCase):
                 PREDICTED_LABEL_MATRIX, axis=0) + 0,
             actual_label_matrix=numpy.expand_dims(
                 ACTUAL_LABEL_MATRIX, axis=0) + 0,
-            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
+            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES, normalize=True,
             grid_spacing_metres=GRID_SPACING_METRES)
 
         self.assertTrue(this_binary_ct_as_dict == BINARY_CT_AS_DICT_LARGE_NEIGH)

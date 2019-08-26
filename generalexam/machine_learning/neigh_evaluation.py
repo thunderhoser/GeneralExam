@@ -408,13 +408,17 @@ def remove_small_regions_one_time(
 
 def make_contingency_tables(
         predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
-        grid_spacing_metres=NARR_GRID_SPACING_METRES):
+        normalize, grid_spacing_metres=NARR_GRID_SPACING_METRES):
     """Creates contingency tables.
 
     :param predicted_label_matrix: See doc for `check_gridded_predictions`
         with `expect_probs == False`.
     :param actual_label_matrix: Same.
     :param neigh_distance_metres: Neighbourhood distance.
+    :param normalize: Boolean flag.  If True, will normalize contingency tables
+        so that each row in `prediction_oriented_ct_matrix` and each column in
+        `actual_oriented_ct_matrix` sums to 1.0.  If False, will return raw
+        counts.
     :param grid_spacing_metres: Grid spacing (this method assumes that the grid
         is equidistant).
 
@@ -431,22 +435,23 @@ def make_contingency_tables(
         cells with *no* matching prediction within `neigh_distance_metres`.
 
     :return: prediction_oriented_ct_matrix: 3-by-3 numpy array.
-        prediction_oriented_ct_matrix[i, j] is the probability, given that the
-        [i]th class is predicted, that the [j]th class will be observed.  Array
-        indices follow the "ENUM"s listed at the top of this file, and the first
-        row (for NF predictions) is all NaN, because this file does not handle
-        negative predictions.
+        prediction_oriented_ct_matrix[i, j] is the total number or fraction of
+        times, when the [i]th class is predicted, that the [j]th class is
+        observed.  Array indices follow the "ENUM"s listed at the top of this
+        file, and the first row (for NF predictions) is all NaN, because this
+        file does not handle negative predictions.
     :return: actual_oriented_ct_matrix: 3-by-3 numpy array.
-        actual_oriented_ct_matrix[i, j] is the probability, given that the [j]th
-        class is observed, that the [i]th class will be predicted.  Array
-        indices follow the "ENUM"s listed at the top of this file, and the first
-        column (for NF predictions) is all NaN, because this file does not
-        handle negative observations.
+        actual_oriented_ct_matrix[i, j] is the total number or fraction of
+        times, when the [j]th class is observed, that the [i]th class is
+        predicted.  Array indices follow the "ENUM"s listed at the top of this
+        file, and the first column (for NF predictions) is all NaN, because this
+        file does not handle negative observations.
     """
 
     # TODO(thunderhoser): Incorporate time lag here?
 
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
+    error_checking.assert_is_boolean(normalize)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
     check_gridded_predictions(
@@ -467,12 +472,12 @@ def make_contingency_tables(
     }
 
     num_classes = len(FRONT_TYPE_ENUMS)
-    prediction_oriented_ct_matrix = numpy.full(
-        (num_classes, num_classes), 0, dtype=int
-    )
-    actual_oriented_ct_matrix = numpy.full(
-        (num_classes, num_classes), 0, dtype=int
-    )
+    dimensions = (num_classes, num_classes)
+
+    prediction_oriented_ct_matrix = numpy.full(dimensions, 0.)
+    prediction_oriented_ct_matrix[0, :] = numpy.nan
+    actual_oriented_ct_matrix = numpy.full(dimensions, 0.)
+    actual_oriented_ct_matrix[:, 0] = numpy.nan
 
     num_times = predicted_label_matrix.shape[0]
 
@@ -569,8 +574,9 @@ def make_contingency_tables(
             this_num_actual_by_class[front_utils.COLD_FRONT_ENUM]
         )
 
-    prediction_oriented_ct_matrix = prediction_oriented_ct_matrix.astype(float)
-    prediction_oriented_ct_matrix[0, :] = numpy.nan
+    if not normalize:
+        return (binary_ct_as_dict, prediction_oriented_ct_matrix,
+                actual_oriented_ct_matrix)
 
     for k in range(1, num_classes):
         if numpy.sum(prediction_oriented_ct_matrix[k, :]) == 0:
@@ -580,9 +586,6 @@ def make_contingency_tables(
                 prediction_oriented_ct_matrix[k, :] /
                 numpy.sum(prediction_oriented_ct_matrix[k, :])
             )
-
-    actual_oriented_ct_matrix = actual_oriented_ct_matrix.astype(float)
-    actual_oriented_ct_matrix[:, 0] = numpy.nan
 
     for k in range(1, num_classes):
         if numpy.sum(actual_oriented_ct_matrix[:, k]) == 0:
