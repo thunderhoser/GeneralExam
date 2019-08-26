@@ -407,16 +407,13 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         this_actual_label_matrix = this_prediction_dict[
             prediction_io.TARGET_MATRIX_KEY]
 
-        print(this_predicted_label_matrix.shape)
-        print(this_actual_label_matrix.shape)
-
         if predicted_label_matrix is None:
-            dimensions = (num_times,) + this_actual_label_matrix.shape
+            dimensions = (num_times,) + this_actual_label_matrix.shape[1:]
             predicted_label_matrix = numpy.full(dimensions, -1, dtype=int)
             actual_label_matrix = numpy.full(dimensions, -1, dtype=int)
 
-        predicted_label_matrix[i, ...] = this_predicted_label_matrix
-        actual_label_matrix[i, ...] = this_actual_label_matrix
+        predicted_label_matrix[i, ...] = this_predicted_label_matrix[0, ...]
+        actual_label_matrix[i, ...] = this_actual_label_matrix[0, ...]
 
     for this_neigh_distance_metres in neigh_distances_metres:
         print(SEPARATOR_STRING)
