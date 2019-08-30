@@ -23,20 +23,18 @@ LAST_TIME_UNIX_SEC = (
     time_conversion.first_and_last_times_in_year(2018)[1] - 10799
 )
 
-COMPOSITE_NAMES_ABBREV = [
+VALID_COMPOSITE_NAMES_ABBREV = [
     'strong_la_nina', 'la_nina', 'el_nino', 'strong_el_nino'
 ]
-COMPOSITE_NAMES_VERBOSE = [
-    r'strong La Ni$\tilde{n}$a', r'La Ni$\tilde{n}$a', r'El Ni$\tilde{n}$o',
-    r'strong El Ni$\tilde{n}$o'
-]
 
-SEASON_ABBREV_TO_VERBOSE_DICT = {
-    climo_utils.WINTER_STRING: 'winter',
-    climo_utils.SPRING_STRING: 'spring',
-    climo_utils.SUMMER_STRING: 'summer',
-    climo_utils.FALL_STRING: 'fall'
+COMPOSITE_ABBREV_TO_VERBOSE_DICT = {
+    'strong_la_nina': r'strong La Ni$\tilde{n}$a',
+    'la_nina': r'La Ni$\tilde{n}$a',
+    'el_nino': r'El Ni$\tilde{n}$o',
+    'strong_el_nino': r'strong El Ni$\tilde{n}$o'
 }
+
+VALID_SEASON_NAMES = climo_utils.VALID_SEASON_STRINGS
 
 SIG_MARKER_TYPE = plot_gridded_stats.SIG_MARKER_TYPE
 SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
@@ -61,6 +59,8 @@ CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 PROPERTY_ARG_NAME = 'property_name'
+COMPOSITES_ARG_NAME = 'composite_names'
+SEASONS_ARG_NAME = 'season_names'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -73,6 +73,14 @@ PROPERTY_HELP_STRING = (
     'list:\n{0:s}'
 ).format(str(climo_utils.VALID_PROPERTY_NAMES))
 
+COMPOSITES_HELP_STRING = (
+    'List of composites to plot.  Each must be in the following list:\n{0:s}'
+).format(str(VALID_COMPOSITE_NAMES_ABBREV))
+
+SEASONS_HELP_STRING = (
+    'List of seasons to plot.  Each must be in the following list:\n{0:s}'
+).format(str(VALID_SEASON_NAMES))
+
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -83,6 +91,14 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + PROPERTY_ARG_NAME, type=str, required=True,
     help=PROPERTY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + COMPOSITES_ARG_NAME, type=str, nargs='+', required=True,
+    help=COMPOSITES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SEASONS_ARG_NAME, type=str, nargs='+', required=False,
+    default=VALID_SEASON_NAMES, help=SEASONS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -193,13 +209,16 @@ def _plot_one_difference(
     pyplot.close()
 
 
-def _run(top_input_dir_name, property_name, output_file_name):
+def _run(top_input_dir_name, property_name, composite_names_abbrev,
+         season_names, output_file_name):
     """Makes 8-panel figure with Monte Carlo results for either freq or length.
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
     :param property_name: Same.
+    :param composite_names_abbrev: Same.
+    :param season_names: Same.
     :param output_file_name: Same.
     """
 
@@ -218,25 +237,19 @@ def _run(top_input_dir_name, property_name, output_file_name):
                            climo_utils.CF_AREA_PROPERTY_NAME]:
         conversion_ratio = METRES2_TO_THOUSAND_KM2
 
-    season_strings_abbrev = climo_utils.VALID_SEASON_STRINGS
-    season_strings_verbose = [
-        SEASON_ABBREV_TO_VERBOSE_DICT[a] for a in season_strings_abbrev
-    ]
-
     output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
     extensionless_output_file_name = '{0:s}/{1:s}'.format(
         output_dir_name, os.path.splitext(pathless_output_file_name)[0]
     )
 
-    num_composites = len(COMPOSITE_NAMES_ABBREV)
-    num_seasons = len(season_strings_abbrev)
+    num_composites = len(composite_names_abbrev)
+    num_seasons = len(season_names)
     panel_file_names = []
 
     for j in range(num_seasons):
         for i in range(num_composites):
             this_input_dir_name = '{0:s}/{1:s}/{2:s}/stitched'.format(
-                top_input_dir_name, COMPOSITE_NAMES_ABBREV[i],
-                season_strings_abbrev[j]
+                top_input_dir_name, composite_names_abbrev[i], season_names[j]
             )
 
             this_input_file_name = climo_utils.find_monte_carlo_file(
@@ -266,11 +279,14 @@ def _run(top_input_dir_name, property_name, output_file_name):
 
             this_title_string = (
                 'Composite difference ({0:s} minus neutral) in {1:s}'
-            ).format(COMPOSITE_NAMES_VERBOSE[i], season_strings_verbose[j])
+            ).format(
+                COMPOSITE_ABBREV_TO_VERBOSE_DICT[composite_names_abbrev[i]],
+                season_names[j]
+            )
 
             this_output_file_name = '{0:s}_{1:s}_{2:s}.jpg'.format(
-                extensionless_output_file_name, COMPOSITE_NAMES_ABBREV[i],
-                season_strings_abbrev[j]
+                extensionless_output_file_name, composite_names_abbrev[i],
+                season_names[j]
             )
             panel_file_names.append(this_output_file_name)
 
@@ -304,5 +320,7 @@ if __name__ == '__main__':
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         property_name=getattr(INPUT_ARG_OBJECT, PROPERTY_ARG_NAME),
+        composite_names_abbrev=getattr(INPUT_ARG_OBJECT, COMPOSITES_ARG_NAME),
+        season_names=getattr(INPUT_ARG_OBJECT, SEASONS_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
