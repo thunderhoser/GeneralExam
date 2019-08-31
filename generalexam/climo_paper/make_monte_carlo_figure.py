@@ -123,7 +123,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_difference(
         difference_matrix, significance_matrix, max_colour_value,
         plot_latitudes, plot_longitudes, plot_colour_bar, title_string,
-        output_file_name):
+        letter_label, output_file_name):
     """Plots difference for one composite in one season.
 
     M = number of rows in grid
@@ -141,6 +141,7 @@ def _plot_one_difference(
     :param plot_colour_bar: Boolean flag.  Determines whether or not colour bar
         will be plotted below.
     :param title_string: Title.
+    :param letter_label: Letter label (will appear at top-left of panel).
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
@@ -217,6 +218,10 @@ def _plot_one_difference(
         colour_bar_object.ax.set_xticklabels(tick_strings)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
+    plotting_utils.label_axes(
+        axes_object=axes_object,
+        label_string='({0:s})'.format(letter_label)
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -270,6 +275,7 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
     num_properties = len(property_names)
     num_seasons = len(season_names)
     panel_file_names = []
+    letter_label = None
 
     for j in range(num_seasons):
         for i in range(num_properties):
@@ -320,13 +326,18 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
             )
             panel_file_names.append(this_output_file_name)
 
+            if letter_label is None:
+                letter_label = 'a'
+            else:
+                letter_label = chr(ord(letter_label) + 1)
+
             _plot_one_difference(
                 difference_matrix=this_difference_matrix,
                 significance_matrix=this_significance_matrix,
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=i == 0, plot_longitudes=j == num_seasons - 1,
                 plot_colour_bar=j == num_seasons - 1,
-                title_string=this_title_string,
+                title_string=this_title_string, letter_label=letter_label,
                 output_file_name=panel_file_names[-1]
             )
 
