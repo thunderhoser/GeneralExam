@@ -278,7 +278,7 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
             ]
 
             this_input_dir_name = '{0:s}/{1:s}/{2:s}/stitched'.format(
-                top_input_dir_name, property_names[i], season_names[j]
+                top_input_dir_name, composite_name_abbrev, season_names[j]
             )
 
             this_input_file_name = climo_utils.find_monte_carlo_file(
