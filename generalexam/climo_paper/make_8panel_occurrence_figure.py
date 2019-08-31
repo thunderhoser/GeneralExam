@@ -72,7 +72,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_front_type(
         count_or_frequency_matrix, colour_map_object, plot_frequency,
         plot_latitudes, plot_longitudes, plot_colour_bar, title_string,
-        output_file_name, max_colour_percentile=None, max_colour_value=None):
+        letter_label, output_file_name, max_colour_percentile=None,
+        max_colour_value=None):
     """Plots gridded counts or frequencies for one front type.
 
     :param count_or_frequency_matrix: 2-D numpy array with number or frequency
@@ -86,6 +87,7 @@ def _plot_one_front_type(
     :param plot_colour_bar: Boolean flag.  Determines whether or not colour bar
         will be plotted below.
     :param title_string: Title.
+    :param letter_label: Letter label (will appear at top-left of panel).
     :param output_file_name: Path to output file.  Figure will be saved here.
     :param max_colour_percentile: [may be None]
         Max percentile in colour scheme.  The max value will be the [q]th
@@ -144,6 +146,10 @@ def _plot_one_front_type(
             colour_bar_object.ax.set_xticklabels(tick_strings)
 
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
+    plotting_utils.label_axes(
+        axes_object=axes_object,
+        label_string='({0:s})'.format(letter_label)
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
@@ -176,6 +182,7 @@ def _run(count_dir_name, front_type_string, output_file_name):
 
     num_seasons = len(season_strings_abbrev)
     panel_file_names = []
+    letter_label = None
 
     for i in range(num_seasons):
         this_file_name = climo_utils.find_aggregated_file(
@@ -217,12 +224,17 @@ def _run(count_dir_name, front_type_string, output_file_name):
         )
         panel_file_names.append(this_output_file_name)
 
+        if letter_label is None:
+            letter_label = 'a'
+        else:
+            letter_label = chr(ord(letter_label) + 1)
+
         _plot_one_front_type(
             count_or_frequency_matrix=this_frequency_matrix,
             colour_map_object=this_colour_map_object, plot_frequency=True,
             plot_latitudes=True, plot_longitudes=i == num_seasons - 1,
             plot_colour_bar=i == num_seasons - 1,
-            title_string=this_title_string,
+            title_string=this_title_string, letter_label=letter_label,
             output_file_name=panel_file_names[-1],
             max_colour_value=this_max_colour_value)
 
@@ -250,12 +262,14 @@ def _run(count_dir_name, front_type_string, output_file_name):
         )
         panel_file_names.append(this_output_file_name)
 
+        letter_label = chr(ord(letter_label) + 1)
+
         _plot_one_front_type(
             count_or_frequency_matrix=this_count_matrix,
             colour_map_object=this_colour_map_object, plot_frequency=False,
             plot_latitudes=False, plot_longitudes=i == num_seasons - 1,
             plot_colour_bar=i == num_seasons - 1,
-            title_string=this_title_string,
+            title_string=this_title_string, letter_label=letter_label,
             output_file_name=panel_file_names[-1],
             max_colour_value=this_max_colour_value)
 
