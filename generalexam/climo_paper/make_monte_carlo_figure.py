@@ -23,18 +23,33 @@ LAST_TIME_UNIX_SEC = (
     time_conversion.first_and_last_times_in_year(2018)[1] - 10799
 )
 
+FREQUENCY_PROPERTY_NAME = 'frequency'
+LENGTH_PROPERTY_NAME = 'length'
+AREA_PROPERTY_NAME = 'area'
+VALID_PROPERTY_NAMES = [
+    FREQUENCY_PROPERTY_NAME, LENGTH_PROPERTY_NAME, AREA_PROPERTY_NAME
+]
+
+PROPERTY_ABBREV_TO_VERBOSE_DICT = {
+    climo_utils.WF_FREQ_PROPERTY_NAME: 'WF frequency',
+    climo_utils.CF_FREQ_PROPERTY_NAME: 'CF frequency',
+    climo_utils.WF_LENGTH_PROPERTY_NAME: 'WF length (km)',
+    climo_utils.CF_LENGTH_PROPERTY_NAME: 'CF length (km)',
+    climo_utils.WF_AREA_PROPERTY_NAME: r'WF area ($\times$ 1000 km$^{2}$)',
+    climo_utils.CF_AREA_PROPERTY_NAME: r'CF area ($\times$ 1000 km$^{2}$)'
+}
+
+VALID_SEASON_NAMES = climo_utils.VALID_SEASON_STRINGS
 VALID_COMPOSITE_NAMES_ABBREV = [
     'strong_la_nina', 'la_nina', 'el_nino', 'strong_el_nino'
 ]
 
-COMPOSITE_ABBREV_TO_VERBOSE_DICT = {
-    'strong_la_nina': r'strong La Ni$\tilde{n}$a',
-    'la_nina': r'La Ni$\tilde{n}$a',
-    'el_nino': r'El Ni$\tilde{n}$o',
-    'strong_el_nino': r'strong El Ni$\tilde{n}$o'
-}
-
-VALID_SEASON_NAMES = climo_utils.VALID_SEASON_STRINGS
+# COMPOSITE_ABBREV_TO_VERBOSE_DICT = {
+#     'strong_la_nina': r'strong La Ni$\tilde{n}$a',
+#     'la_nina': r'La Ni$\tilde{n}$a',
+#     'el_nino': r'El Ni$\tilde{n}$o',
+#     'strong_el_nino': r'strong El Ni$\tilde{n}$o'
+# }
 
 SIG_MARKER_TYPE = plot_gridded_stats.SIG_MARKER_TYPE
 SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
@@ -58,8 +73,8 @@ FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
-PROPERTY_ARG_NAME = 'property_name'
-COMPOSITES_ARG_NAME = 'composite_names'
+PROPERTY_ARG_NAME = 'main_property_name'
+COMPOSITE_ARG_NAME = 'composite_name'
 SEASONS_ARG_NAME = 'season_names'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
@@ -71,10 +86,10 @@ INPUT_DIR_HELP_STRING = (
 PROPERTY_HELP_STRING = (
     'Will plot Monte Carlo tests for this property.  Must be in the following '
     'list:\n{0:s}'
-).format(str(climo_utils.VALID_PROPERTY_NAMES))
+).format(str(VALID_PROPERTY_NAMES))
 
-COMPOSITES_HELP_STRING = (
-    'List of composites to plot.  Each must be in the following list:\n{0:s}'
+COMPOSITE_HELP_STRING = (
+    'Composite to plot.  Must be in the following list:\n{0:s}'
 ).format(str(VALID_COMPOSITE_NAMES_ABBREV))
 
 SEASONS_HELP_STRING = (
@@ -93,8 +108,8 @@ INPUT_ARG_PARSER.add_argument(
     help=PROPERTY_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + COMPOSITES_ARG_NAME, type=str, nargs='+', required=True,
-    help=COMPOSITES_HELP_STRING)
+    '--' + COMPOSITE_ARG_NAME, type=str, required=True,
+    help=COMPOSITE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SEASONS_ARG_NAME, type=str, nargs='+', required=False,
@@ -209,15 +224,15 @@ def _plot_one_difference(
     pyplot.close()
 
 
-def _run(top_input_dir_name, property_name, composite_names_abbrev,
+def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
          season_names, output_file_name):
     """Makes 8-panel figure with Monte Carlo results for either freq or length.
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
-    :param property_name: Same.
-    :param composite_names_abbrev: Same.
+    :param main_property_name: Same.
+    :param composite_name_abbrev: Same.
     :param season_names: Same.
     :param output_file_name: Same.
     """
@@ -225,35 +240,50 @@ def _run(top_input_dir_name, property_name, composite_names_abbrev,
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     conversion_ratio = None
-    max_colour_value = PROPERTY_TO_MAX_COLOUR_VALUE_DICT[property_name]
+    property_names = None
 
-    if property_name in [climo_utils.WF_FREQ_PROPERTY_NAME,
-                         climo_utils.CF_FREQ_PROPERTY_NAME]:
+    if main_property_name == FREQUENCY_PROPERTY_NAME:
         conversion_ratio = 1.
-    elif property_name in [climo_utils.WF_LENGTH_PROPERTY_NAME,
-                           climo_utils.CF_LENGTH_PROPERTY_NAME]:
+
+        property_names = [
+            climo_utils.WF_FREQ_PROPERTY_NAME, climo_utils.CF_FREQ_PROPERTY_NAME
+        ]
+    elif main_property_name == LENGTH_PROPERTY_NAME:
         conversion_ratio = METRES_TO_KM
-    elif property_name in [climo_utils.WF_AREA_PROPERTY_NAME,
-                           climo_utils.CF_AREA_PROPERTY_NAME]:
+
+        property_names = [
+            climo_utils.WF_LENGTH_PROPERTY_NAME,
+            climo_utils.CF_LENGTH_PROPERTY_NAME
+        ]
+    elif main_property_name == AREA_PROPERTY_NAME:
         conversion_ratio = METRES2_TO_THOUSAND_KM2
+
+        property_names = [
+            climo_utils.WF_AREA_PROPERTY_NAME, climo_utils.CF_AREA_PROPERTY_NAME
+        ]
 
     output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
     extensionless_output_file_name = '{0:s}/{1:s}'.format(
         output_dir_name, os.path.splitext(pathless_output_file_name)[0]
     )
 
-    num_composites = len(composite_names_abbrev)
+    num_properties = len(property_names)
     num_seasons = len(season_names)
     panel_file_names = []
 
     for j in range(num_seasons):
-        for i in range(num_composites):
+        for i in range(num_properties):
+            this_max_colour_value = PROPERTY_TO_MAX_COLOUR_VALUE_DICT[
+                property_names[i]
+            ]
+
             this_input_dir_name = '{0:s}/{1:s}/{2:s}/stitched'.format(
-                top_input_dir_name, composite_names_abbrev[i], season_names[j]
+                top_input_dir_name, property_names[i], season_names[j]
             )
 
             this_input_file_name = climo_utils.find_monte_carlo_file(
-                directory_name=this_input_dir_name, property_name=property_name,
+                directory_name=this_input_dir_name,
+                property_name=property_names[i],
                 first_grid_row=0, first_grid_column=0,
                 raise_error_if_missing=True)
 
@@ -278,14 +308,14 @@ def _run(top_input_dir_name, property_name, composite_names_abbrev,
             ] = False
 
             this_title_string = (
-                'Composite difference ({0:s} minus neutral) in {1:s}'
+                'Composite difference for {0:s} in {1:s}'
             ).format(
-                COMPOSITE_ABBREV_TO_VERBOSE_DICT[composite_names_abbrev[i]],
+                PROPERTY_ABBREV_TO_VERBOSE_DICT[property_names[i]],
                 season_names[j]
             )
 
             this_output_file_name = '{0:s}_{1:s}_{2:s}.jpg'.format(
-                extensionless_output_file_name, composite_names_abbrev[i],
+                extensionless_output_file_name, composite_name_abbrev[i],
                 season_names[j]
             )
             panel_file_names.append(this_output_file_name)
@@ -293,7 +323,7 @@ def _run(top_input_dir_name, property_name, composite_names_abbrev,
             _plot_one_difference(
                 difference_matrix=this_difference_matrix,
                 significance_matrix=this_significance_matrix,
-                max_colour_value=max_colour_value,
+                max_colour_value=this_max_colour_value,
                 plot_latitudes=i == 0, plot_longitudes=j == num_seasons - 1,
                 plot_colour_bar=j == num_seasons - 1,
                 title_string=this_title_string,
@@ -303,7 +333,7 @@ def _run(top_input_dir_name, property_name, composite_names_abbrev,
     print('Concatenating panels to: "{0:s}"...'.format(output_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=output_file_name,
-        num_panel_rows=num_seasons, num_panel_columns=num_composites)
+        num_panel_rows=num_seasons, num_panel_columns=num_properties)
 
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
@@ -319,8 +349,8 @@ if __name__ == '__main__':
 
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
-        property_name=getattr(INPUT_ARG_OBJECT, PROPERTY_ARG_NAME),
-        composite_names_abbrev=getattr(INPUT_ARG_OBJECT, COMPOSITES_ARG_NAME),
+        main_property_name=getattr(INPUT_ARG_OBJECT, PROPERTY_ARG_NAME),
+        composite_name_abbrev=getattr(INPUT_ARG_OBJECT, COMPOSITE_ARG_NAME),
         season_names=getattr(INPUT_ARG_OBJECT, SEASONS_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
