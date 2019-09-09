@@ -258,12 +258,18 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
             ] = False
 
             if plot_frequency:
-                this_title_string = '{0:s}-frequency change in {1:s}'.format(
-                    front_type_abbrevs[j].upper(), season_strings_verbose[i]
+                this_title_string = (
+                    '{0:s}-frequency change (per {1:d} years) in {2:s}'
+                ).format(
+                    front_type_abbrevs[j].upper(), NUM_YEARS,
+                    season_strings_verbose[i]
                 )
             else:
-                this_title_string = '{0:s}-length change (km) in {1:s}'.format(
-                    front_type_abbrevs[j].upper(), season_strings_verbose[i]
+                this_title_string = (
+                    '{0:s}-length change (km per {1:d} years) in {1:s}'
+                ).format(
+                    front_type_abbrevs[j].upper(), NUM_YEARS,
+                    season_strings_verbose[i]
                 )
 
             this_output_file_name = '{0:s}_{1:s}_{2:s}.jpg'.format(
