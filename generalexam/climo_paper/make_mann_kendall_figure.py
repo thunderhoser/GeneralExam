@@ -266,7 +266,7 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
                 )
             else:
                 this_title_string = (
-                    '{0:s}-length change (km per {1:d} years) in {1:s}'
+                    '{0:s}-length change (km per {1:d} years) in {2:s}'
                 ).format(
                     front_type_abbrevs[j].upper(), NUM_YEARS,
                     season_strings_verbose[i]
