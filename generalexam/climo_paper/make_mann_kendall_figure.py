@@ -14,6 +14,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
+NUM_YEARS = 39
 METRES_TO_KM = 0.001
 MASK_IF_NUM_LABELS_BELOW = 100
 
@@ -34,12 +35,10 @@ SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
 SIG_MARKER_SIZE = 1.
 SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
 
-# MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
-# MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
-MAX_WF_FREQ_TREND_YEAR01 = 6e-4
-MAX_CF_FREQ_TREND_YEAR01 = 7e-4
-MAX_WF_LENGTH_TREND_KM_YEAR01 = 15.
-MAX_CF_LENGTH_TREND_KM_YEAR01 = 20.
+MAX_WF_FREQUENCY_CHANGE = 0.024
+MAX_CF_FREQUENCY_CHANGE = 0.028
+MAX_WF_LENGTH_CHANGE_KM = 600.
+MAX_CF_LENGTH_CHANGE_KM = 800.
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
 
 BORDER_COLOUR = numpy.full(3, 152. / 255)
@@ -111,7 +110,7 @@ def _plot_one_trend(
     full_grid_column_limits = basemap_dict[
         plot_gridded_stats.FULL_GRID_COLUMNS_KEY]
 
-    trend_matrix_to_plot_year01 = trend_matrix_year01[
+    matrix_to_plot = NUM_YEARS * trend_matrix_year01[
         full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
         full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
@@ -125,7 +124,7 @@ def _plot_one_trend(
         vmin=-max_colour_value, vmax=max_colour_value)
 
     prediction_plotting.plot_gridded_counts(
-        count_or_frequency_matrix=trend_matrix_to_plot_year01,
+        count_or_frequency_matrix=matrix_to_plot,
         axes_object=axes_object, basemap_object=basemap_object,
         colour_map_object=COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object, full_grid_name=full_grid_name,
@@ -155,7 +154,7 @@ def _plot_one_trend(
     if plot_colour_bar:
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object,
-            data_matrix=trend_matrix_to_plot_year01,
+            data_matrix=matrix_to_plot,
             colour_map_object=COLOUR_MAP_OBJECT,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', extend_min=True, extend_max=True,
@@ -165,7 +164,7 @@ def _plot_one_trend(
         colour_bar_object.ax.set_xticks(tick_values)
 
         if numpy.all(numpy.absolute(tick_values) < 1):
-            tick_strings = ['{0:.4f}'.format(x) for x in tick_values]
+            tick_strings = ['{0:.3f}'.format(x) for x in tick_values]
         else:
             tick_strings = [
                 '{0:d}'.format(int(numpy.round(x))) for x in tick_values
@@ -277,14 +276,14 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
 
             if plot_frequency:
                 if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_FREQ_TREND_YEAR01
+                    this_max_colour_value = MAX_WF_FREQUENCY_CHANGE
                 else:
-                    this_max_colour_value = MAX_CF_FREQ_TREND_YEAR01
+                    this_max_colour_value = MAX_CF_FREQUENCY_CHANGE
             else:
                 if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_LENGTH_TREND_KM_YEAR01
+                    this_max_colour_value = MAX_WF_LENGTH_CHANGE_KM
                 else:
-                    this_max_colour_value = MAX_CF_LENGTH_TREND_KM_YEAR01
+                    this_max_colour_value = MAX_CF_LENGTH_CHANGE_KM
 
             if letter_label is None:
                 letter_label = 'a'
