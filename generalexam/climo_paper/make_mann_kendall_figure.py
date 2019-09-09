@@ -14,7 +14,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
-NUM_YEARS = 39
+NUM_YEARS = 40
 METRES_TO_KM = 0.001
 MASK_IF_NUM_LABELS_BELOW = 100
 
