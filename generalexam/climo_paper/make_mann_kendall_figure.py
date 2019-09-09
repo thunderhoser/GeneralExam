@@ -34,8 +34,10 @@ SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
 SIG_MARKER_SIZE = 1.
 SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
 
-MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
-MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
+# MAX_WF_FREQ_TREND_PERCENT_YEAR01 = 0.06
+# MAX_CF_FREQ_TREND_PERCENT_YEAR01 = 0.07
+MAX_WF_FREQ_TREND_YEAR01 = 6e4
+MAX_CF_FREQ_TREND_YEAR01 = 7e4
 MAX_WF_LENGTH_TREND_KM_YEAR01 = 15.
 MAX_CF_LENGTH_TREND_KM_YEAR01 = 20.
 COLOUR_MAP_OBJECT = pyplot.get_cmap('bwr')
@@ -163,7 +165,7 @@ def _plot_one_trend(
         colour_bar_object.ax.set_xticks(tick_values)
 
         if numpy.all(numpy.absolute(tick_values) < 1):
-            tick_strings = ['{0:.1e}'.format(x) for x in tick_values]
+            tick_strings = ['{0:.4f}'.format(x) for x in tick_values]
         else:
             tick_strings = [
                 '{0:d}'.format(int(numpy.round(x))) for x in tick_values
@@ -275,9 +277,9 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
 
             if plot_frequency:
                 if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_FREQ_TREND_PERCENT_YEAR01
+                    this_max_colour_value = MAX_WF_FREQ_TREND_YEAR01
                 else:
-                    this_max_colour_value = MAX_CF_FREQ_TREND_PERCENT_YEAR01
+                    this_max_colour_value = MAX_CF_FREQ_TREND_YEAR01
             else:
                 if front_type_abbrevs[j] == 'wf':
                     this_max_colour_value = MAX_WF_LENGTH_TREND_KM_YEAR01
