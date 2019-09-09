@@ -258,12 +258,12 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
             ] = False
 
             if plot_frequency:
-                this_title_string = '{0:s}-frequency trend in {1:s}'.format(
+                this_title_string = '{0:s}-frequency change in {1:s}'.format(
                     front_type_abbrevs[j].upper(), season_strings_verbose[i]
                 )
             else:
                 this_title_string = (
-                    '{0:s}-length trend (km per year) in {1:s}'
+                    '{0:s}-length change (km per year) in {1:s}'
                 ).format(
                     front_type_abbrevs[j].upper(), season_strings_verbose[i]
                 )
