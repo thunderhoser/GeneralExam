@@ -15,7 +15,6 @@ from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
 METRES_TO_KM = 0.001
-FRACTION_TO_PERCENT = 100.
 MASK_IF_NUM_LABELS_BELOW = 100
 
 FIRST_TIME_UNIX_SEC = time_conversion.first_and_last_times_in_year(1979)[0]
@@ -164,7 +163,7 @@ def _plot_one_trend(
         colour_bar_object.ax.set_xticks(tick_values)
 
         if numpy.all(numpy.absolute(tick_values) < 1):
-            tick_strings = ['{0:.3f}'.format(x) for x in tick_values]
+            tick_strings = ['{0:.1e}'.format(x) for x in tick_values]
         else:
             tick_strings = [
                 '{0:d}'.format(int(numpy.round(x))) for x in tick_values
@@ -202,7 +201,8 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
     ]
 
     if plot_frequency:
-        conversion_ratio = FRACTION_TO_PERCENT
+        # conversion_ratio = FRACTION_TO_PERCENT
+        conversion_ratio = 1.
         property_names = [
             climo_utils.WF_FREQ_PROPERTY_NAME, climo_utils.CF_FREQ_PROPERTY_NAME
         ]
