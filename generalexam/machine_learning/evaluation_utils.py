@@ -855,11 +855,9 @@ def plot_scores_2d(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
 
     axes_object.set_xticks(x_tick_values)
-    axes_object.set_xticklabels(
-        x_tick_label_strings, rotation=90., fontsize=TICK_LABEL_FONT_SIZE)
+    axes_object.set_xticklabels(x_tick_label_strings, rotation=90.)
 
     axes_object.set_yticks(y_tick_values)
-    axes_object.set_yticklabels(
-        y_tick_label_strings, fontsize=TICK_LABEL_FONT_SIZE)
+    axes_object.set_yticklabels(y_tick_label_strings)
 
     return axes_object
