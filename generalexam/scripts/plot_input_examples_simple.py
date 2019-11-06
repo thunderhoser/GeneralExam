@@ -371,16 +371,16 @@ def plot_one_example(
     first_narr_column = metadata_dict[FIRST_NARR_COLUMN_KEY]
     last_narr_column = metadata_dict[LAST_NARR_COLUMN_KEY]
 
-    basemap_object = nwp_plotting.init_basemap(
+    temp_figure_object, _, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID,
         first_row_in_full_grid=first_narr_row,
         last_row_in_full_grid=last_narr_row,
         first_column_in_full_grid=first_narr_column,
         last_column_in_full_grid=last_narr_column,
-        resolution_string='i'
-    )[-1]
+        resolution_string='i')
 
+    pyplot.close(temp_figure_object)
     plot_wind = metadata_dict[PLOT_WIND_KEY]
     plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
 
@@ -442,12 +442,12 @@ def plot_one_example(
         if this_panel_column == 0:
             plotting_utils.plot_parallels(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_parallels=NUM_PARALLELS, font_size=FONT_SIZE, z_order=-1e20)
+                num_parallels=NUM_PARALLELS, font_size=FONT_SIZE)
 
         if this_panel_row == num_panel_rows - 1:
             plotting_utils.plot_meridians(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_meridians=NUM_MERIDIANS, font_size=FONT_SIZE, z_order=-1e20)
+                num_meridians=NUM_MERIDIANS, font_size=FONT_SIZE)
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
