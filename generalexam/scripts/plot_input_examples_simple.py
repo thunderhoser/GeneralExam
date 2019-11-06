@@ -30,9 +30,9 @@ PREDICTOR_NAME_TO_FANCY = {
     predictor_utils.HEIGHT_NAME: 'Height (m)',
     predictor_utils.PRESSURE_NAME: 'Pressure (mb)',
     predictor_utils.DEWPOINT_NAME: r'Dewpoint ($^{\circ}$C)',
-    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Specific humidity (g kg${-1}$)',
-    predictor_utils.U_WIND_GRID_RELATIVE_NAME: r'$u$-wind (m s${-1}$)',
-    predictor_utils.V_WIND_GRID_RELATIVE_NAME: r'$v$-wind (m s${-1}$)',
+    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Specific humidity (g kg$^{-1}$)',
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME: r'$u$-wind (m s$^{-1}$)',
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME: r'$v$-wind (m s$^{-1}$)',
     predictor_utils.WET_BULB_THETA_NAME: r'Wet-bulb theta ($^{\circ}$C)'
 }
 
@@ -386,6 +386,8 @@ def plot_one_example(
     plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
 
     if plot_wind_as_barbs:
+        print(wind_barb_colour)
+        print('\n\n\n*******\n\n\n')
         wind_barb_cmap_object = matplotlib.colors.ListedColormap(
             [wind_barb_colour]
         )
@@ -494,7 +496,7 @@ def plot_one_example(
             this_title_string = '{0:d}-mb'.format(pressure_levels_mb[k])
 
         this_fancy_name = PREDICTOR_NAME_TO_FANCY[predictor_names[k]]
-        this_title_string += '{0:s}{1:s}'.format(
+        this_title_string += ' {0:s}{1:s}'.format(
             this_fancy_name[0].lower(), this_fancy_name[1:]
         )
 
