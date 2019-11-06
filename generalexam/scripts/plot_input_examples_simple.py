@@ -475,6 +475,8 @@ def plot_one_example(
             basemap_object=this_basemap_object, axes_object=this_axes_object,
             num_meridians=NUM_MERIDIANS)
 
+        break
+
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
         )[0]
