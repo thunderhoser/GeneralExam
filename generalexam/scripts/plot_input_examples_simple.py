@@ -66,8 +66,9 @@ LARGE_BORDER_WIDTH = 2
 SMALL_BORDER_WIDTH = 1
 BORDER_COLOUR = numpy.full(3, 0.)
 
+DEFAULT_MAIN_FONT_SIZE = 20
 DEFAULT_TITLE_FONT_SIZE = 20
-DEFAULT_CBAR_FONT_SIZE = 25
+DEFAULT_CBAR_FONT_SIZE = 20
 DEFAULT_CBAR_LENGTH = 0.8
 
 DEFAULT_WIND_CMAP_NAME = 'seismic'
@@ -86,6 +87,9 @@ NON_WIND_CMAP_ARG_NAME = 'non_wind_colour_map_name'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 ADD_TITLES_ARG_NAME = 'add_titles'
 CBAR_LENGTH_ARG_NAME = 'colour_bar_length'
+MAIN_FONT_SIZE_ARG_NAME = 'main_font_size'
+TITLE_FONT_SIZE_ARG_NAME = 'title_font_size'
+CBAR_FONT_SIZE_ARG_NAME = 'colour_bar_font_size'
 RESOLUTION_ARG_NAME = 'figure_resolution_dpi'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -130,6 +134,11 @@ ADD_TITLES_HELP_STRING = (
 
 CBAR_LENGTH_HELP_STRING = 'Length of colour bars (as fraction of axis length).'
 
+MAIN_FONT_SIZE_HELP_STRING = (
+    'Main font size (for everything except title and colour bar).')
+
+TITLE_FONT_SIZE_HELP_STRING = 'Font size for titles.'
+CBAR_FONT_SIZE_HELP_STRING = 'Font size for colour bars.'
 RESOLUTION_HELP_STRING = 'Resolution of saved images (dots per inch).'
 
 OUTPUT_DIR_HELP_STRING = (
@@ -176,6 +185,18 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False,
     default=DEFAULT_CBAR_LENGTH, help=CBAR_LENGTH_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAIN_FONT_SIZE_ARG_NAME, type=float, required=False,
+    default=DEFAULT_MAIN_FONT_SIZE, help=MAIN_FONT_SIZE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + TITLE_FONT_SIZE_ARG_NAME, type=float, required=False,
+    default=DEFAULT_TITLE_FONT_SIZE, help=TITLE_FONT_SIZE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CBAR_FONT_SIZE_ARG_NAME, type=float, required=False,
+    default=DEFAULT_CBAR_FONT_SIZE, help=CBAR_FONT_SIZE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RESOLUTION_ARG_NAME, type=int, required=False,
@@ -332,8 +353,9 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
 def plot_one_example(
         example_dict, example_index, plot_wind_as_barbs,
         non_wind_colour_map_object, num_panel_rows=None, add_titles=True,
-        title_font_size=DEFAULT_TITLE_FONT_SIZE,
         colour_bar_length=DEFAULT_CBAR_LENGTH,
+        main_font_size=DEFAULT_MAIN_FONT_SIZE,
+        title_font_size=DEFAULT_TITLE_FONT_SIZE,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
         wind_barb_colour=None, wind_colour_map_object=None,
         narr_cosine_matrix=None, narr_sine_matrix=None):
@@ -354,9 +376,11 @@ def plot_one_example(
         be auto determined.
     :param add_titles: Boolean flag.  If True, will plot title at top of each
         figure.
-    :param title_font_size: Font size for titles.
     :param colour_bar_length: Length of colour bars (as fraction of axis
         length).
+    :param main_font_size: Font size for everything except titles and colour
+        bars.
+    :param title_font_size: Font size for titles.
     :param colour_bar_font_size: Font size for colour bars.
     :param wind_barb_colour: [used only if `plot_wind_as_barbs == True`]
         Wind-barb colour as length-3 numpy array.
@@ -378,6 +402,7 @@ def plot_one_example(
     # Check input args.
     error_checking.assert_is_boolean(plot_wind_as_barbs)
     error_checking.assert_is_boolean(add_titles)
+    error_checking.assert_is_greater(main_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
     error_checking.assert_is_greater(colour_bar_font_size, 0.)
 
@@ -479,6 +504,13 @@ def plot_one_example(
     ))
     num_panels = num_panel_rows * num_panel_columns
 
+    if num_panel_rows >= num_panel_columns:
+        cbar_orientation_string = 'vertical'
+        cbar_padding = None
+    else:
+        cbar_orientation_string = 'horizontal'
+        cbar_padding = 0.05
+
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
@@ -510,12 +542,12 @@ def plot_one_example(
         if j == 0:
             plotting_utils.plot_parallels(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_parallels=NUM_PARALLELS, font_size=colour_bar_font_size)
+                num_parallels=NUM_PARALLELS, font_size=main_font_size)
 
         if i == num_panel_rows - 1:
             plotting_utils.plot_meridians(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_meridians=NUM_MERIDIANS, font_size=colour_bar_font_size)
+                num_meridians=NUM_MERIDIANS, font_size=main_font_size)
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
@@ -553,8 +585,8 @@ def plot_one_example(
             data_matrix=predictor_matrix[..., k],
             colour_map_object=this_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string='vertical', font_size=colour_bar_font_size,
-            extend_min=True, extend_max=True,
+            orientation_string=cbar_orientation_string, padding=cbar_padding,
+            font_size=colour_bar_font_size, extend_min=True, extend_max=True,
             fraction_of_axis_length=colour_bar_length)
 
         these_tick_values = this_colour_bar_object.ax.get_xticks()
@@ -622,6 +654,9 @@ def plot_examples(
         non_wind_colour_map_name=DEFAULT_NON_WIND_CMAP_NAME,
         num_panel_rows=None, add_titles=True,
         colour_bar_length=DEFAULT_CBAR_LENGTH,
+        main_font_size=DEFAULT_MAIN_FONT_SIZE,
+        title_font_size=DEFAULT_TITLE_FONT_SIZE,
+        colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
         figure_resolution_dpi=DEFAULT_RESOLUTION_DPI):
     """Plots one or more examples.
 
@@ -635,6 +670,9 @@ def plot_examples(
     :param num_panel_rows: Same.
     :param add_titles: Same.
     :param colour_bar_length: Same.
+    :param main_font_size: Same.
+    :param title_font_size: Same.
+    :param colour_bar_font_size: Same.
     :param figure_resolution_dpi: Same.
     """
 
@@ -691,6 +729,8 @@ def plot_examples(
             non_wind_colour_map_object=non_wind_colour_map_object,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
             colour_bar_length=colour_bar_length,
+            main_font_size=main_font_size, title_font_size=title_font_size,
+            colour_bar_font_size=colour_bar_font_size,
             wind_barb_colour=wind_barb_colour,
             wind_colour_map_object=wind_colour_map_object,
             narr_cosine_matrix=narr_cosine_matrix,
@@ -713,7 +753,8 @@ def plot_examples(
 
 def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
          wind_barb_colour, wind_colour_map_name, non_wind_colour_map_name,
-         num_panel_rows, add_titles, colour_bar_length, figure_resolution_dpi,
+         num_panel_rows, add_titles, colour_bar_length, main_font_size,
+         title_font_size, colour_bar_font_size, figure_resolution_dpi,
          output_dir_name):
     """Plots one or more examples.
 
@@ -727,6 +768,9 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
     :param num_panel_rows: Same.
     :param add_titles: Same.
     :param colour_bar_length: Same.
+    :param main_font_size: Same.
+    :param title_font_size: Same.
+    :param colour_bar_font_size: Same.
     :param figure_resolution_dpi: Same.
     :param output_dir_name: Same.
     """
@@ -775,7 +819,9 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
         wind_colour_map_name=wind_colour_map_name,
         non_wind_colour_map_name=non_wind_colour_map_name,
         num_panel_rows=num_panel_rows, add_titles=add_titles,
-        colour_bar_length=colour_bar_length,
+        colour_bar_length=colour_bar_length, main_font_size=main_font_size,
+        title_font_size=title_font_size,
+        colour_bar_font_size=colour_bar_font_size,
         figure_resolution_dpi=figure_resolution_dpi,
         output_dir_name=output_dir_name)
 
@@ -797,6 +843,9 @@ if __name__ == '__main__':
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
         colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
+        main_font_size=getattr(INPUT_ARG_OBJECT, MAIN_FONT_SIZE_ARG_NAME),
+        title_font_size=getattr(INPUT_ARG_OBJECT, TITLE_FONT_SIZE_ARG_NAME),
+        colour_bar_font_size=getattr(INPUT_ARG_OBJECT, CBAR_FONT_SIZE_ARG_NAME),
         figure_resolution_dpi=getattr(INPUT_ARG_OBJECT, RESOLUTION_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
