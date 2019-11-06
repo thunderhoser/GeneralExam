@@ -1,5 +1,6 @@
 """Plots one or more examples."""
 
+import copy
 import argparse
 import numpy
 import matplotlib
@@ -425,21 +426,22 @@ def plot_one_example(
 
         panel_index += 1
         this_axes_object = axes_objects[panel_index]
+        this_basemap_object = copy.deepcopy(basemap_object)
 
         plotting_utils.plot_coastlines(
-            basemap_object=basemap_object, axes_object=this_axes_object,
+            basemap_object=this_basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_countries(
-            basemap_object=basemap_object, axes_object=this_axes_object,
+            basemap_object=this_basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_states_and_provinces(
-            basemap_object=basemap_object, axes_object=this_axes_object,
+            basemap_object=this_basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH / 2)
         plotting_utils.plot_parallels(
-            basemap_object=basemap_object, axes_object=this_axes_object,
+            basemap_object=this_basemap_object, axes_object=this_axes_object,
             num_parallels=NUM_PARALLELS)
         plotting_utils.plot_meridians(
-            basemap_object=basemap_object, axes_object=this_axes_object,
+            basemap_object=this_basemap_object, axes_object=this_axes_object,
             num_meridians=NUM_MERIDIANS)
 
         same_field_indices = numpy.where(
@@ -467,7 +469,7 @@ def plot_one_example(
             field_matrix=predictor_matrix[..., k],
             model_name=nwp_model_utils.NARR_MODEL_NAME,
             grid_id=nwp_model_utils.NAME_OF_221GRID,
-            axes_object=this_axes_object, basemap_object=basemap_object,
+            axes_object=this_axes_object, basemap_object=this_basemap_object,
             colour_map_object=this_colour_map_object,
             min_colour_value=this_min_value, max_colour_value=this_max_value,
             first_row_in_full_grid=first_narr_row,
