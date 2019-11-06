@@ -419,7 +419,7 @@ def plot_one_example(
         example_index, ...]
 
     for k in range(num_predictors):
-        print(k)
+        print(predictor_names[k])
         if predictor_names[k] in WIND_NAMES and plot_wind_as_barbs:
             continue
 
