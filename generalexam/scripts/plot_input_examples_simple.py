@@ -53,7 +53,7 @@ WIND_NAMES = [
 ]
 
 MAX_COLOUR_PERCENTILE = 99.
-DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
+DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 0.)
 
 WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
@@ -61,7 +61,7 @@ EMPTY_WIND_BARB_RADIUS = 0.1
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 4
 BORDER_WIDTH = 2
-BORDER_COLOUR = numpy.full(3, 0.)
+BORDER_COLOUR = numpy.full(3, 152. / 255)
 FIGURE_RESOLUTION_DPI = 300
 
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
@@ -486,7 +486,7 @@ def plot_one_example(
             data_matrix=predictor_matrix[..., k],
             colour_map_object=this_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string='horizontal', padding=0.1,
+            orientation_string='vertical',
             extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
 
         these_tick_values = this_colour_bar_object.ax.get_xticks()
@@ -527,6 +527,7 @@ def plot_one_example(
             axes_object=this_axes_object, basemap_object=basemap_object,
             first_row_in_full_grid=first_narr_row,
             first_column_in_full_grid=first_narr_column,
+            plot_every_k_rows=2, plot_every_k_columns=2,
             barb_length=WIND_BARB_LENGTH,
             empty_barb_radius=EMPTY_WIND_BARB_RADIUS, fill_empty_barb=False,
             colour_map=wind_barb_cmap_object,
