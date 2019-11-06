@@ -30,11 +30,11 @@ NARR_COSINES_KEY = 'narr_cosine_matrix'
 NARR_SINES_KEY = 'narr_sine_matrix'
 
 PREDICTOR_NAME_TO_FANCY = {
-    predictor_utils.TEMPERATURE_NAME: r'Temperature ($^{\circ}$C)',
+    predictor_utils.TEMPERATURE_NAME: r'Temp ($^{\circ}$C)',
     predictor_utils.HEIGHT_NAME: 'Height (m)',
     predictor_utils.PRESSURE_NAME: 'Pressure (mb)',
     predictor_utils.DEWPOINT_NAME: r'Dewpoint ($^{\circ}$C)',
-    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Specific humidity (g kg$^{-1}$)',
+    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Spec humidity (g kg$^{-1}$)',
     predictor_utils.U_WIND_GRID_RELATIVE_NAME: r'$u$-wind (m s$^{-1}$)',
     predictor_utils.V_WIND_GRID_RELATIVE_NAME: r'$v$-wind (m s$^{-1}$)',
     predictor_utils.WET_BULB_THETA_NAME: r'Wet-bulb theta ($^{\circ}$C)'
@@ -66,9 +66,12 @@ LARGE_BORDER_WIDTH = 2
 SMALL_BORDER_WIDTH = 1
 BORDER_COLOUR = numpy.full(3, 0.)
 
-DEFAULT_TITLE_FONT_SIZE = 25
+DEFAULT_TITLE_FONT_SIZE = 20
 DEFAULT_CBAR_FONT_SIZE = 25
 DEFAULT_CBAR_LENGTH = 0.8
+
+DEFAULT_WIND_CMAP_NAME = 'seismic'
+DEFAULT_NON_WIND_CMAP_NAME = 'YlOrRd'
 DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
 
 DEFAULT_RESOLUTION_DPI = 300
@@ -80,6 +83,7 @@ PLOT_BARBS_ARG_NAME = 'plot_wind_as_barbs'
 WIND_BARB_COLOUR_ARG_NAME = 'wind_barb_colour'
 WIND_CMAP_ARG_NAME = 'wind_colour_map_name'
 NON_WIND_CMAP_ARG_NAME = 'non_wind_colour_map_name'
+NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
 ADD_TITLES_ARG_NAME = 'add_titles'
 CBAR_LENGTH_ARG_NAME = 'colour_bar_length'
 RESOLUTION_ARG_NAME = 'figure_resolution_dpi'
@@ -117,6 +121,10 @@ NON_WIND_CMAP_HELP_STRING = (
     'Name of colour map for all fields other than wind (must be accepted by '
     '`matplotlib.pyplot.get_cmap`).')
 
+NUM_PANEL_ROWS_HELP_STRING = (
+    'Number of panel rows in each figure.  If you want this to be auto '
+    'determined, leave this argument alone.')
+
 ADD_TITLES_HELP_STRING = (
     'Boolean flag.  If 1, will plot title above each figure.')
 
@@ -150,12 +158,16 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_WIND_BARB_COLOUR * 255, help=WIND_BARB_COLOUR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + WIND_CMAP_ARG_NAME, type=str, required=False, default='seismic',
-    help=WIND_CMAP_HELP_STRING)
+    '--' + WIND_CMAP_ARG_NAME, type=str, required=False,
+    default=DEFAULT_WIND_CMAP_NAME, help=WIND_CMAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NON_WIND_CMAP_ARG_NAME, type=str, required=False, default='YlOrRd',
-    help=NON_WIND_CMAP_HELP_STRING)
+    '--' + NON_WIND_CMAP_ARG_NAME, type=str, required=False,
+    default=DEFAULT_NON_WIND_CMAP_NAME, help=NON_WIND_CMAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_PANEL_ROWS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
@@ -319,7 +331,7 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
 
 def plot_one_example(
         example_dict, example_index, plot_wind_as_barbs,
-        non_wind_colour_map_object, add_titles=True,
+        non_wind_colour_map_object, num_panel_rows=None, add_titles=True,
         title_font_size=DEFAULT_TITLE_FONT_SIZE,
         colour_bar_length=DEFAULT_CBAR_LENGTH,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
@@ -338,6 +350,8 @@ def plot_one_example(
         i = `example_index`.
     :param plot_wind_as_barbs: See documentation at top of file.
     :param non_wind_colour_map_object: Same.
+    :param num_panel_rows: Number of panel rows in each figure.  If None, will
+        be auto determined.
     :param add_titles: Boolean flag.  If True, will plot title at top of each
         figure.
     :param title_font_size: Font size for titles.
@@ -450,9 +464,16 @@ def plot_one_example(
         num_predictors -
         2 * num_unique_pressure_levels * int(plot_wind_as_barbs)
     )
-    num_panel_rows = int(numpy.round(
-        numpy.sqrt(num_panels_desired)
-    ))
+
+    if num_panel_rows is None:
+        num_panel_rows = int(numpy.round(
+            numpy.sqrt(num_panels_desired)
+        ))
+
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_greater(num_panel_rows, 0)
+    error_checking.assert_is_leq(num_panel_rows, num_panels_desired)
+
     num_panel_columns = int(numpy.ceil(
         float(num_panels_desired) / num_panel_rows
     ))
@@ -489,12 +510,12 @@ def plot_one_example(
         if j == 0:
             plotting_utils.plot_parallels(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_parallels=NUM_PARALLELS, font_size=title_font_size)
+                num_parallels=NUM_PARALLELS, font_size=colour_bar_font_size)
 
         if i == num_panel_rows - 1:
             plotting_utils.plot_meridians(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_meridians=NUM_MERIDIANS, font_size=title_font_size)
+                num_meridians=NUM_MERIDIANS, font_size=colour_bar_font_size)
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
@@ -595,21 +616,26 @@ def plot_one_example(
 
 
 def plot_examples(
-        example_dict, plot_wind_as_barbs, wind_barb_colour,
-        wind_colour_map_name, non_wind_colour_map_name, add_titles,
-        colour_bar_length, figure_resolution_dpi, output_dir_name):
+        example_dict, output_dir_name, plot_wind_as_barbs=True,
+        wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
+        wind_colour_map_name=DEFAULT_WIND_CMAP_NAME,
+        non_wind_colour_map_name=DEFAULT_NON_WIND_CMAP_NAME,
+        num_panel_rows=None, add_titles=True,
+        colour_bar_length=DEFAULT_CBAR_LENGTH,
+        figure_resolution_dpi=DEFAULT_RESOLUTION_DPI):
     """Plots one or more examples.
 
     :param example_dict: Dictionary returned by
         `learning_examples_io.read_file`.
-    :param plot_wind_as_barbs: See documentation at top of file.
+    :param output_dir_name: See documentation at top of file.
+    :param plot_wind_as_barbs: Same.
     :param wind_barb_colour: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
+    :param num_panel_rows: Same.
     :param add_titles: Same.
     :param colour_bar_length: Same.
     :param figure_resolution_dpi: Same.
-    :param output_dir_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
@@ -663,7 +689,8 @@ def plot_examples(
             example_dict=example_dict, example_index=i,
             plot_wind_as_barbs=plot_wind_as_barbs,
             non_wind_colour_map_object=non_wind_colour_map_object,
-            add_titles=add_titles, colour_bar_length=colour_bar_length,
+            num_panel_rows=num_panel_rows, add_titles=add_titles,
+            colour_bar_length=colour_bar_length,
             wind_barb_colour=wind_barb_colour,
             wind_colour_map_object=wind_colour_map_object,
             narr_cosine_matrix=narr_cosine_matrix,
@@ -686,7 +713,8 @@ def plot_examples(
 
 def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
          wind_barb_colour, wind_colour_map_name, non_wind_colour_map_name,
-         add_titles, colour_bar_length, figure_resolution_dpi, output_dir_name):
+         num_panel_rows, add_titles, colour_bar_length, figure_resolution_dpi,
+         output_dir_name):
     """Plots one or more examples.
 
     :param example_file_name: See documentation at top of file.
@@ -696,11 +724,15 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
     :param wind_barb_colour: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
+    :param num_panel_rows: Same.
     :param add_titles: Same.
     :param colour_bar_length: Same.
     :param figure_resolution_dpi: Same.
     :param output_dir_name: Same.
     """
+
+    if num_panel_rows < 1:
+        num_panel_rows = None
 
     # Read model and metadata.
     print('Reading model from: "{0:s}"...'.format(model_file_name))
@@ -742,7 +774,8 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
         wind_barb_colour=wind_barb_colour,
         wind_colour_map_name=wind_colour_map_name,
         non_wind_colour_map_name=non_wind_colour_map_name,
-        add_titles=add_titles, colour_bar_length=colour_bar_length,
+        num_panel_rows=num_panel_rows, add_titles=add_titles,
+        colour_bar_length=colour_bar_length,
         figure_resolution_dpi=figure_resolution_dpi,
         output_dir_name=output_dir_name)
 
@@ -761,6 +794,7 @@ if __name__ == '__main__':
         wind_colour_map_name=getattr(INPUT_ARG_OBJECT, WIND_CMAP_ARG_NAME),
         non_wind_colour_map_name=getattr(
             INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME),
+        num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
         colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
         figure_resolution_dpi=getattr(INPUT_ARG_OBJECT, RESOLUTION_ARG_NAME),
