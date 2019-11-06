@@ -7,6 +7,8 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
+from mpl_toolkits.basemap import Basemap
+from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -370,15 +372,41 @@ def plot_one_example(
     first_narr_column = metadata_dict[FIRST_NARR_COLUMN_KEY]
     last_narr_column = metadata_dict[LAST_NARR_COLUMN_KEY]
 
-    basemap_object = nwp_plotting.init_basemap(
+    # basemap_object = nwp_plotting.init_basemap(
+    #     model_name=nwp_model_utils.NARR_MODEL_NAME,
+    #     grid_id=nwp_model_utils.NAME_OF_221GRID,
+    #     first_row_in_full_grid=first_narr_row,
+    #     last_row_in_full_grid=last_narr_row,
+    #     first_column_in_full_grid=first_narr_column,
+    #     last_column_in_full_grid=last_narr_column,
+    #     resolution_string='i'
+    # )[-1]
+
+    coordinate_dict = nwp_plotting._get_grid_point_coords(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID,
         first_row_in_full_grid=first_narr_row,
         last_row_in_full_grid=last_narr_row,
         first_column_in_full_grid=first_narr_column,
-        last_column_in_full_grid=last_narr_column,
-        resolution_string='i'
-    )[-1]
+        last_column_in_full_grid=last_narr_column)
+
+    grid_point_x_matrix_metres = coordinate_dict[nwp_plotting.X_COORD_MATRIX_KEY]
+    grid_point_y_matrix_metres = coordinate_dict[nwp_plotting.Y_COORD_MATRIX_KEY]
+
+    standard_latitudes_deg, central_longitude_deg = (
+        nwp_model_utils.get_projection_params(nwp_model_utils.NARR_MODEL_NAME)
+    )
+
+    basemap_object = Basemap(
+        projection='lcc', lat_1=standard_latitudes_deg[0],
+        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
+        ellps='sphere', resolution='i',
+        llcrnrx=grid_point_x_matrix_metres[0, 0],
+        llcrnry=grid_point_y_matrix_metres[0, 0],
+        urcrnrx=grid_point_x_matrix_metres[-1, -1],
+        urcrnry=grid_point_y_matrix_metres[-1, -1]
+    )
 
     plot_wind = metadata_dict[PLOT_WIND_KEY]
     plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
@@ -399,7 +427,8 @@ def plot_one_example(
     num_unique_pressure_levels = len(numpy.unique(pressure_levels_mb))
 
     num_panels = (
-        num_predictors - num_unique_pressure_levels * int(plot_wind_as_barbs)
+        num_predictors -
+        2 * num_unique_pressure_levels * int(plot_wind_as_barbs)
     )
     num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_panels)
@@ -452,14 +481,14 @@ def plot_one_example(
         )[0]
 
         if predictor_names[k] in WIND_NAMES:
-            this_colour_map_object = copy.deepcopy(wind_colour_map_object)
+            this_colour_map_object = wind_colour_map_object
             this_max_value = numpy.percentile(
                 numpy.absolute(predictor_matrix[..., same_field_indices]),
                 MAX_COLOUR_PERCENTILE
             )
             this_min_value = -1 * this_max_value
         else:
-            this_colour_map_object = copy.deepcopy(non_wind_colour_map_object)
+            this_colour_map_object = non_wind_colour_map_object
             this_min_value = numpy.percentile(
                 predictor_matrix[..., same_field_indices],
                 100. - MAX_COLOUR_PERCENTILE
