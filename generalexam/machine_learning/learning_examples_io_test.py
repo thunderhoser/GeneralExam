@@ -177,7 +177,8 @@ FLOAT_ARRAY_KEYS = [
 
 FLOAT_KEYS = [examples_io.DILATION_DISTANCE_KEY]
 
-# The following constants are used to test create_example_ids.
+# The following constants are used to test create_example_ids and
+# example_ids_to_metadata.
 ID_STRINGS_LARGE_DICT = [
     'time0000000000_row000_column000', 'time0000000000_row050_column010',
     'time0000000000_row100_column020', 'time0000010800_row000_column000',
@@ -329,6 +330,26 @@ class LearningExamplesIoTests(unittest.TestCase):
         )
 
         self.assertTrue(these_id_strings == ID_STRINGS_LARGE_DICT)
+
+    def test_example_ids_to_metadata(self):
+        """Ensures correct output from example_ids_to_metadata."""
+
+        these_times_unix_sec, these_row_indices, these_column_indices = (
+            examples_io.example_ids_to_metadata(ID_STRINGS_LARGE_DICT)
+        )
+
+        self.assertTrue(numpy.array_equal(
+            these_times_unix_sec,
+            LARGE_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY]
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_row_indices,
+            LARGE_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY]
+        ))
+        self.assertTrue(numpy.array_equal(
+            these_column_indices,
+            LARGE_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY]
+        ))
 
 
 if __name__ == '__main__':

@@ -458,6 +458,45 @@ def create_example_ids(valid_times_unix_sec, row_indices, column_indices):
     ]
 
 
+def example_id_to_metadata(example_id_string):
+    """Parses valid time, full-grid row, and full-grid column from example ID.
+
+    :param example_id_string: Example ID.
+    :return: valid_time_unix_sec: Valid time.
+    :return: row_index: Row index in full grid.
+    :return: column_index: Column index in full grid.
+    """
+
+    words = example_id_string.split('_')
+    assert len(words) == 3
+
+    valid_time_unix_sec = int(words[0].replace('time', ''))
+    row_index = int(words[1].replace('row', ''))
+    column_index = int(words[2].replace('column', ''))
+
+    return valid_time_unix_sec, row_index, column_index
+
+
+def example_ids_to_metadata(example_id_strings):
+    """Parses time, full-grid row, and full-grid column from each example ID.
+
+    :param example_id_strings: See doc for `create_example_ids`.
+    :return: valid_times_unix_sec: Same.
+    :return: row_indices: Same.
+    :return: column_indices: Same.
+    """
+
+    valid_times_unix_sec, row_indices, column_indices = zip(
+        *[example_id_to_metadata(s) for s in example_id_strings]
+    )
+
+    valid_times_unix_sec = numpy.array(valid_times_unix_sec, dtype=int)
+    row_indices = numpy.array(row_indices, dtype=int)
+    column_indices = numpy.array(column_indices, dtype=int)
+
+    return valid_times_unix_sec, row_indices, column_indices
+
+
 def find_file(
         top_directory_name, shuffled=False, first_valid_time_unix_sec=None,
         last_valid_time_unix_sec=None, batch_number=None,
