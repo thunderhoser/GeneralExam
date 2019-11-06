@@ -52,6 +52,7 @@ WIND_NAMES = [
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
+TITLE_FONT_SIZE = 25
 MAX_COLOUR_PERCENTILE = 99.
 DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 0.)
 
@@ -400,39 +401,35 @@ def plot_one_example(
     num_predictors = len(predictor_names)
     num_unique_pressure_levels = len(numpy.unique(pressure_levels_mb))
 
-    num_panels = (
+    num_panels_desired = (
         num_predictors -
         2 * num_unique_pressure_levels * int(plot_wind_as_barbs)
     )
     num_panel_rows = int(numpy.floor(
-        numpy.sqrt(num_panels)
+        numpy.sqrt(num_panels_desired)
     ))
     num_panel_columns = int(numpy.ceil(
-        float(num_panels) / num_panel_rows
+        float(num_panels_desired) / num_panel_rows
     ))
+    num_panels = num_panel_rows * num_panel_columns
 
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
-        horizontal_spacing=0.15, vertical_spacing=0.15,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
-    axes_objects = numpy.ravel(axes_object_matrix, order='C')
-    panel_index = -1
-
+    panel_index_linear = -1
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][
         example_index, ...]
 
     for k in range(num_predictors):
-        print(predictor_names[k])
         if predictor_names[k] in WIND_NAMES and plot_wind_as_barbs:
             continue
 
-        panel_index += 1
-        print(len(axes_objects))
-        print(panel_index)
-
-        this_axes_object = axes_objects[panel_index]
+        panel_index_linear += 1
+        this_panel_row, this_panel_column = numpy.unravel_index(
+            panel_index_linear, axes_object_matrix.shape)
+        this_axes_object = axes_object_matrix[this_panel_row, this_panel_column]
 
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=this_axes_object,
@@ -443,12 +440,16 @@ def plot_one_example(
         plotting_utils.plot_states_and_provinces(
             basemap_object=basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH / 2)
-        plotting_utils.plot_parallels(
-            basemap_object=basemap_object, axes_object=this_axes_object,
-            num_parallels=NUM_PARALLELS)
-        plotting_utils.plot_meridians(
-            basemap_object=basemap_object, axes_object=this_axes_object,
-            num_meridians=NUM_MERIDIANS)
+
+        if this_panel_column == 0:
+            plotting_utils.plot_parallels(
+                basemap_object=basemap_object, axes_object=this_axes_object,
+                num_parallels=NUM_PARALLELS, z_order=-1e20)
+
+        if this_panel_row == num_panel_rows - 1:
+            plotting_utils.plot_meridians(
+                basemap_object=basemap_object, axes_object=this_axes_object,
+                num_meridians=NUM_MERIDIANS, z_order=-1e20)
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
@@ -504,7 +505,7 @@ def plot_one_example(
         )
 
         # TODO(thunderhoser): Make font size an option?
-        this_axes_object.set_title(this_title_string)
+        this_axes_object.set_title(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         if not plot_wind_as_barbs:
             continue
@@ -533,8 +534,11 @@ def plot_one_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
-    for k in range(panel_index + 1, len(axes_objects)):
-        axes_objects[k].axis('off')
+    for k in range(panel_index_linear + 1, num_panels):
+        this_panel_row, this_panel_column = numpy.unravel_index(
+            panel_index_linear, axes_object_matrix.shape)
+
+        axes_object_matrix[this_panel_row, this_panel_column].axis('off')
 
     example_id_string = examples_io.create_example_id(
         valid_time_unix_sec=
