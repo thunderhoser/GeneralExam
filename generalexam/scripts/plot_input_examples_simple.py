@@ -397,17 +397,6 @@ def plot_one_example(
         nwp_model_utils.get_projection_params(nwp_model_utils.NARR_MODEL_NAME)
     )
 
-    basemap_object = Basemap(
-        projection='lcc', lat_1=standard_latitudes_deg[0],
-        lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
-        rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
-        ellps='sphere', resolution='i',
-        llcrnrx=grid_point_x_matrix_metres[0, 0],
-        llcrnry=grid_point_y_matrix_metres[0, 0],
-        urcrnrx=grid_point_x_matrix_metres[-1, -1],
-        urcrnry=grid_point_y_matrix_metres[-1, -1]
-    )
-
     plot_wind = metadata_dict[PLOT_WIND_KEY]
     plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
 
@@ -458,7 +447,17 @@ def plot_one_example(
         print(panel_index)
 
         this_axes_object = axes_objects[panel_index]
-        this_basemap_object = copy.deepcopy(basemap_object)
+
+        this_basemap_object = Basemap(
+            projection='lcc', lat_1=standard_latitudes_deg[0],
+            lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
+            rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
+            ellps='sphere', resolution='i',
+            llcrnrx=grid_point_x_matrix_metres[0, 0],
+            llcrnry=grid_point_y_matrix_metres[0, 0],
+            urcrnrx=grid_point_x_matrix_metres[-1, -1],
+            urcrnry=grid_point_y_matrix_metres[-1, -1]
+        )
 
         plotting_utils.plot_coastlines(
             basemap_object=this_basemap_object, axes_object=this_axes_object,
