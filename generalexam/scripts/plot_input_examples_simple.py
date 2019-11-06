@@ -481,13 +481,17 @@ def plot_one_example(
             first_row_in_full_grid=first_narr_row,
             first_column_in_full_grid=first_narr_column)
 
-        plotting_utils.plot_linear_colour_bar(
+        this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=this_axes_object,
             data_matrix=predictor_matrix[..., k],
             colour_map_object=this_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string='horizontal', extend_min=True, extend_max=True,
-            fraction_of_axis_length=0.8)
+            orientation_string='horizontal', padding=0.1,
+            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
+
+        these_tick_values = this_colour_bar_object.ax.get_xticks()
+        this_colour_bar_object.ax.set_xticks(these_tick_values)
+        this_colour_bar_object.ax.set_xticklabels(these_tick_values)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -501,10 +505,6 @@ def plot_one_example(
 
         # TODO(thunderhoser): Make font size an option?
         this_axes_object.set_title(this_title_string)
-
-        # these_tick_values = this_colour_bar_object.ax.get_xticks()
-        # this_colour_bar_object.ax.set_xticks(these_tick_values)
-        # this_colour_bar_object.ax.set_xticklabels(these_tick_values)
 
         if not plot_wind_as_barbs:
             continue
