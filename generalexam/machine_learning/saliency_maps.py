@@ -25,8 +25,14 @@ STANDARD_FILE_KEYS = [
 ]
 
 MEAN_PREDICTOR_MATRIX_KEY = 'mean_denorm_predictor_matrix'
+MEAN_SALIENCY_MATRIX_KEY = 'mean_saliency_matrix'
+NON_PMM_FILE_KEY = 'non_pmm_file_name'
+PMM_MAX_PERCENTILE_KEY = 'pmm_max_percentile_leve'
 
-PMM_FILE_KEYS = [MEAN_PREDICTOR_MATRIX_KEY]
+PMM_FILE_KEYS = [
+    MEAN_PREDICTOR_MATRIX_KEY, MEAN_SALIENCY_MATRIX_KEY, MODEL_FILE_KEY,
+    NON_PMM_FILE_KEY, PMM_MAX_PERCENTILE_KEY
+]
 
 
 def _check_in_and_out_matrices(
@@ -66,20 +72,57 @@ def _check_in_and_out_matrices(
     )
 
 
+def write_pmm_file(
+        pickle_file_name, mean_denorm_predictor_matrix, mean_saliency_matrix,
+        model_file_name, non_pmm_file_name, pmm_max_percentile_level):
+    """Writes composite saliency map to Pickle file.
+
+    The composite should be created by probability-matched means (PMM).
+
+    :param pickle_file_name: Path to output file.
+    :param mean_denorm_predictor_matrix: See doc for
+        `_check_in_and_out_matrices`.
+    :param mean_saliency_matrix: Same.
+    :param model_file_name: Path to model that created saliency maps (readable
+        by `cnn.read_model`).
+    :param non_pmm_file_name: Path to standard saliency file (with
+        non-composited saliency maps).
+    :param pmm_max_percentile_level: Max percentile level for PMM.
+    """
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_string(non_pmm_file_name)
+    error_checking.assert_is_geq(pmm_max_percentile_level, 90.)
+    error_checking.assert_is_leq(pmm_max_percentile_level, 100.)
+
+    _check_in_and_out_matrices(
+        predictor_matrix=mean_denorm_predictor_matrix, num_examples=None,
+        saliency_matrix=mean_saliency_matrix)
+
+    mean_saliency_dict = {
+        MEAN_PREDICTOR_MATRIX_KEY: mean_denorm_predictor_matrix,
+        MEAN_SALIENCY_MATRIX_KEY: mean_saliency_matrix,
+        MODEL_FILE_KEY: model_file_name,
+        NON_PMM_FILE_KEY: non_pmm_file_name,
+        PMM_MAX_PERCENTILE_KEY: pmm_max_percentile_level
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_saliency_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
 def write_standard_file(
         pickle_file_name, denorm_predictor_matrix, saliency_matrix,
         example_id_strings, model_file_name, metadata_dict):
     """Writes saliency maps to Pickle file.
 
     E = number of examples
-    M = number of rows in grid
-    N = number of columns in grid
-    C = number of channels (predictors)
 
     :param pickle_file_name: Path to output file.
-    :param denorm_predictor_matrix: E-by-M-by-N-by-C numpy array of denormalized
-        predictors.
-    :param saliency_matrix: E-by-M-by-N-by-C numpy array of saliency values.
+    :param denorm_predictor_matrix: See doc for `_check_in_and_out_matrices`.
+    :param saliency_matrix: Same.
     :param example_id_strings: length-E list of example IDs.
     :param model_file_name: Path to model that created saliency maps (readable
         by `cnn.read_model`).
