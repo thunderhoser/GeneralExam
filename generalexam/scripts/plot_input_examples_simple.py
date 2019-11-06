@@ -532,12 +532,15 @@ def plot_one_example(
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
     print(panel_index_linear)
-    print('\n\n*******\n\n')
-    for k in range(panel_index_linear + 1, num_panels):
+    while panel_index_linear < num_panels - 1:
+        print(panel_index_linear)
+        panel_index_linear += 1
         this_panel_row, this_panel_column = numpy.unravel_index(
             panel_index_linear, axes_object_matrix.shape)
 
         axes_object_matrix[this_panel_row, this_panel_column].axis('off')
+
+    print('\n\n*****\n\n')
 
     example_id_string = examples_io.create_example_id(
         valid_time_unix_sec=
