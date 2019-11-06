@@ -16,11 +16,18 @@ from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 PLOT_WIND_KEY = 'plot_wind'
 FIRST_NARR_ROW_KEY = 'first_narr_row'
 LAST_NARR_ROW_KEY = 'last_narr_row'
 FIRST_NARR_COLUMN_KEY = 'first_narr_column'
 LAST_NARR_COLUMN_KEY = 'last_narr_column'
+
+FIGURE_OBJECT_KEY = 'figure_object'
+AXES_OBJECTS_KEY = 'axes_object_matrix'
+NARR_COSINES_KEY = 'narr_cosine_matrix'
+NARR_SINES_KEY = 'narr_sine_matrix'
 
 PREDICTOR_NAME_TO_FANCY = {
     predictor_utils.TEMPERATURE_NAME: r'Temperature ($^{\circ}$C)',
@@ -49,10 +56,7 @@ WIND_NAMES = [
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
-FONT_SIZE = 25
 MAX_COLOUR_PERCENTILE = 99.
-DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
-
 WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
 
@@ -61,7 +65,13 @@ NUM_MERIDIANS = 6
 LARGE_BORDER_WIDTH = 2
 SMALL_BORDER_WIDTH = 1
 BORDER_COLOUR = numpy.full(3, 0.)
-FIGURE_RESOLUTION_DPI = 300
+
+DEFAULT_TITLE_FONT_SIZE = 25
+DEFAULT_CBAR_FONT_SIZE = 25
+DEFAULT_CBAR_LENGTH = 0.8
+DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
+
+DEFAULT_RESOLUTION_DPI = 300
 
 EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
@@ -70,6 +80,9 @@ PLOT_BARBS_ARG_NAME = 'plot_wind_as_barbs'
 WIND_BARB_COLOUR_ARG_NAME = 'wind_barb_colour'
 WIND_CMAP_ARG_NAME = 'wind_colour_map_name'
 NON_WIND_CMAP_ARG_NAME = 'non_wind_colour_map_name'
+ADD_TITLES_ARG_NAME = 'add_titles'
+CBAR_LENGTH_ARG_NAME = 'colour_bar_length'
+RESOLUTION_ARG_NAME = 'figure_resolution_dpi'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 EXAMPLE_FILE_HELP_STRING = (
@@ -104,6 +117,13 @@ NON_WIND_CMAP_HELP_STRING = (
     'Name of colour map for all fields other than wind (must be accepted by '
     '`matplotlib.pyplot.get_cmap`).')
 
+ADD_TITLES_HELP_STRING = (
+    'Boolean flag.  If 1, will plot title above each figure.')
+
+CBAR_LENGTH_HELP_STRING = 'Length of colour bars (as fraction of axis length).'
+
+RESOLUTION_HELP_STRING = 'Resolution of saved images (dots per inch).'
+
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here (one paneled figure '
     'for each example).')
@@ -136,6 +156,18 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + NON_WIND_CMAP_ARG_NAME, type=str, required=False, default='YlOrRd',
     help=NON_WIND_CMAP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
+    help=ADD_TITLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False,
+    default=DEFAULT_CBAR_LENGTH, help=CBAR_LENGTH_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + RESOLUTION_ARG_NAME, type=int, required=False,
+    default=DEFAULT_RESOLUTION_DPI, help=RESOLUTION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -287,13 +319,18 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
 
 def plot_one_example(
         example_dict, example_index, plot_wind_as_barbs,
-        non_wind_colour_map_object, output_dir_name, wind_barb_colour=None,
-        wind_colour_map_object=None, narr_cosine_matrix=None,
-        narr_sine_matrix=None):
+        non_wind_colour_map_object, add_titles=True,
+        title_font_size=DEFAULT_TITLE_FONT_SIZE,
+        colour_bar_length=DEFAULT_CBAR_LENGTH,
+        colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
+        wind_barb_colour=None, wind_colour_map_object=None,
+        narr_cosine_matrix=None, narr_sine_matrix=None):
     """Plots one example.
 
     M = number of rows in full NARR grid
     N = number of columns in full NARR grid
+    J = number of panel rows in figure
+    K = number of panel columns in figure
 
     :param example_dict: Dictionary returned by
         `learning_examples_io.read_file`.
@@ -301,7 +338,12 @@ def plot_one_example(
         i = `example_index`.
     :param plot_wind_as_barbs: See documentation at top of file.
     :param non_wind_colour_map_object: Same.
-    :param output_dir_name: Same.
+    :param add_titles: Boolean flag.  If True, will plot title at top of each
+        figure.
+    :param title_font_size: Font size for titles.
+    :param colour_bar_length: Length of colour bars (as fraction of axis
+        length).
+    :param colour_bar_font_size: Font size for colour bars.
     :param wind_barb_colour: [used only if `plot_wind_as_barbs == True`]
         Wind-barb colour as length-3 numpy array.
     :param wind_colour_map_object: [used only if `plot_wind_as_barbs == False`]
@@ -310,20 +352,25 @@ def plot_one_example(
         angles (used to convert wind from grid-relative to Earth-relative).
         If this is None, it will be created on the fly.
     :param narr_sine_matrix: Same but for sines.
-    :return: narr_cosine_matrix: See input doc.
-    :return: narr_sine_matrix: See input doc.
+    :return: output_dict: Dictionary with the following keys.
+    output_dict["figure_object"]: Figure handle (instance of
+        `matplotlib.figure.Figure`).
+    output_dict["axes_object_matrix"]: J-by-K numpy array of axes handles (each
+        an instance of `matplotlib.axes._subplots.AxesSubplot`).
+    output_dict["narr_cosine_matrix"]: See input doc.
+    output_dict["narr_sine_matrix"]: See input doc.
     """
 
     # Check input args.
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+    error_checking.assert_is_boolean(plot_wind_as_barbs)
+    error_checking.assert_is_boolean(add_titles)
+    error_checking.assert_is_greater(title_font_size, 0.)
+    error_checking.assert_is_greater(colour_bar_font_size, 0.)
 
     num_examples = len(example_dict[examples_io.VALID_TIMES_KEY])
     error_checking.assert_is_integer(example_index)
     error_checking.assert_is_geq(example_index, 0)
     error_checking.assert_is_less_than(example_index, num_examples)
-
-    error_checking.assert_is_boolean(plot_wind_as_barbs)
 
     if narr_cosine_matrix is None:
         narr_lat_matrix_deg, narr_lng_matrix_deg = (
@@ -414,6 +461,7 @@ def plot_one_example(
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
+        horizontal_spacing=0.1, vertical_spacing=0.1,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     panel_index_linear = -1
@@ -425,9 +473,8 @@ def plot_one_example(
             continue
 
         panel_index_linear += 1
-        this_panel_row, this_panel_column = numpy.unravel_index(
-            panel_index_linear, axes_object_matrix.shape)
-        this_axes_object = axes_object_matrix[this_panel_row, this_panel_column]
+        i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
+        this_axes_object = axes_object_matrix[i, j]
 
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=this_axes_object,
@@ -439,15 +486,15 @@ def plot_one_example(
             basemap_object=basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=SMALL_BORDER_WIDTH)
 
-        if this_panel_column == 0:
+        if j == 0:
             plotting_utils.plot_parallels(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_parallels=NUM_PARALLELS, font_size=FONT_SIZE)
+                num_parallels=NUM_PARALLELS, font_size=title_font_size)
 
-        if this_panel_row == num_panel_rows - 1:
+        if i == num_panel_rows - 1:
             plotting_utils.plot_meridians(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_meridians=NUM_MERIDIANS, font_size=FONT_SIZE)
+                num_meridians=NUM_MERIDIANS, font_size=title_font_size)
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
@@ -485,8 +532,9 @@ def plot_one_example(
             data_matrix=predictor_matrix[..., k],
             colour_map_object=this_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string='vertical', font_size=FONT_SIZE,
-            extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
+            orientation_string='vertical', font_size=colour_bar_font_size,
+            extend_min=True, extend_max=True,
+            fraction_of_axis_length=colour_bar_length)
 
         these_tick_values = this_colour_bar_object.ax.get_xticks()
         this_colour_bar_object.ax.set_xticks(these_tick_values)
@@ -502,7 +550,9 @@ def plot_one_example(
             this_fancy_name[0].lower(), this_fancy_name[1:]
         )
 
-        this_axes_object.set_title(this_title_string, fontsize=FONT_SIZE)
+        if add_titles:
+            this_axes_object.set_title(this_title_string,
+                                       fontsize=title_font_size)
 
         if not plot_wind_as_barbs:
             continue
@@ -531,38 +581,112 @@ def plot_one_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
-    print(panel_index_linear)
     while panel_index_linear < num_panels - 1:
-        print(panel_index_linear)
         panel_index_linear += 1
-        this_panel_row, this_panel_column = numpy.unravel_index(
-            panel_index_linear, axes_object_matrix.shape)
+        i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
+        axes_object_matrix[i, j].axis('off')
 
-        axes_object_matrix[this_panel_row, this_panel_column].axis('off')
+    return {
+        FIGURE_OBJECT_KEY: figure_object,
+        AXES_OBJECTS_KEY: axes_object_matrix,
+        NARR_COSINES_KEY: narr_cosine_matrix,
+        NARR_SINES_KEY: narr_sine_matrix
+    }
 
-    print('\n\n*****\n\n')
 
-    example_id_string = examples_io.create_example_id(
-        valid_time_unix_sec=
-        example_dict[examples_io.VALID_TIMES_KEY][example_index],
-        row_index=example_dict[examples_io.ROW_INDICES_KEY][example_index],
-        column_index=example_dict[examples_io.COLUMN_INDICES_KEY][example_index]
+def plot_examples(
+        example_dict, plot_wind_as_barbs, wind_barb_colour,
+        wind_colour_map_name, non_wind_colour_map_name, add_titles,
+        colour_bar_length, figure_resolution_dpi, output_dir_name):
+    """Plots one or more examples.
+
+    :param example_dict: Dictionary returned by
+        `learning_examples_io.read_file`.
+    :param plot_wind_as_barbs: See documentation at top of file.
+    :param wind_barb_colour: Same.
+    :param wind_colour_map_name: Same.
+    :param non_wind_colour_map_name: Same.
+    :param add_titles: Same.
+    :param colour_bar_length: Same.
+    :param figure_resolution_dpi: Same.
+    :param output_dir_name: Same.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
+    non_wind_colour_map_object = pyplot.cm.get_cmap(non_wind_colour_map_name)
+    if plot_wind_as_barbs:
+        wind_colour_map_object = None
+    else:
+        wind_colour_map_object = pyplot.cm.get_cmap(wind_colour_map_name)
+
+    normalization_type_string = example_dict[examples_io.NORMALIZATION_TYPE_KEY]
+    normalization_dict = {
+        ml_utils.MIN_VALUE_MATRIX_KEY: None,
+        ml_utils.MAX_VALUE_MATRIX_KEY: None,
+        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
+        ml_utils.STDEV_MATRIX_KEY: None
+    }
+
+    if normalization_type_string == ml_utils.Z_SCORE_STRING:
+        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
+            examples_io.FIRST_NORM_PARAM_KEY]
+
+        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
+            examples_io.SECOND_NORM_PARAM_KEY]
+    else:
+        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
+            examples_io.FIRST_NORM_PARAM_KEY]
+
+        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
+            examples_io.SECOND_NORM_PARAM_KEY]
+
+    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
+        ml_utils.denormalize_predictors(
+            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
+            normalization_dict=normalization_dict)
     )
 
-    output_file_name = '{0:s}/{1:s}.jpg'.format(
-        output_dir_name, example_id_string)
+    example_id_strings = examples_io.create_example_ids(
+        valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
+        row_indices=example_dict[examples_io.ROW_INDICES_KEY],
+        column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
+    )
 
-    print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI,
-                   pad_inches=0, bbox_inches='tight')
-    pyplot.close(figure_object)
+    num_examples = len(example_dict[examples_io.VALID_TIMES_KEY])
+    narr_cosine_matrix = None
+    narr_sine_matrix = None
 
-    return narr_cosine_matrix, narr_sine_matrix
+    for i in range(num_examples):
+        this_dict = plot_one_example(
+            example_dict=example_dict, example_index=i,
+            plot_wind_as_barbs=plot_wind_as_barbs,
+            non_wind_colour_map_object=non_wind_colour_map_object,
+            add_titles=add_titles, colour_bar_length=colour_bar_length,
+            wind_barb_colour=wind_barb_colour,
+            wind_colour_map_object=wind_colour_map_object,
+            narr_cosine_matrix=narr_cosine_matrix,
+            narr_sine_matrix=narr_sine_matrix)
+
+        if narr_cosine_matrix is None:
+            narr_cosine_matrix = this_dict[NARR_COSINES_KEY]
+            narr_sine_matrix = this_dict[NARR_SINES_KEY]
+
+        this_figure_object = this_dict[FIGURE_OBJECT_KEY]
+        this_file_name = '{0:s}/{1:s}.jpg'.format(
+            output_dir_name, example_id_strings[i]
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
+        pyplot.savefig(this_file_name, dpi=figure_resolution_dpi,
+                       pad_inches=0, bbox_inches='tight')
+        pyplot.close(this_figure_object)
 
 
 def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
          wind_barb_colour, wind_colour_map_name, non_wind_colour_map_name,
-         output_dir_name):
+         add_titles, colour_bar_length, figure_resolution_dpi, output_dir_name):
     """Plots one or more examples.
 
     :param example_file_name: See documentation at top of file.
@@ -572,14 +696,11 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
     :param wind_barb_colour: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
+    :param add_titles: Same.
+    :param colour_bar_length: Same.
+    :param figure_resolution_dpi: Same.
     :param output_dir_name: Same.
     """
-
-    non_wind_colour_map_object = pyplot.cm.get_cmap(non_wind_colour_map_name)
-    if plot_wind_as_barbs:
-        wind_colour_map_object = None
-    else:
-        wind_colour_map_object = pyplot.cm.get_cmap(wind_colour_map_name)
 
     # Read model and metadata.
     print('Reading model from: "{0:s}"...'.format(model_file_name))
@@ -614,51 +735,16 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
         example_dict = examples_io.subset_examples(
             example_dict=example_dict, desired_indices=desired_indices)
 
-    # Denormalize predictors.
-    print('Denormalizing predictors...')
+    print(SEPARATOR_STRING)
 
-    # TODO(thunderhoser): All this nonsense should be in a separate method.
-    normalization_type_string = example_dict[examples_io.NORMALIZATION_TYPE_KEY]
-
-    normalization_dict = {
-        ml_utils.MIN_VALUE_MATRIX_KEY: None,
-        ml_utils.MAX_VALUE_MATRIX_KEY: None,
-        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
-        ml_utils.STDEV_MATRIX_KEY: None
-    }
-
-    if normalization_type_string == ml_utils.Z_SCORE_STRING:
-        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-    else:
-        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-
-    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
-        ml_utils.denormalize_predictors(
-            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
-            normalization_dict=normalization_dict)
-    )
-
-    num_examples = len(example_dict[examples_io.VALID_TIMES_KEY])
-    narr_cosine_matrix = None
-    narr_sine_matrix = None
-
-    for i in range(num_examples):
-        narr_cosine_matrix, narr_sine_matrix = plot_one_example(
-            example_dict=example_dict, example_index=i,
-            plot_wind_as_barbs=plot_wind_as_barbs,
-            non_wind_colour_map_object=non_wind_colour_map_object,
-            output_dir_name=output_dir_name, wind_barb_colour=wind_barb_colour,
-            wind_colour_map_object=wind_colour_map_object,
-            narr_cosine_matrix=narr_cosine_matrix,
-            narr_sine_matrix=narr_sine_matrix)
+    plot_examples(
+        example_dict=example_dict, plot_wind_as_barbs=plot_wind_as_barbs,
+        wind_barb_colour=wind_barb_colour,
+        wind_colour_map_name=wind_colour_map_name,
+        non_wind_colour_map_name=non_wind_colour_map_name,
+        add_titles=add_titles, colour_bar_length=colour_bar_length,
+        figure_resolution_dpi=figure_resolution_dpi,
+        output_dir_name=output_dir_name)
 
 
 if __name__ == '__main__':
@@ -675,5 +761,8 @@ if __name__ == '__main__':
         wind_colour_map_name=getattr(INPUT_ARG_OBJECT, WIND_CMAP_ARG_NAME),
         non_wind_colour_map_name=getattr(
             INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME),
+        add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
+        colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
+        figure_resolution_dpi=getattr(INPUT_ARG_OBJECT, RESOLUTION_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
