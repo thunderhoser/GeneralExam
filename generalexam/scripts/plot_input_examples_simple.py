@@ -403,7 +403,7 @@ def plot_one_example(
         num_predictors -
         2 * num_unique_pressure_levels * int(plot_wind_as_barbs)
     )
-    num_panel_rows = int(numpy.floor(
+    num_panel_rows = int(numpy.round(
         numpy.sqrt(num_panels_desired)
     ))
     num_panel_columns = int(numpy.ceil(
