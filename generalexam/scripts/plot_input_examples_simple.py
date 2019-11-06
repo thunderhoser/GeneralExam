@@ -471,29 +471,23 @@ def plot_one_example(
                 predictor_matrix[..., same_field_indices], MAX_COLOUR_PERCENTILE
             )
 
-        basemap_object.pcolormesh(
-            numpy.array([0, 1, 2]), numpy.array([0, 1, 2]),
-            predictor_matrix[:3, :3, k], cmap=this_colour_map_object,
-            vmin=this_min_value, vmax=this_max_value, shading='flat',
-            edgecolors='None', ax=this_axes_object, zorder=-1e12, alpha=1.)
+        nwp_plotting.plot_subgrid(
+            field_matrix=predictor_matrix[..., k],
+            model_name=nwp_model_utils.NARR_MODEL_NAME,
+            grid_id=nwp_model_utils.NAME_OF_221GRID,
+            axes_object=this_axes_object, basemap_object=basemap_object,
+            colour_map_object=this_colour_map_object,
+            min_colour_value=this_min_value, max_colour_value=this_max_value,
+            first_row_in_full_grid=first_narr_row,
+            first_column_in_full_grid=first_narr_column)
 
-        # nwp_plotting.plot_subgrid(
-        #     field_matrix=predictor_matrix[..., k],
-        #     model_name=nwp_model_utils.NARR_MODEL_NAME,
-        #     grid_id=nwp_model_utils.NAME_OF_221GRID,
-        #     axes_object=this_axes_object, basemap_object=basemap_object,
-        #     colour_map_object=this_colour_map_object,
-        #     min_colour_value=this_min_value, max_colour_value=this_max_value,
-        #     first_row_in_full_grid=first_narr_row,
-        #     first_column_in_full_grid=first_narr_column)
-        # 
-        # plotting_utils.plot_linear_colour_bar(
-        #     axes_object_or_matrix=this_axes_object,
-        #     data_matrix=predictor_matrix[..., k],
-        #     colour_map_object=this_colour_map_object,
-        #     min_value=this_min_value, max_value=this_max_value,
-        #     orientation_string='horizontal', extend_min=True, extend_max=True,
-        #     fraction_of_axis_length=0.8)
+        plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=this_axes_object,
+            data_matrix=predictor_matrix[..., k],
+            colour_map_object=this_colour_map_object,
+            min_value=this_min_value, max_value=this_max_value,
+            orientation_string='horizontal', extend_min=True, extend_max=True,
+            fraction_of_axis_length=0.8)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
