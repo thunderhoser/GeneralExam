@@ -559,8 +559,8 @@ def plot_one_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
-    for k in range(panel_index + 1, len(axes_objects)):
-        axes_objects[k].axis('off')
+    # for k in range(panel_index + 1, len(axes_objects)):
+    #     axes_objects[k].axis('off')
 
     example_id_string = examples_io.create_example_id(
         valid_time_unix_sec=
