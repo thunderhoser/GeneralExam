@@ -425,6 +425,9 @@ def plot_one_example(
             continue
 
         panel_index += 1
+        print(len(axes_objects))
+        print(panel_index)
+
         this_axes_object = axes_objects[panel_index]
         this_basemap_object = copy.deepcopy(basemap_object)
 
