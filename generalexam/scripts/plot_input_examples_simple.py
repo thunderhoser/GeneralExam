@@ -452,14 +452,14 @@ def plot_one_example(
         )[0]
 
         if predictor_names[k] in WIND_NAMES:
-            this_colour_map_object = wind_colour_map_object
+            this_colour_map_object = copy.deepcopy(wind_colour_map_object)
             this_max_value = numpy.percentile(
                 numpy.absolute(predictor_matrix[..., same_field_indices]),
                 MAX_COLOUR_PERCENTILE
             )
             this_min_value = -1 * this_max_value
         else:
-            this_colour_map_object = non_wind_colour_map_object
+            this_colour_map_object = copy.deepcopy(non_wind_colour_map_object)
             this_min_value = numpy.percentile(
                 predictor_matrix[..., same_field_indices],
                 100. - MAX_COLOUR_PERCENTILE
