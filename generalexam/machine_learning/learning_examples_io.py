@@ -45,11 +45,20 @@ TARGET_MATRIX_KEY = 'target_matrix'
 VALID_TIMES_KEY = 'target_times_unix_sec'
 ROW_INDICES_KEY = 'row_indices'
 COLUMN_INDICES_KEY = 'column_indices'
-NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 PREDICTOR_NAMES_KEY = 'narr_predictor_names'
 PRESSURE_LEVELS_KEY = 'pressure_levels_mb'
 DILATION_DISTANCE_KEY = 'dilation_distance_metres'
 MASK_MATRIX_KEY = 'narr_mask_matrix'
+NORMALIZATION_TYPE_KEY = 'normalization_type_string'
+FIRST_NORM_PARAM_KEY = 'first_normalization_param_matrix'
+SECOND_NORM_PARAM_KEY = 'second_normalization_param_matrix'
+
+REQUIRED_KEYS = [
+    PREDICTOR_MATRIX_KEY, TARGET_MATRIX_KEY, VALID_TIMES_KEY,
+    ROW_INDICES_KEY, COLUMN_INDICES_KEY, PREDICTOR_NAMES_KEY,
+    PRESSURE_LEVELS_KEY, DILATION_DISTANCE_KEY, MASK_MATRIX_KEY,
+    NORMALIZATION_TYPE_KEY, FIRST_NORM_PARAM_KEY, SECOND_NORM_PARAM_KEY
+]
 
 NARR_ROW_DIMENSION_KEY = 'narr_row'
 NARR_COLUMN_DIMENSION_KEY = 'narr_column'
@@ -59,9 +68,6 @@ EXAMPLE_COLUMN_DIMENSION_KEY = 'example_column'
 PREDICTOR_DIMENSION_KEY = 'predictor_variable'
 CHARACTER_DIMENSION_KEY = 'predictor_variable_char'
 CLASS_DIMENSION_KEY = 'class'
-
-FIRST_NORM_PARAM_KEY = 'first_normalization_param_matrix'
-SECOND_NORM_PARAM_KEY = 'second_normalization_param_matrix'
 
 MAIN_KEYS = [
     PREDICTOR_MATRIX_KEY, TARGET_MATRIX_KEY, VALID_TIMES_KEY, ROW_INDICES_KEY,
@@ -347,6 +353,109 @@ def create_examples(
         })
 
     return example_dict
+
+
+def subset_examples(example_dict, desired_indices):
+    """Subsets examples.
+
+    :param example_dict: Dictionary created by `create_examples`.
+    :param desired_indices: 1-D numpy array with indices of desired examples.
+    :return: small_example_dict: Same as input but maybe with fewer examples.
+    :raises: ValueError: if dictionary is missing any expected keys.
+    """
+
+    error_checking.assert_is_integer_numpy_array(desired_indices)
+    error_checking.assert_is_numpy_array(desired_indices, num_dimensions=1)
+
+    missing_keys = list(
+        set(REQUIRED_KEYS) - set(example_dict.keys())
+    )
+
+    if len(missing_keys) > 0:
+        error_string = (
+            '\n{0:s}\nKeys listed above were expected, but not found, in '
+            'dictionary.'
+        ).format(str(missing_keys))
+
+        raise ValueError(error_string)
+
+    small_example_dict = dict()
+
+    for this_key in example_dict:
+        if this_key not in MAIN_KEYS:
+            small_example_dict[this_key] = example_dict[this_key]
+            continue
+
+        if isinstance(example_dict[this_key], list):
+            small_example_dict[this_key] = [
+                example_dict[this_key][k] for k in desired_indices
+            ]
+        elif isinstance(example_dict[this_key], numpy.ndarray):
+            small_example_dict[this_key] = example_dict[this_key][
+                desired_indices, ...]
+        else:
+            small_example_dict[this_key] = example_dict[this_key]
+
+    return small_example_dict
+
+
+def create_example_id(valid_time_unix_sec, row_index, column_index,
+                      check_args=True):
+    """Creates ID for one example.
+
+    :param valid_time_unix_sec: Valid time.
+    :param row_index: Row in full grid.
+    :param column_index: Column in full grid.
+    :param check_args: Boolean flag.  If True, input arguments will be checked.
+    :return: id_string: Example ID.
+    """
+
+    error_checking.assert_is_boolean(check_args)
+
+    if check_args:
+        error_checking.assert_is_integer(valid_time_unix_sec)
+        error_checking.assert_is_integer(row_index)
+        error_checking.assert_is_geq(row_index, 0)
+        error_checking.assert_is_integer(column_index)
+        error_checking.assert_is_geq(column_index, 0)
+
+    return 'time{0:010d}_row{1:03d}_column{2:03d}'.format(
+        valid_time_unix_sec, row_index, column_index)
+
+
+def create_example_ids(valid_times_unix_sec, row_indices, column_indices):
+    """Creates ID for each example.
+
+    E = number of examples
+
+    :param valid_times_unix_sec: length-E numpy array of valid times.
+    :param row_indices: length-E numpy array of row indices in full grid.
+    :param column_indices: length-E numpy array of column indices in full grid.
+    :return: id_strings: length-E list of example IDs.
+    """
+
+    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
+    error_checking.assert_is_numpy_array(valid_times_unix_sec, num_dimensions=1)
+
+    num_examples = len(valid_times_unix_sec)
+    expected_dim = numpy.array([num_examples], dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(row_indices)
+    error_checking.assert_is_geq_numpy_array(row_indices, 0)
+    error_checking.assert_is_numpy_array(
+        row_indices, exact_dimensions=expected_dim)
+
+    error_checking.assert_is_integer_numpy_array(column_indices)
+    error_checking.assert_is_geq_numpy_array(column_indices, 0)
+    error_checking.assert_is_numpy_array(
+        column_indices, exact_dimensions=expected_dim)
+
+    return [
+        create_example_id(
+            valid_time_unix_sec=t, row_index=r, column_index=c, check_args=False
+        )
+        for t, r, c in zip(valid_times_unix_sec, row_indices, column_indices)
+    ]
 
 
 def find_file(
