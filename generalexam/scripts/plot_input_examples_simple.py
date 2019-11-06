@@ -471,6 +471,12 @@ def plot_one_example(
                 predictor_matrix[..., same_field_indices], MAX_COLOUR_PERCENTILE
             )
 
+        basemap_object.pcolormesh(
+            numpy.array([0, 1, 2]), numpy.array([0, 1, 2]),
+            predictor_matrix[:3, :3, k], cmap=this_colour_map_object,
+            vmin=this_min_value, vmax=this_max_value, shading='flat',
+            edgecolors='None', axes=this_axes_object, zorder=-1e12, alpha=1.)
+
         # nwp_plotting.plot_subgrid(
         #     field_matrix=predictor_matrix[..., k],
         #     model_name=nwp_model_utils.NARR_MODEL_NAME,
