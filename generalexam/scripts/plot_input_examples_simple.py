@@ -372,30 +372,15 @@ def plot_one_example(
     first_narr_column = metadata_dict[FIRST_NARR_COLUMN_KEY]
     last_narr_column = metadata_dict[LAST_NARR_COLUMN_KEY]
 
-    # basemap_object = nwp_plotting.init_basemap(
-    #     model_name=nwp_model_utils.NARR_MODEL_NAME,
-    #     grid_id=nwp_model_utils.NAME_OF_221GRID,
-    #     first_row_in_full_grid=first_narr_row,
-    #     last_row_in_full_grid=last_narr_row,
-    #     first_column_in_full_grid=first_narr_column,
-    #     last_column_in_full_grid=last_narr_column,
-    #     resolution_string='i'
-    # )[-1]
-
-    coordinate_dict = nwp_plotting._get_grid_point_coords(
+    basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID,
         first_row_in_full_grid=first_narr_row,
         last_row_in_full_grid=last_narr_row,
         first_column_in_full_grid=first_narr_column,
-        last_column_in_full_grid=last_narr_column)
-
-    grid_point_x_matrix_metres = coordinate_dict[nwp_plotting.X_COORD_MATRIX_KEY]
-    grid_point_y_matrix_metres = coordinate_dict[nwp_plotting.Y_COORD_MATRIX_KEY]
-
-    standard_latitudes_deg, central_longitude_deg = (
-        nwp_model_utils.get_projection_params(nwp_model_utils.NARR_MODEL_NAME)
-    )
+        last_column_in_full_grid=last_narr_column,
+        resolution_string='i'
+    )[-1]
 
     plot_wind = metadata_dict[PLOT_WIND_KEY]
     plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
@@ -448,34 +433,21 @@ def plot_one_example(
 
         this_axes_object = axes_objects[panel_index]
 
-        this_basemap_object = Basemap(
-            projection='lcc', lat_1=standard_latitudes_deg[0],
-            lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
-            rsphere=projections.DEFAULT_EARTH_RADIUS_METRES,
-            ellps='sphere', resolution='i',
-            llcrnrx=grid_point_x_matrix_metres[0, 0],
-            llcrnry=grid_point_y_matrix_metres[0, 0],
-            urcrnrx=grid_point_x_matrix_metres[-1, -1],
-            urcrnry=grid_point_y_matrix_metres[-1, -1]
-        )
-
         plotting_utils.plot_coastlines(
-            basemap_object=this_basemap_object, axes_object=this_axes_object,
+            basemap_object=basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_countries(
-            basemap_object=this_basemap_object, axes_object=this_axes_object,
+            basemap_object=basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
         plotting_utils.plot_states_and_provinces(
-            basemap_object=this_basemap_object, axes_object=this_axes_object,
+            basemap_object=basemap_object, axes_object=this_axes_object,
             line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH / 2)
         plotting_utils.plot_parallels(
-            basemap_object=this_basemap_object, axes_object=this_axes_object,
+            basemap_object=basemap_object, axes_object=this_axes_object,
             num_parallels=NUM_PARALLELS)
         plotting_utils.plot_meridians(
-            basemap_object=this_basemap_object, axes_object=this_axes_object,
+            basemap_object=basemap_object, axes_object=this_axes_object,
             num_meridians=NUM_MERIDIANS)
-
-        break
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
@@ -498,23 +470,23 @@ def plot_one_example(
                 predictor_matrix[..., same_field_indices], MAX_COLOUR_PERCENTILE
             )
 
-        nwp_plotting.plot_subgrid(
-            field_matrix=predictor_matrix[..., k],
-            model_name=nwp_model_utils.NARR_MODEL_NAME,
-            grid_id=nwp_model_utils.NAME_OF_221GRID,
-            axes_object=this_axes_object, basemap_object=this_basemap_object,
-            colour_map_object=this_colour_map_object,
-            min_colour_value=this_min_value, max_colour_value=this_max_value,
-            first_row_in_full_grid=first_narr_row,
-            first_column_in_full_grid=first_narr_column)
-
-        plotting_utils.plot_linear_colour_bar(
-            axes_object_or_matrix=this_axes_object,
-            data_matrix=predictor_matrix[..., k],
-            colour_map_object=this_colour_map_object,
-            min_value=this_min_value, max_value=this_max_value,
-            orientation_string='horizontal', extend_min=True, extend_max=True,
-            fraction_of_axis_length=0.8)
+        # nwp_plotting.plot_subgrid(
+        #     field_matrix=predictor_matrix[..., k],
+        #     model_name=nwp_model_utils.NARR_MODEL_NAME,
+        #     grid_id=nwp_model_utils.NAME_OF_221GRID,
+        #     axes_object=this_axes_object, basemap_object=basemap_object,
+        #     colour_map_object=this_colour_map_object,
+        #     min_colour_value=this_min_value, max_colour_value=this_max_value,
+        #     first_row_in_full_grid=first_narr_row,
+        #     first_column_in_full_grid=first_narr_column)
+        # 
+        # plotting_utils.plot_linear_colour_bar(
+        #     axes_object_or_matrix=this_axes_object,
+        #     data_matrix=predictor_matrix[..., k],
+        #     colour_map_object=this_colour_map_object,
+        #     min_value=this_min_value, max_value=this_max_value,
+        #     orientation_string='horizontal', extend_min=True, extend_max=True,
+        #     fraction_of_axis_length=0.8)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -559,8 +531,8 @@ def plot_one_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
-    # for k in range(panel_index + 1, len(axes_objects)):
-    #     axes_objects[k].axis('off')
+    for k in range(panel_index + 1, len(axes_objects)):
+        axes_objects[k].axis('off')
 
     example_id_string = examples_io.create_example_id(
         valid_time_unix_sec=
