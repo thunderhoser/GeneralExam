@@ -531,6 +531,8 @@ def plot_one_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
+    print(panel_index_linear)
+    print('\n\n*******\n\n')
     for k in range(panel_index_linear + 1, num_panels):
         this_panel_row, this_panel_column = numpy.unravel_index(
             panel_index_linear, axes_object_matrix.shape)
