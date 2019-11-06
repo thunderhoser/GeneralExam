@@ -34,10 +34,10 @@ PREDICTOR_NAME_TO_FANCY = {
     predictor_utils.HEIGHT_NAME: 'Height (m)',
     predictor_utils.PRESSURE_NAME: 'Pressure (mb)',
     predictor_utils.DEWPOINT_NAME: r'Dewpoint ($^{\circ}$C)',
-    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Spec humidity (g kg$^{-1}$)',
+    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Humidity (g kg$^{-1}$)',
     predictor_utils.U_WIND_GRID_RELATIVE_NAME: r'$u$-wind (m s$^{-1}$)',
     predictor_utils.V_WIND_GRID_RELATIVE_NAME: r'$v$-wind (m s$^{-1}$)',
-    predictor_utils.WET_BULB_THETA_NAME: r'Wet-bulb theta ($^{\circ}$C)'
+    predictor_utils.WET_BULB_THETA_NAME: r'$\theta_w$ ($^{\circ}$C)'
 }
 
 PREDICTOR_NAME_TO_CONV_FACTOR = {
@@ -509,7 +509,6 @@ def plot_one_example(
         cbar_padding = None
     else:
         cbar_orientation_string = 'horizontal'
-        cbar_padding = 0.05
 
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
@@ -548,6 +547,9 @@ def plot_one_example(
             plotting_utils.plot_meridians(
                 basemap_object=basemap_object, axes_object=this_axes_object,
                 num_meridians=NUM_MERIDIANS, font_size=main_font_size)
+
+        if cbar_orientation_string == 'horizontal':
+            cbar_padding = 0.05 if i == num_panel_rows - 1 else None
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
