@@ -1,14 +1,11 @@
 """Plots one or more examples."""
 
-import copy
 import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
-from mpl_toolkits.basemap import Basemap
-from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -52,7 +49,7 @@ WIND_NAMES = [
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
-TITLE_FONT_SIZE = 25
+FONT_SIZE = 25
 MAX_COLOUR_PERCENTILE = 99.
 DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 0.)
 
@@ -60,8 +57,9 @@ WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
 
 NUM_PARALLELS = 8
-NUM_MERIDIANS = 4
-BORDER_WIDTH = 2
+NUM_MERIDIANS = 6
+LARGE_BORDER_WIDTH = 2
+SMALL_BORDER_WIDTH = 1
 BORDER_COLOUR = numpy.full(3, 152. / 255)
 FIGURE_RESOLUTION_DPI = 300
 
@@ -433,23 +431,23 @@ def plot_one_example(
 
         plotting_utils.plot_coastlines(
             basemap_object=basemap_object, axes_object=this_axes_object,
-            line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
+            line_colour=BORDER_COLOUR, line_width=LARGE_BORDER_WIDTH)
         plotting_utils.plot_countries(
             basemap_object=basemap_object, axes_object=this_axes_object,
-            line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH)
+            line_colour=BORDER_COLOUR, line_width=LARGE_BORDER_WIDTH)
         plotting_utils.plot_states_and_provinces(
             basemap_object=basemap_object, axes_object=this_axes_object,
-            line_colour=BORDER_COLOUR, line_width=BORDER_WIDTH / 2)
+            line_colour=BORDER_COLOUR, line_width=SMALL_BORDER_WIDTH)
 
         if this_panel_column == 0:
             plotting_utils.plot_parallels(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_parallels=NUM_PARALLELS, z_order=-1e20)
+                num_parallels=NUM_PARALLELS, font_size=FONT_SIZE, z_order=-1e20)
 
         if this_panel_row == num_panel_rows - 1:
             plotting_utils.plot_meridians(
                 basemap_object=basemap_object, axes_object=this_axes_object,
-                num_meridians=NUM_MERIDIANS, z_order=-1e20)
+                num_meridians=NUM_MERIDIANS, font_size=FONT_SIZE, z_order=-1e20)
 
         same_field_indices = numpy.where(
             predictor_names == predictor_names[k]
@@ -487,7 +485,7 @@ def plot_one_example(
             data_matrix=predictor_matrix[..., k],
             colour_map_object=this_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string='vertical',
+            orientation_string='vertical', font_size=FONT_SIZE,
             extend_min=True, extend_max=True, fraction_of_axis_length=0.8)
 
         these_tick_values = this_colour_bar_object.ax.get_xticks()
@@ -504,8 +502,7 @@ def plot_one_example(
             this_fancy_name[0].lower(), this_fancy_name[1:]
         )
 
-        # TODO(thunderhoser): Make font size an option?
-        this_axes_object.set_title(this_title_string, fontsize=TITLE_FONT_SIZE)
+        this_axes_object.set_title(this_title_string, fontsize=FONT_SIZE)
 
         if not plot_wind_as_barbs:
             continue
