@@ -59,7 +59,7 @@ WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
 
 NUM_PARALLELS = 8
-NUM_MERIDIANS = 6
+NUM_MERIDIANS = 4
 BORDER_WIDTH = 2
 BORDER_COLOUR = numpy.full(3, 0.)
 FIGURE_RESOLUTION_DPI = 300
@@ -128,7 +128,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_BARB_COLOUR_ARG_NAME, type=int, nargs=3, required=False,
-    default=DEFAULT_WIND_BARB_COLOUR, help=WIND_BARB_COLOUR_HELP_STRING)
+    default=DEFAULT_WIND_BARB_COLOUR * 255, help=WIND_BARB_COLOUR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_CMAP_ARG_NAME, type=str, required=False, default='seismic',
@@ -386,8 +386,6 @@ def plot_one_example(
     plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
 
     if plot_wind_as_barbs:
-        print(wind_barb_colour)
-        print('\n\n\n*******\n\n\n')
         wind_barb_cmap_object = matplotlib.colors.ListedColormap(
             [wind_barb_colour]
         )
@@ -416,6 +414,7 @@ def plot_one_example(
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
+        horizontal_spacing=0.15, vertical_spacing=0.15,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     axes_objects = numpy.ravel(axes_object_matrix, order='C')
