@@ -182,14 +182,11 @@ def _plot_saliency_one_example(
         fraction_of_axis_length=1., padding=0.1,
         extend_min=False, extend_max=True, font_size=colour_bar_font_size)
 
-    if orientation_string == 'horizontal':
-        tick_values = colour_bar_object.ax.get_xticks()
-        colour_bar_object.ax.set_xticks(tick_values)
-        colour_bar_object.ax.set_xticklabels(tick_values)
-    else:
-        tick_values = colour_bar_object.ax.get_yticks()
-        colour_bar_object.ax.set_yticks(tick_values)
-        colour_bar_object.ax.set_yticklabels(tick_values)
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
