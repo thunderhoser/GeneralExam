@@ -187,6 +187,7 @@ def _plot_saliency_one_example(
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
+    pyplot.tight_layout()
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
