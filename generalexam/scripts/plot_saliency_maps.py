@@ -174,13 +174,17 @@ def _plot_saliency_one_example(
     else:
         orientation_string = 'vertical'
 
-    plotting_utils.plot_linear_colour_bar(
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_matrix[-1, ...],
         data_matrix=saliency_matrix,
         colour_map_object=colour_map_object, min_value=0.,
         max_value=max_saliency, orientation_string=orientation_string,
-        fraction_of_axis_length=colour_bar_length,
+        fraction_of_axis_length=1., padding=0.05,
         extend_min=False, extend_max=True, font_size=colour_bar_font_size)
+
+    tick_values = colour_bar_object.get_ticks()
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_values)
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,

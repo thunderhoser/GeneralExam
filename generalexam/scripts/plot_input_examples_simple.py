@@ -518,16 +518,6 @@ def plot_real_example(
         horizontal_spacing=0.1, vertical_spacing=0.1,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
-    # figure_object = pyplot.figure(figsize=(15, 15))
-    # grid_object = AxesGrid(
-    #     figure_object, 111, nrows_ncols=(num_panel_rows, num_panel_columns),
-    #     axes_pad=0.1, cbar_mode='single', cbar_location='bottom', cbar_pad=0.1
-    # )
-    #
-    # axes_object_matrix = numpy.reshape(
-    #     grid_object.axes_all, (num_panel_rows, num_panel_columns)
-    # )
-
     panel_index_linear = -1
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][
         example_index, ...]
@@ -603,9 +593,14 @@ def plot_real_example(
             font_size=colour_bar_font_size, extend_min=True, extend_max=True,
             fraction_of_axis_length=colour_bar_length)
 
-        these_tick_values = this_colour_bar_object.ax.get_xticks()
-        this_colour_bar_object.ax.set_xticks(these_tick_values)
-        this_colour_bar_object.ax.set_xticklabels(these_tick_values)
+        if cbar_orientation_string == 'horizontal':
+            these_tick_values = this_colour_bar_object.ax.get_xticks()
+            this_colour_bar_object.ax.set_xticks(these_tick_values)
+            this_colour_bar_object.ax.set_xticklabels(these_tick_values)
+        else:
+            these_tick_values = this_colour_bar_object.ax.get_yticks()
+            this_colour_bar_object.ax.set_yticks(these_tick_values)
+            this_colour_bar_object.ax.set_yticklabels(these_tick_values)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -799,9 +794,14 @@ def plot_composite_example(
             font_size=colour_bar_font_size, extend_min=True, extend_max=True,
             fraction_of_axis_length=colour_bar_length)
 
-        these_tick_values = this_colour_bar_object.ax.get_xticks()
-        this_colour_bar_object.ax.set_xticks(these_tick_values)
-        this_colour_bar_object.ax.set_xticklabels(these_tick_values)
+        if cbar_orientation_string == 'horizontal':
+            these_tick_values = this_colour_bar_object.ax.get_xticks()
+            this_colour_bar_object.ax.set_xticks(these_tick_values)
+            this_colour_bar_object.ax.set_xticklabels(these_tick_values)
+        else:
+            these_tick_values = this_colour_bar_object.ax.get_yticks()
+            this_colour_bar_object.ax.set_yticks(these_tick_values)
+            this_colour_bar_object.ax.set_yticklabels(these_tick_values)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
