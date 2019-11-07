@@ -166,7 +166,7 @@ def _plot_saliency_one_example(
         contour_interval=max_saliency / half_num_contours,
         row_major=True)
 
-    num_panel_rows = axes_object_matrix.shape[0]
+    num_panel_rows = axes_object_matrix.shape[0] - 1
     num_panel_columns = axes_object_matrix.shape[1]
 
     if num_panel_rows >= num_panel_columns:
@@ -174,13 +174,13 @@ def _plot_saliency_one_example(
     else:
         orientation_string = 'vertical'
 
-    # plotting_utils.plot_linear_colour_bar(
-    #     axes_object_or_matrix=axes_object_matrix,
-    #     data_matrix=saliency_matrix,
-    #     colour_map_object=colour_map_object, min_value=0.,
-    #     max_value=max_saliency, orientation_string=orientation_string,
-    #     fraction_of_axis_length=colour_bar_length,
-    #     extend_min=False, extend_max=True, font_size=colour_bar_font_size)
+    plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrix[-1, ...],
+        data_matrix=saliency_matrix,
+        colour_map_object=colour_map_object, min_value=0.,
+        max_value=max_saliency, orientation_string=orientation_string,
+        fraction_of_axis_length=colour_bar_length,
+        extend_min=False, extend_max=True, font_size=colour_bar_font_size)
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
