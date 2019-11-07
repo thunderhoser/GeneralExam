@@ -155,6 +155,9 @@ def _plot_saliency_one_example(
         examples, leave this as None.
     """
 
+    print(numpy.min(saliency_matrix))
+    print(numpy.max(saliency_matrix))
+
     saliency_plotting.plot_many_2d_grids_with_contours(
         saliency_matrix_3d=saliency_matrix,
         axes_object_matrix=axes_object_matrix,
@@ -167,9 +170,9 @@ def _plot_saliency_one_example(
     num_panel_columns = axes_object_matrix.shape[1]
 
     if num_panel_rows >= num_panel_columns:
-        orientation_string = 'vertical'
-    else:
         orientation_string = 'horizontal'
+    else:
+        orientation_string = 'vertical'
 
     plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_matrix,
