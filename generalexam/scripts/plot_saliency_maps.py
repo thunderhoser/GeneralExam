@@ -166,7 +166,7 @@ def _plot_saliency_one_example(
         contour_interval=max_saliency / half_num_contours,
         row_major=True)
 
-    num_panel_rows = axes_object_matrix.shape[0] - 1
+    num_panel_rows = axes_object_matrix.shape[0]
     num_panel_columns = axes_object_matrix.shape[1]
 
     if num_panel_rows >= num_panel_columns:

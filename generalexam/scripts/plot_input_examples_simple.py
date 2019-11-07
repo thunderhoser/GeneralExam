@@ -514,7 +514,7 @@ def plot_real_example(
 
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=num_panel_rows + 1, num_columns=num_panel_columns,
+        num_rows=num_panel_rows, num_columns=num_panel_columns,
         horizontal_spacing=0.1, vertical_spacing=0.1,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
@@ -648,7 +648,7 @@ def plot_real_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
-    while panel_index_linear < axes_object_matrix.size - 1:
+    while panel_index_linear < num_panels - 1:
         panel_index_linear += 1
         i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
         axes_object_matrix[i, j].axis('off')
