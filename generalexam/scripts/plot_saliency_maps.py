@@ -209,8 +209,7 @@ def _plot_saliency_one_example(
         'pmm' if example_id_string is None else example_id_string
     )
 
-    extra_figure_object.savefig(extra_file_name, dpi=figure_resolution_dpi,
-                                pad_inches=0, bbox_inches='tight')
+    extra_figure_object.savefig(extra_file_name, dpi=figure_resolution_dpi)
     pyplot.close(extra_figure_object)
 
     if orientation_string == 'horizontal':
@@ -223,9 +222,9 @@ def _plot_saliency_one_example(
     imagemagick_utils.concatenate_images(
         input_file_names=[output_file_name, extra_file_name],
         output_file_name=output_file_name, num_panel_rows=num_rows,
-        num_panel_columns=num_columns, extra_args_string='-gravity center')
+        num_panel_columns=num_columns, extra_args_string='-gravity Center')
 
-    os.remove(extra_file_name)
+    # os.remove(extra_file_name)
 
     imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
                                       output_file_name=output_file_name)
