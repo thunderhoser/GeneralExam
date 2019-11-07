@@ -169,22 +169,18 @@ def _plot_saliency_one_example(
     num_panel_rows = axes_object_matrix.shape[0]
     num_panel_columns = axes_object_matrix.shape[1]
 
-    first_axes = figure_object.add_subplot(num_panel_rows + 1, num_panel_columns, num_panel_rows * num_panel_columns + 1)
-    second_axes = figure_object.add_subplot(num_panel_rows + 1, num_panel_columns, num_panel_rows * num_panel_columns + 2)
-    third_axes = figure_object.add_subplot(num_panel_rows + 1, num_panel_columns, num_panel_rows * num_panel_columns + 3)
-
     if num_panel_rows >= num_panel_columns:
         orientation_string = 'horizontal'
     else:
         orientation_string = 'vertical'
 
-    plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=numpy.array([first_axes, second_axes, third_axes]),
-        data_matrix=saliency_matrix,
-        colour_map_object=colour_map_object, min_value=0.,
-        max_value=max_saliency, orientation_string=orientation_string,
-        fraction_of_axis_length=colour_bar_length,
-        extend_min=False, extend_max=True, font_size=colour_bar_font_size)
+    # plotting_utils.plot_linear_colour_bar(
+    #     axes_object_or_matrix=axes_object_matrix,
+    #     data_matrix=saliency_matrix,
+    #     colour_map_object=colour_map_object, min_value=0.,
+    #     max_value=max_saliency, orientation_string=orientation_string,
+    #     fraction_of_axis_length=colour_bar_length,
+    #     extend_min=False, extend_max=True, font_size=colour_bar_font_size)
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
