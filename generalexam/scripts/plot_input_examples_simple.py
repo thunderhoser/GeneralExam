@@ -648,7 +648,7 @@ def plot_real_example(
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
-    while panel_index_linear < num_panels - 1:
+    while panel_index_linear < axes_object_matrix.size - 1:
         panel_index_linear += 1
         i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
         axes_object_matrix[i, j].axis('off')
