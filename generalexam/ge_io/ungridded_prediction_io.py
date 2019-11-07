@@ -1,5 +1,6 @@
 """IO for ungridded predictions."""
 
+import glob
 import os.path
 import numpy
 import netCDF4
@@ -9,6 +10,10 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.machine_learning import evaluation_utils
 
 TIME_FORMAT = '%Y%m%d%H'
+YEAR_FORMAT_REGEX = '[0-9][0-9][0-9][0-9]'
+TIME_FORMAT_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9][0-2][0-9]'
+
+PATHLESS_FILE_NAME_PREFIX = 'ungridded_predictions'
 
 CLASS_PROBABILITIES_KEY = 'class_probability_matrix'
 OBSERVED_LABELS_KEY = 'observed_labels'
@@ -22,13 +27,28 @@ CLASS_DIMENSION_KEY = 'class'
 ID_CHAR_DIMENSION_KEY = 'example_id_char'
 
 
-def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
+def _file_name_to_time(prediction_file_name):
+    """Parses valid time from file name.
+
+    :param prediction_file_name: File path (should be determined by
+        `find_file`).
+    :return: valid_time_unix_sec: Valid time.
+    """
+
+    pathless_file_name = os.path.split(prediction_file_name)[-1]
+    extensionless_file_name = os.path.split(pathless_file_name)[0]
+
+    valid_time_string = extensionless_file_name.split('_')[-1]
+    return time_conversion.string_to_unix_sec(valid_time_string, TIME_FORMAT)
+
+
+def find_file(top_directory_name, valid_time_unix_sec,
               raise_error_if_missing=False):
     """Finds file with ungridded predictions.
 
-    :param directory_name: Name of directory.
-    :param first_time_unix_sec: First time in file.
-    :param last_time_unix_sec: Last time in file.
+    :param top_directory_name: Name of top-level directory with ungridded
+        predictions.
+    :param valid_time_unix_sec: Valid time.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :return: prediction_file_name: Path to prediction file.  If file is missing
@@ -36,20 +56,17 @@ def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
     """
 
-    error_checking.assert_is_string(directory_name)
-    error_checking.assert_is_integer(first_time_unix_sec)
-    error_checking.assert_is_integer(last_time_unix_sec)
-    error_checking.assert_is_geq(last_time_unix_sec, first_time_unix_sec)
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_integer(valid_time_unix_sec)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    year_string = time_conversion.unix_sec_to_string(first_time_unix_sec, '%Y')
+    year_string = time_conversion.unix_sec_to_string(valid_time_unix_sec, '%Y')
 
     prediction_file_name = (
-        '{0:s}/{1:s}/ungridded_predictions_{2:s}-{3:s}.nc'
+        '{0:s}/{1:s}/{2:s}_{3:s}.nc'
     ).format(
-        directory_name, year_string,
-        time_conversion.unix_sec_to_string(first_time_unix_sec, TIME_FORMAT),
-        time_conversion.unix_sec_to_string(last_time_unix_sec, TIME_FORMAT)
+        top_directory_name, year_string, PATHLESS_FILE_NAME_PREFIX,
+        time_conversion.unix_sec_to_string(valid_time_unix_sec, TIME_FORMAT)
     )
 
     if raise_error_if_missing and not os.path.isfile(prediction_file_name):
@@ -58,6 +75,57 @@ def find_file(directory_name, first_time_unix_sec, last_time_unix_sec,
         raise ValueError(error_string)
 
     return prediction_file_name
+
+
+def find_many_files(
+        top_directory_name, first_time_unix_sec, last_time_unix_sec):
+    """Finds many files with ungridded predictions.
+
+    :param top_directory_name: Name of top-level directory with ungridded
+        predictions.
+    :param first_time_unix_sec: First desired valid time.
+    :param last_time_unix_sec: Last desired valid time.
+    :return: prediction_file_names: 1-D list of file paths.
+    """
+
+    error_checking.assert_is_integer(first_time_unix_sec)
+    error_checking.assert_is_integer(last_time_unix_sec)
+    error_checking.assert_is_geq(last_time_unix_sec, first_time_unix_sec)
+
+    prediction_file_pattern = '{0:s}/{1:s}/{2:s}_{3:s}.nc'.format(
+        top_directory_name, YEAR_FORMAT_REGEX, PATHLESS_FILE_NAME_PREFIX,
+        TIME_FORMAT_REGEX)
+
+    prediction_file_names = glob.glob(prediction_file_pattern)
+
+    if len(prediction_file_names) == 0:
+        error_string = 'Cannot find any files with the pattern: "{0:s}"'.format(
+            prediction_file_pattern)
+        raise ValueError(error_string)
+
+    prediction_file_names.sort()
+
+    file_times_unix_sec = numpy.array(
+        [_file_name_to_time(f) for f in prediction_file_names], dtype=int
+    )
+
+    good_indices = numpy.where(numpy.logical_and(
+        file_times_unix_sec >= first_time_unix_sec,
+        file_times_unix_sec <= last_time_unix_sec
+    ))[0]
+
+    if len(good_indices) == 0:
+        error_string = (
+            'Cannot find any files in the period {0:s} to {1:s}.'
+        ).format(
+            time_conversion.unix_sec_to_string(
+                first_time_unix_sec, TIME_FORMAT),
+            time_conversion.unix_sec_to_string(last_time_unix_sec, TIME_FORMAT)
+        )
+
+        raise ValueError(error_string)
+
+    return [prediction_file_names[i] for i in good_indices]
 
 
 def write_file(
