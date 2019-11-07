@@ -1,5 +1,6 @@
 """Plots saliency maps."""
 
+import os
 import argparse
 import numpy
 import matplotlib
@@ -10,6 +11,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import saliency_plotting
+from gewittergefahr.plotting import imagemagick_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import saliency_maps
 from generalexam.machine_learning import learning_examples_io as examples_io
@@ -166,30 +168,6 @@ def _plot_saliency_one_example(
         contour_interval=max_saliency / half_num_contours,
         row_major=True)
 
-    num_panel_rows = axes_object_matrix.shape[0]
-    num_panel_columns = axes_object_matrix.shape[1]
-
-    if num_panel_rows >= num_panel_columns:
-        orientation_string = 'horizontal'
-    else:
-        orientation_string = 'vertical'
-
-    pyplot.tight_layout()
-
-    colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix[-1, ...],
-        data_matrix=saliency_matrix,
-        colour_map_object=colour_map_object, min_value=0.,
-        max_value=max_saliency, orientation_string=orientation_string,
-        fraction_of_axis_length=1., padding=0.1,
-        extend_min=False, extend_max=True, font_size=colour_bar_font_size)
-
-    tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
-
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(tick_strings)
-
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
         'pmm' if example_id_string is None else example_id_string
@@ -199,6 +177,53 @@ def _plot_saliency_one_example(
     figure_object.savefig(output_file_name, dpi=figure_resolution_dpi,
                           pad_inches=0, bbox_inches='tight')
     pyplot.close(figure_object)
+
+    num_panel_rows = axes_object_matrix.shape[0]
+    num_panel_columns = axes_object_matrix.shape[1]
+
+    if num_panel_rows >= num_panel_columns:
+        orientation_string = 'horizontal'
+    else:
+        orientation_string = 'vertical'
+
+    figure_object, axes_object = pyplot.subplots(1, 1, figsize=(15, 15))
+    axes_object.axis('off')
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object, data_matrix=saliency_matrix,
+        colour_map_object=colour_map_object, min_value=0.,
+        max_value=max_saliency, orientation_string=orientation_string,
+        fraction_of_axis_length=1., extend_min=False, extend_max=True,
+        font_size=colour_bar_font_size)
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
+    colour_bar_file_name = '{0:s}/saliency_{1:s}_colour-bar.jpg'.format(
+        output_dir_name,
+        'pmm' if example_id_string is None else example_id_string
+    )
+
+    figure_object.savefig(colour_bar_file_name, dpi=figure_resolution_dpi,
+                          pad_inches=0, bbox_inches='tight')
+    pyplot.close(figure_object)
+
+    if orientation_string == 'horizontal':
+        num_rows = 2
+        num_columns = 1
+    else:
+        num_rows = 1
+        num_columns = 2
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=[output_file_name, colour_bar_file_name],
+        output_file_name=output_file_name, num_panel_rows=num_rows,
+        num_panel_columns=num_columns)
+
+    os.remove(colour_bar_file_name)
 
 
 def _run(input_file_name, saliency_colour_map_name, max_saliency,
