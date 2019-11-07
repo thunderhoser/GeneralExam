@@ -166,8 +166,8 @@ def write_file(
         exact_dimensions=these_expected_dim
     )
 
-    error_checking.assert_is_string_list(top_example_dir_name)
-    error_checking.assert_is_string_list(model_file_name)
+    error_checking.assert_is_string(top_example_dir_name)
+    error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_boolean(used_isotonic)
 
     # Open file.
