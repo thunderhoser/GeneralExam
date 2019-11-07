@@ -15,6 +15,7 @@ from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.plotting import example_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -350,7 +351,7 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
     return example_dict, metadata_dict
 
 
-def plot_one_example(
+def plot_real_example(
         example_dict, example_index, plot_wind_as_barbs,
         non_wind_colour_map_object, num_panel_rows=None, add_titles=True,
         colour_bar_length=DEFAULT_CBAR_LENGTH,
@@ -649,7 +650,193 @@ def plot_one_example(
     }
 
 
-def plot_examples(
+def plot_composite_example(
+        example_dict, plot_wind_as_barbs,
+        non_wind_colour_map_object, num_panel_rows=None, add_titles=True,
+        colour_bar_length=DEFAULT_CBAR_LENGTH,
+        main_font_size=DEFAULT_MAIN_FONT_SIZE,
+        title_font_size=DEFAULT_TITLE_FONT_SIZE,
+        colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
+        wind_barb_colour=None, wind_colour_map_object=None):
+    """Plots composite of many examples.
+
+    m = number of rows in example grid
+    n = number of columns in example grid
+    C = number of predictors
+
+    :param example_dict: Dictionary with the following keys.
+    example_dict["predictor_matrix"]: 1-by-m-by-n-by-C numpy array with
+        denormalized predictors.
+    example_dict["narr_predictor_names"]: length-C list of predictor names.
+    example_dict["pressure_levels_mb"]: length-C numpy array of pressure levels
+        (millibars).
+
+    :param plot_wind_as_barbs: See doc for `plot_real_example`.
+    :param non_wind_colour_map_object: Same.
+    :param num_panel_rows: Same.
+    :param add_titles: Same.
+    :param colour_bar_length: Same.
+    :param main_font_size: Same.
+    :param title_font_size: Same.
+    :param colour_bar_font_size: Same.
+    :param wind_barb_colour: Same.
+    :param wind_colour_map_object: Same.
+    :return: output_dict: Dictionary with the following keys.
+    output_dict["figure_object"]: See doc for `plot_real_example`.
+    output_dict["axes_object_matrix"]: Same.
+    """
+
+    # Check input args.
+    error_checking.assert_is_boolean(plot_wind_as_barbs)
+    error_checking.assert_is_boolean(add_titles)
+    error_checking.assert_is_greater(main_font_size, 0.)
+    error_checking.assert_is_greater(title_font_size, 0.)
+    error_checking.assert_is_greater(colour_bar_font_size, 0.)
+
+    # Do housekeeping.
+    example_dict = _convert_units(example_dict=example_dict, example_index=0)
+
+    predictor_names = numpy.array(example_dict[examples_io.PREDICTOR_NAMES_KEY])
+    plot_wind = (
+        predictor_utils.U_WIND_GRID_RELATIVE_NAME in predictor_names or
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME in predictor_names
+    )
+    plot_wind_as_barbs = plot_wind_as_barbs and plot_wind
+
+    predictor_names = numpy.array(example_dict[examples_io.PREDICTOR_NAMES_KEY])
+    pressure_levels_mb = numpy.round(
+        example_dict[examples_io.PRESSURE_LEVELS_KEY]
+    ).astype(int)
+
+    num_predictors = len(predictor_names)
+    num_unique_pressure_levels = len(numpy.unique(pressure_levels_mb))
+
+    num_panels_desired = (
+        num_predictors -
+        2 * num_unique_pressure_levels * int(plot_wind_as_barbs)
+    )
+
+    if num_panel_rows is None:
+        num_panel_rows = int(numpy.round(
+            numpy.sqrt(num_panels_desired)
+        ))
+
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_greater(num_panel_rows, 0)
+    error_checking.assert_is_leq(num_panel_rows, num_panels_desired)
+
+    num_panel_columns = int(numpy.ceil(
+        float(num_panels_desired) / num_panel_rows
+    ))
+    num_panels = num_panel_rows * num_panel_columns
+
+    if num_panel_rows >= num_panel_columns:
+        cbar_orientation_string = 'vertical'
+    else:
+        cbar_orientation_string = 'horizontal'
+
+    # Do plotting.
+    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
+        num_rows=num_panel_rows, num_columns=num_panel_columns,
+        horizontal_spacing=0.1, vertical_spacing=0.1,
+        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+
+    panel_index_linear = -1
+    predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][0, ...]
+
+    for k in range(num_predictors):
+        if predictor_names[k] in WIND_NAMES and plot_wind_as_barbs:
+            continue
+
+        panel_index_linear += 1
+        i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
+        this_axes_object = axes_object_matrix[i, j]
+
+        same_field_indices = numpy.where(
+            predictor_names == predictor_names[k]
+        )[0]
+
+        if predictor_names[k] in WIND_NAMES:
+            this_colour_map_object = wind_colour_map_object
+            this_max_value = numpy.percentile(
+                numpy.absolute(predictor_matrix[..., same_field_indices]),
+                MAX_COLOUR_PERCENTILE
+            )
+            this_min_value = -1 * this_max_value
+        else:
+            this_colour_map_object = non_wind_colour_map_object
+            this_min_value = numpy.percentile(
+                predictor_matrix[..., same_field_indices],
+                100. - MAX_COLOUR_PERCENTILE
+            )
+            this_max_value = numpy.percentile(
+                predictor_matrix[..., same_field_indices], MAX_COLOUR_PERCENTILE
+            )
+
+        example_plotting.plot_2d_grid(
+            predictor_matrix=predictor_matrix[..., k],
+            colour_map_object=this_colour_map_object,
+            min_colour_value=this_min_value, max_colour_value=this_max_value,
+            axes_object=this_axes_object)
+
+        this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=this_axes_object,
+            data_matrix=predictor_matrix[..., k],
+            colour_map_object=this_colour_map_object,
+            min_value=this_min_value, max_value=this_max_value,
+            orientation_string=cbar_orientation_string,
+            font_size=colour_bar_font_size, extend_min=True, extend_max=True,
+            fraction_of_axis_length=colour_bar_length)
+
+        these_tick_values = this_colour_bar_object.ax.get_xticks()
+        this_colour_bar_object.ax.set_xticks(these_tick_values)
+        this_colour_bar_object.ax.set_xticklabels(these_tick_values)
+
+        if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
+            this_title_string = 'Surface'
+        else:
+            this_title_string = '{0:d}-mb'.format(pressure_levels_mb[k])
+
+        this_fancy_name = PREDICTOR_NAME_TO_FANCY[predictor_names[k]]
+        this_title_string += ' {0:s}{1:s}'.format(
+            this_fancy_name[0].lower(), this_fancy_name[1:]
+        )
+
+        if add_titles:
+            this_axes_object.set_title(this_title_string,
+                                       fontsize=title_font_size)
+
+        if not plot_wind_as_barbs:
+            continue
+
+        this_u_wind_index = numpy.where(numpy.logical_and(
+            pressure_levels_mb == pressure_levels_mb[k],
+            predictor_names == predictor_utils.U_WIND_GRID_RELATIVE_NAME
+        ))[0][0]
+
+        this_v_wind_index = numpy.where(numpy.logical_and(
+            pressure_levels_mb == pressure_levels_mb[k],
+            predictor_names == predictor_utils.V_WIND_GRID_RELATIVE_NAME
+        ))[0][0]
+
+        example_plotting.plot_wind_barbs(
+            u_wind_matrix_m_s01=predictor_matrix[..., this_u_wind_index],
+            v_wind_matrix_m_s01=predictor_matrix[..., this_v_wind_index],
+            axes_object=this_axes_object, plot_every=2,
+            barb_colour=wind_barb_colour)
+
+    while panel_index_linear < num_panels - 1:
+        panel_index_linear += 1
+        i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
+        axes_object_matrix[i, j].axis('off')
+
+    return {
+        FIGURE_OBJECT_KEY: figure_object,
+        AXES_OBJECTS_KEY: axes_object_matrix
+    }
+
+
+def plot_real_examples(
         example_dict, output_dir_name, plot_wind_as_barbs=True,
         wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
         wind_colour_map_name=DEFAULT_WIND_CMAP_NAME,
@@ -661,6 +848,9 @@ def plot_examples(
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
         figure_resolution_dpi=DEFAULT_RESOLUTION_DPI):
     """Plots one or more examples.
+
+    This method assumes that predictors in `example_dict` are already
+    denormalized.
 
     :param example_dict: Dictionary returned by
         `learning_examples_io.read_file`.
@@ -687,33 +877,6 @@ def plot_examples(
     else:
         wind_colour_map_object = pyplot.cm.get_cmap(wind_colour_map_name)
 
-    normalization_type_string = example_dict[examples_io.NORMALIZATION_TYPE_KEY]
-    normalization_dict = {
-        ml_utils.MIN_VALUE_MATRIX_KEY: None,
-        ml_utils.MAX_VALUE_MATRIX_KEY: None,
-        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
-        ml_utils.STDEV_MATRIX_KEY: None
-    }
-
-    if normalization_type_string == ml_utils.Z_SCORE_STRING:
-        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-    else:
-        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-
-    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
-        ml_utils.denormalize_predictors(
-            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
-            normalization_dict=normalization_dict)
-    )
-
     example_id_strings = examples_io.create_example_ids(
         valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
         row_indices=example_dict[examples_io.ROW_INDICES_KEY],
@@ -725,7 +888,7 @@ def plot_examples(
     narr_sine_matrix = None
 
     for i in range(num_examples):
-        this_dict = plot_one_example(
+        this_dict = plot_real_example(
             example_dict=example_dict, example_index=i,
             plot_wind_as_barbs=plot_wind_as_barbs,
             non_wind_colour_map_object=non_wind_colour_map_object,
@@ -748,8 +911,8 @@ def plot_examples(
         )
 
         print('Saving figure to: "{0:s}"...'.format(this_file_name))
-        pyplot.savefig(this_file_name, dpi=figure_resolution_dpi,
-                       pad_inches=0, bbox_inches='tight')
+        this_figure_object.savefig(this_file_name, dpi=figure_resolution_dpi,
+                                   pad_inches=0, bbox_inches='tight')
         pyplot.close(this_figure_object)
 
 
@@ -813,9 +976,39 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
         example_dict = examples_io.subset_examples(
             example_dict=example_dict, desired_indices=desired_indices)
 
+    print('Denormalizing predictors...')
+
+    normalization_dict = {
+        ml_utils.MIN_VALUE_MATRIX_KEY: None,
+        ml_utils.MAX_VALUE_MATRIX_KEY: None,
+        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
+        ml_utils.STDEV_MATRIX_KEY: None
+    }
+
+    normalization_type_string = example_dict[examples_io.NORMALIZATION_TYPE_KEY]
+
+    if normalization_type_string == ml_utils.Z_SCORE_STRING:
+        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
+            examples_io.FIRST_NORM_PARAM_KEY]
+
+        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
+            examples_io.SECOND_NORM_PARAM_KEY]
+    else:
+        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
+            examples_io.FIRST_NORM_PARAM_KEY]
+
+        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
+            examples_io.SECOND_NORM_PARAM_KEY]
+
+    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
+        ml_utils.denormalize_predictors(
+            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
+            normalization_dict=normalization_dict)
+    )
+
     print(SEPARATOR_STRING)
 
-    plot_examples(
+    plot_real_examples(
         example_dict=example_dict, plot_wind_as_barbs=plot_wind_as_barbs,
         wind_barb_colour=wind_barb_colour,
         wind_colour_map_name=wind_colour_map_name,
