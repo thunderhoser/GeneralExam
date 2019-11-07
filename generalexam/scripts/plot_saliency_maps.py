@@ -174,8 +174,7 @@ def _plot_saliency_one_example(
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(output_file_name, dpi=figure_resolution_dpi,
-                          pad_inches=0, bbox_inches='tight')
+    figure_object.savefig(output_file_name, dpi=figure_resolution_dpi)
     pyplot.close(figure_object)
 
     num_panel_rows = axes_object_matrix.shape[0]
@@ -207,8 +206,7 @@ def _plot_saliency_one_example(
         'pmm' if example_id_string is None else example_id_string
     )
 
-    figure_object.savefig(colour_bar_file_name, dpi=figure_resolution_dpi,
-                          pad_inches=0, bbox_inches='tight')
+    figure_object.savefig(colour_bar_file_name, dpi=figure_resolution_dpi)
     pyplot.close(figure_object)
 
     if orientation_string == 'horizontal':
@@ -224,6 +222,9 @@ def _plot_saliency_one_example(
         num_panel_columns=num_columns)
 
     os.remove(colour_bar_file_name)
+
+    imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
+                                      output_file_name=output_file_name)
 
 
 def _run(input_file_name, saliency_colour_map_name, max_saliency,
