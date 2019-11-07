@@ -174,6 +174,8 @@ def _plot_saliency_one_example(
     else:
         orientation_string = 'vertical'
 
+    pyplot.tight_layout()
+
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_matrix[-1, ...],
         data_matrix=saliency_matrix,
@@ -187,7 +189,6 @@ def _plot_saliency_one_example(
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
-    pyplot.tight_layout()
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
