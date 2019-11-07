@@ -157,8 +157,9 @@ def _plot_saliency_one_example(
         examples, leave this as None.
     """
 
-    print(numpy.min(saliency_matrix))
-    print(numpy.max(saliency_matrix))
+    this_array = figure_object.get_size_inches()
+    figure_width_inches = this_array[0]
+    figure_height_inches = this_array[1]
 
     saliency_plotting.plot_many_2d_grids_with_contours(
         saliency_matrix_3d=saliency_matrix,
@@ -174,7 +175,8 @@ def _plot_saliency_one_example(
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    figure_object.savefig(output_file_name, dpi=figure_resolution_dpi)
+    figure_object.savefig(output_file_name, dpi=figure_resolution_dpi,
+                          pad_inches=0, bbox_inches='tight')
     pyplot.close(figure_object)
 
     num_panel_rows = axes_object_matrix.shape[0]
@@ -185,11 +187,13 @@ def _plot_saliency_one_example(
     else:
         orientation_string = 'vertical'
 
-    figure_object, axes_object = pyplot.subplots(1, 1, figsize=(15, 15))
-    axes_object.axis('off')
+    extra_figure_object, extra_axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches)
+    )
+    extra_axes_object.axis('off')
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object, data_matrix=saliency_matrix,
+        axes_object_or_matrix=extra_axes_object, data_matrix=saliency_matrix,
         colour_map_object=colour_map_object, min_value=0.,
         max_value=max_saliency, orientation_string=orientation_string,
         fraction_of_axis_length=1., extend_min=False, extend_max=True,
@@ -197,17 +201,17 @@ def _plot_saliency_one_example(
 
     tick_values = colour_bar_object.get_ticks()
     tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
-
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
-    colour_bar_file_name = '{0:s}/saliency_{1:s}_colour-bar.jpg'.format(
+    extra_file_name = '{0:s}/saliency_{1:s}_colour-bar.jpg'.format(
         output_dir_name,
         'pmm' if example_id_string is None else example_id_string
     )
 
-    figure_object.savefig(colour_bar_file_name, dpi=figure_resolution_dpi)
-    pyplot.close(figure_object)
+    extra_figure_object.savefig(extra_file_name, dpi=figure_resolution_dpi,
+                                pad_inches=0, bbox_inches='tight')
+    pyplot.close(extra_figure_object)
 
     if orientation_string == 'horizontal':
         num_rows = 2
@@ -217,11 +221,11 @@ def _plot_saliency_one_example(
         num_columns = 2
 
     imagemagick_utils.concatenate_images(
-        input_file_names=[output_file_name, colour_bar_file_name],
+        input_file_names=[output_file_name, extra_file_name],
         output_file_name=output_file_name, num_panel_rows=num_rows,
-        num_panel_columns=num_columns)
+        num_panel_columns=num_columns, extra_args_string='-gravity center')
 
-    os.remove(colour_bar_file_name)
+    os.remove(extra_file_name)
 
     imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
                                       output_file_name=output_file_name)
