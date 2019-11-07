@@ -218,6 +218,8 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
 
     if smoothing_radius_grid_cells <= 0:
         smoothing_radius_grid_cells = None
+    if num_panel_rows <= 0:
+        num_panel_rows = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
