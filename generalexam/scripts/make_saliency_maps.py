@@ -113,7 +113,7 @@ CASCADING_HELP_STRING = (
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
-    '`saliency_maps.write_standard_file`).')
+    '`saliency_maps.write_standard_file` in GeneralExam library).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
