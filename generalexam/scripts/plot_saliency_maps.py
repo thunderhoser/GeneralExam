@@ -6,7 +6,6 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import general_utils
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
@@ -183,11 +182,14 @@ def _plot_saliency_one_example(
         fraction_of_axis_length=1., padding=0.1,
         extend_min=False, extend_max=True, font_size=colour_bar_font_size)
 
-    tick_values = number_rounding.round_to_nearest(
-        colour_bar_object.get_ticks(), 0.1
-    )
-    colour_bar_object.set_ticks(tick_values)
-    colour_bar_object.set_ticklabels(tick_values)
+    if orientation_string == 'horizontal':
+        tick_values = colour_bar_object.ax.get_xticks()
+        colour_bar_object.ax.set_xticks(tick_values)
+        colour_bar_object.ax.set_xticklabels(tick_values)
+    else:
+        tick_values = colour_bar_object.ax.get_yticks()
+        colour_bar_object.ax.set_yticks(tick_values)
+        colour_bar_object.ax.set_yticklabels(tick_values)
 
     output_file_name = '{0:s}/saliency_{1:s}.jpg'.format(
         output_dir_name,
