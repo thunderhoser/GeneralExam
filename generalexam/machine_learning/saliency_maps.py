@@ -52,7 +52,7 @@ def _check_in_and_out_matrices(
 
     error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
     num_dimensions = len(predictor_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 4)
+    error_checking.assert_is_geq(num_dimensions, 3)
     error_checking.assert_is_leq(num_dimensions, 4)
 
     if num_examples is not None:
