@@ -6,7 +6,6 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
-from mpl_toolkits.axes_grid1 import AxesGrid
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -593,14 +592,9 @@ def plot_real_example(
             font_size=colour_bar_font_size, extend_min=True, extend_max=True,
             fraction_of_axis_length=colour_bar_length)
 
-        if cbar_orientation_string == 'horizontal':
-            these_tick_values = this_colour_bar_object.ax.get_xticks()
-            this_colour_bar_object.ax.set_xticks(these_tick_values)
-            this_colour_bar_object.ax.set_xticklabels(these_tick_values)
-        else:
-            these_tick_values = this_colour_bar_object.ax.get_yticks()
-            this_colour_bar_object.ax.set_yticks(these_tick_values)
-            this_colour_bar_object.ax.set_yticklabels(these_tick_values)
+        these_tick_values = this_colour_bar_object.get_ticks()
+        this_colour_bar_object.set_ticks(these_tick_values)
+        this_colour_bar_object.set_ticklabels(these_tick_values)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -794,14 +788,9 @@ def plot_composite_example(
             font_size=colour_bar_font_size, extend_min=True, extend_max=True,
             fraction_of_axis_length=colour_bar_length)
 
-        if cbar_orientation_string == 'horizontal':
-            these_tick_values = this_colour_bar_object.ax.get_xticks()
-            this_colour_bar_object.ax.set_xticks(these_tick_values)
-            this_colour_bar_object.ax.set_xticklabels(these_tick_values)
-        else:
-            these_tick_values = this_colour_bar_object.ax.get_yticks()
-            this_colour_bar_object.ax.set_yticks(these_tick_values)
-            this_colour_bar_object.ax.set_yticklabels(these_tick_values)
+        these_tick_values = this_colour_bar_object.get_ticks()
+        this_colour_bar_object.set_ticks(these_tick_values)
+        this_colour_bar_object.set_ticklabels(these_tick_values)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'

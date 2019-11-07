@@ -130,9 +130,8 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_saliency_one_example(
         saliency_matrix, colour_map_object, max_saliency, half_num_contours,
-        colour_bar_length, colour_bar_font_size, figure_resolution_dpi,
-        figure_object, axes_object_matrix, output_dir_name,
-        example_id_string=None):
+        colour_bar_font_size, figure_resolution_dpi, figure_object,
+        axes_object_matrix, output_dir_name, example_id_string=None):
     """Plots saliency map for one example.
 
     m = number of rows in example grid
@@ -144,7 +143,6 @@ def _plot_saliency_one_example(
         `matplotlib.pyplot.cm`).
     :param max_saliency: Max value in colour scheme for saliency.
     :param half_num_contours: See documentation at top of file.
-    :param colour_bar_length: Same.
     :param colour_bar_font_size: Same.
     :param figure_resolution_dpi: Same.
     :param figure_object: Will plot on this figure (instance of
@@ -196,7 +194,7 @@ def _plot_saliency_one_example(
         axes_object_or_matrix=extra_axes_object, data_matrix=saliency_matrix,
         colour_map_object=colour_map_object, min_value=0.,
         max_value=max_saliency, orientation_string=orientation_string,
-        fraction_of_axis_length=1., extend_min=False, extend_max=True,
+        fraction_of_axis_length=1.25, extend_min=False, extend_max=True,
         font_size=colour_bar_font_size)
 
     tick_values = colour_bar_object.get_ticks()
@@ -209,7 +207,8 @@ def _plot_saliency_one_example(
         'pmm' if example_id_string is None else example_id_string
     )
 
-    extra_figure_object.savefig(extra_file_name, dpi=figure_resolution_dpi)
+    extra_figure_object.savefig(extra_file_name, dpi=figure_resolution_dpi,
+                                pad_inches=0, bbox_inches='tight')
     pyplot.close(extra_figure_object)
 
     if orientation_string == 'horizontal':
@@ -219,12 +218,14 @@ def _plot_saliency_one_example(
         num_rows = 1
         num_columns = 2
 
+    # TODO(thunderhoser): This does not center the colour bar horizontally as it
+    # should.  I have no idea why.  I have tried everything with ImageMagick.
     imagemagick_utils.concatenate_images(
         input_file_names=[output_file_name, extra_file_name],
         output_file_name=output_file_name, num_panel_rows=num_rows,
         num_panel_columns=num_columns, extra_args_string='-gravity Center')
 
-    # os.remove(extra_file_name)
+    os.remove(extra_file_name)
 
     imagemagick_utils.trim_whitespace(input_file_name=output_file_name,
                                       output_file_name=output_file_name)
@@ -367,7 +368,6 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
             saliency_matrix=saliency_matrix[i, ...],
             colour_map_object=saliency_colour_map_object,
             max_saliency=max_saliency, half_num_contours=half_num_contours,
-            colour_bar_length=colour_bar_length,
             colour_bar_font_size=colour_bar_font_size,
             figure_resolution_dpi=figure_resolution_dpi,
             figure_object=this_dict[plot_examples.FIGURE_OBJECT_KEY],
