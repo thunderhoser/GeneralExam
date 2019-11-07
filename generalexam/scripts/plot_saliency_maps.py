@@ -232,6 +232,39 @@ def _plot_saliency_one_example(
                                       output_file_name=output_file_name)
 
 
+def _smooth_maps(saliency_matrix, smoothing_radius_grid_cells):
+    """Smooths saliency maps via Gaussian filter.
+
+    E = number of examples
+    m = number of rows in example grid
+    n = number of columns in example grid
+    C = number of predictors
+
+    :param saliency_matrix: E-by-m-by-n-by-C numpy array with saliency maps.
+    :param smoothing_radius_grid_cells: e-folding radius (number of grid cells).
+    :return: saliency_matrix: Smoothed version of input.
+    """
+
+    print((
+        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
+        '{0:.1f} grid cells)...'
+    ).format(
+        smoothing_radius_grid_cells
+    ))
+
+    num_examples = saliency_matrix.shape[0]
+    num_channels = saliency_matrix.shape[-1]
+
+    for i in range(num_examples):
+        for k in range(num_channels):
+            saliency_matrix[i, ..., k] = general_utils.apply_gaussian_filter(
+                input_matrix=saliency_matrix[i, ..., k],
+                e_folding_radius_grid_cells=smoothing_radius_grid_cells
+            )
+
+    return saliency_matrix
+
+
 def _run(input_file_name, saliency_colour_map_name, max_saliency,
          half_num_contours, smoothing_radius_grid_cells, output_dir_name,
          wind_colour_map_name, non_wind_colour_map_name, num_panel_rows,
@@ -288,19 +321,9 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         saliency_matrix = saliency_dict.pop(saliency_maps.SALIENCY_MATRIX_KEY)
 
     if smoothing_radius_grid_cells is not None:
-        print((
-            'Smoothing saliency maps with Gaussian filter (e-folding radius of '
-            '{0:.1f} grid cells)...'
-        ).format(
-            smoothing_radius_grid_cells
-        ))
-
-        num_channels = saliency_matrix.shape[-1]
-
-        for k in range(num_channels):
-            saliency_matrix[..., k] = general_utils.apply_gaussian_filter(
-                input_matrix=saliency_matrix[..., k],
-                e_folding_radius_grid_cells=smoothing_radius_grid_cells)
+        saliency_matrix = _smooth_maps(
+            saliency_matrix=saliency_matrix,
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
 
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
