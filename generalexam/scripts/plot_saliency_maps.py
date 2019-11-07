@@ -197,6 +197,8 @@ def _plot_saliency_one_example(
         fraction_of_axis_length=1., extend_min=False, extend_max=True,
         font_size=colour_bar_font_size)
 
+    colour_bar_object.set_label('Saliency', fontsize=colour_bar_font_size)
+
     tick_values = colour_bar_object.get_ticks()
     tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
     colour_bar_object.set_ticks(tick_values)

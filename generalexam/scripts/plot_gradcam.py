@@ -1,6 +1,7 @@
 """Plots Grad-CAM output (guided and unguided class-activation maps)."""
 
 import os
+import copy
 import argparse
 import numpy
 import matplotlib
@@ -453,8 +454,9 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
     print(SEPARATOR_STRING)
 
     for i in range(num_examples):
-        this_orig_predictor_matrix = example_dict[
-            examples_io.PREDICTOR_MATRIX_KEY][i, ...]
+        this_orig_predictor_matrix = copy.deepcopy(
+            example_dict[examples_io.PREDICTOR_MATRIX_KEY][i, ...]
+        )
 
         if pmm_flag:
             this_dict = plot_examples.plot_composite_example(
