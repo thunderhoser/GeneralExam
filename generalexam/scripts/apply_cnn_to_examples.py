@@ -145,7 +145,7 @@ def _apply_cnn_one_time(
 
     output_file_name = ungridded_prediction_io.find_file(
         top_directory_name=top_output_dir_name,
-        valid_time_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
+        valid_time_unix_sec=example_dict[examples_io.VALID_TIMES_KEY][0],
         raise_error_if_missing=False
     )
 
