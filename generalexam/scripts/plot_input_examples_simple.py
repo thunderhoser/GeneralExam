@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
 import matplotlib.colors
+from mpl_toolkits.axes_grid1 import AxesGrid
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -516,6 +517,12 @@ def plot_real_example(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
         horizontal_spacing=0.1, vertical_spacing=0.1,
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+
+    # figure_object = pyplot.figure(figsize=(15, 15))
+    # grid = AxesGrid(
+    #     figure_object, 111, nrows_ncols=(num_panel_rows, num_panel_columns),
+    #     axes_pad=0.1, cbar_mode='single', cbar_location='bottom', cbar_pad=0.1
+    # )
 
     panel_index_linear = -1
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][
