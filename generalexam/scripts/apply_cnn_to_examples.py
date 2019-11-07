@@ -41,7 +41,7 @@ TIME_HELP_STRING = (
 
 NUM_TIMES_HELP_STRING = (
     'The CNN will be applied to this many times chosen randomly from the period'
-    ' `{0:s}`...`{1:s}`.'
+    ' `{0:s}`...`{1:s}`.  To choose all times, leave this argument alone.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
 USE_ISOTONIC_HELP_STRING = (
@@ -69,7 +69,7 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_TIMES_ARG_NAME, type=int, required=True,
+    '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
     help=NUM_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
