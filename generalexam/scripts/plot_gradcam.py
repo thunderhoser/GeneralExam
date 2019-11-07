@@ -453,6 +453,9 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
     print(SEPARATOR_STRING)
 
     for i in range(num_examples):
+        this_orig_predictor_matrix = example_dict[
+            examples_io.PREDICTOR_MATRIX_KEY][i, ...]
+
         if pmm_flag:
             this_dict = plot_examples.plot_composite_example(
                 example_dict=example_dict, plot_wind_as_barbs=False,
@@ -482,6 +485,10 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
             if narr_cosine_matrix is None:
                 narr_cosine_matrix = this_dict[plot_examples.NARR_COSINES_KEY]
                 narr_sine_matrix = this_dict[plot_examples.NARR_SINES_KEY]
+
+        example_dict[examples_io.PREDICTOR_MATRIX_KEY][i, ...] = (
+            this_orig_predictor_matrix
+        )
 
         _plot_gradcam_one_example(
             class_activn_matrix=class_activn_matrix[i, ...],
@@ -531,7 +538,7 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
             figure_resolution_dpi=figure_resolution_dpi,
             figure_object=this_dict[plot_examples.FIGURE_OBJECT_KEY],
             axes_object_matrix=this_dict[plot_examples.AXES_OBJECTS_KEY],
-            output_dir_name=unguided_cam_dir_name,
+            output_dir_name=guided_cam_dir_name,
             example_id_string=this_example_string)
 
 
