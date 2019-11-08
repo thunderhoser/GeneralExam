@@ -1117,7 +1117,7 @@ def read_specific_examples_many_files(
 
         print(this_example_dict.keys())
 
-        if example_dict is None:
+        if len(example_dict.keys()) == 0:
             example_dict = copy.deepcopy(this_example_dict)
             continue
 
