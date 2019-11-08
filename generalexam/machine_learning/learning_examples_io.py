@@ -69,6 +69,9 @@ PREDICTOR_DIMENSION_KEY = 'predictor_variable'
 CHARACTER_DIMENSION_KEY = 'predictor_variable_char'
 CLASS_DIMENSION_KEY = 'class'
 
+EXAMPLE_IDS_KEY = 'example_id_strings'
+ID_CHAR_DIMENSION_KEY = 'example_id_char'
+
 MAIN_KEYS = [
     PREDICTOR_MATRIX_KEY, TARGET_MATRIX_KEY, VALID_TIMES_KEY, ROW_INDICES_KEY,
     COLUMN_INDICES_KEY, FIRST_NORM_PARAM_KEY, SECOND_NORM_PARAM_KEY
@@ -986,3 +989,61 @@ def read_file(
 
     dataset_object.close()
     return example_dict
+
+
+def write_example_ids(netcdf_file_name, example_id_strings):
+    """Writes example IDs, and only example IDs, to NetCDF file.
+
+    :param netcdf_file_name: Path to output file.
+    :param example_id_strings: 1-D list of example IDs.
+    """
+
+    error_checking.assert_is_string_list(example_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(example_id_strings), num_dimensions=1
+    )
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    # Set dimensions.
+    num_examples = len(example_id_strings)
+    dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
+
+    num_id_characters = max([
+        len(s) for s in example_id_strings
+    ])
+    dataset_object.createDimension(ID_CHAR_DIMENSION_KEY, num_id_characters)
+
+    # Add variables.
+    this_string_type = 'S{0:d}'.format(num_id_characters)
+    example_ids_char_array = netCDF4.stringtochar(numpy.array(
+        example_id_strings, dtype=this_string_type
+    ))
+
+    dataset_object.createVariable(
+        EXAMPLE_IDS_KEY, datatype='S1',
+        dimensions=(EXAMPLE_DIMENSION_KEY, ID_CHAR_DIMENSION_KEY)
+    )
+    dataset_object.variables[EXAMPLE_IDS_KEY][:] = numpy.array(
+        example_ids_char_array)
+
+    dataset_object.close()
+
+
+def read_example_ids(netcdf_file_name):
+    """Reads example IDs, and only example IDs, from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: example_id_strings: 1-D list of example IDs.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+    example_id_strings = [
+        str(s) for s in
+        netCDF4.chartostring(dataset_object.variables[EXAMPLE_IDS_KEY][:])
+    ]
+    dataset_object.close()
+
+    return example_id_strings
