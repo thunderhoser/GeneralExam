@@ -11,6 +11,7 @@ from generalexam.machine_learning import cnn
 from generalexam.machine_learning import gradcam as ge_gradcam
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import learning_examples_io as examples_io
+from generalexam.scripts import make_saliency_maps
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
@@ -20,15 +21,20 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
+EXAMPLE_FILE_ARG_NAME = make_saliency_maps.EXAMPLE_FILE_ARG_NAME
+EXAMPLE_DIR_ARG_NAME = make_saliency_maps.EXAMPLE_DIR_ARG_NAME
+ID_FILE_ARG_NAME = make_saliency_maps.ID_FILE_ARG_NAME
 TARGET_CLASS_ARG_NAME = 'target_class'
 TARGET_LAYER_ARG_NAME = 'target_layer_name'
-EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
-NUM_EXAMPLES_ARG_NAME = 'num_examples'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
     '`cnn.read_model`.')
+
+EXAMPLE_FILE_HELP_STRING = make_saliency_maps.EXAMPLE_FILE_HELP_STRING
+EXAMPLE_DIR_HELP_STRING = make_saliency_maps.EXAMPLE_DIR_HELP_STRING
+ID_FILE_HELP_STRING = make_saliency_maps.ID_FILE_HELP_STRING
 
 TARGET_CLASS_HELP_STRING = (
     'Activation maps will be created for this class.  Must be in 0...(K - 1), '
@@ -37,15 +43,6 @@ TARGET_CLASS_HELP_STRING = (
 TARGET_LAYER_HELP_STRING = (
     'Name of target layer.  Neuron-importance weights will be based on '
     'activations in this layer.')
-
-EXAMPLE_FILE_HELP_STRING = (
-    'Path to example file (will be read by `learning_examples_io.read_file`).  '
-    'Class-activation maps will be created for examples in this file.')
-
-NUM_EXAMPLES_HELP_STRING = (
-    'Class-activation maps will be created for this many examples, drawn '
-    'randomly from `{0:s}`.  To use all examples, leave this argument alone.'
-).format(EXAMPLE_FILE_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `gradcam.write_standard_file` in '
@@ -57,6 +54,18 @@ INPUT_ARG_PARSER.add_argument(
     help=MODEL_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=False, default='',
+    help=EXAMPLE_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=False, default='',
+    help=EXAMPLE_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + ID_FILE_ARG_NAME, type=str, required=False, default='',
+    help=ID_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_CLASS_ARG_NAME, type=int, required=True,
     help=TARGET_CLASS_HELP_STRING)
 
@@ -65,29 +74,23 @@ INPUT_ARG_PARSER.add_argument(
     help=TARGET_LAYER_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=True,
-    help=EXAMPLE_FILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_EXAMPLES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _run(model_file_name, target_class, target_layer_name, example_file_name,
-         num_examples, output_file_name):
+def _run(model_file_name, example_file_name, top_example_dir_name,
+         example_id_file_name, target_class, target_layer_name,
+         output_file_name):
     """Runs Grad-CAM (gradient-weighted class-activation maps).
 
     This is effectively the main method.
 
     :param model_file_name: See documentation at top of file.
+    :param example_file_name: Same.
+    :param top_example_dir_name: Same.
+    :param example_id_file_name: Same.
     :param target_class: Same.
     :param target_layer_name: Same.
-    :param example_file_name: Same.
-    :param num_examples: Same.
     :param output_file_name: Same.
     """
 
@@ -101,34 +104,43 @@ def _run(model_file_name, target_class, target_layer_name, example_file_name,
     print('Reading model metadata from: "{0:s}"...'.format(model_metafile_name))
     model_metadata_dict = cnn.read_metadata(model_metafile_name)
 
+    print(SEPARATOR_STRING)
+
     # Read predictors.
-    print('Reading normalized predictors from: "{0:s}"...'.format(
-        example_file_name
-    ))
-
     num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
+    predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
+    pressure_levels_mb = model_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
 
-    example_dict = examples_io.read_file(
-        netcdf_file_name=example_file_name,
-        predictor_names_to_keep=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
-        pressure_levels_to_keep_mb=model_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
-        num_half_rows_to_keep=num_half_rows,
-        num_half_columns_to_keep=num_half_columns)
+    if example_file_name is None:
+        print('Reading example IDs from: "{0:s}"...'.format(
+            example_id_file_name
+        ))
+        example_id_strings = examples_io.read_example_ids(example_id_file_name)
 
-    num_examples_found = len(example_dict[examples_io.VALID_TIMES_KEY])
+        example_dict = examples_io.read_specific_examples_many_files(
+            top_example_dir_name=top_example_dir_name,
+            example_id_strings=example_id_strings,
+            predictor_names_to_keep=predictor_names,
+            pressure_levels_to_keep_mb=pressure_levels_mb,
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns)
+    else:
+        print('Reading normalized predictors from: "{0:s}"...'.format(
+            example_file_name
+        ))
 
-    if 0 < num_examples < num_examples_found:
-        desired_indices = numpy.linspace(
-            0, num_examples - 1, num=num_examples, dtype=int)
+        example_dict = examples_io.read_file(
+            netcdf_file_name=example_file_name,
+            predictor_names_to_keep=predictor_names,
+            pressure_levels_to_keep_mb=pressure_levels_mb,
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns)
 
-        example_dict = examples_io.subset_examples(
-            example_dict=example_dict, desired_indices=desired_indices)
-
-    example_id_strings = examples_io.create_example_ids(
-        valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
-        row_indices=example_dict[examples_io.ROW_INDICES_KEY],
-        column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
-    )
+        example_id_strings = examples_io.create_example_ids(
+            valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
+            row_indices=example_dict[examples_io.ROW_INDICES_KEY],
+            column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
+        )
 
     # Denormalize predictors.
     print('Denormalizing predictors...')
@@ -162,12 +174,12 @@ def _run(model_file_name, target_class, target_layer_name, example_file_name,
         normalization_dict=normalization_dict
     )
 
+    print(SEPARATOR_STRING)
+
     class_activn_matrix = None
     guided_class_activn_matrix = None
     new_model_object = None
     num_examples = len(example_id_strings)
-
-    print(SEPARATOR_STRING)
 
     for i in range(num_examples):
         print('Running Grad-CAM for example {0:d} of {1:d}...'.format(
@@ -224,9 +236,10 @@ if __name__ == '__main__':
 
     _run(
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
+        example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
+        top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
+        example_id_file_name=getattr(INPUT_ARG_OBJECT, ID_FILE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
         target_layer_name=getattr(INPUT_ARG_OBJECT, TARGET_LAYER_ARG_NAME),
-        example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
-        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

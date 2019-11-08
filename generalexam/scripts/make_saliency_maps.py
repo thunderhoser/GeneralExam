@@ -33,14 +33,15 @@ CHANNEL_COMPONENT_TYPE_STRING = (
     model_interpretation.CHANNEL_COMPONENT_TYPE_STRING)
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
+EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
+EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
+ID_FILE_ARG_NAME = 'input_example_id_file_name'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
 LAYER_NAME_ARG_NAME = 'layer_name'
 IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
 CHANNEL_INDEX_ARG_NAME = 'channel_index'
-EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
-NUM_EXAMPLES_ARG_NAME = 'num_examples'
 RANDOMIZE_ARG_NAME = 'randomize_weights'
 CASCADING_ARG_NAME = 'cascading_random'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
@@ -48,6 +49,24 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
     '`cnn.read_model`.')
+
+EXAMPLE_FILE_HELP_STRING = (
+    'Path to example file (will be read by `learning_examples_io.read_file`).  '
+    'Will use examples in this file.  If you want to use specific examples, '
+    'leave this argument alone and specify `{0:s}` and `{1:s}`, instead.'
+).format(EXAMPLE_DIR_ARG_NAME, ID_FILE_ARG_NAME)
+
+EXAMPLE_DIR_HELP_STRING = (
+    '[used only if `{0:s}` is unspecified] Name of top-level directory with '
+    'examples to use.  Examples will be read from here by `'
+    'learning_examples_io.read_specific_examples_many_files`.'
+).format(EXAMPLE_FILE_ARG_NAME)
+
+ID_FILE_HELP_STRING = (
+    '[used only if `{0:s}` is unspecified] Path to file with IDs of examples to'
+    ' use.  This file will be read by `learning_examples_io.read_example_ids`, '
+    'and examples themselves will be read from `{1:s}`.'
+).format(EXAMPLE_FILE_ARG_NAME, EXAMPLE_DIR_ARG_NAME)
 
 COMPONENT_TYPE_HELP_STRING = (
     'Component type.  Saliency maps may be computed for one class, one/many '
@@ -88,15 +107,6 @@ CHANNEL_INDEX_HELP_STRING = (
     'be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME, CHANNEL_COMPONENT_TYPE_STRING)
 
-EXAMPLE_FILE_HELP_STRING = (
-    'Path to example file (will be read by `learning_examples_io.read_file`).  '
-    'Saliency maps will be created for examples in this file.')
-
-NUM_EXAMPLES_HELP_STRING = (
-    'Saliency maps will be created for this many examples, drawn randomly from '
-    '`{0:s}`.  To use all examples, leave this argument alone.'
-).format(EXAMPLE_FILE_ARG_NAME)
-
 RANDOMIZE_HELP_STRING = (
     'Boolean flag.  If 1, will randomize weights in each convolutional and '
     'dense layer before producing saliency maps.  This allows the '
@@ -119,6 +129,18 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + MODEL_FILE_ARG_NAME, type=str, required=True,
     help=MODEL_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=False, default='',
+    help=EXAMPLE_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=False, default='',
+    help=EXAMPLE_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + ID_FILE_ARG_NAME, type=str, required=False, default='',
+    help=ID_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPONENT_TYPE_ARG_NAME, type=str, required=True,
@@ -144,14 +166,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + CHANNEL_INDEX_ARG_NAME, type=int, required=False, default=-1,
     help=CHANNEL_INDEX_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=True,
-    help=EXAMPLE_FILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RANDOMIZE_ARG_NAME, type=int, required=False, default=0,
@@ -199,26 +213,34 @@ def _reset_weights_in_layer(model_object, layer_name):
     layer_object.kernel.initializer.run(session=session_object)
 
 
-def _run(model_file_name, component_type_string, target_class, layer_name,
-         ideal_activation, neuron_indices, channel_index, example_file_name,
-         num_examples, randomize_weights, cascading_random, output_file_name):
+def _run(model_file_name, example_file_name, top_example_dir_name,
+         example_id_file_name, component_type_string, target_class, layer_name,
+         ideal_activation, neuron_indices, channel_index, randomize_weights,
+         cascading_random, output_file_name):
     """Creates saliency map for each example and each CNN component.
 
     This is effectively the main method.
 
     :param model_file_name: See documentation at top of file.
+    :param example_file_name: Same.
+    :param top_example_dir_name: Same.
+    :param example_id_file_name: Same.
     :param component_type_string: Same.
     :param target_class: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
     :param neuron_indices: Same.
     :param channel_index: Same.
-    :param example_file_name: Same.
-    :param num_examples: Same.
     :param randomize_weights: Same.
     :param cascading_random: Same.
     :param output_file_name: Same.
     """
+
+    if example_file_name in ['', 'None']:
+        example_file_name = None
+    else:
+        top_example_dir_name = None
+        example_id_file_name = None
 
     # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
@@ -250,34 +272,43 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         conv_dense_layer_names = []
         num_sets = 1
 
+    print(SEPARATOR_STRING)
+
     # Read predictors.
-    print('Reading normalized predictors from: "{0:s}"...'.format(
-        example_file_name
-    ))
-
     num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
+    predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
+    pressure_levels_mb = model_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
 
-    example_dict = examples_io.read_file(
-        netcdf_file_name=example_file_name,
-        predictor_names_to_keep=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
-        pressure_levels_to_keep_mb=model_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
-        num_half_rows_to_keep=num_half_rows,
-        num_half_columns_to_keep=num_half_columns)
+    if example_file_name is None:
+        print('Reading example IDs from: "{0:s}"...'.format(
+            example_id_file_name
+        ))
+        example_id_strings = examples_io.read_example_ids(example_id_file_name)
 
-    num_examples_found = len(example_dict[examples_io.VALID_TIMES_KEY])
+        example_dict = examples_io.read_specific_examples_many_files(
+            top_example_dir_name=top_example_dir_name,
+            example_id_strings=example_id_strings,
+            predictor_names_to_keep=predictor_names,
+            pressure_levels_to_keep_mb=pressure_levels_mb,
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns)
+    else:
+        print('Reading normalized predictors from: "{0:s}"...'.format(
+            example_file_name
+        ))
 
-    if 0 < num_examples < num_examples_found:
-        desired_indices = numpy.linspace(
-            0, num_examples - 1, num=num_examples, dtype=int)
+        example_dict = examples_io.read_file(
+            netcdf_file_name=example_file_name,
+            predictor_names_to_keep=predictor_names,
+            pressure_levels_to_keep_mb=pressure_levels_mb,
+            num_half_rows_to_keep=num_half_rows,
+            num_half_columns_to_keep=num_half_columns)
 
-        example_dict = examples_io.subset_examples(
-            example_dict=example_dict, desired_indices=desired_indices)
-
-    example_id_strings = examples_io.create_example_ids(
-        valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
-        row_indices=example_dict[examples_io.ROW_INDICES_KEY],
-        column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
-    )
+        example_id_strings = examples_io.create_example_ids(
+            valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
+            row_indices=example_dict[examples_io.ROW_INDICES_KEY],
+            column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
+        )
 
     # Denormalize predictors.
     print('Denormalizing predictors...')
@@ -310,6 +341,8 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         predictor_matrix=predictor_matrix + 0.,
         normalization_dict=normalization_dict
     )
+
+    print(SEPARATOR_STRING)
 
     for k in range(num_sets):
         if randomize_weights:
@@ -411,6 +444,9 @@ if __name__ == '__main__':
 
     _run(
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
+        example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
+        top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
+        example_id_file_name=getattr(INPUT_ARG_OBJECT, ID_FILE_ARG_NAME),
         component_type_string=getattr(
             INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
@@ -419,8 +455,6 @@ if __name__ == '__main__':
         neuron_indices=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
         channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
-        example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
-        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         randomize_weights=bool(getattr(INPUT_ARG_OBJECT, RANDOMIZE_ARG_NAME)),
         cascading_random=bool(getattr(INPUT_ARG_OBJECT, CASCADING_ARG_NAME)),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
