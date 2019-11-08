@@ -36,7 +36,7 @@ def _file_name_to_time(prediction_file_name):
     """
 
     pathless_file_name = os.path.split(prediction_file_name)[-1]
-    extensionless_file_name = os.path.split(pathless_file_name)[0]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
 
     print(extensionless_file_name)
     valid_time_string = extensionless_file_name.split('_')[-1]
