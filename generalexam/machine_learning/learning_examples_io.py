@@ -1091,7 +1091,10 @@ def read_specific_examples_many_files(
     """
 
     valid_times_unix_sec = example_ids_to_metadata(example_id_strings)[0]
+
     example_dict = dict()
+    num_examples = len(example_id_strings)
+    num_examples_read = 0
 
     for this_time_unix_sec in numpy.unique(valid_times_unix_sec):
         this_example_file_name = find_file(
@@ -1106,7 +1109,7 @@ def read_specific_examples_many_files(
             valid_times_unix_sec == this_time_unix_sec
         )[0]
 
-        this_example_dict = read_file(
+        new_example_dict = read_file(
             netcdf_file_name=this_example_file_name,
             predictor_names_to_keep=predictor_names_to_keep,
             pressure_levels_to_keep_mb=pressure_levels_to_keep_mb,
@@ -1115,20 +1118,34 @@ def read_specific_examples_many_files(
             id_strings_to_keep=[example_id_strings[k] for k in these_indices]
         )
 
-        print(this_example_dict.keys())
+        this_num_examples = len(new_example_dict[VALID_TIMES_KEY])
+        prev_num_examples_read = num_examples_read + 0
+        num_examples_read += this_num_examples
 
         if len(example_dict.keys()) == 0:
-            example_dict = copy.deepcopy(this_example_dict)
-            continue
+            example_dict = copy.deepcopy(new_example_dict)
 
-        # TODO(thunderhoser): Could make concat faster by pre-allocating.
+            for this_key in MAIN_KEYS:
+                if isinstance(example_dict[this_key], numpy.ndarray):
+                    these_dimensions = list(example_dict[this_key].shape)
+                    these_dimensions[0] = num_examples
+
+                    example_dict[this_key] = numpy.full(
+                        tuple(these_dimensions), -1,
+                        dtype=example_dict[this_key].dtype
+                    )
+                else:
+                    example_dict[this_key] = [None] * num_examples
+
         for this_key in MAIN_KEYS:
             if isinstance(example_dict[this_key], numpy.ndarray):
-                example_dict[this_key] = numpy.concatenate((
-                    example_dict[this_key], this_example_dict[this_key]
-                ), axis=0)
+                example_dict[this_key][
+                    prev_num_examples_read:num_examples_read, ...
+                ] = new_example_dict[this_key]
             else:
-                example_dict[this_key] += this_example_dict[this_key]
+                example_dict[this_key][
+                    prev_num_examples_read:num_examples_read
+                ] = new_example_dict[this_key]
 
     return example_dict
 
