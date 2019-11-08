@@ -1115,6 +1115,8 @@ def read_specific_examples_many_files(
             id_strings_to_keep=[example_id_strings[k] for k in these_indices]
         )
 
+        print(this_example_dict.keys())
+
         if example_dict is None:
             example_dict = copy.deepcopy(this_example_dict)
             continue
