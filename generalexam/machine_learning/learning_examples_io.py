@@ -125,6 +125,149 @@ def _file_name_to_batch_number(example_file_name):
         raise ValueError(error_string)
 
 
+def _subset_predictors(
+        example_dict, metadata_only, predictor_names=None,
+        pressure_levels_mb=None):
+    """Subsets predictors by field, pressure level, and horizontal extent.
+
+    C = number of predictors to keep
+
+    If `predictor_names is None` or `pressure_levels_mb is None`, will keep all
+    channels.
+
+    :param example_dict: Dictionary in the format returned by `read_file`.
+    :param metadata_only: Boolean flag.  If True, will expect only metadata in
+        `example_dict`.
+    :param predictor_names: length-C list of predictors to keep.
+    :param pressure_levels_mb: length-C numpy array of pressure levels to keep
+        (millibars).
+    :return: example_dict: Same as input but with the following exceptions.
+
+    [1] Keys "narr_predictor_names" and "pressure_levels_mb" may have different
+        values.
+    [2] Last axis of "predictor_matrix" may be shorter.
+    [3] Last axis of "first_normalization_param_matrix" and
+        "second_normalization_param_matrix" may be shorter.
+    """
+
+    if predictor_names is None or pressure_levels_mb is None:
+        return example_dict
+
+    all_predictor_names = example_dict[PREDICTOR_NAMES_KEY]
+    all_pressure_levels_mb = example_dict[PRESSURE_LEVELS_KEY]
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(predictor_names), num_dimensions=1
+    )
+
+    pressure_levels_mb = numpy.round(pressure_levels_mb).astype(int)
+    these_expected_dim = numpy.array([len(predictor_names)], dtype=int)
+    error_checking.assert_is_numpy_array(
+        pressure_levels_mb, exact_dimensions=these_expected_dim)
+
+    good_channel_indices = [
+        numpy.where(numpy.logical_and(
+            numpy.array(all_predictor_names) == n,
+            all_pressure_levels_mb == l
+        ))[0][0]
+        for n, l in zip(predictor_names, pressure_levels_mb)
+    ]
+
+    example_dict[PREDICTOR_NAMES_KEY] = predictor_names
+    example_dict[PRESSURE_LEVELS_KEY] = pressure_levels_mb
+
+    if metadata_only:
+        return example_dict
+
+    example_dict[PREDICTOR_MATRIX_KEY] = example_dict[PREDICTOR_MATRIX_KEY][
+        ..., good_channel_indices
+    ]
+    example_dict[FIRST_NORM_PARAM_KEY] = example_dict[FIRST_NORM_PARAM_KEY][
+        ..., good_channel_indices
+    ]
+    example_dict[SECOND_NORM_PARAM_KEY] = example_dict[SECOND_NORM_PARAM_KEY][
+        ..., good_channel_indices
+    ]
+
+    return example_dict
+
+
+def _read_specific_examples(netcdf_dataset_object, metadata_only,
+                            indices_to_keep):
+    """Reads specific examples from NetCDF file.
+
+    :param netcdf_dataset_object: Handle for NetCDF file created by
+        `write_file`.  Handle should be an instance of `netCDF4.Dataset`.
+    :param metadata_only: Boolean flag.  If True, will read only metadata.
+    :param indices_to_keep: 1-D numpy array with indices of examples to keep.
+    :return: example_dict: Intermediate version of output from `read_file`.
+    """
+
+    example_dict = {
+        VALID_TIMES_KEY: numpy.array(
+            netcdf_dataset_object.variables[VALID_TIMES_KEY][indices_to_keep],
+            dtype=int
+        ),
+        ROW_INDICES_KEY: numpy.array(
+            netcdf_dataset_object.variables[ROW_INDICES_KEY][indices_to_keep],
+            dtype=int
+        ),
+        COLUMN_INDICES_KEY: numpy.array(
+            netcdf_dataset_object.variables[COLUMN_INDICES_KEY][
+                indices_to_keep],
+            dtype=int
+        ),
+        PREDICTOR_NAMES_KEY: [
+            str(n) for n in netCDF4.chartostring(
+                netcdf_dataset_object.variables[PREDICTOR_NAMES_KEY][:]
+            )
+        ],
+        PRESSURE_LEVELS_KEY: numpy.array(
+            netcdf_dataset_object.variables[PRESSURE_LEVELS_KEY][:], dtype=int
+        ),
+        DILATION_DISTANCE_KEY: getattr(
+            netcdf_dataset_object, DILATION_DISTANCE_KEY
+        ),
+        MASK_MATRIX_KEY: numpy.array(
+            netcdf_dataset_object.variables[MASK_MATRIX_KEY][:], dtype=int
+        )
+    }
+
+    if hasattr(netcdf_dataset_object, NORMALIZATION_TYPE_KEY):
+        normalization_type_string = str(getattr(
+            netcdf_dataset_object, NORMALIZATION_TYPE_KEY
+        ))
+    else:
+        normalization_type_string = ml_utils.Z_SCORE_STRING
+
+    example_dict[NORMALIZATION_TYPE_KEY] = normalization_type_string
+
+    if not metadata_only:
+        example_dict[FIRST_NORM_PARAM_KEY] = numpy.array(
+            netcdf_dataset_object.variables[FIRST_NORM_PARAM_KEY][
+                indices_to_keep, ...]
+        )
+
+        example_dict[SECOND_NORM_PARAM_KEY] = numpy.array(
+            netcdf_dataset_object.variables[SECOND_NORM_PARAM_KEY][
+                indices_to_keep, ...]
+        )
+
+        example_dict[PREDICTOR_MATRIX_KEY] = numpy.array(
+            netcdf_dataset_object.variables[PREDICTOR_MATRIX_KEY][
+                indices_to_keep, ...],
+            dtype=numpy.float32
+        )
+
+        example_dict[TARGET_MATRIX_KEY] = numpy.array(
+            netcdf_dataset_object.variables[TARGET_MATRIX_KEY][
+                indices_to_keep, ...],
+            dtype=numpy.float64
+        )
+
+    return example_dict
+
+
 def _shrink_predictor_grid(predictor_matrix, num_half_rows=None,
                            num_half_columns=None):
     """Shrinks predictor grid (by cropping around the center).
@@ -830,164 +973,161 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
 def read_file(
         netcdf_file_name, metadata_only=False, predictor_names_to_keep=None,
         pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
-        num_half_columns_to_keep=None, first_time_to_keep_unix_sec=None,
-        last_time_to_keep_unix_sec=None):
+        num_half_columns_to_keep=None, id_strings_to_keep=None,
+        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None):
     """Reads learning examples from NetCDF file.
 
-    C = number of predictors to keep
-
     :param netcdf_file_name: Path to input file.
-    :param metadata_only: Boolean flag.  If True, will read only metadata
-        (everything except predictor and target matrices).
-    :param predictor_names_to_keep: length-C list of predictors to keep.  If
-        None, all predictors will be kept.
-    :param pressure_levels_to_keep_mb: length-C numpy array of pressure levels
-        to keep (millibars).
-    :param num_half_rows_to_keep: Number of half-rows to keep in predictor
-        grids.  If None, all rows will be kept.
+    :param metadata_only: Boolean flag.  If True, only metadata will be read.
+    :param predictor_names_to_keep: See doc for `_subset_predictors`.
+    :param pressure_levels_to_keep_mb: Same.
+    :param num_half_rows_to_keep: Number of half-rows (on either side of center)
+        to keep in predictor grids.  If None, will keep all rows.
     :param num_half_columns_to_keep: Same but for columns.
-    :param first_time_to_keep_unix_sec: First valid time to keep.  If None, all
-        valid times will be kept.
-    :param last_time_to_keep_unix_sec: Last valid time to keep.  If None, all
-        valid times will be kept.
-    :return: example_dict: See doc for `create_examples`.
+    :param id_strings_to_keep: 1-D list of example IDs to keep.  If None,
+        examples will not be subset in this way.
+    :param first_time_to_keep_unix_sec:
+        [used only if `id_strings_to_keep is None`]
+        First valid time to keep.  If None, will not subset this way.
+    :param last_time_to_keep_unix_sec:
+        [used only if `id_strings_to_keep is None`]
+        Last valid time to keep.  If None, will not subset this way.
+    :return: example_dict: Dictionary with the following keys.
+    example_dict["target_times_unix_sec"]: See doc for `create_examples`.
+    example_dict["row_indices"]: Same.
+    example_dict["column_indices"]: Same.
+    example_dict["narr_predictor_names"]: Same.
+    example_dict["pressure_levels_mb"]: Same.
+    example_dict["dilation_distance_metres"]: Same.
+    example_dict["narr_mask_matrix"]: Same.
+    example_dict["normalization_type_string"]: Same.
+
+    If `metadata_only == False`, also contains the following keys...
+
+    example_dict["predictor_matrix"]: Same.
+    example_dict["target_matrix"]: Same.
+    example_dict["first_normalization_param_matrix"]: Same.
+    example_dict["second_normalization_param_matrix"]: Same.
     """
 
-    # Check input args.
-    if first_time_to_keep_unix_sec is None:
-        first_time_to_keep_unix_sec = 0
-    if last_time_to_keep_unix_sec is None:
-        last_time_to_keep_unix_sec = LARGE_INTEGER
-
     error_checking.assert_is_boolean(metadata_only)
-    error_checking.assert_is_integer(first_time_to_keep_unix_sec)
-    error_checking.assert_is_integer(last_time_to_keep_unix_sec)
-    error_checking.assert_is_geq(
-        last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
-
-    # Read file.
     dataset_object = netcdf_io.open_netcdf(netcdf_file_name)
 
-    valid_times_unix_sec = numpy.array(
-        dataset_object.variables[VALID_TIMES_KEY][:], dtype=int)
-    row_indices = numpy.array(
-        dataset_object.variables[ROW_INDICES_KEY][:], dtype=int)
-    column_indices = numpy.array(
-        dataset_object.variables[COLUMN_INDICES_KEY][:], dtype=int)
+    # Check input args.
+    if id_strings_to_keep is None:
+        if first_time_to_keep_unix_sec is None:
+            first_time_to_keep_unix_sec = 0
+        if last_time_to_keep_unix_sec is None:
+            last_time_to_keep_unix_sec = LARGE_INTEGER
 
-    predictor_names = netCDF4.chartostring(
-        dataset_object.variables[PREDICTOR_NAMES_KEY][:]
-    )
-    predictor_names = [str(s) for s in predictor_names]
+        error_checking.assert_is_integer(first_time_to_keep_unix_sec)
+        error_checking.assert_is_integer(last_time_to_keep_unix_sec)
+        error_checking.assert_is_geq(
+            last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
 
-    if hasattr(dataset_object, 'pressure_level_mb'):
-        pressure_level_mb = int(getattr(dataset_object, 'pressure_level_mb'))
-        pressure_levels_mb = numpy.array([pressure_level_mb], dtype=int)
+        valid_times_unix_sec = numpy.array(
+            dataset_object.variables[VALID_TIMES_KEY][:], dtype=int
+        )
+
+        good_example_indices = numpy.where(numpy.logical_and(
+            valid_times_unix_sec >= first_time_to_keep_unix_sec,
+            valid_times_unix_sec <= last_time_to_keep_unix_sec
+        ))[0]
     else:
-        pressure_levels_mb = numpy.array(
-            dataset_object.variables[PRESSURE_LEVELS_KEY][:], dtype=int)
-
-    if predictor_names_to_keep is None and pressure_levels_to_keep_mb is None:
-        predictor_names_to_keep = copy.deepcopy(predictor_names)
-        pressure_levels_to_keep_mb = pressure_levels_mb + 0
-
-    pressure_levels_to_keep_mb = numpy.round(
-        pressure_levels_to_keep_mb
-    ).astype(int)
-
-    error_checking.assert_is_numpy_array(
-        numpy.array(predictor_names_to_keep), num_dimensions=1)
-
-    num_predictors_to_keep = len(predictor_names_to_keep)
-    error_checking.assert_is_numpy_array(
-        pressure_levels_to_keep_mb,
-        exact_dimensions=numpy.array([num_predictors_to_keep], dtype=int)
-    )
-
-    predictor_indices = [
-        numpy.where(numpy.logical_and(
-            numpy.array(predictor_names) == n, pressure_levels_mb == l
-        ))[0][0]
-        for n, l in zip(predictor_names_to_keep, pressure_levels_to_keep_mb)
-    ]
-
-    found_normalization_params = (
-        FIRST_NORM_PARAM_KEY in dataset_object.variables or
-        SECOND_NORM_PARAM_KEY in dataset_object.variables
-    )
-
-    if found_normalization_params:
-        if hasattr(dataset_object, NORMALIZATION_TYPE_KEY):
-            normalization_type_string = str(getattr(
-                dataset_object, NORMALIZATION_TYPE_KEY
-            ))
-        else:
-            normalization_type_string = ml_utils.Z_SCORE_STRING
-
-        first_normalization_param_matrix = numpy.array(
-            dataset_object.variables[FIRST_NORM_PARAM_KEY][
-                ..., predictor_indices]
-        )
-        second_normalization_param_matrix = numpy.array(
-            dataset_object.variables[SECOND_NORM_PARAM_KEY][
-                ..., predictor_indices]
-        )
-    else:
-        normalization_type_string = None
-        first_normalization_param_matrix = None
-        second_normalization_param_matrix = None
-
-    if metadata_only:
-        predictor_matrix = None
-        target_matrix = None
-    else:
-        predictor_matrix = numpy.array(
-            dataset_object.variables[PREDICTOR_MATRIX_KEY][
-                ..., predictor_indices]
-        )
-        target_matrix = numpy.array(
-            dataset_object.variables[TARGET_MATRIX_KEY][:]
+        error_checking.assert_is_string_list(id_strings_to_keep)
+        error_checking.assert_is_numpy_array(
+            numpy.array(id_strings_to_keep), num_dimensions=1
         )
 
-        predictor_matrix = _shrink_predictor_grid(
-            predictor_matrix=predictor_matrix,
+        all_id_strings = create_example_ids(
+            valid_times_unix_sec=numpy.array(
+                dataset_object.variables[VALID_TIMES_KEY][:], dtype=int
+            ),
+            row_indices=numpy.array(
+                dataset_object.variables[ROW_INDICES_KEY][:], dtype=int
+            ),
+            column_indices=numpy.array(
+                dataset_object.variables[COLUMN_INDICES_KEY][:], dtype=int
+            )
+        )
+
+        # TODO(thunderhoser): Could probably make this faster.
+        good_example_indices = numpy.array([
+            all_id_strings.index(this_id) for this_id in id_strings_to_keep
+        ], dtype=int)
+
+    example_dict = _read_specific_examples(
+        netcdf_dataset_object=dataset_object, metadata_only=metadata_only,
+        indices_to_keep=good_example_indices)
+
+    if not metadata_only:
+        example_dict[PREDICTOR_MATRIX_KEY] = _shrink_predictor_grid(
+            predictor_matrix=example_dict[PREDICTOR_MATRIX_KEY],
             num_half_rows=num_half_rows_to_keep,
             num_half_columns=num_half_columns_to_keep)
 
-    example_indices = numpy.where(numpy.logical_and(
-        valid_times_unix_sec >= first_time_to_keep_unix_sec,
-        valid_times_unix_sec <= last_time_to_keep_unix_sec
-    ))[0]
-
-    example_dict = {
-        VALID_TIMES_KEY: valid_times_unix_sec[example_indices],
-        ROW_INDICES_KEY: row_indices[example_indices],
-        COLUMN_INDICES_KEY: column_indices[example_indices],
-        PREDICTOR_NAMES_KEY: predictor_names_to_keep,
-        PRESSURE_LEVELS_KEY: pressure_levels_to_keep_mb,
-        DILATION_DISTANCE_KEY: getattr(dataset_object, DILATION_DISTANCE_KEY),
-        MASK_MATRIX_KEY:
-            numpy.array(dataset_object.variables[MASK_MATRIX_KEY][:], dtype=int)
-    }
-
-    if found_normalization_params:
-        example_dict.update({
-            NORMALIZATION_TYPE_KEY: normalization_type_string,
-            FIRST_NORM_PARAM_KEY:
-                first_normalization_param_matrix[example_indices, ...],
-            SECOND_NORM_PARAM_KEY:
-                second_normalization_param_matrix[example_indices, ...]
-        })
-
-    if not metadata_only:
-        example_dict.update({
-            PREDICTOR_MATRIX_KEY:
-                predictor_matrix[example_indices, ...].astype('float32'),
-            TARGET_MATRIX_KEY:
-                target_matrix[example_indices, ...].astype('float64')
-        })
-
     dataset_object.close()
+
+    return _subset_predictors(
+        example_dict=example_dict, metadata_only=metadata_only,
+        predictor_names=predictor_names_to_keep,
+        pressure_levels_mb=pressure_levels_to_keep_mb)
+
+
+def read_specific_examples_many_files(
+        top_example_dir_name, example_id_strings, predictor_names_to_keep=None,
+        pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
+        num_half_columns_to_keep=None):
+    """Reads specific examples from many files.
+
+    :param top_example_dir_name: Name of top-level directory with learning
+        examples.  Files therein will be found by `find_file`.
+    :param example_id_strings: 1-D list of example IDs to keep.
+    :param predictor_names_to_keep: Same.
+    :param pressure_levels_to_keep_mb: Same.
+    :param num_half_rows_to_keep: Same.
+    :param num_half_columns_to_keep: Same.
+    :return: example_dict: Same.
+    """
+
+    valid_times_unix_sec = example_ids_to_metadata(example_id_strings)[0]
+    example_dict = dict()
+
+    for this_time_unix_sec in numpy.unique(valid_times_unix_sec):
+        this_example_file_name = find_file(
+            top_directory_name=top_example_dir_name, shuffled=False,
+            first_valid_time_unix_sec=this_time_unix_sec,
+            last_valid_time_unix_sec=this_time_unix_sec,
+            raise_error_if_missing=True)
+
+        print('Reading data from: "{0:s}"...'.format(this_example_file_name))
+
+        these_indices = numpy.where(
+            valid_times_unix_sec == this_time_unix_sec
+        )[0]
+
+        this_example_dict = read_file(
+            netcdf_file_name=this_example_file_name,
+            predictor_names_to_keep=predictor_names_to_keep,
+            pressure_levels_to_keep_mb=pressure_levels_to_keep_mb,
+            num_half_rows_to_keep=num_half_rows_to_keep,
+            num_half_columns_to_keep=num_half_columns_to_keep,
+            id_strings_to_keep=[example_id_strings[k] for k in these_indices]
+        )
+
+        if example_dict is None:
+            example_dict = copy.deepcopy(this_example_dict)
+            continue
+
+        # TODO(thunderhoser): Could make concat faster by pre-allocating.
+        for this_key in MAIN_KEYS:
+            if isinstance(example_dict[this_key], numpy.ndarray):
+                example_dict[this_key] = numpy.concatenate((
+                    example_dict[this_key], this_example_dict[this_key]
+                ), axis=0)
+            else:
+                example_dict[this_key] += this_example_dict[this_key]
+
     return example_dict
 
 
