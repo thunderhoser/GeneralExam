@@ -1,5 +1,6 @@
 """Unit tests for learning_examples_io.py."""
 
+import copy
 import unittest
 import numpy
 from generalexam.ge_utils import predictor_utils
@@ -51,7 +52,7 @@ BATCH_NUMBER = 1234
 SHUFFLED_FILE_NAME = (
     'poop/batches0001000-0001999/downsized_3d_examples_batch0001234.nc')
 
-# The following constants are used to test subset_examples.
+# The following constants are used to test subset_examples and _subset_channels.
 PREDICTOR_MATRIX_FIELD1 = numpy.full((16, 32), 0.)
 
 PREDICTOR_MATRIX_EXAMPLE1 = numpy.stack((
@@ -78,12 +79,12 @@ THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 10800, 10800, 10800], dtype=int)
 THESE_ROW_INDICES = numpy.array([0, 50, 100, 0, 50, 100], dtype=int)
 THESE_COLUMN_INDICES = numpy.array([0, 10, 20, 0, 10, 20], dtype=int)
 
-PREDICTOR_NAMES = [
+THESE_PREDICTOR_NAMES = [
     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME
 ]
 
-PRESSURE_LEVELS_MB = numpy.array([
+THESE_PRESSURE_LEVELS_MB = numpy.array([
     predictor_utils.DUMMY_SURFACE_PRESSURE_MB,
     predictor_utils.DUMMY_SURFACE_PRESSURE_MB, 850, 850
 ], dtype=int)
@@ -110,14 +111,14 @@ THIS_STDEV_MATRIX = numpy.array([
     [6, 0.007, 3.1, 0.004]
 ], dtype=float)
 
-LARGE_EXAMPLE_DICT = {
+ORIGINAL_EXAMPLE_DICT = {
     examples_io.PREDICTOR_MATRIX_KEY: THIS_PREDICTOR_MATRIX,
     examples_io.TARGET_MATRIX_KEY: THIS_TARGET_MATRIX,
     examples_io.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
     examples_io.ROW_INDICES_KEY: THESE_ROW_INDICES,
     examples_io.COLUMN_INDICES_KEY: THESE_COLUMN_INDICES,
-    examples_io.PREDICTOR_NAMES_KEY: PREDICTOR_NAMES,
-    examples_io.PRESSURE_LEVELS_KEY: PRESSURE_LEVELS_MB,
+    examples_io.PREDICTOR_NAMES_KEY: THESE_PREDICTOR_NAMES,
+    examples_io.PRESSURE_LEVELS_KEY: THESE_PRESSURE_LEVELS_MB,
     examples_io.DILATION_DISTANCE_KEY: DILATION_DISTANCE_METRES,
     examples_io.MASK_MATRIX_KEY: NARR_MASK_MATRIX,
     examples_io.NORMALIZATION_TYPE_KEY: NORMALIZATION_TYPE_STRING,
@@ -125,7 +126,7 @@ LARGE_EXAMPLE_DICT = {
     examples_io.SECOND_NORM_PARAM_KEY: THIS_STDEV_MATRIX
 }
 
-DESIRED_EXAMPLE_INDICES = numpy.array([5, 0], dtype=int)
+EXAMPLE_INDICES_FOR_SUBSET = numpy.array([5, 0], dtype=int)
 
 THIS_PREDICTOR_MATRIX = numpy.stack((
     PREDICTOR_MATRIX_EXAMPLE1 + 3, PREDICTOR_MATRIX_EXAMPLE1 - 3
@@ -150,14 +151,71 @@ THIS_STDEV_MATRIX = numpy.array([
     [5, 0.005, 3, 0.003]
 ], dtype=float)
 
-SMALL_EXAMPLE_DICT = {
+EXAMPLE_DICT_SELECTED_EXAMPLES = {
     examples_io.PREDICTOR_MATRIX_KEY: THIS_PREDICTOR_MATRIX,
     examples_io.TARGET_MATRIX_KEY: THIS_TARGET_MATRIX,
     examples_io.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
     examples_io.ROW_INDICES_KEY: THESE_ROW_INDICES,
     examples_io.COLUMN_INDICES_KEY: THESE_COLUMN_INDICES,
-    examples_io.PREDICTOR_NAMES_KEY: PREDICTOR_NAMES,
-    examples_io.PRESSURE_LEVELS_KEY: PRESSURE_LEVELS_MB,
+    examples_io.PREDICTOR_NAMES_KEY: THESE_PREDICTOR_NAMES,
+    examples_io.PRESSURE_LEVELS_KEY: THESE_PRESSURE_LEVELS_MB,
+    examples_io.DILATION_DISTANCE_KEY: DILATION_DISTANCE_METRES,
+    examples_io.MASK_MATRIX_KEY: NARR_MASK_MATRIX,
+    examples_io.NORMALIZATION_TYPE_KEY: NORMALIZATION_TYPE_STRING,
+    examples_io.FIRST_NORM_PARAM_KEY: THIS_MEAN_MATRIX,
+    examples_io.SECOND_NORM_PARAM_KEY: THIS_STDEV_MATRIX
+}
+
+CHANNEL_INDICES_TO_KEEP = numpy.array([3, 0], dtype=int)
+
+PREDICTOR_MATRIX_EXAMPLE1 = numpy.stack((
+    PREDICTOR_MATRIX_FIELD1 + 3, PREDICTOR_MATRIX_FIELD1
+), axis=-1)
+
+THIS_PREDICTOR_MATRIX = numpy.stack((
+    PREDICTOR_MATRIX_EXAMPLE1 - 3, PREDICTOR_MATRIX_EXAMPLE1 - 2,
+    PREDICTOR_MATRIX_EXAMPLE1 - 1, PREDICTOR_MATRIX_EXAMPLE1 + 1,
+    PREDICTOR_MATRIX_EXAMPLE1 + 2, PREDICTOR_MATRIX_EXAMPLE1 + 3
+), axis=0)
+
+THESE_PREDICTOR_NAMES = [
+    predictor_utils.SPECIFIC_HUMIDITY_NAME, predictor_utils.TEMPERATURE_NAME
+]
+
+THESE_PRESSURE_LEVELS_MB = numpy.array([
+    850, predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+], dtype=int)
+
+THIS_MEAN_MATRIX = numpy.array([
+    [0.007, 290],
+    [0.007, 290],
+    [0.007, 290],
+    [0.008, 295],
+    [0.008, 295],
+    [0.008, 295]
+], dtype=float)
+
+THIS_STDEV_MATRIX = numpy.array([
+    [0.003, 5],
+    [0.003, 5],
+    [0.003, 5],
+    [0.004, 6],
+    [0.004, 6],
+    [0.004, 6]
+], dtype=float)
+
+EXAMPLE_DICT_SELECTED_CHANNELS = {
+    examples_io.PREDICTOR_MATRIX_KEY: THIS_PREDICTOR_MATRIX,
+    examples_io.TARGET_MATRIX_KEY:
+        ORIGINAL_EXAMPLE_DICT[examples_io.TARGET_MATRIX_KEY],
+    examples_io.VALID_TIMES_KEY:
+        ORIGINAL_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY],
+    examples_io.ROW_INDICES_KEY:
+        ORIGINAL_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY],
+    examples_io.COLUMN_INDICES_KEY:
+        ORIGINAL_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY],
+    examples_io.PREDICTOR_NAMES_KEY: THESE_PREDICTOR_NAMES,
+    examples_io.PRESSURE_LEVELS_KEY: THESE_PRESSURE_LEVELS_MB,
     examples_io.DILATION_DISTANCE_KEY: DILATION_DISTANCE_METRES,
     examples_io.MASK_MATRIX_KEY: NARR_MASK_MATRIX,
     examples_io.NORMALIZATION_TYPE_KEY: NORMALIZATION_TYPE_STRING,
@@ -184,6 +242,16 @@ ID_STRINGS_LARGE_DICT = [
     'time0000000000_row100_column020', 'time0000010800_row000_column000',
     'time0000010800_row050_column010', 'time0000010800_row100_column020'
 ]
+
+# The following constants are used to test find_example_ids.
+ALL_ID_STRINGS = copy.deepcopy(ID_STRINGS_LARGE_DICT)
+
+DESIRED_ID_STRINGS = [
+    'time0000010800_row050_column010', 'time0000000000_row000_column000',
+    'time0000010800_row100_column020', 'time1573242151_row137_column137'
+]
+
+DESIRED_EXAMPLE_INDICES = numpy.array([4, 0, 5, -1], dtype=int)
 
 
 def _compare_example_dicts(first_example_dict, second_example_dict):
@@ -282,6 +350,18 @@ class LearningExamplesIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             examples_io._file_name_to_batch_number(NON_SHUFFLED_FILE_NAME)
 
+    def test_subset_channels(self):
+        """Ensures correct output from _subset_channels."""
+
+        this_example_dict = examples_io._subset_channels(
+            example_dict=copy.deepcopy(ORIGINAL_EXAMPLE_DICT),
+            metadata_only=False, indices_to_keep=CHANNEL_INDICES_TO_KEEP
+        )
+
+        self.assertTrue(_compare_example_dicts(
+            this_example_dict, EXAMPLE_DICT_SELECTED_CHANNELS
+        ))
+
     def test_find_file_shuffled(self):
         """Ensures correct output from find_file.
 
@@ -312,11 +392,12 @@ class LearningExamplesIoTests(unittest.TestCase):
         """Ensures correct output from subset_examples."""
 
         this_example_dict = examples_io.subset_examples(
-            example_dict=LARGE_EXAMPLE_DICT,
-            desired_indices=DESIRED_EXAMPLE_INDICES)
+            example_dict=copy.deepcopy(ORIGINAL_EXAMPLE_DICT),
+            desired_indices=EXAMPLE_INDICES_FOR_SUBSET
+        )
 
         self.assertTrue(_compare_example_dicts(
-            this_example_dict, SMALL_EXAMPLE_DICT
+            this_example_dict, EXAMPLE_DICT_SELECTED_EXAMPLES
         ))
 
     def test_create_example_ids(self):
@@ -324,9 +405,9 @@ class LearningExamplesIoTests(unittest.TestCase):
 
         these_id_strings = examples_io.create_example_ids(
             valid_times_unix_sec=
-            LARGE_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY],
-            row_indices=LARGE_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY],
-            column_indices=LARGE_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY]
+            ORIGINAL_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY],
+            row_indices=ORIGINAL_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY],
+            column_indices=ORIGINAL_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY]
         )
 
         self.assertTrue(these_id_strings == ID_STRINGS_LARGE_DICT)
@@ -340,15 +421,40 @@ class LearningExamplesIoTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_times_unix_sec,
-            LARGE_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY]
+            ORIGINAL_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY]
         ))
         self.assertTrue(numpy.array_equal(
             these_row_indices,
-            LARGE_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY]
+            ORIGINAL_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY]
         ))
         self.assertTrue(numpy.array_equal(
             these_column_indices,
-            LARGE_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY]
+            ORIGINAL_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY]
+        ))
+
+    def test_find_example_ids_strict(self):
+        """Ensures correct output from find_example_ids.
+
+        In this case, running in "strict" mode (missing IDs not allowed).
+        """
+
+        with self.assertRaises(ValueError):
+            examples_io.find_example_ids(
+                all_id_strings=ALL_ID_STRINGS,
+                desired_id_strings=DESIRED_ID_STRINGS, allow_missing=False)
+
+    def test_find_example_ids_flexible(self):
+        """Ensures correct output from find_example_ids.
+
+        In this case, running in "flexible" mode (missing IDs are allowed).
+        """
+
+        these_indices = examples_io.find_example_ids(
+            all_id_strings=ALL_ID_STRINGS,
+            desired_id_strings=DESIRED_ID_STRINGS, allow_missing=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, DESIRED_EXAMPLE_INDICES
         ))
 
 

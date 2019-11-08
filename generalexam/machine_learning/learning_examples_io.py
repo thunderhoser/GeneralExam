@@ -125,22 +125,13 @@ def _file_name_to_batch_number(example_file_name):
         raise ValueError(error_string)
 
 
-def _subset_predictors(
-        example_dict, metadata_only, predictor_names=None,
-        pressure_levels_mb=None):
-    """Subsets predictors by field, pressure level, and horizontal extent.
-
-    C = number of predictors to keep
-
-    If `predictor_names is None` or `pressure_levels_mb is None`, will keep all
-    channels.
+def _subset_channels(example_dict, metadata_only, indices_to_keep):
+    """Subsets examples by predictor channel.
 
     :param example_dict: Dictionary in the format returned by `read_file`.
     :param metadata_only: Boolean flag.  If True, will expect only metadata in
         `example_dict`.
-    :param predictor_names: length-C list of predictors to keep.
-    :param pressure_levels_mb: length-C numpy array of pressure levels to keep
-        (millibars).
+    :param indices_to_keep: 1-D numpy array with indices of channels to keep.
     :return: example_dict: Same as input but with the following exceptions.
 
     [1] Keys "narr_predictor_names" and "pressure_levels_mb" may have different
@@ -150,43 +141,23 @@ def _subset_predictors(
         "second_normalization_param_matrix" may be shorter.
     """
 
-    if predictor_names is None or pressure_levels_mb is None:
-        return example_dict
-
-    all_predictor_names = example_dict[PREDICTOR_NAMES_KEY]
-    all_pressure_levels_mb = example_dict[PRESSURE_LEVELS_KEY]
-
-    error_checking.assert_is_numpy_array(
-        numpy.array(predictor_names), num_dimensions=1
-    )
-
-    pressure_levels_mb = numpy.round(pressure_levels_mb).astype(int)
-    these_expected_dim = numpy.array([len(predictor_names)], dtype=int)
-    error_checking.assert_is_numpy_array(
-        pressure_levels_mb, exact_dimensions=these_expected_dim)
-
-    good_channel_indices = [
-        numpy.where(numpy.logical_and(
-            numpy.array(all_predictor_names) == n,
-            all_pressure_levels_mb == l
-        ))[0][0]
-        for n, l in zip(predictor_names, pressure_levels_mb)
+    example_dict[PREDICTOR_NAMES_KEY] = [
+        example_dict[PREDICTOR_NAMES_KEY][k] for k in indices_to_keep
     ]
-
-    example_dict[PREDICTOR_NAMES_KEY] = predictor_names
-    example_dict[PRESSURE_LEVELS_KEY] = pressure_levels_mb
+    example_dict[PRESSURE_LEVELS_KEY] = example_dict[PRESSURE_LEVELS_KEY][
+        indices_to_keep]
 
     if metadata_only:
         return example_dict
 
     example_dict[PREDICTOR_MATRIX_KEY] = example_dict[PREDICTOR_MATRIX_KEY][
-        ..., good_channel_indices
+        ..., indices_to_keep
     ]
     example_dict[FIRST_NORM_PARAM_KEY] = example_dict[FIRST_NORM_PARAM_KEY][
-        ..., good_channel_indices
+        ..., indices_to_keep
     ]
     example_dict[SECOND_NORM_PARAM_KEY] = example_dict[SECOND_NORM_PARAM_KEY][
-        ..., good_channel_indices
+        ..., indices_to_keep
     ]
 
     return example_dict
@@ -643,6 +614,86 @@ def example_ids_to_metadata(example_id_strings):
     return valid_times_unix_sec, row_indices, column_indices
 
 
+def find_example_ids(all_id_strings, desired_id_strings, allow_missing=False):
+    """Finds example IDs in list.
+
+    N = total number of examples
+    K = number of desired examples
+
+    :param all_id_strings: length-N list with all example IDs.
+    :param desired_id_strings: length-K list of desired example IDs.
+    :param allow_missing: Boolean flag.  If True, will allow some desired IDs to
+        be missing.  If False and any desired ID is missing, this method will
+        error out.
+    :return: desired_indices: length-K numpy array with indices of desired
+        examples.
+    :raises: ValueError: if `all_id_strings` has any duplicates.
+    :raises: ValueError: if any desired ID is missing and
+        `allow_missing == False`.
+    """
+
+    error_checking.assert_is_boolean(allow_missing)
+    error_checking.assert_is_string_list(all_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(all_id_strings), num_dimensions=1
+    )
+
+    error_checking.assert_is_string_list(desired_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(desired_id_strings), num_dimensions=1
+    )
+
+    all_id_strings_unique = list(set(all_id_strings))
+
+    if len(all_id_strings_unique) != len(all_id_strings):
+        error_string = (
+            '`all_id_strings` has {0:d} items, but only {1:d} of these are '
+            'unique.'
+        ).format(len(all_id_strings), len(all_id_strings_unique))
+
+        raise ValueError(error_string)
+
+    all_id_strings_numpy = numpy.array(all_id_strings, dtype='object')
+    desired_id_strings_numpy = numpy.array(desired_id_strings, dtype='object')
+
+    sort_indices = numpy.argsort(all_id_strings_numpy)
+    desired_subindices = numpy.searchsorted(
+        all_id_strings_numpy[sort_indices], desired_id_strings_numpy,
+        side='left'
+    ).astype(int)
+
+    desired_subindices[desired_subindices < 0] = 0
+    desired_subindices[desired_subindices >= len(all_id_strings)] = (
+        len(all_id_strings) - 1
+    )
+    desired_indices = sort_indices[desired_subindices]
+
+    if allow_missing:
+        bad_indices = numpy.where(
+            all_id_strings_numpy[desired_indices] != desired_id_strings_numpy
+        )[0]
+        desired_indices[bad_indices] = -1
+        return desired_indices
+
+    if not numpy.array_equal(all_id_strings_numpy[desired_indices],
+                             desired_id_strings_numpy):
+        missing_flags = (
+            all_id_strings_numpy[desired_indices] != desired_id_strings_numpy
+        )
+
+        error_string = (
+            '{0:d} of {1:d} desired example IDs (listed below) are missing:'
+            '\n{2:s}'
+        ).format(
+            numpy.sum(missing_flags), len(desired_id_strings),
+            str(desired_id_strings_numpy[missing_flags])
+        )
+
+        raise ValueError(error_string)
+
+    return desired_indices
+
+
 def find_file(
         top_directory_name, shuffled=False, first_valid_time_unix_sec=None,
         last_valid_time_unix_sec=None, batch_number=None,
@@ -1051,14 +1102,15 @@ def read_file(
             )
         )
 
-        # TODO(thunderhoser): Could probably make this faster.
-        good_example_indices = numpy.array([
-            all_id_strings.index(this_id) for this_id in id_strings_to_keep
-        ], dtype=int)
+        good_example_indices = find_example_ids(
+            all_id_strings=all_id_strings,
+            desired_id_strings=id_strings_to_keep, allow_missing=False)
 
     example_dict = _read_specific_examples(
         netcdf_dataset_object=dataset_object, metadata_only=metadata_only,
         indices_to_keep=good_example_indices)
+
+    dataset_object.close()
 
     if not metadata_only:
         example_dict[PREDICTOR_MATRIX_KEY] = _shrink_predictor_grid(
@@ -1066,12 +1118,37 @@ def read_file(
             num_half_rows=num_half_rows_to_keep,
             num_half_columns=num_half_columns_to_keep)
 
-    dataset_object.close()
+    if predictor_names_to_keep is None or pressure_levels_to_keep_mb is None:
+        return example_dict
 
-    return _subset_predictors(
+    all_predictor_names = example_dict[PREDICTOR_NAMES_KEY]
+    all_pressure_levels_mb = example_dict[PRESSURE_LEVELS_KEY]
+
+    error_checking.assert_is_string_list(predictor_names_to_keep)
+    error_checking.assert_is_numpy_array(
+        numpy.array(predictor_names_to_keep), num_dimensions=1
+    )
+    these_expected_dim = numpy.array([len(predictor_names_to_keep)], dtype=int)
+
+    error_checking.assert_is_numpy_array(pressure_levels_to_keep_mb)
+    pressure_levels_to_keep_mb = numpy.round(
+        pressure_levels_to_keep_mb
+    ).astype(int)
+
+    error_checking.assert_is_numpy_array(
+        pressure_levels_to_keep_mb, exact_dimensions=these_expected_dim)
+
+    good_channel_indices = [
+        numpy.where(numpy.logical_and(
+            numpy.array(all_predictor_names) == n,
+            all_pressure_levels_mb == l
+        ))[0][0]
+        for n, l in zip(predictor_names_to_keep, pressure_levels_to_keep_mb)
+    ]
+
+    return _subset_channels(
         example_dict=example_dict, metadata_only=metadata_only,
-        predictor_names=predictor_names_to_keep,
-        pressure_levels_mb=pressure_levels_to_keep_mb)
+        indices_to_keep=good_channel_indices)
 
 
 def read_specific_examples_many_files(
