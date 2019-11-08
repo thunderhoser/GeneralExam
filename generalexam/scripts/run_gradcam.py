@@ -94,6 +94,12 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     :param output_file_name: Same.
     """
 
+    if example_file_name in ['', 'None']:
+        example_file_name = None
+    else:
+        top_example_dir_name = None
+        example_id_file_name = None
+
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     # Read model and metadata.
