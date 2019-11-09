@@ -120,14 +120,11 @@ def plot_wind_barbs(
     num_grid_rows = u_wind_matrix_m_s01.shape[0]
     num_grid_columns = u_wind_matrix_m_s01.shape[1]
     x_coords_unique = numpy.linspace(
-        0, num_grid_columns, num=num_grid_columns - 1, dtype=float
+        0, num_grid_columns - 1, num=num_grid_columns, dtype=float
     )
     y_coords_unique = numpy.linspace(
-        0, num_grid_rows, num=num_grid_rows - 1, dtype=float
+        0, num_grid_rows - 1, num=num_grid_rows, dtype=float
     )
-
-    print(x_coords_unique)
-    print(y_coords_unique)
 
     x_coord_matrix, y_coord_matrix = grids.xy_vectors_to_matrices(
         x_unique_metres=x_coords_unique, y_unique_metres=y_coords_unique)
