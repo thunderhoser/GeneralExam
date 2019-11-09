@@ -1,10 +1,12 @@
 """Methods to run permutation test for front-detection models."""
 
 import numpy
+from sklearn.metrics import roc_auc_score as sklearn_auc
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation_utils
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
+from generalexam.machine_learning import evaluation_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
@@ -43,6 +45,38 @@ def _prediction_function(model_object, predictor_matrix):
     return cnn.apply_model(
         model_object=model_object, predictor_matrix=predictor_matrix,
         verbose=True)
+
+
+def negative_auc_function(observed_labels, class_probability_matrix):
+    """Computes negative AUC (area under the ROC curve).
+
+    For multi-class problems, the "AUC" computed by this function is the mean
+    AUC over all classes except 0 (the non-event class).
+
+    E = number of examples
+    K = number of classes
+
+    :param observed_labels: length-E numpy array of observed classes (integers
+        in range 0...[K - 1]).
+    :param class_probability_matrix: E-by-K numpy array of predicted
+        probabilities.
+    :return: negative_auc: Negative AUC.
+    """
+
+    evaluation_utils.check_evaluation_pairs(
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels)
+
+    num_classes = class_probability_matrix.shape[1]
+    auc_by_class = numpy.full(num_classes, numpy.nan)
+
+    for k in range(1, num_classes):
+        auc_by_class[k] = sklearn_auc(
+            y_true=(observed_labels == k).astype(int),
+            y_score=class_probability_matrix[:, k]
+        )
+
+    return -1 * numpy.mean(auc_by_class[1:])
 
 
 def get_nice_predictor_names(predictor_names, pressure_levels_mb):

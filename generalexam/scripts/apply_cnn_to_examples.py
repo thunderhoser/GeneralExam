@@ -35,7 +35,7 @@ EXAMPLE_DIR_HELP_STRING = (
     '`learning_examples_io.read_file`.')
 
 TIME_HELP_STRING = (
-    'Time (format "yyyymmddHH").  The CNN will applied to examples in the '
+    'Time (format "yyyymmddHH").  The CNN will be applied to examples in the '
     'period `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
