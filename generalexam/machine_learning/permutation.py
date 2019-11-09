@@ -34,17 +34,27 @@ BEST_PREDICTOR_KEY = permutation_utils.BEST_PREDICTOR_KEY
 BEST_COST_ARRAY_KEY = permutation_utils.BEST_COST_ARRAY_KEY
 
 
-def _prediction_function(model_object, predictor_matrix):
+def _prediction_function(model_object, predictor_matrix_as_list):
     """Prediction function for CNN that does front detection.
 
-    :param model_object: See doc for `run_forward_test` or `run_backwards_test`.
-    :param predictor_matrix: Same.
-    :return: class_probability_matrix: Same.
+    E = number of examples
+    M = number of rows in example grid
+    N = number of columns in example grid
+    C = number of predictors (channels)
+    K = number of classes
+
+    :param model_object: Trained model (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param predictor_matrix_as_list: length-1 list, where the only item is the
+        predictor matrix (E-by-M-by-N-by-C numpy array).
+    :return: class_probability_matrix: E-by-K numpy array of class
+        probabilities.
     """
 
     return cnn.apply_model(
-        model_object=model_object, predictor_matrix=predictor_matrix,
-        verbose=True)
+        model_object=model_object, predictor_matrix=predictor_matrix_as_list[0],
+        verbose=True
+    )
 
 
 def negative_auc_function(observed_labels, class_probability_matrix):
