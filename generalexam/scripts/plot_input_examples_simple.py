@@ -57,6 +57,11 @@ WIND_NAMES = [
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
 
+CELSIUS_NAMES = [
+    predictor_utils.TEMPERATURE_NAME, predictor_utils.DEWPOINT_NAME,
+    predictor_utils.WET_BULB_THETA_NAME
+]
+
 MAX_COLOUR_PERCENTILE = 99.
 WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
@@ -353,8 +358,8 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
 
 def plot_real_example(
         example_dict, example_index, plot_wind_as_barbs,
-        non_wind_colour_map_object, num_panel_rows=None, add_titles=True,
-        colour_bar_length=DEFAULT_CBAR_LENGTH,
+        non_wind_colour_map_object, plot_diffs=False, num_panel_rows=None,
+        add_titles=True, colour_bar_length=DEFAULT_CBAR_LENGTH,
         main_font_size=DEFAULT_MAIN_FONT_SIZE,
         title_font_size=DEFAULT_TITLE_FONT_SIZE,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
@@ -373,6 +378,8 @@ def plot_real_example(
         i = `example_index`.
     :param plot_wind_as_barbs: See documentation at top of file.
     :param non_wind_colour_map_object: Same.
+    :param plot_diffs: Boolean flag.  If True, plotting differences rather than
+        actual values.
     :param num_panel_rows: Number of panel rows in each figure.  If None, will
         be auto determined.
     :param add_titles: Boolean flag.  If True, will plot title at top of each
@@ -402,6 +409,7 @@ def plot_real_example(
 
     # Check input args.
     error_checking.assert_is_boolean(plot_wind_as_barbs)
+    error_checking.assert_is_boolean(plot_diffs)
     error_checking.assert_is_boolean(add_titles)
     error_checking.assert_is_greater(main_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
@@ -447,6 +455,16 @@ def plot_real_example(
     # Do housekeeping.
     example_dict = _convert_units(example_dict=example_dict,
                                   example_index=example_index)
+
+    if plot_diffs:
+        celsius_flags = numpy.array([
+            p in CELSIUS_NAMES
+            for p in example_dict[examples_io.PREDICTOR_NAMES_KEY]
+        ], dtype=bool)
+
+        celsius_indices = numpy.where(celsius_flags)[0]
+        example_dict[examples_io.PREDICTOR_MATRIX_KEY][
+            ..., celsius_indices] += 273.15
 
     example_dict, metadata_dict = _rotate_winds(
         example_dict=example_dict, example_index=example_index,
@@ -558,19 +576,23 @@ def plot_real_example(
 
         if predictor_names[k] in WIND_NAMES:
             this_colour_map_object = wind_colour_map_object
+        else:
+            this_colour_map_object = non_wind_colour_map_object
+
+        if predictor_names[k] in WIND_NAMES or plot_diffs:
             this_max_value = numpy.percentile(
                 numpy.absolute(predictor_matrix[..., same_field_indices]),
                 MAX_COLOUR_PERCENTILE
             )
             this_min_value = -1 * this_max_value
         else:
-            this_colour_map_object = non_wind_colour_map_object
             this_min_value = numpy.percentile(
                 predictor_matrix[..., same_field_indices],
                 100. - MAX_COLOUR_PERCENTILE
             )
             this_max_value = numpy.percentile(
-                predictor_matrix[..., same_field_indices], MAX_COLOUR_PERCENTILE
+                predictor_matrix[..., same_field_indices],
+                MAX_COLOUR_PERCENTILE
             )
 
         nwp_plotting.plot_subgrid(
@@ -651,8 +673,8 @@ def plot_real_example(
 
 
 def plot_composite_example(
-        example_dict, plot_wind_as_barbs,
-        non_wind_colour_map_object, num_panel_rows=None, add_titles=True,
+        example_dict, plot_wind_as_barbs, non_wind_colour_map_object,
+        plot_diffs=False, num_panel_rows=None, add_titles=True,
         colour_bar_length=DEFAULT_CBAR_LENGTH,
         main_font_size=DEFAULT_MAIN_FONT_SIZE,
         title_font_size=DEFAULT_TITLE_FONT_SIZE,
@@ -673,6 +695,8 @@ def plot_composite_example(
 
     :param plot_wind_as_barbs: See doc for `plot_real_example`.
     :param non_wind_colour_map_object: Same.
+    :param plot_diffs: Boolean flag.  If True, plotting differences rather than
+        actual values.
     :param num_panel_rows: Same.
     :param add_titles: Same.
     :param colour_bar_length: Same.
@@ -688,6 +712,7 @@ def plot_composite_example(
 
     # Check input args.
     error_checking.assert_is_boolean(plot_wind_as_barbs)
+    error_checking.assert_is_boolean(plot_diffs)
     error_checking.assert_is_boolean(add_titles)
     error_checking.assert_is_greater(main_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
@@ -695,6 +720,16 @@ def plot_composite_example(
 
     # Do housekeeping.
     example_dict = _convert_units(example_dict=example_dict, example_index=0)
+
+    if plot_diffs:
+        celsius_flags = numpy.array([
+            p in CELSIUS_NAMES
+            for p in example_dict[examples_io.PREDICTOR_NAMES_KEY]
+        ], dtype=bool)
+
+        celsius_indices = numpy.where(celsius_flags)[0]
+        example_dict[examples_io.PREDICTOR_MATRIX_KEY][
+            ..., celsius_indices] += 273.15
 
     predictor_names = numpy.array(example_dict[examples_io.PREDICTOR_NAMES_KEY])
     plot_wind = (
@@ -738,7 +773,7 @@ def plot_composite_example(
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
-        horizontal_spacing=0.1, vertical_spacing=0.1,
+
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     panel_index_linear = -1
@@ -758,19 +793,23 @@ def plot_composite_example(
 
         if predictor_names[k] in WIND_NAMES:
             this_colour_map_object = wind_colour_map_object
+        else:
+            this_colour_map_object = non_wind_colour_map_object
+
+        if predictor_names[k] in WIND_NAMES or plot_diffs:
             this_max_value = numpy.percentile(
                 numpy.absolute(predictor_matrix[..., same_field_indices]),
                 MAX_COLOUR_PERCENTILE
             )
             this_min_value = -1 * this_max_value
         else:
-            this_colour_map_object = non_wind_colour_map_object
             this_min_value = numpy.percentile(
                 predictor_matrix[..., same_field_indices],
                 100. - MAX_COLOUR_PERCENTILE
             )
             this_max_value = numpy.percentile(
-                predictor_matrix[..., same_field_indices], MAX_COLOUR_PERCENTILE
+                predictor_matrix[..., same_field_indices],
+                MAX_COLOUR_PERCENTILE
             )
 
         example_plotting.plot_2d_grid(
@@ -837,8 +876,8 @@ def plot_composite_example(
 
 
 def plot_real_examples(
-        example_dict, output_dir_name, plot_wind_as_barbs=True,
-        wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
+        example_dict, output_dir_name, plot_diffs=False,
+        plot_wind_as_barbs=True, wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
         wind_colour_map_name=DEFAULT_WIND_CMAP_NAME,
         non_wind_colour_map_name=DEFAULT_NON_WIND_CMAP_NAME,
         num_panel_rows=None, add_titles=True,
@@ -855,7 +894,10 @@ def plot_real_examples(
     :param example_dict: Dictionary returned by
         `learning_examples_io.read_file`.
     :param output_dir_name: See documentation at top of file.
-    :param plot_wind_as_barbs: Same.
+    :param plot_diffs: Boolean flag.  If True, plotting differences rather than
+        actual values.
+    :param plot_wind_as_barbs: Dictionary returned by
+        `learning_examples_io.read_file`.
     :param wind_barb_colour: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
@@ -889,7 +931,7 @@ def plot_real_examples(
 
     for i in range(num_examples):
         this_dict = plot_real_example(
-            example_dict=example_dict, example_index=i,
+            example_dict=example_dict, example_index=i, plot_diffs=plot_diffs,
             plot_wind_as_barbs=plot_wind_as_barbs,
             non_wind_colour_map_object=non_wind_colour_map_object,
             num_panel_rows=num_panel_rows, add_titles=add_titles,

@@ -468,7 +468,7 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
                 main_font_size=main_font_size, title_font_size=title_font_size,
                 colour_bar_font_size=colour_bar_font_size)
 
-            this_example_string = None
+            this_example_id_string = None
         else:
             this_dict = plot_examples.plot_real_example(
                 example_dict=example_dict, example_index=i,
@@ -482,7 +482,7 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
                 narr_cosine_matrix=narr_cosine_matrix,
                 narr_sine_matrix=narr_sine_matrix)
 
-            this_example_string = gradcam_dict[gradcam.EXAMPLE_IDS_KEY][i]
+            this_example_id_string = gradcam_dict[gradcam.EXAMPLE_IDS_KEY][i]
 
             if narr_cosine_matrix is None:
                 narr_cosine_matrix = this_dict[plot_examples.NARR_COSINES_KEY]
@@ -505,7 +505,7 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
             figure_object=this_dict[plot_examples.FIGURE_OBJECT_KEY],
             axes_object_matrix=this_dict[plot_examples.AXES_OBJECTS_KEY],
             output_dir_name=unguided_cam_dir_name,
-            example_id_string=this_example_string)
+            example_id_string=this_example_id_string)
 
         if pmm_flag:
             this_dict = plot_examples.plot_composite_example(
@@ -541,7 +541,7 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
             figure_object=this_dict[plot_examples.FIGURE_OBJECT_KEY],
             axes_object_matrix=this_dict[plot_examples.AXES_OBJECTS_KEY],
             output_dir_name=guided_cam_dir_name,
-            example_id_string=this_example_string)
+            example_id_string=this_example_id_string)
 
 
 if __name__ == '__main__':
