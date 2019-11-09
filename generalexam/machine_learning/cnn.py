@@ -14,6 +14,8 @@ import keras.callbacks
 from keras.models import load_model
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import cnn as gg_cnn
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
@@ -353,6 +355,97 @@ def train_cnn(
         callbacks=[checkpoint_object, early_stopping_object],
         validation_data=validation_generator,
         validation_steps=num_validation_batches_per_epoch)
+
+
+def apply_model(model_object, predictor_matrix, num_examples_per_batch=1000,
+                verbose=False, return_features=False, feature_layer_name=None):
+    """Applies trained model to new examples.
+
+    E = number of examples
+    M = number of rows in example grid
+    N = number of columns in example grid
+    C = number of predictors (channels)
+
+    K = number of classes
+    Z = number of features
+
+    :param model_object: Trained model (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
+    :param num_examples_per_batch: Number of examples per batch.
+    :param verbose: Boolean flag.  If True, will print progress message after
+        each batch.
+    :param return_features: Boolean flag.  If True, will return feature values
+        (outputs of intermediate layer) instead of predictions.
+    :param feature_layer_name: [used only if `return_features == True`]
+        Name of intermediate layer.
+
+    If return_features = True...
+
+    :return: feature_matrix: E-by-Z numpy array of feature values.
+
+    If return_features = False...
+
+    :return: class_probability_matrix: E-by-K numpy array of class
+        probabilities.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
+    num_examples = predictor_matrix.shape[0]
+
+    if num_examples_per_batch is None:
+        num_examples_per_batch = num_examples + 0
+    else:
+        error_checking.assert_is_integer(num_examples_per_batch)
+        error_checking.assert_is_greater(num_examples_per_batch, 0)
+
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
+    error_checking.assert_is_boolean(verbose)
+    error_checking.assert_is_boolean(return_features)
+
+    if return_features:
+        model_object_to_use = gg_cnn.model_to_feature_generator(
+            model_object=model_object, feature_layer_name=feature_layer_name)
+    else:
+        model_object_to_use = model_object
+
+    output_matrix = None
+
+    for i in range(0, num_examples, num_examples_per_batch):
+        this_first_index = i
+        this_last_index = min(
+            [i + num_examples_per_batch - 1, num_examples - 1]
+        )
+
+        if verbose:
+            print((
+                'Applying model to examples {0:d}-{1:d} of {2:d}...'
+            ).format(
+                this_first_index + 1, this_last_index + 1, num_examples
+            ))
+
+        these_outputs = model_object_to_use.predict(
+            predictor_matrix[this_first_index:(this_last_index + 1), ...],
+            batch_size=this_last_index - this_first_index + 1
+        )
+
+        if output_matrix is None:
+            output_matrix = these_outputs + 0.
+        else:
+            output_matrix = numpy.concatenate(
+                (output_matrix, these_outputs), axis=0
+            )
+
+    if verbose:
+        print('Have applied model to all {0:d} examples!'.format(num_examples))
+
+    if return_features:
+        return output_matrix
+
+    if len(output_matrix.shape) == 1:
+        output_matrix = dl_utils.event_probs_to_multiclass(output_matrix)
+
+    return output_matrix
 
 
 def apply_model_to_full_grid(
