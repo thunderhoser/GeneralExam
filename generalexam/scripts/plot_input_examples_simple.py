@@ -456,16 +456,6 @@ def plot_real_example(
     example_dict = _convert_units(example_dict=example_dict,
                                   example_index=example_index)
 
-    if plot_diffs:
-        celsius_flags = numpy.array([
-            p in CELSIUS_NAMES
-            for p in example_dict[examples_io.PREDICTOR_NAMES_KEY]
-        ], dtype=bool)
-
-        celsius_indices = numpy.where(celsius_flags)[0]
-        example_dict[examples_io.PREDICTOR_MATRIX_KEY][
-            ..., celsius_indices] += 273.15
-
     example_dict, metadata_dict = _rotate_winds(
         example_dict=example_dict, example_index=example_index,
         narr_cosine_matrix=narr_cosine_matrix,
@@ -538,6 +528,15 @@ def plot_real_example(
     panel_index_linear = -1
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][
         example_index, ...]
+
+    if plot_diffs:
+        celsius_flags = numpy.array([
+            p in CELSIUS_NAMES
+            for p in example_dict[examples_io.PREDICTOR_NAMES_KEY]
+        ], dtype=bool)
+
+        celsius_indices = numpy.where(celsius_flags)[0]
+        predictor_matrix[..., celsius_indices] += 273.15
 
     for k in range(num_predictors):
         if predictor_names[k] in WIND_NAMES and plot_wind_as_barbs:
@@ -721,16 +720,6 @@ def plot_composite_example(
     # Do housekeeping.
     example_dict = _convert_units(example_dict=example_dict, example_index=0)
 
-    if plot_diffs:
-        celsius_flags = numpy.array([
-            p in CELSIUS_NAMES
-            for p in example_dict[examples_io.PREDICTOR_NAMES_KEY]
-        ], dtype=bool)
-
-        celsius_indices = numpy.where(celsius_flags)[0]
-        example_dict[examples_io.PREDICTOR_MATRIX_KEY][
-            ..., celsius_indices] += 273.15
-
     predictor_names = numpy.array(example_dict[examples_io.PREDICTOR_NAMES_KEY])
     plot_wind = (
         predictor_utils.U_WIND_GRID_RELATIVE_NAME in predictor_names or
@@ -777,6 +766,15 @@ def plot_composite_example(
 
     panel_index_linear = -1
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][0, ...]
+
+    if plot_diffs:
+        celsius_flags = numpy.array([
+            p in CELSIUS_NAMES
+            for p in example_dict[examples_io.PREDICTOR_NAMES_KEY]
+        ], dtype=bool)
+
+        celsius_indices = numpy.where(celsius_flags)[0]
+        predictor_matrix[..., celsius_indices] += 273.15
 
     for k in range(num_predictors):
         if predictor_names[k] in WIND_NAMES and plot_wind_as_barbs:
