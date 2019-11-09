@@ -9,7 +9,6 @@ import argparse
 import numpy
 import keras.models
 from keras import backend as K
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import saliency_maps as gg_saliency_maps
 from generalexam.machine_learning import cnn
@@ -243,9 +242,6 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
         example_id_file_name = None
 
     # Check input args.
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    model_interpretation.check_component_type(component_type_string)
-
     saliency_metadata_dict = gg_saliency_maps.check_metadata(
         component_type_string=component_type_string,
         target_class=target_class, layer_name=layer_name,

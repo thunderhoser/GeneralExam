@@ -5,7 +5,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import gradcam as gg_gradcam
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import gradcam as ge_gradcam
@@ -99,8 +98,6 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     else:
         top_example_dir_name = None
         example_id_file_name = None
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     # Read model and metadata.
     print('Reading model from: "{0:s}"...'.format(model_file_name))
