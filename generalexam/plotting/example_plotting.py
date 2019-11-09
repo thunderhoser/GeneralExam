@@ -126,6 +126,9 @@ def plot_wind_barbs(
         0, num_grid_rows, num=num_grid_rows - 1, dtype=float
     )
 
+    print(x_coords_unique)
+    print(y_coords_unique)
+
     x_coord_matrix, y_coord_matrix = grids.xy_vectors_to_matrices(
         x_unique_metres=x_coords_unique, y_unique_metres=y_coords_unique)
 
@@ -142,12 +145,6 @@ def plot_wind_barbs(
         )
 
     wind_speeds_m_s01 = numpy.sqrt(u_winds_m_s01 ** 2 + v_winds_m_s01 ** 2)
-
-    print(x_coords.shape)
-    print(y_coords.shape)
-    print(u_winds_m_s01.shape)
-    print(v_winds_m_s01.shape)
-    print(wind_speeds_m_s01.shape)
 
     axes_object.barbs(
         x_coords, y_coords,
