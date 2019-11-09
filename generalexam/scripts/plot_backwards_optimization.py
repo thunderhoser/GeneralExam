@@ -51,7 +51,7 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + PLOT_BARBS_ARG_NAME, type=int, required=True, default=1,
+    '--' + PLOT_BARBS_ARG_NAME, type=int, required=False, default=1,
     help=plot_examples.PLOT_BARBS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
