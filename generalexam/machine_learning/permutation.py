@@ -186,12 +186,9 @@ def run_forward_test(
     # Find original cost (before permutation).
     print('Finding original cost (before permutation)...')
 
-    print('\n\n\n******\n\n\n')
-    print(predictor_matrix.shape)
-    print('\n\n\n******\n\n\n')
-
     class_probability_matrix = _prediction_function(
-        model_object, predictor_matrix)
+        model_object, [predictor_matrix]
+    )
     print(MINOR_SEPARATOR_STRING)
 
     original_cost_array = permutation_utils.bootstrap_cost(
@@ -310,7 +307,8 @@ def run_backwards_test(
     # Find original cost (before unpermutation).
     print('Finding original cost (before unpermutation)...')
     class_probability_matrix = _prediction_function(
-        model_object, predictor_matrix)
+        model_object, [predictor_matrix]
+    )
     print(MINOR_SEPARATOR_STRING)
 
     original_cost_array = permutation_utils.bootstrap_cost(
