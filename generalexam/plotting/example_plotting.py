@@ -143,6 +143,12 @@ def plot_wind_barbs(
 
     wind_speeds_m_s01 = numpy.sqrt(u_winds_m_s01 ** 2 + v_winds_m_s01 ** 2)
 
+    print(x_coords.shape)
+    print(y_coords.shape)
+    print(u_winds_m_s01.shape)
+    print(v_winds_m_s01.shape)
+    print(wind_speeds_m_s01.shape)
+
     axes_object.barbs(
         x_coords, y_coords,
         u_winds_m_s01 * METRES_PER_SECOND_TO_KT,
