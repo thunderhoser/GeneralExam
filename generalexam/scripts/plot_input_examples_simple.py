@@ -614,8 +614,9 @@ def plot_real_example(
             fraction_of_axis_length=colour_bar_length)
 
         these_tick_values = this_colour_bar_object.get_ticks()
+        these_tick_strings = ['{0:.1f}'.format(v) for v in these_tick_values]
         this_colour_bar_object.set_ticks(these_tick_values)
-        this_colour_bar_object.set_ticklabels(these_tick_values)
+        this_colour_bar_object.set_ticklabels(these_tick_strings)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -828,8 +829,9 @@ def plot_composite_example(
             fraction_of_axis_length=colour_bar_length)
 
         these_tick_values = this_colour_bar_object.get_ticks()
+        these_tick_strings = ['{0:.1f}'.format(v) for v in these_tick_values]
         this_colour_bar_object.set_ticks(these_tick_values)
-        this_colour_bar_object.set_ticklabels(these_tick_values)
+        this_colour_bar_object.set_ticklabels(these_tick_strings)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'

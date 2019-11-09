@@ -1,5 +1,7 @@
 """Applies trained CNN to pre-processed examples."""
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K
@@ -12,7 +14,8 @@ from generalexam.machine_learning import learning_examples_io as examples_io
 RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+    allow_soft_placement=False
 )))
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'

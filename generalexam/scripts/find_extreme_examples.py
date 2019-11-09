@@ -231,7 +231,8 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
             ))
 
             this_output_file_name = (
-                '{0:s}/extreme_examples_actual{1:d}_predicted{2:d}.nc'
+                '{0:s}/extreme_examples_actual-class={1:d}_'
+                'predicted-class={2:d}.nc'
             ).format(output_dir_name, j, i)
 
             print('Writing extreme-example IDs to: "{0:s}"...'.format(
@@ -260,7 +261,7 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
         ))
 
         this_output_file_name = (
-            '{0:s}/extreme_examples_predicted{1:d}.nc'
+            '{0:s}/extreme_examples_predicted-class={1:d}.nc'
         ).format(output_dir_name, k)
 
         print('Writing extreme-example IDs to: "{0:s}"...'.format(
