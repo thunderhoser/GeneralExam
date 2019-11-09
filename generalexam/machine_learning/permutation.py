@@ -185,6 +185,11 @@ def run_forward_test(
 
     # Find original cost (before permutation).
     print('Finding original cost (before permutation)...')
+
+    print('\n\n\n******\n\n\n')
+    print(predictor_matrix.shape)
+    print('\n\n\n******\n\n\n')
+
     class_probability_matrix = _prediction_function(
         model_object, predictor_matrix)
     print(MINOR_SEPARATOR_STRING)
