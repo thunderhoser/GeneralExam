@@ -858,6 +858,10 @@ def plot_composite_example(
             predictor_names == predictor_utils.V_WIND_GRID_RELATIVE_NAME
         ))[0][0]
 
+        print(predictor_matrix.shape)
+        print(predictor_matrix[..., this_u_wind_index].shape)
+        print(predictor_matrix[..., this_v_wind_index].shape)
+
         example_plotting.plot_wind_barbs(
             u_wind_matrix_m_s01=predictor_matrix[..., this_u_wind_index],
             v_wind_matrix_m_s01=predictor_matrix[..., this_v_wind_index],
