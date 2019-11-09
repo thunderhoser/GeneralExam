@@ -337,7 +337,7 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             gg_backwards_opt.FINAL_ACTIVATION_KEY]
         output_matrix[i, ...] = this_result_dict[
             gg_backwards_opt.NORM_OUTPUT_MATRICES_KEY
-        ][0, ...]
+        ][0][0, ...]
 
     print(SEPARATOR_STRING)
 
