@@ -252,31 +252,31 @@ def _run(input_file_name, diff_colour_map_name, plot_wind_as_barbs,
         )
         pyplot.close(diff_figure_object)
     else:
-        plot_examples.plot_real_examples(
-            example_dict=before_example_dict,
-            output_dir_name=before_dir_name, plot_diffs=False,
-            plot_wind_as_barbs=plot_wind_as_barbs,
-            wind_barb_colour=wind_barb_colour,
-            num_panel_rows=num_panel_rows, add_titles=add_titles,
-            colour_bar_length=colour_bar_length,
-            main_font_size=main_font_size, title_font_size=title_font_size,
-            colour_bar_font_size=colour_bar_font_size,
-            figure_resolution_dpi=figure_resolution_dpi)
-
-        print(SEPARATOR_STRING)
-
-        plot_examples.plot_real_examples(
-            example_dict=after_example_dict,
-            output_dir_name=after_dir_name, plot_diffs=False,
-            plot_wind_as_barbs=plot_wind_as_barbs,
-            wind_barb_colour=wind_barb_colour,
-            num_panel_rows=num_panel_rows, add_titles=add_titles,
-            colour_bar_length=colour_bar_length,
-            main_font_size=main_font_size, title_font_size=title_font_size,
-            colour_bar_font_size=colour_bar_font_size,
-            figure_resolution_dpi=figure_resolution_dpi)
-
-        print(SEPARATOR_STRING)
+        # plot_examples.plot_real_examples(
+        #     example_dict=before_example_dict,
+        #     output_dir_name=before_dir_name, plot_diffs=False,
+        #     plot_wind_as_barbs=plot_wind_as_barbs,
+        #     wind_barb_colour=wind_barb_colour,
+        #     num_panel_rows=num_panel_rows, add_titles=add_titles,
+        #     colour_bar_length=colour_bar_length,
+        #     main_font_size=main_font_size, title_font_size=title_font_size,
+        #     colour_bar_font_size=colour_bar_font_size,
+        #     figure_resolution_dpi=figure_resolution_dpi)
+        #
+        # print(SEPARATOR_STRING)
+        #
+        # plot_examples.plot_real_examples(
+        #     example_dict=after_example_dict,
+        #     output_dir_name=after_dir_name, plot_diffs=False,
+        #     plot_wind_as_barbs=plot_wind_as_barbs,
+        #     wind_barb_colour=wind_barb_colour,
+        #     num_panel_rows=num_panel_rows, add_titles=add_titles,
+        #     colour_bar_length=colour_bar_length,
+        #     main_font_size=main_font_size, title_font_size=title_font_size,
+        #     colour_bar_font_size=colour_bar_font_size,
+        #     figure_resolution_dpi=figure_resolution_dpi)
+        #
+        # print(SEPARATOR_STRING)
 
         plot_examples.plot_real_examples(
             example_dict=diff_example_dict,
