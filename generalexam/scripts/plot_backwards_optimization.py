@@ -17,6 +17,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'diff_colour_map_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+NUM_EXAMPLES_ARG_NAME = plot_examples.NUM_EXAMPLES_ARG_NAME
 PLOT_BARBS_ARG_NAME = plot_examples.PLOT_BARBS_ARG_NAME
 WIND_BARB_COLOUR_ARG_NAME = plot_examples.WIND_BARB_COLOUR_ARG_NAME
 NUM_PANEL_ROWS_ARG_NAME = plot_examples.NUM_PANEL_ROWS_ARG_NAME
@@ -49,6 +50,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    help=plot_examples.NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_BARBS_ARG_NAME, type=int, required=False, default=1,
@@ -93,16 +98,17 @@ INPUT_ARG_PARSER.add_argument(
     help=plot_examples.RESOLUTION_HELP_STRING)
 
 
-def _run(input_file_name, diff_colour_map_name, plot_wind_as_barbs,
-         wind_barb_colour, num_panel_rows, add_titles, colour_bar_length,
-         main_font_size, title_font_size, colour_bar_font_size,
-         figure_resolution_dpi, top_output_dir_name):
+def _run(input_file_name, diff_colour_map_name, num_examples_to_plot,
+         plot_wind_as_barbs, wind_barb_colour, num_panel_rows, add_titles,
+         colour_bar_length, main_font_size, title_font_size,
+         colour_bar_font_size, figure_resolution_dpi, top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
 
     :param input_file_name: See documentation at top of file.
     :param diff_colour_map_name: Same.
+    :param num_examples_to_plot: Same.
     :param plot_wind_as_barbs: Same.
     :param wind_barb_colour: Same.
     :param num_panel_rows: Same.
@@ -117,6 +123,8 @@ def _run(input_file_name, diff_colour_map_name, plot_wind_as_barbs,
 
     if num_panel_rows <= 0:
         num_panel_rows = None
+    if num_examples_to_plot <= 0:
+        num_examples_to_plot = None
 
     before_dir_name = '{0:s}/before_optimization'.format(top_output_dir_name)
     after_dir_name = '{0:s}/after_optimization'.format(top_output_dir_name)
@@ -254,7 +262,8 @@ def _run(input_file_name, diff_colour_map_name, plot_wind_as_barbs,
     else:
         plot_examples.plot_real_examples(
             example_dict=before_example_dict,
-            output_dir_name=before_dir_name, plot_diffs=False,
+            output_dir_name=before_dir_name,
+            num_examples_to_plot=num_examples_to_plot, plot_diffs=False,
             plot_wind_as_barbs=plot_wind_as_barbs,
             wind_barb_colour=wind_barb_colour,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
@@ -267,7 +276,8 @@ def _run(input_file_name, diff_colour_map_name, plot_wind_as_barbs,
 
         plot_examples.plot_real_examples(
             example_dict=after_example_dict,
-            output_dir_name=after_dir_name, plot_diffs=False,
+            output_dir_name=after_dir_name,
+            num_examples_to_plot=num_examples_to_plot, plot_diffs=False,
             plot_wind_as_barbs=plot_wind_as_barbs,
             wind_barb_colour=wind_barb_colour,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
@@ -280,7 +290,8 @@ def _run(input_file_name, diff_colour_map_name, plot_wind_as_barbs,
 
         plot_examples.plot_real_examples(
             example_dict=diff_example_dict,
-            output_dir_name=difference_dir_name, plot_diffs=True,
+            output_dir_name=difference_dir_name,
+            num_examples_to_plot=num_examples_to_plot, plot_diffs=True,
             plot_wind_as_barbs=plot_wind_as_barbs,
             wind_barb_colour=wind_barb_colour,
             wind_colour_map_name=diff_colour_map_name,
@@ -298,6 +309,7 @@ if __name__ == '__main__':
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         diff_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
+        num_examples_to_plot=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         plot_wind_as_barbs=bool(getattr(INPUT_ARG_OBJECT, PLOT_BARBS_ARG_NAME)),
         wind_barb_colour=numpy.array(
             getattr(INPUT_ARG_OBJECT, WIND_BARB_COLOUR_ARG_NAME), dtype=float

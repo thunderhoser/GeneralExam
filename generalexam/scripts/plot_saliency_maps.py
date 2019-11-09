@@ -25,6 +25,7 @@ MAX_SALIENCY_ARG_NAME = 'max_saliency'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+NUM_EXAMPLES_ARG_NAME = plot_examples.NUM_EXAMPLES_ARG_NAME
 WIND_CMAP_ARG_NAME = plot_examples.WIND_CMAP_ARG_NAME
 NON_WIND_CMAP_ARG_NAME = plot_examples.NON_WIND_CMAP_ARG_NAME
 NUM_PANEL_ROWS_ARG_NAME = plot_examples.NUM_PANEL_ROWS_ARG_NAME
@@ -83,6 +84,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    help=plot_examples.NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_CMAP_ARG_NAME, type=str, required=False,
@@ -269,9 +274,9 @@ def _smooth_maps(saliency_matrix, smoothing_radius_grid_cells):
 
 def _run(input_file_name, saliency_colour_map_name, max_saliency,
          half_num_contours, smoothing_radius_grid_cells, output_dir_name,
-         wind_colour_map_name, non_wind_colour_map_name, num_panel_rows,
-         add_titles, colour_bar_length, main_font_size, title_font_size,
-         colour_bar_font_size, figure_resolution_dpi):
+         num_examples_to_plot, wind_colour_map_name, non_wind_colour_map_name,
+         num_panel_rows, add_titles, colour_bar_length, main_font_size,
+         title_font_size, colour_bar_font_size, figure_resolution_dpi):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -282,6 +287,7 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Same.
+    :param num_examples_to_plot: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
     :param num_panel_rows: Same.
@@ -297,6 +303,8 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         smoothing_radius_grid_cells = None
     if num_panel_rows <= 0:
         num_panel_rows = None
+    if num_examples_to_plot <= 0:
+        num_examples_to_plot = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -353,12 +361,16 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         example_dict[examples_io.COLUMN_INDICES_KEY] = column_indices
 
     num_examples = example_dict[examples_io.PREDICTOR_MATRIX_KEY].shape[0]
+    if num_examples_to_plot is None:
+        num_examples_to_plot = num_examples + 0
+
+    num_examples_to_plot = min([num_examples_to_plot, num_examples])
+
     narr_cosine_matrix = None
     narr_sine_matrix = None
-
     print(SEPARATOR_STRING)
 
-    for i in range(num_examples):
+    for i in range(num_examples_to_plot):
         if pmm_flag:
             this_dict = plot_examples.plot_composite_example(
                 example_dict=example_dict, plot_wind_as_barbs=False,
@@ -414,6 +426,7 @@ if __name__ == '__main__':
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
+        num_examples_to_plot=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         wind_colour_map_name=getattr(INPUT_ARG_OBJECT, WIND_CMAP_ARG_NAME),
         non_wind_colour_map_name=getattr(
             INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME),

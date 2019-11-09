@@ -878,8 +878,9 @@ def plot_composite_example(
 
 
 def plot_real_examples(
-        example_dict, output_dir_name, plot_diffs=False,
-        plot_wind_as_barbs=True, wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
+        example_dict, output_dir_name, num_examples_to_plot=None,
+        plot_diffs=False, plot_wind_as_barbs=True,
+        wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
         wind_colour_map_name=DEFAULT_WIND_CMAP_NAME,
         non_wind_colour_map_name=DEFAULT_NON_WIND_CMAP_NAME,
         num_panel_rows=None, add_titles=True,
@@ -896,6 +897,8 @@ def plot_real_examples(
     :param example_dict: Dictionary returned by
         `learning_examples_io.read_file`.
     :param output_dir_name: See documentation at top of file.
+    :param num_examples_to_plot: Number of examples to plot.  If None, will plot
+        them all.
     :param plot_diffs: Boolean flag.  If True, plotting differences rather than
         actual values.
     :param plot_wind_as_barbs: Dictionary returned by
@@ -915,6 +918,12 @@ def plot_real_examples(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    num_examples = len(example_dict[examples_io.VALID_TIMES_KEY])
+    if num_examples_to_plot is None:
+        num_examples_to_plot = num_examples + 0
+
+    num_examples_to_plot = min([num_examples_to_plot, num_examples])
+
     non_wind_colour_map_object = pyplot.cm.get_cmap(non_wind_colour_map_name)
     if plot_wind_as_barbs:
         wind_colour_map_object = None
@@ -927,11 +936,10 @@ def plot_real_examples(
         column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
     )
 
-    num_examples = len(example_dict[examples_io.VALID_TIMES_KEY])
     narr_cosine_matrix = None
     narr_sine_matrix = None
 
-    for i in range(num_examples):
+    for i in range(num_examples_to_plot):
         this_dict = plot_real_example(
             example_dict=example_dict, example_index=i, plot_diffs=plot_diffs,
             plot_wind_as_barbs=plot_wind_as_barbs,
@@ -960,15 +968,15 @@ def plot_real_examples(
         pyplot.close(this_figure_object)
 
 
-def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
-         wind_barb_colour, wind_colour_map_name, non_wind_colour_map_name,
-         num_panel_rows, add_titles, colour_bar_length, main_font_size,
-         title_font_size, colour_bar_font_size, figure_resolution_dpi,
-         output_dir_name):
+def _run(example_file_name, num_examples_to_plot, model_file_name,
+         plot_wind_as_barbs, wind_barb_colour, wind_colour_map_name,
+         non_wind_colour_map_name, num_panel_rows, add_titles,
+         colour_bar_length, main_font_size, title_font_size,
+         colour_bar_font_size, figure_resolution_dpi, output_dir_name):
     """Plots one or more examples.
 
     :param example_file_name: See documentation at top of file.
-    :param num_examples: Same.
+    :param num_examples_to_plot: Same.
     :param model_file_name: Same.
     :param plot_wind_as_barbs: Same.
     :param wind_barb_colour: Same.
@@ -986,6 +994,8 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
 
     if num_panel_rows < 1:
         num_panel_rows = None
+    if num_examples_to_plot < 1:
+        num_examples_to_plot = None
 
     # Read model and metadata.
     print('Reading model from: "{0:s}"...'.format(model_file_name))
@@ -1010,15 +1020,6 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
         pressure_levels_to_keep_mb=pressure_levels_mb,
         num_half_rows_to_keep=num_half_rows,
         num_half_columns_to_keep=num_half_columns)
-
-    num_examples_found = len(example_dict[examples_io.VALID_TIMES_KEY])
-
-    if 0 < num_examples < num_examples_found:
-        desired_indices = numpy.linspace(
-            0, num_examples - 1, num=num_examples, dtype=int)
-
-        example_dict = examples_io.subset_examples(
-            example_dict=example_dict, desired_indices=desired_indices)
 
     print('Denormalizing predictors...')
 
@@ -1053,7 +1054,8 @@ def _run(example_file_name, num_examples, model_file_name, plot_wind_as_barbs,
     print(SEPARATOR_STRING)
 
     plot_real_examples(
-        example_dict=example_dict, plot_wind_as_barbs=plot_wind_as_barbs,
+        example_dict=example_dict, num_examples_to_plot=num_examples_to_plot,
+        plot_wind_as_barbs=plot_wind_as_barbs,
         wind_barb_colour=wind_barb_colour,
         wind_colour_map_name=wind_colour_map_name,
         non_wind_colour_map_name=non_wind_colour_map_name,
@@ -1070,7 +1072,7 @@ if __name__ == '__main__':
 
     _run(
         example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
-        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        num_examples_to_plot=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
         plot_wind_as_barbs=bool(getattr(INPUT_ARG_OBJECT, PLOT_BARBS_ARG_NAME)),
         wind_barb_colour=numpy.array(
