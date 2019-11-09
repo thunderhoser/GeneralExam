@@ -119,10 +119,10 @@ def plot_wind_barbs(
 
     num_grid_rows = u_wind_matrix_m_s01.shape[0]
     num_grid_columns = u_wind_matrix_m_s01.shape[1]
-    x_coords_unique = numpy.linspace(
+    x_coords_unique = 0.5 + numpy.linspace(
         0, num_grid_columns - 1, num=num_grid_columns, dtype=float
     )
-    y_coords_unique = numpy.linspace(
+    y_coords_unique = 0.5 + numpy.linspace(
         0, num_grid_rows - 1, num=num_grid_rows, dtype=float
     )
 
