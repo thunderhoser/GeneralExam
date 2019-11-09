@@ -773,7 +773,6 @@ def plot_composite_example(
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
         num_rows=num_panel_rows, num_columns=num_panel_columns,
-
         shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
 
     panel_index_linear = -1
@@ -817,6 +816,9 @@ def plot_composite_example(
             colour_map_object=this_colour_map_object,
             min_colour_value=this_min_value, max_colour_value=this_max_value,
             axes_object=this_axes_object)
+
+        this_axes_object.set_xlim(0, predictor_matrix.shape[-2])
+        this_axes_object.set_ylim(0, predictor_matrix.shape[-3])
 
         this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=this_axes_object,
