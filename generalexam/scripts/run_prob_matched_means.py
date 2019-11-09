@@ -14,11 +14,13 @@ import numpy
 from gewittergefahr.gg_utils import prob_matched_means as pmm
 from generalexam.machine_learning import saliency_maps
 from generalexam.machine_learning import gradcam
+from generalexam.machine_learning import backwards_optimization as backwards_opt
 
 NONE_STRINGS = ['', 'None']
 
 SALIENCY_FILE_ARG_NAME = 'input_saliency_file_name'
 GRADCAM_FILE_ARG_NAME = 'input_gradcam_file_name'
+BWO_FILE_ARG_NAME = 'input_bwo_file_name'
 MAX_PERCENTILE_ARG_NAME = 'max_percentile_level'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
@@ -31,6 +33,11 @@ GRADCAM_FILE_HELP_STRING = (
     'Path to Grad-CAM file (will be read by `gradcam.read_file`).  If you are '
     'compositing something other than class-activation maps, leave this '
     'argument alone.')
+
+BWO_FILE_HELP_STRING = (
+    'Path to backwards-optimization file (will be read by '
+    '`backwards_optimization.read_file`).  If you are compositing something '
+    'other than BWO results, leave this argument alone.')
 
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile used in PMM procedure.  See '
@@ -48,6 +55,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + GRADCAM_FILE_ARG_NAME, type=str, required=False, default='',
     help=GRADCAM_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + BWO_FILE_ARG_NAME, type=str, required=False, default='',
+    help=BWO_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
@@ -137,7 +148,50 @@ def _composite_gradcam(input_file_name, max_percentile_level, output_file_name):
         pmm_max_percentile_level=max_percentile_level)
 
 
-def _run(input_saliency_file_name, input_gradcam_file_name,
+def _composite_backwards_opt(
+        input_file_name, max_percentile_level, output_file_name):
+    """Composites pre- and post-optimized examples.
+
+    :param input_file_name: Path to input file.  Will be read by
+        `backwards_optimization.read_file`.
+    :param max_percentile_level: See documentation at top of file.
+    :param output_file_name: Path to output file.  Will be written by
+        `backwards_optimization.write_pmm_file`.
+    """
+
+    print('Reading data from: "{0:s}"...'.format(input_file_name))
+    bwo_dictionary = backwards_opt.read_file(input_file_name)[0]
+    denorm_input_matrix = bwo_dictionary[backwards_opt.INPUT_MATRIX_KEY]
+    denorm_output_matrix = bwo_dictionary[backwards_opt.OUTPUT_MATRIX_KEY]
+
+    print('Compositing pre-optimized examples...')
+    mean_denorm_input_matrix = pmm.run_pmm_many_variables(
+        input_matrix=denorm_input_matrix,
+        max_percentile_level=max_percentile_level)
+
+    print('Compositing optimized examples...')
+    mean_denorm_output_matrix = pmm.run_pmm_many_variables(
+        input_matrix=denorm_output_matrix,
+        max_percentile_level=max_percentile_level)
+
+    print('Writing output to: "{0:s}"...'.format(output_file_name))
+    backwards_opt.write_pmm_file(
+        pickle_file_name=output_file_name,
+        mean_denorm_input_matrix=mean_denorm_input_matrix,
+        mean_denorm_output_matrix=mean_denorm_output_matrix,
+        mean_initial_activation=numpy.mean(
+            bwo_dictionary[backwards_opt.INITIAL_ACTIVATIONS_KEY]
+        ),
+        mean_final_activation=numpy.mean(
+            bwo_dictionary[backwards_opt.FINAL_ACTIVATIONS_KEY]
+        ),
+        model_file_name=bwo_dictionary[backwards_opt.MODEL_FILE_KEY],
+        non_pmm_file_name=input_file_name,
+        pmm_max_percentile_level=max_percentile_level
+    )
+
+
+def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
          max_percentile_level, output_file_name):
     """Runs probability-matched means (PMM).
 
@@ -145,6 +199,7 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
 
     :param input_saliency_file_name: See documentation at top of file.
     :param input_gradcam_file_name: Same.
+    :param input_bwo_file_name: Same.
     :param max_percentile_level: Same.
     :param output_file_name: Same.
     """
@@ -165,6 +220,14 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
 
         return
 
+    if input_bwo_file_name not in NONE_STRINGS:
+        _composite_backwards_opt(
+            input_file_name=input_bwo_file_name,
+            max_percentile_level=max_percentile_level,
+            output_file_name=output_file_name)
+
+        return
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
@@ -174,6 +237,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, SALIENCY_FILE_ARG_NAME),
         input_gradcam_file_name=getattr(
             INPUT_ARG_OBJECT, GRADCAM_FILE_ARG_NAME),
+        input_bwo_file_name=getattr(INPUT_ARG_OBJECT, BWO_FILE_ARG_NAME),
         max_percentile_level=getattr(INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

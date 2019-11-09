@@ -80,57 +80,6 @@ def _check_in_and_out_matrices(input_matrix, output_matrix, num_examples=None):
     )
 
 
-def write_pmm_file(
-        pickle_file_name, mean_denorm_input_matrix, mean_denorm_output_matrix,
-        mean_initial_activation, mean_final_activation, model_file_name,
-        non_pmm_file_name, pmm_max_percentile_level):
-    """Writes composite of pre- and post-optimized examples to Pickle file.
-
-    M = number of rows in grid
-    N = number of columns in grid
-    C = number of channels (predictors)
-
-    :param pickle_file_name: Path to output file.
-    :param mean_denorm_input_matrix: M-by-N-by-C numpy array of denormalized
-        input values (predictors before optimization).
-    :param mean_denorm_output_matrix: Same but after optimization.
-    :param mean_initial_activation: Mean model activation before optimization.
-    :param mean_final_activation: Mean model activation after optimization.
-    :param model_file_name: Path to model that performed backwards optimization
-        (readable by `cnn.read_model`).
-    :param non_pmm_file_name: Path to standard backwards-optimization file (with
-        non-composited results).
-    :param pmm_max_percentile_level: Max percentile level for PMM.
-    """
-
-    error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_string(non_pmm_file_name)
-    error_checking.assert_is_geq(pmm_max_percentile_level, 90.)
-    error_checking.assert_is_leq(pmm_max_percentile_level, 100.)
-
-    _check_in_and_out_matrices(
-        input_matrix=mean_denorm_input_matrix,
-        output_matrix=mean_denorm_output_matrix, num_examples=None)
-
-    error_checking.assert_is_not_nan(mean_initial_activation)
-    error_checking.assert_is_not_nan(mean_final_activation)
-
-    mean_bwo_dictionary = {
-        MEAN_INPUT_MATRIX_KEY: mean_denorm_input_matrix,
-        MEAN_OUTPUT_MATRIX_KEY: mean_denorm_output_matrix,
-        MEAN_INITIAL_ACTIVATION_KEY: mean_initial_activation,
-        MEAN_FINAL_ACTIVATION_KEY: mean_final_activation,
-        MODEL_FILE_KEY: model_file_name,
-        NON_PMM_FILE_KEY: non_pmm_file_name,
-        PMM_MAX_PERCENTILE_KEY: pmm_max_percentile_level
-    }
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(mean_bwo_dictionary, pickle_file_handle)
-    pickle_file_handle.close()
-
-
 def write_standard_file(
         pickle_file_name, denorm_input_matrix, denorm_output_matrix,
         initial_activations, final_activations, example_id_strings,
@@ -199,6 +148,57 @@ def write_standard_file(
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(bwo_dictionary, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def write_pmm_file(
+        pickle_file_name, mean_denorm_input_matrix, mean_denorm_output_matrix,
+        mean_initial_activation, mean_final_activation, model_file_name,
+        non_pmm_file_name, pmm_max_percentile_level):
+    """Writes composite of pre- and post-optimized examples to Pickle file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of channels (predictors)
+
+    :param pickle_file_name: Path to output file.
+    :param mean_denorm_input_matrix: M-by-N-by-C numpy array of denormalized
+        input values (predictors before optimization).
+    :param mean_denorm_output_matrix: Same but after optimization.
+    :param mean_initial_activation: Mean model activation before optimization.
+    :param mean_final_activation: Mean model activation after optimization.
+    :param model_file_name: Path to model that performed backwards optimization
+        (readable by `cnn.read_model`).
+    :param non_pmm_file_name: Path to standard backwards-optimization file (with
+        non-composited results).
+    :param pmm_max_percentile_level: Max percentile level for PMM.
+    """
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_string(non_pmm_file_name)
+    error_checking.assert_is_geq(pmm_max_percentile_level, 90.)
+    error_checking.assert_is_leq(pmm_max_percentile_level, 100.)
+
+    _check_in_and_out_matrices(
+        input_matrix=mean_denorm_input_matrix,
+        output_matrix=mean_denorm_output_matrix, num_examples=None)
+
+    error_checking.assert_is_not_nan(mean_initial_activation)
+    error_checking.assert_is_not_nan(mean_final_activation)
+
+    mean_bwo_dictionary = {
+        MEAN_INPUT_MATRIX_KEY: mean_denorm_input_matrix,
+        MEAN_OUTPUT_MATRIX_KEY: mean_denorm_output_matrix,
+        MEAN_INITIAL_ACTIVATION_KEY: mean_initial_activation,
+        MEAN_FINAL_ACTIVATION_KEY: mean_final_activation,
+        MODEL_FILE_KEY: model_file_name,
+        NON_PMM_FILE_KEY: non_pmm_file_name,
+        PMM_MAX_PERCENTILE_KEY: pmm_max_percentile_level
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_bwo_dictionary, pickle_file_handle)
     pickle_file_handle.close()
 
 
