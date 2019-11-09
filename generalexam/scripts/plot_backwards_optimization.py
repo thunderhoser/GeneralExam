@@ -64,10 +64,6 @@ INPUT_ARG_PARSER.add_argument(
     help=plot_examples.NUM_PANEL_ROWS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
-    help=plot_examples.NUM_PANEL_ROWS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
     help=plot_examples.ADD_TITLES_HELP_STRING)
 
