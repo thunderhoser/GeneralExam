@@ -209,15 +209,19 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
         this_guided_activn_matrix = these_matrices[0]
 
         if class_activn_matrix is None:
-            class_activn_matrix = this_activn_matrix + 0.
-            guided_class_activn_matrix = this_guided_activn_matrix + 0.
-        else:
-            class_activn_matrix = numpy.concatenate(
-                (class_activn_matrix, this_activn_matrix), axis=0
+            cam_dimensions = numpy.array(
+                (num_examples,) + this_activn_matrix.shape[1:], dtype=int
             )
-            guided_class_activn_matrix = numpy.concatenate(
-                (guided_class_activn_matrix, this_guided_activn_matrix), axis=0
+            class_activn_matrix = numpy.full(cam_dimensions, numpy.nan)
+
+            guided_cam_dimensions = numpy.array(
+                (num_examples,) + this_guided_activn_matrix.shape[1:], dtype=int
             )
+            guided_class_activn_matrix = numpy.full(
+                guided_cam_dimensions, numpy.nan)
+
+        class_activn_matrix[i, ...] = this_activn_matrix[0, ...]
+        guided_class_activn_matrix[i, ...] = this_guided_activn_matrix[0, ...]
 
     print(SEPARATOR_STRING)
     print('Writing class-activation maps to file: "{0:s}"...'.format(
