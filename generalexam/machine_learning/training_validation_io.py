@@ -439,6 +439,9 @@ def downsized_generator_from_example_files(
 
             file_index = file_index + 1 if file_index + 1 < num_files else 0
 
+            if this_example_dict is None:
+                continue
+
             this_num_examples = len(
                 this_example_dict[examples_io.VALID_TIMES_KEY]
             )

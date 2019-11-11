@@ -1106,6 +1106,10 @@ def read_file(
             all_id_strings=all_id_strings,
             desired_id_strings=id_strings_to_keep, allow_missing=False)
 
+    if len(good_example_indices) == 0:
+        dataset_object.close()
+        return None
+
     example_dict = _read_specific_examples(
         netcdf_dataset_object=dataset_object, metadata_only=metadata_only,
         indices_to_keep=good_example_indices)
