@@ -1,6 +1,7 @@
 """Plots saliency maps."""
 
 import os
+import copy
 import argparse
 import numpy
 import matplotlib
@@ -365,6 +366,41 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         num_examples_to_plot = num_examples + 0
 
     num_examples_to_plot = min([num_examples_to_plot, num_examples])
+    print(SEPARATOR_STRING)
+
+    if pmm_flag:
+        this_dict = plot_examples.plot_composite_example(
+            example_dict=copy.deepcopy(example_dict),
+            plot_wind_as_barbs=True,
+            wind_barb_colour=plot_examples.DEFAULT_WIND_BARB_COLOUR,
+            non_wind_colour_map_object=non_wind_colour_map_object,
+            num_panel_rows=num_panel_rows, add_titles=add_titles,
+            colour_bar_length=colour_bar_length,
+            main_font_size=main_font_size, title_font_size=title_font_size,
+            colour_bar_font_size=colour_bar_font_size)
+
+        this_file_name = '{0:s}/predictors_pmm.jpg'.format(output_dir_name)
+        this_figure_object = this_dict[plot_examples.FIGURE_OBJECT_KEY]
+
+        print('Saving figure to: "{0:s}"...'.format(this_file_name))
+        this_figure_object.savefig(
+            this_file_name, dpi=figure_resolution_dpi,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(this_figure_object)
+    else:
+        plot_examples.plot_real_examples(
+            example_dict=copy.deepcopy(example_dict),
+            output_dir_name='{0:s}/predictors'.format(output_dir_name),
+            num_examples_to_plot=num_examples_to_plot,
+            plot_wind_as_barbs=True,
+            wind_barb_colour=plot_examples.DEFAULT_WIND_BARB_COLOUR,
+            non_wind_colour_map_name=non_wind_colour_map_name,
+            num_panel_rows=num_panel_rows, add_titles=add_titles,
+            colour_bar_length=colour_bar_length,
+            main_font_size=main_font_size, title_font_size=title_font_size,
+            colour_bar_font_size=colour_bar_font_size,
+            figure_resolution_dpi=figure_resolution_dpi)
 
     narr_cosine_matrix = None
     narr_sine_matrix = None
