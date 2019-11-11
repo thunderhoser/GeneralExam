@@ -7,6 +7,7 @@ import numpy
 from keras.utils import to_categorical
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import data_augmentation
 from generalexam.ge_io import fronts_io
 from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import predictor_utils
@@ -16,13 +17,133 @@ from generalexam.machine_learning import learning_examples_io as examples_io
 LARGE_INTEGER = int(1e10)
 TIME_INTERVAL_SECONDS = 10800
 
+X_TRANSLATIONS_KEY = 'x_translations_pixels'
+Y_TRANSLATIONS_KEY = 'y_translations_pixels'
+ROTATION_ANGLES_KEY = 'ccw_rotation_angles_deg'
+NOISE_STDEV_KEY = 'noise_standard_deviation'
+NUM_NOISINGS_KEY = 'num_noisings'
+
+
+def _do_data_augmentation(
+        predictor_matrix, target_matrix, x_translations_pixels,
+        y_translations_pixels, ccw_rotation_angles_deg,
+        noise_standard_deviation, num_noisings):
+    """Applies one or more data augmentations to each example.
+
+    e = number of examples before augmentation
+    E = number of examples after augmentation
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of channels (predictors)
+    K = number of classes
+
+    :param predictor_matrix: e-by-M-by-N-by-C numpy array of predictors.
+    :param target_matrix: e-by-K numpy array of target values (all 0 or 1).
+    :param x_translations_pixels: 1-D numpy array of translations in
+        x-direction.  If you do not want to use translation, make this None.
+    :param y_translations_pixels: 1-D numpy array of translations in
+        y-direction.  Must have same length as `x_translations_pixels`, because
+        translations in the two directions are applied in tandem.  If you do not
+        want to use translation, make this None.
+    :param ccw_rotation_angles_deg: 1-D numpy array of counterclockwise rotation
+        angles (degrees).  If you do not want to use rotation, make this None.
+    :param noise_standard_deviation: Standard deviation for Gaussian noise (in
+        normalized, not physical, units).  If you do not want to add noise, make
+        this None.
+    :param num_noisings: Number of times to apply Gaussian noise.  If you do not
+        want to add noise, make this 0.
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictors.
+    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1).
+    """
+
+    if x_translations_pixels is None and y_translations_pixels is None:
+        num_translations = 0
+    else:
+        error_checking.assert_is_integer_numpy_array(x_translations_pixels)
+        error_checking.assert_is_numpy_array(
+            x_translations_pixels, num_dimensions=1)
+
+        num_translations = len(x_translations_pixels)
+        these_expected_dim = numpy.array([num_translations], dtype=int)
+
+        error_checking.assert_is_integer_numpy_array(y_translations_pixels)
+        error_checking.assert_is_numpy_array(
+            y_translations_pixels, exact_dimensions=these_expected_dim)
+
+        error_checking.assert_is_greater_numpy_array(
+            numpy.absolute(x_translations_pixels) +
+            numpy.absolute(y_translations_pixels),
+            0
+        )
+
+    if ccw_rotation_angles_deg is None:
+        num_rotations = 0
+    else:
+        error_checking.assert_is_numpy_array_without_nan(
+            ccw_rotation_angles_deg)
+        error_checking.assert_is_numpy_array(
+            ccw_rotation_angles_deg, num_dimensions=1)
+
+        num_rotations = len(ccw_rotation_angles_deg)
+
+    error_checking.assert_is_integer(num_noisings)
+    error_checking.assert_is_geq(num_noisings, 0)
+
+    print((
+        'Augmenting examples ({0:d} translations, {1:d} rotations, and {2:d} '
+        'noisings)...'
+    ).format(
+        num_translations, num_rotations, num_noisings
+    ))
+
+    orig_num_examples = predictor_matrix.shape[0]
+
+    for i in range(num_translations):
+        this_predictor_matrix = data_augmentation.shift_radar_images(
+            radar_image_matrix=predictor_matrix[:orig_num_examples, ...],
+            x_offset_pixels=x_translations_pixels[i],
+            y_offset_pixels=y_translations_pixels[i]
+        )
+        predictor_matrix = numpy.concatenate(
+            (predictor_matrix, this_predictor_matrix), axis=0
+        )
+        target_matrix = numpy.concatenate(
+            (target_matrix, target_matrix[:orig_num_examples, ...]), axis=0
+        )
+
+    for i in range(num_rotations):
+        this_predictor_matrix = data_augmentation.rotate_radar_images(
+            radar_image_matrix=predictor_matrix[:orig_num_examples, ...],
+            ccw_rotation_angle_deg=ccw_rotation_angles_deg[i]
+        )
+        predictor_matrix = numpy.concatenate(
+            (predictor_matrix, this_predictor_matrix), axis=0
+        )
+        target_matrix = numpy.concatenate(
+            (target_matrix, target_matrix[:orig_num_examples, ...]), axis=0
+        )
+
+    for i in range(num_noisings):
+        this_predictor_matrix = data_augmentation.noise_radar_images(
+            radar_image_matrix=predictor_matrix[:orig_num_examples, ...],
+            standard_deviation=noise_standard_deviation
+        )
+        predictor_matrix = numpy.concatenate(
+            (predictor_matrix, this_predictor_matrix), axis=0
+        )
+        target_matrix = numpy.concatenate(
+            (target_matrix, target_matrix[:orig_num_examples, ...]), axis=0
+        )
+
+    return predictor_matrix, target_matrix
+
 
 def downsized_generator_from_scratch(
         top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
         last_time_unix_sec, predictor_names, pressure_levels_mb, num_half_rows,
         num_half_columns, normalization_type_string, dilation_distance_metres,
         class_fractions, num_examples_per_batch, num_examples_per_time,
-        narr_mask_matrix=None):
+        narr_mask_matrix=None, augmentation_dict=None):
     """Generates downsized examples (for patch classification) from scratch.
 
     E = number of examples
@@ -60,6 +181,15 @@ def downsized_generator_from_scratch(
         `machine_learning_utils.check_narr_mask`.  Masked grid cells will not be
         used as the center of an example.  If this is None, no grid cells will
         be masked.
+    :param augmentation_dict: Dictionary with the following keys.  If you do not
+        want data augmentation, make this None.
+    augmentation_dict["x_translations_pixels"]: See doc for
+        `_do_data_augmentation`.
+    augmentation_dict["y_translations_pixels"]: Same.
+    augmentation_dict["ccw_rotation_angles_deg"]: Same.
+    augmentation_dict["noise_standard_deviation"]: Same.
+    augmentation_dict["num_noisings"]: Same.
+
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
     :return: target_matrix: E-by-K numpy array of target values (all 0 or 1).
         If target_matrix[i, k] = 1, the [i]th example is in the [k]th class.
@@ -206,7 +336,18 @@ def downsized_generator_from_scratch(
         predictor_matrix = predictor_matrix[batch_indices, ...].astype(
             'float32')
         target_matrix = to_categorical(
-            target_values[batch_indices], num_classes)
+            target_values[batch_indices], num_classes
+        )
+
+        if augmentation_dict is not None:
+            predictor_matrix, target_matrix = _do_data_augmentation(
+                predictor_matrix=predictor_matrix, target_matrix=target_matrix,
+                x_translations_pixels=augmentation_dict[X_TRANSLATIONS_KEY],
+                y_translations_pixels=augmentation_dict[Y_TRANSLATIONS_KEY],
+                ccw_rotation_angles_deg=augmentation_dict[ROTATION_ANGLES_KEY],
+                noise_standard_deviation=augmentation_dict[NOISE_STDEV_KEY],
+                num_noisings=augmentation_dict[NUM_NOISINGS_KEY]
+            )
 
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
         print('Number of examples in each class: {0:s}'.format(
@@ -223,7 +364,7 @@ def downsized_generator_from_scratch(
 def downsized_generator_from_example_files(
         top_input_dir_name, first_time_unix_sec, last_time_unix_sec,
         predictor_names, pressure_levels_mb, num_half_rows, num_half_columns,
-        num_classes, num_examples_per_batch):
+        num_classes, num_examples_per_batch, augmentation_dict=None):
     """Generates downsized examples (for patch classifn) from example files.
 
     E = number of examples
@@ -247,6 +388,15 @@ def downsized_generator_from_example_files(
         `num_classes == 2`, the problem will be simplified to binary (front or
         no front).
     :param num_examples_per_batch: Number of examples per batch.
+    :param augmentation_dict: Dictionary with the following keys.  If you do not
+        want data augmentation, make this None.
+    augmentation_dict["x_translations_pixels"]: See doc for
+        `_do_data_augmentation`.
+    augmentation_dict["y_translations_pixels"]: Same.
+    augmentation_dict["ccw_rotation_angles_deg"]: Same.
+    augmentation_dict["noise_standard_deviation"]: Same.
+    augmentation_dict["num_noisings"]: Same.
+
     :return: predictor_matrix: See doc for `downsized_generator_from_scratch`.
     :return: target_matrix: Same.
     """
@@ -254,7 +404,6 @@ def downsized_generator_from_example_files(
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_leq(num_classes, 3)
-
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 16)
 
@@ -326,6 +475,16 @@ def downsized_generator_from_example_files(
             target_values = numpy.argmax(target_matrix, axis=1)
             target_values[target_values > 1] = 1
             target_matrix = to_categorical(target_values, num_classes)
+
+        if augmentation_dict is not None:
+            predictor_matrix, target_matrix = _do_data_augmentation(
+                predictor_matrix=predictor_matrix, target_matrix=target_matrix,
+                x_translations_pixels=augmentation_dict[X_TRANSLATIONS_KEY],
+                y_translations_pixels=augmentation_dict[Y_TRANSLATIONS_KEY],
+                ccw_rotation_angles_deg=augmentation_dict[ROTATION_ANGLES_KEY],
+                noise_standard_deviation=augmentation_dict[NOISE_STDEV_KEY],
+                num_noisings=augmentation_dict[NUM_NOISINGS_KEY]
+            )
 
         num_examples_by_class = numpy.sum(target_matrix, axis=0)
         print('Number of examples in each class: {0:s}'.format(

@@ -8,24 +8,34 @@ TIME_FORMAT = '%Y%m%d%H'
 
 INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
 PREDICTOR_NAMES_ARG_NAME = 'predictor_names'
-
 PRESSURE_LEVELS_ARG_NAME = 'pressure_levels_mb'
+
+X_TRANSLATIONS_ARG_NAME = 'x_translations_px'
+Y_TRANSLATIONS_ARG_NAME = 'y_translations_px'
+ROTATION_ANGLES_ARG_NAME = 'ccw_rotation_angles_deg'
+NOISE_STDEV_ARG_NAME = 'noise_standard_deviation'
+NUM_NOISINGS_ARG_NAME = 'num_noisings'
+
+# The following args are used only when training from scratch (creating examples
+# on the fly from raw data).
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
-NUM_EX_PER_TIME_ARG_NAME = 'num_examples_per_time'
-WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
-DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 PREDICTOR_DIR_ARG_NAME = 'input_predictor_dir_name'
 FRONT_DIR_ARG_NAME = 'input_gridded_front_dir_name'
 MASK_FILE_ARG_NAME = 'input_mask_file_name'
+NUM_EX_PER_TIME_ARG_NAME = 'num_examples_per_time'
+WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
+DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 
+# The following args are used only when training from example files.
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 VALIDATION_DIR_ARG_NAME = 'input_validation_dir_name'
 
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
+NUM_EX_PER_TRAIN_ARG_NAME = 'num_ex_per_train_batch'
 FIRST_VALIDATION_TIME_ARG_NAME = 'first_validation_time_string'
 LAST_VALIDATION_TIME_ARG_NAME = 'last_validation_time_string'
-NUM_EX_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
+NUM_EX_PER_VALIDN_ARG_NAME = 'num_ex_per_validn_batch'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
@@ -48,20 +58,6 @@ DILATION_DISTANCE_HELP_STRING = (
     'Dilation distance for target variable (front label).  Each warm-frontal or'
     ' cold-frontal grid cell will be dilated by this amount.')
 
-NUM_EX_PER_TIME_HELP_STRING = (
-    'Average number of training examples for each target time.  This constraint'
-    ' is applied to each batch separately.')
-
-WEIGHT_LOSS_HELP_STRING = (
-    'Boolean flag.  If 1, each class in the loss function will be weighted by '
-    'the inverse of its frequency in training data.  If 0, no such weighting '
-    'will be done.')
-
-DOWNSAMPLING_FRACTIONS_HELP_STRING = (
-    'List of downsampling fractions.  The [k]th value is the fraction for the '
-    '[k]th class.  Fractions must add up to 1.0.  If you do not want '
-    'downsampling, make this a one-item list.')
-
 PREDICTOR_DIR_HELP_STRING = (
     'Name of top-level directory with predictors.  Input files therein '
     'will be found by `predictor_io.find_file` and read by '
@@ -78,33 +74,70 @@ MASK_FILE_HELP_STRING = (
     '`machine_learning_utils.read_narr_mask`.  If you do not want a mask, leave'
     ' this empty.')
 
+NUM_EX_PER_TIME_HELP_STRING = (
+    'Average number of training examples for each target time.  This constraint'
+    ' is applied to each batch separately.')
+
+WEIGHT_LOSS_HELP_STRING = (
+    'Boolean flag.  If 1, each class in the loss function will be weighted by '
+    'the inverse of its frequency in training data.  If 0, no such weighting '
+    'will be done.')
+
+DOWNSAMPLING_FRACTIONS_HELP_STRING = (
+    'List of downsampling fractions.  The [k]th value is the fraction for the '
+    '[k]th class.  Fractions must add up to 1.0.  If you do not want '
+    'downsampling, make this a one-item list.')
+
+X_TRANSLATIONS_HELP_STRING = (
+    'x-translations for data augmentation (pixel units).  See doc for '
+    '`training_validation_io._do_data_augmentation`.  If you do not want '
+    'translation augmentation, leave this alone.')
+
+Y_TRANSLATIONS_HELP_STRING = (
+    'y-translations for data augmentation (pixel units).  See doc for '
+    '`training_validation_io._do_data_augmentation`.  If you do not want '
+    'translation augmentation, leave this alone.')
+
+ROTATION_ANGLES_HELP_STRING = (
+    'Counterclockwise rotation angles for data augmentation.  See doc for '
+    '`training_validation_io._do_data_augmentation`.  If you do not want '
+    'rotation augmentation, leave this alone.')
+
+NOISE_STDEV_HELP_STRING = (
+    'Standard deviation for Gaussian noise.  See doc for '
+    '`training_validation_io._do_data_augmentation`.  If you do not want '
+    'noising augmentation, leave this alone.')
+
+NUM_NOISINGS_HELP_STRING = (
+    'Number of times to replicate each example with noise.  See doc for '
+    '`training_validation_io._do_data_augmentation`.  If you do not want '
+    'noising augmentation, leave this alone.')
+
 TRAINING_DIR_HELP_STRING = (
     'Name of top-level directory with training data.  Files therein (containing'
     ' downsized 3-D examples, with 2 spatial dimensions) will be found by '
     '`learning_examples_io.find_file` (with shuffled = True) and read by '
     '`learning_examples_io.read_file`.')
 
-VALIDATION_DIR_HELP_STRING = (
-    'Same as `{0:s}` but for on-the-fly validation.'
-).format(TRAINING_DIR_ARG_NAME)
-
 TRAINING_TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Only examples from the period '
     '`{0:s}`...`{1:s}` will be used for training.'
 ).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
+
+NUM_EX_PER_TRAIN_HELP_STRING = 'Number of examples per training batch.'
+
+VALIDATION_DIR_HELP_STRING = (
+    'Same as `{0:s}` but for on-the-fly validation.'
+).format(TRAINING_DIR_ARG_NAME)
 
 VALIDATION_TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Only examples from the period '
     '`{0:s}`...`{1:s}` will be used for validation.'
 ).format(FIRST_VALIDATION_TIME_ARG_NAME, LAST_VALIDATION_TIME_ARG_NAME)
 
-NUM_EX_PER_BATCH_HELP_STRING = (
-    'Number of examples in each training or validation batch.')
-
+NUM_EX_PER_VALIDN_HELP_STRING = 'Number of examples per validation batch.'
 NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
-
 NUM_TRAINING_BATCHES_HELP_STRING = 'Number of training batches in each epoch.'
-
 NUM_VALIDATION_BATCHES_HELP_STRING = (
     'Number of validation batches in each epoch.')
 
@@ -123,24 +156,10 @@ DEFAULT_PRESSURE_LEVELS_MB = numpy.full(
     len(DEFAULT_PREDICTOR_NAMES), 1000, dtype=int
 )
 
-DEFAULT_DILATION_DISTANCE_METRES = 50000
-DEFAULT_NUM_EXAMPLES_PER_TIME = 8
-DEFAULT_WEIGHT_LOSS_FLAG = 0
-DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.25, 0.25])
-TOP_PREDICTOR_DIR_NAME_DEFAULT = '/condo/swatwork/ralager/era5_data/processed'
-TOP_FRONT_DIR_NAME_DEFAULT = (
+DEFAULT_PREDICTOR_DIR_NAME = '/condo/swatwork/ralager/era5_data/processed'
+DEFAULT_FRONT_DIR_NAME = (
     '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation')
 DEFAULT_MASK_FILE_NAME = '/condo/swatwork/ralager/fronts_netcdf/era5_mask.p'
-
-DEFAULT_FIRST_TRAINING_TIME_STRING = '2008110515'
-DEFAULT_LAST_TRAINING_TIME_STRING = '2014122421'
-DEFAULT_FIRST_VALIDN_TIME_STRING = '2015010100'
-DEFAULT_LAST_VALIDN_TIME_STRING = '2015122421'
-
-DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
-DEFAULT_NUM_EPOCHS = 100
-DEFAULT_NUM_TRAINING_BATCHES_PER_EPOCH = 32
-DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH = 16
 
 
 def add_input_args(argument_parser, use_downsized_files):
@@ -170,6 +189,26 @@ def add_input_args(argument_parser, use_downsized_files):
         '--' + PRESSURE_LEVELS_ARG_NAME, type=int, nargs='+', required=False,
         default=DEFAULT_PRESSURE_LEVELS_MB, help=PRESSURE_LEVELS_HELP_STRING)
 
+    argument_parser.add_argument(
+        '--' + X_TRANSLATIONS_ARG_NAME, type=int, nargs='+', required=False,
+        default=[0], help=X_TRANSLATIONS_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + Y_TRANSLATIONS_ARG_NAME, type=int, nargs='+', required=False,
+        default=[0], help=Y_TRANSLATIONS_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + ROTATION_ANGLES_ARG_NAME, type=float, nargs='+', required=False,
+        default=[0], help=ROTATION_ANGLES_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + NOISE_STDEV_ARG_NAME, type=float, required=False,
+        default=0.01, help=NOISE_STDEV_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + NUM_NOISINGS_ARG_NAME, type=int, required=False,
+        default=0, help=NUM_NOISINGS_HELP_STRING)
+
     if use_downsized_files:
         argument_parser.add_argument(
             '--' + TRAINING_DIR_ARG_NAME, type=str, required=True,
@@ -181,75 +220,68 @@ def add_input_args(argument_parser, use_downsized_files):
     else:
         argument_parser.add_argument(
             '--' + DILATION_DISTANCE_ARG_NAME, type=int, required=False,
-            default=DEFAULT_DILATION_DISTANCE_METRES,
-            help=DILATION_DISTANCE_HELP_STRING)
-
-        argument_parser.add_argument(
-            '--' + NUM_EX_PER_TIME_ARG_NAME, type=int, required=False,
-            default=DEFAULT_NUM_EXAMPLES_PER_TIME,
-            help=NUM_EX_PER_TIME_HELP_STRING)
-
-        argument_parser.add_argument(
-            '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
-            default=DEFAULT_WEIGHT_LOSS_FLAG, help=WEIGHT_LOSS_HELP_STRING)
-
-        argument_parser.add_argument(
-            '--' + DOWNSAMPLING_FRACTIONS_ARG_NAME, type=float, nargs='+',
-            required=False, default=DEFAULT_DOWNSAMPLING_FRACTIONS,
-            help=DOWNSAMPLING_FRACTIONS_HELP_STRING)
+            default=50000, help=DILATION_DISTANCE_HELP_STRING)
 
         argument_parser.add_argument(
             '--' + PREDICTOR_DIR_ARG_NAME, type=str, required=False,
-            default=TOP_PREDICTOR_DIR_NAME_DEFAULT,
-            help=PREDICTOR_DIR_HELP_STRING)
+            default=DEFAULT_PREDICTOR_DIR_NAME, help=PREDICTOR_DIR_HELP_STRING)
 
         argument_parser.add_argument(
             '--' + FRONT_DIR_ARG_NAME, type=str, required=False,
-            default=TOP_FRONT_DIR_NAME_DEFAULT, help=FRONT_DIR_HELP_STRING)
+            default=DEFAULT_FRONT_DIR_NAME, help=FRONT_DIR_HELP_STRING)
 
         argument_parser.add_argument(
             '--' + MASK_FILE_ARG_NAME, type=str, required=False,
-            default=DEFAULT_MASK_FILE_NAME,
-            help=MASK_FILE_HELP_STRING)
+            default=DEFAULT_MASK_FILE_NAME, help=MASK_FILE_HELP_STRING)
+
+        argument_parser.add_argument(
+            '--' + NUM_EX_PER_TIME_ARG_NAME, type=int, required=False,
+            default=8, help=NUM_EX_PER_TIME_HELP_STRING)
+
+        argument_parser.add_argument(
+            '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
+            default=0, help=WEIGHT_LOSS_HELP_STRING)
+
+        argument_parser.add_argument(
+            '--' + DOWNSAMPLING_FRACTIONS_ARG_NAME, type=float, nargs='+',
+            required=False, default=[0.5, 0.25, 0.25],
+            help=DOWNSAMPLING_FRACTIONS_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_FIRST_TRAINING_TIME_STRING,
+        '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=True,
         help=TRAINING_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_LAST_TRAINING_TIME_STRING,
+        '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=True,
         help=TRAINING_TIME_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + NUM_EX_PER_TRAIN_ARG_NAME, type=int, required=False,
+        default=1024, help=NUM_EX_PER_TRAIN_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_FIRST_VALIDN_TIME_STRING,
-        help=VALIDATION_TIME_HELP_STRING)
+        default='', help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-        default=DEFAULT_LAST_VALIDN_TIME_STRING,
-        help=VALIDATION_TIME_HELP_STRING)
+        default='', help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + NUM_EX_PER_BATCH_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_EXAMPLES_PER_BATCH,
-        help=NUM_EX_PER_BATCH_HELP_STRING)
+        '--' + NUM_EX_PER_VALIDN_ARG_NAME, type=int, required=False,
+        default=1024, help=NUM_EX_PER_VALIDN_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_EPOCHS, help=NUM_EPOCHS_HELP_STRING)
+        default=100, help=NUM_EPOCHS_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + NUM_TRAINING_BATCHES_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_TRAINING_BATCHES_PER_EPOCH,
-        help=NUM_TRAINING_BATCHES_HELP_STRING)
+        default=32, help=NUM_TRAINING_BATCHES_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + NUM_VALIDATION_BATCHES_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH,
-        help=NUM_VALIDATION_BATCHES_HELP_STRING)
+        default=16, help=NUM_VALIDATION_BATCHES_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,

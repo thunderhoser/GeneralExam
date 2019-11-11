@@ -27,7 +27,8 @@ NUM_EPOCHS_FOR_EARLY_STOPPING = 6
 MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
 
 NUM_EPOCHS_KEY = 'num_epochs'
-NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+NUM_EX_PER_TRAIN_BATCH_KEY = 'num_ex_per_train_batch'
+NUM_EX_PER_VALIDN_BATCH_KEY = 'num_ex_per_validn_batch'
 NUM_EXAMPLES_PER_TIME_KEY = 'num_examples_per_target_time'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
@@ -44,15 +45,17 @@ LAST_TRAINING_TIME_KEY = 'training_end_time_unix_sec'
 FIRST_VALIDATION_TIME_KEY = 'validation_start_time_unix_sec'
 LAST_VALIDATION_TIME_KEY = 'validation_end_time_unix_sec'
 MASK_MATRIX_KEY = 'narr_mask_matrix'
+AUGMENTATION_DICT_KEY = 'augmentation_dict'
 
 METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY,
+    NUM_EPOCHS_KEY, NUM_EX_PER_TRAIN_BATCH_KEY, NUM_EX_PER_VALIDN_BATCH_KEY,
     NUM_EXAMPLES_PER_TIME_KEY, NUM_TRAINING_BATCHES_KEY,
     NUM_VALIDATION_BATCHES_KEY, DILATION_DISTANCE_KEY, CLASS_FRACTIONS_KEY,
     WEIGHT_LOSS_KEY, PREDICTOR_NAMES_KEY, PRESSURE_LEVELS_KEY,
     NUM_HALF_ROWS_KEY, NUM_HALF_COLUMNS_KEY, NORMALIZATION_TYPE_KEY,
     FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
-    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, MASK_MATRIX_KEY
+    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY,
+    MASK_MATRIX_KEY, AUGMENTATION_DICT_KEY
 ]
 
 PERFORMANCE_METRIC_DICT = {
@@ -166,14 +169,15 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
 
 
 def write_metadata(
-        pickle_file_name, num_epochs, num_examples_per_batch,
-        num_examples_per_time, num_training_batches_per_epoch,
-        num_validation_batches_per_epoch, predictor_names, pressure_levels_mb,
-        num_half_rows, num_half_columns, normalization_type_string,
-        dilation_distance_metres, class_fractions, weight_loss_function,
+        pickle_file_name, num_epochs,
+        num_ex_per_train_batch, num_ex_per_validn_batch, num_examples_per_time,
+        num_training_batches_per_epoch, num_validation_batches_per_epoch,
+        predictor_names, pressure_levels_mb, num_half_rows, num_half_columns,
+        normalization_type_string, dilation_distance_metres,
+        class_fractions, weight_loss_function,
         first_training_time_unix_sec, last_training_time_unix_sec,
         first_validation_time_unix_sec, last_validation_time_unix_sec,
-        mask_matrix=None):
+        mask_matrix=None, augmentation_dict=None):
     """Writes CNN metadata to Pickle file.
 
     In this context "validation" means on-the-fly validation (monitoring during
@@ -183,10 +187,8 @@ def write_metadata(
 
     :param pickle_file_name: Path to output file.
     :param num_epochs: Number of training epochs.
-    :param num_examples_per_batch: Number of examples per (training or
-        validation) batch.
-    :param num_examples_per_time: Number of examples per (training or
-        validation) time.
+    :param num_ex_per_train_batch: Number of examples per training batch.
+    :param num_ex_per_validn_batch: Number of examples per validation batch.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
@@ -215,11 +217,15 @@ def write_metadata(
         mask_matrix[j, k] = 0, grid cell [j, k] could not be used as center of
         training or validation example.  If there was no mask, leave this as
         None.
+    :param augmentation_dict: See doc for generators in
+        training_validation_io.py.  If data augmentation was used, leave this as
+        None.
     """
 
     metadata_dict = {
         NUM_EPOCHS_KEY: num_epochs,
-        NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        NUM_EX_PER_TRAIN_BATCH_KEY: num_ex_per_train_batch,
+        NUM_EX_PER_VALIDN_BATCH_KEY: num_ex_per_validn_batch,
         NUM_EXAMPLES_PER_TIME_KEY: num_examples_per_time,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
@@ -235,7 +241,8 @@ def write_metadata(
         LAST_TRAINING_TIME_KEY: last_training_time_unix_sec,
         FIRST_VALIDATION_TIME_KEY: first_validation_time_unix_sec,
         LAST_VALIDATION_TIME_KEY: last_validation_time_unix_sec,
-        MASK_MATRIX_KEY: mask_matrix
+        MASK_MATRIX_KEY: mask_matrix,
+        AUGMENTATION_DICT_KEY: augmentation_dict
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -257,17 +264,18 @@ def read_metadata(pickle_file_name):
     metadata_dict = pickle.load(pickle_file_handle, encoding='latin1')
     pickle_file_handle.close()
 
-    if PRESSURE_LEVELS_KEY not in metadata_dict:
-        num_predictors = len(metadata_dict[PREDICTOR_NAMES_KEY])
-        metadata_dict[PRESSURE_LEVELS_KEY] = numpy.full(
-            num_predictors, metadata_dict['pressure_level_mb'], dtype=int
-        )
+    if NUM_EX_PER_TRAIN_BATCH_KEY not in metadata_dict:
+        metadata_dict[NUM_EX_PER_TRAIN_BATCH_KEY] = metadata_dict[
+            'num_examples_per_batch'
+        ]
 
-    if MASK_MATRIX_KEY not in metadata_dict:
-        metadata_dict.update({MASK_MATRIX_KEY: None})
+    if NUM_EX_PER_VALIDN_BATCH_KEY not in metadata_dict:
+        metadata_dict[NUM_EX_PER_VALIDN_BATCH_KEY] = metadata_dict[
+            'num_examples_per_batch'
+        ]
 
-    if NORMALIZATION_TYPE_KEY not in metadata_dict:
-        metadata_dict.update({NORMALIZATION_TYPE_KEY: ml_utils.Z_SCORE_STRING})
+    if AUGMENTATION_DICT_KEY not in metadata_dict:
+        metadata_dict[AUGMENTATION_DICT_KEY] = None
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
