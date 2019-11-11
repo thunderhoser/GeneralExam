@@ -1,437 +1,176 @@
-"""Methods for setting up, training, and applying upconvolution networks.
-
---- NOTATION ---
-
-The following letters are used throughout this module.
-
-E = number of examples
-M = number of rows in each grid
-N = number of columns in each grid
-C = number of channels (predictor variables)
-Z = number of scalar features (produced by flattening layer of CNN)
-"""
+"""Methods for training and applying upconvolutional neural nets."""
 
 import pickle
-from random import shuffle
 import numpy
 import keras
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn as gg_cnn
-from gewittergefahr.deep_learning import upconvnet as gg_upconvnet
 from generalexam.machine_learning import cnn as ge_cnn
-from generalexam.machine_learning import learning_examples_io as examples_io
+from generalexam.machine_learning import training_validation_io as trainval_io
 
-# TODO(thunderhoser): This code contains a lot of hacks, including constants
-# that shouldn't really be constants.
+PLATEAU_PATIENCE_EPOCHS = 3
+PLATEAU_LEARNING_RATE_MULTIPLIER = 0.5
+PLATEAU_COOLDOWN_EPOCHS = 0
+EARLY_STOPPING_PATIENCE_EPOCHS = 15
+MSE_PATIENCE = 0.005
 
-L1_WEIGHT = 0.
-L2_WEIGHT = 0.001
-SLOPE_FOR_RELU = 0.2
-NUM_CONV_FILTER_ROWS = 3
-NUM_CONV_FILTER_COLUMNS = 3
-
-LARGE_INTEGER = int(1e10)
-MIN_MSE_DECREASE_FOR_EARLY_STOP = 0.005
-NUM_EPOCHS_FOR_EARLY_STOP = 5
-
-TRAINING_DIR_NAME_KEY = 'top_training_dir_name'
+CNN_FILE_KEY = 'cnn_model_file_name'
+CNN_FEATURE_LAYER_KEY = 'cnn_feature_layer_name'
 FIRST_TRAINING_TIME_KEY = 'first_training_time_unix_sec'
 LAST_TRAINING_TIME_KEY = 'last_training_time_unix_sec'
-CNN_FILE_NAME_KEY = 'cnn_model_file_name'
-CNN_LAYER_NAME_KEY = 'cnn_feature_layer_name'
-NUM_EPOCHS_KEY = 'num_epochs'
-NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+NUM_EX_PER_TRAIN_BATCH_KEY = 'num_ex_per_train_batch'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
-NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
-VALIDATION_DIR_NAME_KEY = 'top_validation_dir_name'
 FIRST_VALIDATION_TIME_KEY = 'first_validation_time_unix_sec'
 LAST_VALIDATION_TIME_KEY = 'last_validation_time_unix_sec'
+NUM_EX_PER_VALIDN_BATCH_KEY = 'num_ex_per_validn_batch'
+NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
+NUM_EPOCHS_KEY = 'num_epochs'
 
 MODEL_METADATA_KEYS = [
-    TRAINING_DIR_NAME_KEY, FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
-    CNN_FILE_NAME_KEY, CNN_LAYER_NAME_KEY, NUM_EPOCHS_KEY,
-    NUM_EXAMPLES_PER_BATCH_KEY, NUM_TRAINING_BATCHES_KEY,
-    NUM_VALIDATION_BATCHES_KEY, VALIDATION_DIR_NAME_KEY,
-    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY
+    CNN_FILE_KEY, CNN_FEATURE_LAYER_KEY,
+    FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
+    NUM_EX_PER_TRAIN_BATCH_KEY, NUM_TRAINING_BATCHES_KEY,
+    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY,
+    NUM_EX_PER_VALIDN_BATCH_KEY, NUM_VALIDATION_BATCHES_KEY, NUM_EPOCHS_KEY
 ]
 
 
-def _trainval_generator(
-        top_input_dir_name, first_time_unix_sec, last_time_unix_sec,
-        narr_predictor_names, pressure_levels_mb, num_half_rows,
-        num_half_columns, num_examples_per_batch, cnn_model_object,
-        cnn_feature_layer_name):
-    """Generates training or validation examples for upconvnet on the fly.
+def _generator_from_example_files(
+        cnn_model_object, cnn_metadata_dict, cnn_feature_layer_name,
+        top_example_dir_name, first_time_unix_sec, last_time_unix_sec,
+        num_examples_per_batch):
+    """Generates training or validation examples for upconvnet.
 
-    :param top_input_dir_name: Name of top-level directory with downsized 3-D
-        examples (two spatial dimensions).  Files therein will be found by
-        `learning_examples_io.find_many_files` (with `shuffled = True`) and read
-        by `learning_examples_io.read_file`.
-    :param first_time_unix_sec: First valid time.  Only examples with valid time
-        in `first_time_unix_sec`...`last_time_unix_sec` will be kept.
+    E = number of examples per batch
+    Z = number of features in vector
+
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).  Will be used to convert images to feature
+        vectors, while the upconvnet will attempt to convert feature vectors
+        back to original images.
+    :param cnn_metadata_dict: Dictionary returned by `cnn.read_model_metadata`.
+    :param cnn_feature_layer_name: Name of feature-generating layer in CNN.
+        Feature vectors (inputs to upconvnet) will be outputs from this layer.
+    :param top_example_dir_name: Name of top-level directory with example files.
+        Shuffled files therein will be found by `learning_examples_io.find_file`
+        and read by `learning_examples_io.read_file`.
+    :param first_time_unix_sec: First time in period.  Will generate only
+        examples from `first_time_unix_sec`...`last_time_unix_sec`.
     :param last_time_unix_sec: See above.
-    :param narr_predictor_names: See doc for `learning_examples_io.read_file`.
-    :param pressure_levels_mb: Same.
-    :param num_half_rows: Same.
-    :param num_half_columns: Same.
-    :param num_examples_per_batch: Number of examples in each batch.
-    :param cnn_model_object: Trained CNN model (instance of
-        `keras.models.Model`).  This will be used to turn images stored in
-        `top_input_dir_name` into scalar features.
-    :param cnn_feature_layer_name: The "scalar features" will be the set of
-        activations from this layer.
-    :return: feature_matrix: E-by-Z numpy array of scalar features.  These are
-        the "predictors" for the upconv network.
-    :return: target_matrix: E-by-M-by-N-by-C numpy array of target images.
-        These are the predictors for the CNN and the targets for the upconv
-        network.
+    :param num_examples_per_batch: Number of examples per batch.
+    :return: feature_matrix: E-by-Z numpy array of scalar features.  Each row is
+        one feature vector.
+    :return: image_matrix: numpy array of images.  The first axis has length E.
+        These are CNN inputs and upconvnet targets.
     """
 
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    num_half_rows, num_half_columns = ge_cnn.model_to_grid_dimensions(
+        cnn_model_object)
+    num_classes = ge_cnn.model_to_num_classes(cnn_model_object)
 
     partial_cnn_model_object = gg_cnn.model_to_feature_generator(
         model_object=cnn_model_object,
         feature_layer_name=cnn_feature_layer_name)
 
-    example_file_names = examples_io.find_many_files(
-        top_directory_name=top_input_dir_name, shuffled=True,
-        first_batch_number=0, last_batch_number=LARGE_INTEGER)
-    shuffle(example_file_names)
-
-    num_files = len(example_file_names)
-    file_index = 0
-    batch_indices = numpy.linspace(
-        0, num_examples_per_batch - 1, num=num_examples_per_batch, dtype=int)
-
-    num_predictors = len(narr_predictor_names)
-    num_examples_in_memory = 0
-    full_target_matrix = None
+    cnn_generator = trainval_io.downsized_generator_from_example_files(
+        top_input_dir_name=top_example_dir_name,
+        first_time_unix_sec=first_time_unix_sec,
+        last_time_unix_sec=last_time_unix_sec,
+        predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
+        pressure_levels_mb=cnn_metadata_dict[ge_cnn.PRESSURE_LEVELS_KEY],
+        num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+        num_classes=num_classes, num_examples_per_batch=num_examples_per_batch,
+        augmentation_dict=None)
 
     while True:
-        while num_examples_in_memory < num_examples_per_batch:
-            print('Reading data from: "{0:s}"...'.format(
-                example_file_names[file_index]))
+        try:
+            # TODO(thunderhoser): For old upconvnets, target was departure from
+            # mean in each image.  Might want to do this again.
+            image_matrix = next(cnn_generator)[0]
+        except StopIteration:
+            break
 
-            this_example_dict = examples_io.read_file(
-                netcdf_file_name=example_file_names[file_index],
-                predictor_names_to_keep=narr_predictor_names,
-                pressure_levels_to_keep_mb=pressure_levels_mb,
-                num_half_rows_to_keep=num_half_rows,
-                num_half_columns_to_keep=num_half_columns,
-                first_time_to_keep_unix_sec=first_time_unix_sec,
-                last_time_to_keep_unix_sec=last_time_unix_sec)
-
-            file_index += 1
-            if file_index >= num_files:
-                file_index = 0
-
-            this_num_examples = len(
-                this_example_dict[examples_io.VALID_TIMES_KEY]
-            )
-            if this_num_examples == 0:
-                continue
-
-            if full_target_matrix is None or full_target_matrix.size == 0:
-                full_target_matrix = (
-                    this_example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.
-                )
-            else:
-                full_target_matrix = numpy.concatenate(
-                    (full_target_matrix,
-                     this_example_dict[examples_io.PREDICTOR_MATRIX_KEY]),
-                    axis=0)
-
-            num_examples_in_memory = full_target_matrix.shape[0]
-
-        target_matrix = full_target_matrix[batch_indices, ...].astype('float32')
         feature_matrix = partial_cnn_model_object.predict(
-            target_matrix, batch_size=num_examples_per_batch)
+            image_matrix, batch_size=image_matrix.shape[0]
+        )
 
-        for i in range(num_examples_per_batch):
-            for m in range(num_predictors):
-                target_matrix[i, ..., m] = (
-                    target_matrix[i, ..., m] -
-                    numpy.mean(target_matrix[i, ..., m])
-                )
-
-        num_examples_in_memory = 0
-        full_target_matrix = None
-
-        yield (feature_matrix, target_matrix)
-
-
-def create_net(
-        num_input_features, first_num_rows, first_num_columns,
-        upsampling_factors, num_output_channels,
-        use_activation_for_out_layer=False, use_bn_for_out_layer=True,
-        use_transposed_conv=False, use_conv_for_out_layer=True,
-        smoothing_radius_px=None):
-    """Creates (but does not train) upconvnet.
-
-    L = number of conv or deconv layers
-
-    :param num_input_features: Number of input features.
-    :param first_num_rows: Number of rows in input to first deconv layer.  The
-        input features will be reshaped into a grid with this many rows.
-    :param first_num_columns: Same but for columns.
-    :param upsampling_factors: length-L numpy array of upsampling factors.  Must
-        all be positive integers.
-    :param num_output_channels: Number of channels in output images.
-    :param use_activation_for_out_layer: Boolean flag.  If True, activation will
-        be applied to output layer.
-    :param use_bn_for_out_layer: Boolean flag.  If True, batch normalization
-        will be applied to output layer.
-    :param use_transposed_conv: Boolean flag.  If True, upsampling will be done
-        with transposed-convolution layers.  If False, each upsampling will be
-        done with an upsampling layer followed by a conv layer.
-    :param use_conv_for_out_layer: Boolean flag.  If True, will do normal (not
-        transposed) convolution for output layer, after zero-padding.  If False,
-        will just do zero-padding.
-    :param smoothing_radius_px: Smoothing radius (pixels).  Gaussian smoothing
-        with this e-folding radius will be done after each upsampling.  If
-        `smoothing_radius_px is None`, no smoothing will be done.
-    :return: ucn_model_object: Untrained instance of `keras.models.Model`.
-    """
-
-    error_checking.assert_is_integer(num_input_features)
-    error_checking.assert_is_integer(first_num_rows)
-    error_checking.assert_is_integer(first_num_columns)
-    error_checking.assert_is_integer(num_output_channels)
-
-    error_checking.assert_is_greater(num_input_features, 0)
-    error_checking.assert_is_greater(first_num_rows, 0)
-    error_checking.assert_is_greater(first_num_columns, 0)
-    error_checking.assert_is_greater(num_output_channels, 0)
-
-    error_checking.assert_is_integer_numpy_array(upsampling_factors)
-    error_checking.assert_is_numpy_array(upsampling_factors, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(upsampling_factors, 1)
-
-    error_checking.assert_is_boolean(use_activation_for_out_layer)
-    error_checking.assert_is_boolean(use_bn_for_out_layer)
-    error_checking.assert_is_boolean(use_transposed_conv)
-    error_checking.assert_is_boolean(use_conv_for_out_layer)
-
-    regularizer_object = keras.regularizers.l1_l2(l1=L1_WEIGHT, l2=L2_WEIGHT)
-    input_layer_object = keras.layers.Input(shape=(num_input_features,))
-
-    current_num_filters = int(numpy.round(
-        num_input_features / (first_num_rows * first_num_columns)
-    ))
-
-    layer_object = keras.layers.Reshape(
-        target_shape=(first_num_rows, first_num_columns, current_num_filters)
-    )(input_layer_object)
-
-    upsampling_factors = numpy.concatenate((
-        upsampling_factors, numpy.array([-1], dtype=int)
-    ))
-    num_main_layers = len(upsampling_factors)
-
-    for i in range(num_main_layers):
-        this_upsampling_factor = upsampling_factors[i]
-        do_smoothing_here = smoothing_radius_px is not None
-
-        if i == num_main_layers - 2:
-            current_num_filters = num_output_channels + 0
-        elif this_upsampling_factor == 1:
-            current_num_filters = int(numpy.round(current_num_filters / 2))
-
-        if i == num_main_layers - 1:
-            layer_object = keras.layers.ZeroPadding2D(
-                padding=((1, 0), (1, 0)), data_format='channels_last'
-            )(layer_object)
-
-            if use_conv_for_out_layer:
-                layer_object = keras.layers.Conv2D(
-                    filters=current_num_filters,
-                    kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                    strides=(1, 1), padding='same', data_format='channels_last',
-                    dilation_rate=(1, 1), activation=None, use_bias=True,
-                    kernel_initializer='glorot_uniform',
-                    bias_initializer='zeros',
-                    kernel_regularizer=regularizer_object
-                )(layer_object)
-            else:
-                do_smoothing_here = False
-
-        elif use_transposed_conv:
-            if this_upsampling_factor > 1:
-                this_padding_arg = 'same'
-            else:
-                this_padding_arg = 'valid'
-
-            layer_object = keras.layers.Conv2DTranspose(
-                filters=current_num_filters,
-                kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                strides=(this_upsampling_factor, this_upsampling_factor),
-                padding=this_padding_arg, data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
-                kernel_initializer='glorot_uniform', bias_initializer='zeros',
-                kernel_regularizer=regularizer_object
-            )(layer_object)
-
-        else:
-            if this_upsampling_factor > 1:
-                try:
-                    layer_object = keras.layers.UpSampling2D(
-                        size=(this_upsampling_factor, this_upsampling_factor),
-                        data_format='channels_last', interpolation='nearest'
-                    )(layer_object)
-                except:
-                    layer_object = keras.layers.UpSampling2D(
-                        size=(this_upsampling_factor, this_upsampling_factor),
-                        data_format='channels_last'
-                    )(layer_object)
-
-            layer_object = keras.layers.Conv2D(
-                filters=current_num_filters,
-                kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                strides=(1, 1), padding='same', data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
-                kernel_initializer='glorot_uniform', bias_initializer='zeros',
-                kernel_regularizer=regularizer_object
-            )(layer_object)
-
-            if this_upsampling_factor == 1:
-                layer_object = keras.layers.ZeroPadding2D(
-                    padding=(1, 1), data_format='channels_last'
-                )(layer_object)
-
-        if do_smoothing_here:
-            this_weight_matrix = gg_upconvnet.create_smoothing_filter(
-                smoothing_radius_px=smoothing_radius_px,
-                num_channels=current_num_filters)
-
-            this_bias_vector = numpy.zeros(current_num_filters)
-
-            layer_object = keras.layers.Conv2D(
-                filters=current_num_filters,
-                kernel_size=this_weight_matrix.shape[:2],
-                strides=(1, 1), padding='same', data_format='channels_last',
-                dilation_rate=(1, 1), activation=None, use_bias=True,
-                kernel_initializer='glorot_uniform', bias_initializer='zeros',
-                kernel_regularizer=regularizer_object, trainable=False,
-                weights=[this_weight_matrix, this_bias_vector]
-            )(layer_object)
-
-        if i < num_main_layers - 1 or use_activation_for_out_layer:
-            layer_object = keras.layers.LeakyReLU(
-                alpha=SLOPE_FOR_RELU
-            )(layer_object)
-
-        if i < num_main_layers - 1 or use_bn_for_out_layer:
-            layer_object = keras.layers.BatchNormalization(
-                axis=-1, center=True, scale=True
-            )(layer_object)
-
-    ucn_model_object = keras.models.Model(
-        inputs=input_layer_object, outputs=layer_object)
-    ucn_model_object.compile(
-        loss=keras.losses.mean_squared_error, optimizer=keras.optimizers.Adam())
-
-    ucn_model_object.summary()
-    return ucn_model_object
+        yield (feature_matrix, image_matrix)
 
 
 def train_upconvnet(
-        ucn_model_object, top_training_dir_name, first_training_time_unix_sec,
-        last_training_time_unix_sec, cnn_model_object, cnn_feature_layer_name,
-        cnn_metadata_dict, num_examples_per_batch, num_epochs,
-        num_training_batches_per_epoch, output_model_file_name,
-        num_validation_batches_per_epoch=None, top_validation_dir_name=None,
-        first_validation_time_unix_sec=None, last_validation_time_unix_sec=None):
+        ucn_model_object, cnn_model_object, cnn_metadata_dict,
+        cnn_feature_layer_name, top_training_dir_name,
+        first_training_time_unix_sec, last_training_time_unix_sec,
+        num_ex_per_train_batch, num_training_batches_per_epoch,
+        top_validation_dir_name, first_validation_time_unix_sec,
+        last_validation_time_unix_sec, num_ex_per_validn_batch,
+        num_validation_batches_per_epoch, num_epochs, output_dir_name):
     """Trains upconvnet.
 
-    :param ucn_model_object: Untrained instance of `keras.models.Model`,
-        representing the upconv network.
-    :param top_training_dir_name: Training data will be found here.  See doc for
-        input `top_input_dir_name` to method `training_generator`.
-    :param first_training_time_unix_sec: Determines training period.  See doc
-        for input `first_time_unix_sec` to method `training_generator`.
-    :param last_training_time_unix_sec: Determines training period.  See doc for
-        input `last_time_unix_sec` to method `training_generator`.
-    :param cnn_model_object: See doc for `training_generator`.
+    :param ucn_model_object: Untrained upconvnet (instance of
+        `keras.models.Model` or `keras.models.Sequential`).
+    :param cnn_model_object: See doc for `_generator_from_example_files`.
+    :param cnn_metadata_dict: Same.
     :param cnn_feature_layer_name: Same.
-    :param cnn_metadata_dict: Dictionary returned by `ge_cnn.read_metadata`.
-    :param num_examples_per_batch: Number of examples in each training or
-        validation batch.
+    :param top_training_dir_name: Same.
+    :param first_training_time_unix_sec: Same.
+    :param last_training_time_unix_sec: Same.
+    :param num_ex_per_train_batch: Same.
+    :param num_training_batches_per_epoch: Number of training batches per epoch.
+    :param top_validation_dir_name: See doc for `_generator_from_example_files`.
+    :param first_validation_time_unix_sec: Same.
+    :param last_validation_time_unix_sec: Same.
+    :param num_ex_per_validn_batch: Same.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
     :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches furnished
-        to model in each epoch.
-    :param output_model_file_name: Path to output file.  The model will be saved
-        as an HDF5 file (extension should be ".h5", but this is not enforced).
-    :param num_validation_batches_per_epoch: Number of validation batches
-        furnished to model in each epoch.  If
-        `num_validation_batches_per_epoch is None`, there will be no on-the-fly
-        validation.
-    :param top_validation_dir_name:
-        [used only if `num_validation_batches_per_epoch is not None`]
-        Validation data will be found here.  See doc for input
-        `top_input_dir_name` to method `training_generator`.
-    :param first_validation_time_unix_sec:
-        [used only if `num_validation_batches_per_epoch is not None`]
-        Determines validation period.  See doc for input `first_time_unix_sec`
-        to method `training_generator`.
-    :param last_validation_time_unix_sec:
-        [used only if `num_validation_batches_per_epoch is not None`]
-        Determines validation period.  See doc for input `last_time_unix_sec`
-        to method `training_generator`.
+    :param output_dir_name: Name of output directory.  Trained upconvnet and
+        history file will be saved here.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        file_name=output_model_file_name)
+        directory_name=output_dir_name)
 
-    if num_validation_batches_per_epoch is None:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            output_model_file_name, monitor='loss', verbose=1,
-            save_best_only=False, save_weights_only=False, mode='min', period=1)
-    else:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            output_model_file_name, monitor='val_loss', verbose=1,
-            save_best_only=True, save_weights_only=False, mode='min', period=1)
+    upconvnet_file_name = '{0:s}/upconvnet_model.h5'.format(output_dir_name)
+    history_file_name = '{0:s}/upconvnet_model_history.csv'.format(
+        output_dir_name)
 
-    list_of_callback_objects = [checkpoint_object]
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
 
-    training_generator = _trainval_generator(
-        top_input_dir_name=top_training_dir_name,
-        first_time_unix_sec=first_training_time_unix_sec,
-        last_time_unix_sec=last_training_time_unix_sec,
-        narr_predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
-        pressure_levels_mb=cnn_metadata_dict[ge_cnn.PRESSURE_LEVELS_KEY],
-        num_half_rows=cnn_metadata_dict[ge_cnn.NUM_HALF_ROWS_KEY],
-        num_half_columns=cnn_metadata_dict[ge_cnn.NUM_HALF_COLUMNS_KEY],
-        num_examples_per_batch=num_examples_per_batch,
-        cnn_model_object=cnn_model_object,
-        cnn_feature_layer_name=cnn_feature_layer_name)
-
-    if num_validation_batches_per_epoch is None:
-        ucn_model_object.fit_generator(
-            generator=training_generator,
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=list_of_callback_objects, workers=0)
-
-        return
+    checkpoint_object = keras.callbacks.ModelCheckpoint(
+        filepath=upconvnet_file_name, monitor='val_loss', verbose=1,
+        save_best_only=True, save_weights_only=False, mode='min', period=1)
 
     early_stopping_object = keras.callbacks.EarlyStopping(
-        monitor='val_loss', min_delta=MIN_MSE_DECREASE_FOR_EARLY_STOP,
-        patience=NUM_EPOCHS_FOR_EARLY_STOP, verbose=1, mode='min')
+        monitor='val_loss', min_delta=MSE_PATIENCE,
+        patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
 
-    list_of_callback_objects.append(early_stopping_object)
+    plateau_object = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+        patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+        min_delta=MSE_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
 
-    validation_generator = _trainval_generator(
-        top_input_dir_name=top_validation_dir_name,
+    list_of_callback_objects = [
+        history_object, checkpoint_object, early_stopping_object, plateau_object
+    ]
+
+    training_generator = _generator_from_example_files(
+        cnn_model_object=cnn_model_object, cnn_metadata_dict=cnn_metadata_dict,
+        cnn_feature_layer_name=cnn_feature_layer_name,
+        top_example_dir_name=top_training_dir_name,
+        first_time_unix_sec=first_training_time_unix_sec,
+        last_time_unix_sec=last_training_time_unix_sec,
+        num_examples_per_batch=num_ex_per_train_batch)
+
+    validation_generator = _generator_from_example_files(
+        cnn_model_object=cnn_model_object, cnn_metadata_dict=cnn_metadata_dict,
+        cnn_feature_layer_name=cnn_feature_layer_name,
+        top_example_dir_name=top_validation_dir_name,
         first_time_unix_sec=first_validation_time_unix_sec,
         last_time_unix_sec=last_validation_time_unix_sec,
-        narr_predictor_names=cnn_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
-        pressure_levels_mb=cnn_metadata_dict[ge_cnn.PRESSURE_LEVELS_KEY],
-        num_half_rows=cnn_metadata_dict[ge_cnn.NUM_HALF_ROWS_KEY],
-        num_half_columns=cnn_metadata_dict[ge_cnn.NUM_HALF_COLUMNS_KEY],
-        num_examples_per_batch=num_examples_per_batch,
-        cnn_model_object=cnn_model_object,
-        cnn_feature_layer_name=cnn_feature_layer_name)
+        num_examples_per_batch=num_ex_per_validn_batch)
 
     ucn_model_object.fit_generator(
         generator=training_generator,
@@ -441,115 +180,125 @@ def train_upconvnet(
         validation_steps=num_validation_batches_per_epoch)
 
 
-def apply_upconvnet(actual_image_matrix, cnn_model_object, ucn_model_object):
+def apply_upconvnet(
+        image_matrix, cnn_model_object, cnn_feature_layer_name,
+        ucn_model_object, num_examples_per_batch=100, verbose=True):
     """Applies upconvnet to new images.
 
-    Specifically, this method uses the CNN to encode images and upconvnet to
-    decode (reconstruct) them.
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of predictors (channels)
 
-    :param actual_image_matrix: E-by-M-by-N-by-C numpy array with actual images
-        (input examples to CNN).
-    :param cnn_model_object: Trained CNN (instance of `keras.models.Model`).
-    :param ucn_model_object: Trained upconvnet (instance of
-        `keras.models.Model`).
-    :return: reconstructed_image_matrix: E-by-M-by-N-by-C numpy array with
-        reconstructed images (output of upconvnet).
+    :param image_matrix: E-by-M-by-N-by-C numpy array of original images (inputs
+        to CNN).
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).  Will be used to convert images to feature
+        vectors.
+    :param cnn_feature_layer_name: Name of feature-generating layer in CNN.
+        Feature vectors (inputs to upconvnet) will be outputs from this layer.
+    :param ucn_model_object: Trained upconvnet (instance of `keras.models.Model`
+        or `keras.models.Sequential`).  Will be used to convert feature vectors
+        back to images (ideally back to original images).
+    :param num_examples_per_batch: Number of examples per batch.
+    :param verbose: Boolean flag.  If True, will print progress messages to
+        command window.
+    :return: reconstructed_image_matrix: E-by-M-by-N-by-C numpy array of
+        reconstructed images.
     """
-
-    error_checking.assert_is_numpy_array_without_nan(actual_image_matrix)
-    error_checking.assert_is_numpy_array(actual_image_matrix, num_dimensions=4)
 
     partial_cnn_model_object = gg_cnn.model_to_feature_generator(
         model_object=cnn_model_object,
-        feature_layer_name=ge_cnn.get_flattening_layer(cnn_model_object)
-    )
+        feature_layer_name=cnn_feature_layer_name)
 
-    num_examples = actual_image_matrix.shape[0]
-    num_predictors = actual_image_matrix.shape[-1]
-    num_examples_per_batch = 1000
+    error_checking.assert_is_boolean(verbose)
+    error_checking.assert_is_numpy_array_without_nan(image_matrix)
+    error_checking.assert_is_numpy_array(image_matrix, num_dimensions=2)
+
+    num_examples = image_matrix.shape[0]
+    if num_examples_per_batch is None:
+        num_examples_per_batch = num_examples + 0
+
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_greater(num_examples_per_batch, 0)
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
+
     reconstructed_image_matrix = None
 
     for i in range(0, num_examples, num_examples_per_batch):
-        this_first_index = i
-        this_last_index = min(
-            [i + num_examples_per_batch - 1, num_examples - 1]
-        )
+        j = i
+        k = min([i + num_examples_per_batch - 1, num_examples - 1])
+        these_example_indices = numpy.linspace(j, k, num=k - j + 1, dtype=int)
 
-        print((
-            'Using upconvnet to reconstruct examples {0:d}-{1:d} of {2:d}...'
-        ).format(this_first_index, this_last_index, num_examples))
-
-        these_indices = numpy.linspace(
-            this_first_index, this_last_index,
-            num=this_last_index - this_first_index + 1, dtype=int)
+        if verbose:
+            print((
+                'Applying upconvnet to examples {0:d}-{1:d} of {2:d}...'
+            ).format(
+                numpy.min(these_example_indices) + 1,
+                numpy.max(these_example_indices) + 1,
+                num_examples
+            ))
 
         this_feature_matrix = partial_cnn_model_object.predict(
-            actual_image_matrix[these_indices, ...],
-            batch_size=len(these_indices))
+            image_matrix[these_example_indices, ...],
+            batch_size=len(these_example_indices)
+        )
 
         this_reconstructed_matrix = ucn_model_object.predict(
-            this_feature_matrix, batch_size=len(these_indices))
+            this_feature_matrix, batch_size=len(these_example_indices)
+        )
 
         if reconstructed_image_matrix is None:
-            reconstructed_image_matrix = this_reconstructed_matrix + 0.
-        else:
-            reconstructed_image_matrix = numpy.concatenate(
-                (reconstructed_image_matrix, this_reconstructed_matrix), axis=0)
-
-    print('Used upconvnet to reconstruct all {0:d} examples!'.format(
-        num_examples))
-
-    for i in range(num_examples):
-        for m in range(num_predictors):
-            reconstructed_image_matrix[i, ..., m] = (
-                reconstructed_image_matrix[i, ..., m] +
-                numpy.mean(actual_image_matrix[i, ..., m])
+            dimensions = numpy.array(
+                (num_examples,) + this_reconstructed_matrix.shape[1:], dtype=int
             )
+            reconstructed_image_matrix = numpy.full(dimensions, numpy.nan)
 
+        reconstructed_image_matrix[
+            these_example_indices, ...] = this_reconstructed_matrix
+
+    print('Have applied upconvnet to all {0:d} examples!'.format(num_examples))
     return reconstructed_image_matrix
 
 
 def write_model_metadata(
-        pickle_file_name, top_training_dir_name, first_training_time_unix_sec,
-        last_training_time_unix_sec, cnn_model_file_name,
-        cnn_feature_layer_name, num_epochs, num_examples_per_batch,
-        num_training_batches_per_epoch, num_validation_batches_per_epoch=None,
-        top_validation_dir_name=None, first_validation_time_unix_sec=None,
-        last_validation_time_unix_sec=None):
+        pickle_file_name, cnn_model_file_name, cnn_feature_layer_name,
+        first_training_time_unix_sec, last_training_time_unix_sec,
+        num_ex_per_train_batch, num_training_batches_per_epoch,
+        first_validation_time_unix_sec, last_validation_time_unix_sec,
+        num_ex_per_validn_batch, num_validation_batches_per_epoch, num_epochs):
     """Writes metadata for upconvnet to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param top_training_dir_name: See doc for `train_upconvnet`.
+    :param cnn_model_file_name: Path to trained CNN, used to turn images into
+        feature vectors.  Must be readable by `cnn.read_model`.
+    :param cnn_feature_layer_name: See doc for `train_upconvnet`.
     :param first_training_time_unix_sec: Same.
     :param last_training_time_unix_sec: Same.
-    :param cnn_model_file_name: Same.
-    :param cnn_feature_layer_name: Same.
-    :param num_epochs: Same.
-    :param num_examples_per_batch: Same.
+    :param num_ex_per_train_batch: Same.
     :param num_training_batches_per_epoch: Same.
-    :param num_validation_batches_per_epoch: Same.
-    :param top_validation_dir_name: Same.
     :param first_validation_time_unix_sec: Same.
     :param last_validation_time_unix_sec: Same.
+    :param num_ex_per_validn_batch: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param num_epochs: Same.
     """
 
     model_metadata_dict = {
-        TRAINING_DIR_NAME_KEY: top_training_dir_name,
+        CNN_FILE_KEY: cnn_model_file_name,
+        CNN_FEATURE_LAYER_KEY: cnn_feature_layer_name,
         FIRST_TRAINING_TIME_KEY: first_training_time_unix_sec,
         LAST_TRAINING_TIME_KEY: last_training_time_unix_sec,
-        CNN_FILE_NAME_KEY: cnn_model_file_name,
-        CNN_LAYER_NAME_KEY: cnn_feature_layer_name,
-        NUM_EPOCHS_KEY: num_epochs,
-        NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        NUM_EX_PER_TRAIN_BATCH_KEY: num_ex_per_train_batch,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
-        NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
-        VALIDATION_DIR_NAME_KEY: top_validation_dir_name,
         FIRST_VALIDATION_TIME_KEY: first_validation_time_unix_sec,
-        LAST_VALIDATION_TIME_KEY: last_validation_time_unix_sec
+        LAST_VALIDATION_TIME_KEY: last_validation_time_unix_sec,
+        NUM_EX_PER_VALIDN_BATCH_KEY: num_ex_per_validn_batch,
+        NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
+        NUM_EPOCHS_KEY: num_epochs
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(model_metadata_dict, pickle_file_handle)
     pickle_file_handle.close()
@@ -560,19 +309,18 @@ def read_model_metadata(pickle_file_name):
 
     :param pickle_file_name: Path to input file.
     :return: model_metadata_dict: Dictionary with the following keys.
-    model_metadata_dict['top_training_dir_name']: See doc for
+    model_metadata_dict["cnn_model_file_name"]: See doc for
         `write_model_metadata`.
-    model_metadata_dict['first_training_time_unix_sec']: Same.
-    model_metadata_dict['last_training_time_unix_sec']: Same.
-    model_metadata_dict['cnn_model_file_name']: Same.
-    model_metadata_dict['cnn_feature_layer_name']: Same.
-    model_metadata_dict['num_epochs']: Same.
-    model_metadata_dict['num_examples_per_batch']: Same.
-    model_metadata_dict['num_training_batches_per_epoch']: Same.
-    model_metadata_dict['num_validation_batches_per_epoch']: Same.
-    model_metadata_dict['top_validation_dir_name']: Same.
-    model_metadata_dict['first_validation_time_unix_sec']: Same.
-    model_metadata_dict['last_validation_time_unix_sec']: Same.
+    model_metadata_dict["cnn_feature_layer_name"]: Same.
+    model_metadata_dict["first_training_time_unix_sec"]: Same.
+    model_metadata_dict["last_training_time_unix_sec"]: Same.
+    model_metadata_dict["num_ex_per_train_batch"]: Same.
+    model_metadata_dict["num_training_batches_per_epoch"]: Same.
+    model_metadata_dict["first_validation_time_unix_sec"]: Same.
+    model_metadata_dict["last_validation_time_unix_sec"]: Same.
+    model_metadata_dict["num_ex_per_validn_batch"]: Same.
+    model_metadata_dict["num_validation_batches_per_epoch"]: Same.
+    model_metadata_dict["num_epochs"]: Same.
 
     :raises: ValueError: if any expected key is not found.
     """
