@@ -1,67 +1,54 @@
-"""Applies upconvnet to one or more examples.
+"""Applies trained upconvnet to pre-processed examples."""
 
---- NOTATION ---
-
-The following letters are used throughout this script.
-
-E = number of examples
-M = number of rows in each grid
-N = number of columns in each grid
-C = number of channels (predictor variables)
-"""
-
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
 from keras import backend as K
-from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.gg_utils import time_conversion
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import upconvnet
 from generalexam.machine_learning import learning_examples_io as examples_io
-from generalexam.plotting import example_plotting
 
 RANDOM_SEED = 6695
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+    allow_soft_placement=False
 )))
 
+INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-COLOUR_MAP_OBJECT = pyplot.cm.plasma
-FIGURE_RESOLUTION_DPI = 300
-
 UPCONVNET_FILE_ARG_NAME = 'input_upconvnet_file_name'
-EXAMPLE_FILE_ARG_NAME = 'input_example_file_name'
-NUM_EXAMPLES_ARG_NAME = 'num_examples'
-EXAMPLE_INDICES_ARG_NAME = 'example_indices'
+EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
+FIRST_TIME_ARG_NAME = 'first_time_string'
+LAST_TIME_ARG_NAME = 'last_time_string'
+NUM_TIMES_ARG_NAME = 'num_times'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 UPCONVNET_FILE_HELP_STRING = (
-    'Path to file with trained upconvnet.  Will be read by `cnn.read_model`.')
+    'Path to file with trained upconvnet (will be read by `cnn.read_model`).')
 
-EXAMPLE_FILE_HELP_STRING = (
-    'Path to file with input data (images).  Will be read by '
+EXAMPLE_DIR_HELP_STRING = (
+    'Name of top-level directory with examples.  Files therein will be found by'
+    ' `learning_examples_io.find_many_files` and read by '
     '`learning_examples_io.read_file`.')
 
-NUM_EXAMPLES_HELP_STRING = (
-    'Number of examples to draw randomly from `{0:s}`.  If you want to select '
-    'the examples, use `{1:s}` and leave this argument alone.'
-).format(EXAMPLE_FILE_ARG_NAME, EXAMPLE_INDICES_ARG_NAME)
+TIME_HELP_STRING = (
+    'Time (format "yyyymmddHH").  The upconvnet will be applied to examples '
+    'from the period `{0:s}`...`{1:s}`.'
+).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-EXAMPLE_INDICES_HELP_STRING = (
-    '[used only if `{0:s}` is left alone] Indices of examples to draw from '
-    '`{1:s}`.'
-).format(NUM_EXAMPLES_ARG_NAME, EXAMPLE_FILE_ARG_NAME)
+NUM_TIMES_HELP_STRING = (
+    'The upconvnet will be applied to this many times chosen randomly from the '
+    'period `{0:s}`...`{1:s}`.  To choose all times, leave this argument alone.'
+).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Reconstructed examples (images) will be plotted'
-    ' and saved here.')
-
-DEFAULT_NUM_EXAMPLES = 50
+    'Name of output directory.  Reconstructed images will be written by '
+    '`upconvnet.write_predictions`, to locations therein determined by '
+    '`upconvnet.find_prediction_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -69,36 +56,44 @@ INPUT_ARG_PARSER.add_argument(
     help=UPCONVNET_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=True,
-    help=EXAMPLE_FILE_HELP_STRING)
+    '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
+    help=EXAMPLE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_EXAMPLES_HELP_STRING)
+    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + EXAMPLE_INDICES_ARG_NAME, type=int, nargs='+', required=False,
-    default=[-1], help=EXAMPLE_INDICES_HELP_STRING)
+    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
-                         example_indices):
-    """Reads input examples (images to be reconstructed).
+def _apply_upconvnet_one_time(
+        example_file_name, upconvnet_model_object, cnn_model_object,
+        cnn_metadata_dict, cnn_feature_layer_name, upconvnet_file_name,
+        top_output_dir_name):
+    """Applies trained upconvnet to examples at one time.
 
-    :param example_file_name: See documentation at top of file.
+    :param example_file_name: Path to input file (will be read by
+        `learning_examples_io.read_file`).
+    :param upconvnet_model_object: Trained upconvnet (instance of
+        `keras.models.Model` or `keras.models.Sequential`).
+    :param cnn_model_object: Trained CNN (instance of
+        `keras.models.Model` or `keras.models.Sequential`).
     :param cnn_metadata_dict: Dictionary returned by `cnn.read_metadata`.
-    :param num_examples: See documentation at top of file.
-    :param example_indices: Same.
-    :return: actual_image_matrix: E-by-M-by-N-by-C numpy array with actual
-        images (input examples to CNN).
+    :param cnn_feature_layer_name: Name of CNN layer whose output is the feature
+        vector, which is the input to the upconvnet.
+    :param upconvnet_file_name: See documentation at top of file.
+    :param top_output_dir_name: Same.
     """
 
-    print('Reading input examples (images) from: "{0:s}"...'.format(
-        example_file_name))
+    print('Reading data from: "{0:s}"...'.format(example_file_name))
 
     example_dict = examples_io.read_file(
         netcdf_file_name=example_file_name,
@@ -108,175 +103,113 @@ def _read_input_examples(example_file_name, cnn_metadata_dict, num_examples,
         num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY]
     )
 
-    actual_image_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
+    example_id_strings = examples_io.create_example_ids(
+        valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
+        row_indices=example_dict[examples_io.ROW_INDICES_KEY],
+        column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
+    )
 
-    if num_examples is not None:
-        num_examples_total = actual_image_matrix.shape[0]
-        example_indices = numpy.linspace(
-            0, num_examples_total - 1, num=num_examples_total, dtype=int)
+    image_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
 
-        num_examples = min([num_examples, num_examples_total])
+    reconstructed_image_matrix = upconvnet.apply_upconvnet(
+        image_matrix=image_matrix, cnn_model_object=cnn_model_object,
+        cnn_feature_layer_name=cnn_feature_layer_name,
+        ucn_model_object=upconvnet_model_object, verbose=True)
 
-        numpy.random.seed(RANDOM_SEED)
-        example_indices = numpy.random.choice(
-            example_indices, size=num_examples, replace=False)
+    mse_by_example = numpy.mean(
+        (image_matrix - reconstructed_image_matrix) ** 2, axis=(1, 2, 3)
+    )
 
-    return actual_image_matrix[example_indices, ...]
+    print('Mean sqaured error = {0:.3e}'.format(numpy.mean(mse_by_example)))
 
+    output_file_name = upconvnet.find_prediction_file(
+        top_directory_name=top_output_dir_name,
+        valid_time_unix_sec=example_dict[examples_io.VALID_TIMES_KEY][0],
+        raise_error_if_missing=False
+    )
 
-def _plot_examples(actual_image_matrix, reconstructed_image_matrix,
-                   narr_predictor_names, top_output_dir_name):
-    """Plots actual and reconstructed examples.
+    print('Writing predictions to: "{0:s}"...'.format(output_file_name))
 
-    :param actual_image_matrix: E-by-M-by-N-by-C numpy array with actual images
-        (input examples to CNN).
-    :param reconstructed_image_matrix: E-by-M-by-N-by-C numpy array with
-        reconstructed images (output of upconvnet).
-    :param narr_predictor_names: length-C list of predictor names.
-    :param top_output_dir_name: Name of top-level output directory.  Figures
-        will be saved here.
-    """
-
-    actual_image_dir_name = '{0:s}/actual_images'.format(top_output_dir_name)
-    reconstructed_image_dir_name = '{0:s}/reconstructed_images'.format(
-        top_output_dir_name)
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=actual_image_dir_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=reconstructed_image_dir_name)
-
-    try:
-        example_plotting.get_wind_indices(narr_predictor_names)
-        plot_wind_barbs = True
-    except ValueError:
-        plot_wind_barbs = False
-
-    num_examples = actual_image_matrix.shape[0]
-    num_predictors = len(narr_predictor_names)
-
-    for i in range(num_examples):
-        this_combined_matrix = numpy.concatenate(
-            (actual_image_matrix[i, ...], reconstructed_image_matrix[i, ...]),
-            axis=0)
-
-        these_min_colour_values = numpy.array([
-            numpy.percentile(this_combined_matrix[..., k], 1)
-            for k in range(num_predictors)
-        ])
-
-        these_max_colour_values = numpy.array([
-            numpy.percentile(this_combined_matrix[..., k], 99)
-            for k in range(num_predictors)
-        ])
-
-        this_figure_file_name = '{0:s}/example{1:06d}_actual.jpg'.format(
-            actual_image_dir_name, i)
-
-        if plot_wind_barbs:
-            example_plotting.plot_many_predictors_with_barbs(
-                predictor_matrix=actual_image_matrix[i, ...],
-                predictor_names=narr_predictor_names,
-                cmap_object_by_predictor=[COLOUR_MAP_OBJECT] * num_predictors,
-                min_colour_value_by_predictor=these_min_colour_values,
-                max_colour_value_by_predictor=these_max_colour_values)
-        else:
-            example_plotting.plot_many_predictors_sans_barbs(
-                predictor_matrix=reconstructed_image_matrix[i, ...],
-                predictor_names=narr_predictor_names,
-                cmap_object_by_predictor=[COLOUR_MAP_OBJECT] * num_predictors,
-                min_colour_value_by_predictor=these_min_colour_values,
-                max_colour_value_by_predictor=these_max_colour_values)
-
-        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
-        pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
-
-        this_figure_file_name = '{0:s}/example{1:06d}_reconstructed.jpg'.format(
-            reconstructed_image_dir_name, i)
-
-        if plot_wind_barbs:
-            example_plotting.plot_many_predictors_with_barbs(
-                predictor_matrix=reconstructed_image_matrix[i, ...],
-                predictor_names=narr_predictor_names,
-                cmap_object_by_predictor=[COLOUR_MAP_OBJECT] * num_predictors,
-                min_colour_value_by_predictor=these_min_colour_values,
-                max_colour_value_by_predictor=these_max_colour_values)
-        else:
-            example_plotting.plot_many_predictors_sans_barbs(
-                predictor_matrix=reconstructed_image_matrix[i, ...],
-                predictor_names=narr_predictor_names,
-                cmap_object_by_predictor=[COLOUR_MAP_OBJECT] * num_predictors,
-                min_colour_value_by_predictor=these_min_colour_values,
-                max_colour_value_by_predictor=these_max_colour_values)
-
-        print('Saving figure to: "{0:s}"...'.format(this_figure_file_name))
-        pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
-        pyplot.close()
+    upconvnet.write_predictions(
+        netcdf_file_name=output_file_name,
+        reconstructed_image_matrix=reconstructed_image_matrix,
+        example_id_strings=example_id_strings,
+        mse_by_example=mse_by_example, upconvnet_file_name=upconvnet_file_name)
 
 
-def _run(upconvnet_file_name, example_file_name, num_examples, example_indices,
-         top_output_dir_name):
-    """Applies upconvnet to one or more examples.
+def _run(upconvnet_file_name, top_example_dir_name, first_time_string,
+         last_time_string, num_times, top_output_dir_name):
+    """Applies trained upconvnet to pre-processed examples.
 
     This is effectively the main method.
 
     :param upconvnet_file_name: See documentation at top of file.
-    :param example_file_name: Same.
-    :param num_examples: Same.
-    :param example_indices: Same.
+    :param top_example_dir_name: Same.
+    :param first_time_string: Same.
+    :param last_time_string: Same.
+    :param num_times: Same.
     :param top_output_dir_name: Same.
+    :raises: ValueError: if no examples are found in the given time period.
     """
 
-    # Check input args.
-    if num_examples <= 0:
-        num_examples = None
+    first_time_unix_sec = time_conversion.string_to_unix_sec(
+        first_time_string, INPUT_TIME_FORMAT)
+    last_time_unix_sec = time_conversion.string_to_unix_sec(
+        last_time_string, INPUT_TIME_FORMAT)
 
-    if num_examples is None:
-        error_checking.assert_is_geq_numpy_array(example_indices, 0)
-    else:
-        error_checking.assert_is_greater(num_examples, 0)
+    print('Reading upconvnet from: "{0:s}"...'.format(upconvnet_file_name))
+    upconvnet_model_object = cnn.read_model(upconvnet_file_name)
+    upconvnet_metafile_name = cnn.find_metafile(upconvnet_file_name)
 
-    # Read upconvnet and metadata.
-    ucn_metafile_name = cnn.find_metafile(
-        model_file_name=upconvnet_file_name, raise_error_if_missing=True)
+    print('Reading upconvnet metadata from: "{0:s}"...'.format(
+        upconvnet_metafile_name
+    ))
+    upconvnet_metadata_dict = upconvnet.read_model_metadata(
+        upconvnet_metafile_name
+    )
+    cnn_file_name = upconvnet_metadata_dict[upconvnet.CNN_FILE_KEY]
 
-    print(('Reading trained upconvnet from: "{0:s}"...'.format(
-        upconvnet_file_name)))
-    ucn_model_object = cnn.read_model(upconvnet_file_name)
-
-    print(('Reading upconvnet metadata from: "{0:s}"...'.format(
-        ucn_metafile_name)))
-    ucn_metadata_dict = upconvnet.read_model_metadata(ucn_metafile_name)
-
-    # Read CNN and metadata.
-    cnn_file_name = ucn_metadata_dict[upconvnet.CNN_FILE_NAME_KEY]
-    cnn_metafile_name = cnn.find_metafile(
-        model_file_name=cnn_file_name, raise_error_if_missing=True)
-
-    print('Reading trained CNN from: "{0:s}"...'.format(cnn_file_name))
+    print('Reading CNN from: "{0:s}"...'.format(cnn_file_name))
     cnn_model_object = cnn.read_model(cnn_file_name)
+    cnn_metafile_name = cnn.find_metafile(cnn_file_name)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
+
+    example_file_names = examples_io.find_many_files(
+        top_directory_name=top_example_dir_name, shuffled=False,
+        first_valid_time_unix_sec=first_time_unix_sec,
+        last_valid_time_unix_sec=last_time_unix_sec)
+
+    if len(example_file_names) == 0:
+        error_string = (
+            'Cannot find any example files from {0:s} to {1:s} in directory: '
+            '"{2:s}"'
+        ).format(first_time_string, last_time_string, top_example_dir_name)
+
+        raise ValueError(error_string)
+
+    if len(example_file_names) > num_times:
+        numpy.random.seed(RANDOM_SEED)
+        example_file_names = numpy.array(example_file_names)
+        numpy.random.shuffle(example_file_names)
+        example_file_names = example_file_names[:num_times].tolist()
+
     print(SEPARATOR_STRING)
 
-    actual_image_matrix = _read_input_examples(
-        example_file_name=example_file_name,
-        cnn_metadata_dict=cnn_metadata_dict, num_examples=num_examples,
-        example_indices=example_indices)
-    print(SEPARATOR_STRING)
+    for this_file_name in example_file_names:
+        _apply_upconvnet_one_time(
+            example_file_name=this_file_name,
+            upconvnet_model_object=upconvnet_model_object,
+            cnn_model_object=cnn_model_object,
+            cnn_metadata_dict=cnn_metadata_dict,
+            cnn_feature_layer_name=
+            upconvnet_metadata_dict[upconvnet.CNN_FEATURE_LAYER_KEY],
+            top_output_dir_name=top_output_dir_name,
+            upconvnet_file_name=upconvnet_file_name
+        )
 
-    reconstructed_image_matrix = upconvnet.apply_upconvnet(
-        actual_image_matrix=actual_image_matrix,
-        cnn_model_object=cnn_model_object, ucn_model_object=ucn_model_object)
-    print(SEPARATOR_STRING)
-
-    _plot_examples(
-        actual_image_matrix=actual_image_matrix,
-        reconstructed_image_matrix=reconstructed_image_matrix,
-        narr_predictor_names=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
-        top_output_dir_name=top_output_dir_name)
+        print('\n')
 
 
 if __name__ == '__main__':
@@ -284,9 +217,9 @@ if __name__ == '__main__':
 
     _run(
         upconvnet_file_name=getattr(INPUT_ARG_OBJECT, UPCONVNET_FILE_ARG_NAME),
-        example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
-        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
-        example_indices=numpy.array(
-            getattr(INPUT_ARG_OBJECT, EXAMPLE_INDICES_ARG_NAME), dtype=int),
+        top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
+        first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
+        last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
+        num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

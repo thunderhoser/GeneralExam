@@ -1,13 +1,19 @@
 """Methods for training and applying upconvolutional neural nets."""
 
+import os.path
 import pickle
 import numpy
 import keras
+import netCDF4
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn as gg_cnn
 from generalexam.machine_learning import cnn as ge_cnn
 from generalexam.machine_learning import training_validation_io as trainval_io
+
+TIME_FORMAT = '%Y%m%d%H'
+PATHLESS_FILE_NAME_PREFIX = 'upconvnet_predictions'
 
 PLATEAU_PATIENCE_EPOCHS = 3
 PLATEAU_LEARNING_RATE_MULTIPLIER = 0.5
@@ -34,6 +40,17 @@ MODEL_METADATA_KEYS = [
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY,
     NUM_EX_PER_VALIDN_BATCH_KEY, NUM_VALIDATION_BATCHES_KEY, NUM_EPOCHS_KEY
 ]
+
+RECON_IMAGE_MATRIX_KEY = 'reconstructed_image_matrix'
+MEAN_SQUARED_ERRORS_KEY = 'mse_by_example'
+EXAMPLE_IDS_KEY = 'example_id_strings'
+UPCONVNET_FILE_KEY = 'upconvnet_file_name'
+
+EXAMPLE_DIMENSION_KEY = 'example'
+ROW_DIMENSION_KEY = 'grid_row'
+COLUMN_DIMENSION_KEY = 'grid_column'
+CHANNEL_DIMENSION_KEY = 'channel'
+ID_CHAR_DIMENSION_KEY = 'example_id_char'
 
 
 def _generator_from_example_files(
@@ -182,7 +199,7 @@ def train_upconvnet(
 
 def apply_upconvnet(
         image_matrix, cnn_model_object, cnn_feature_layer_name,
-        ucn_model_object, num_examples_per_batch=100, verbose=True):
+        ucn_model_object, num_examples_per_batch=1000, verbose=True):
     """Applies upconvnet to new images.
 
     E = number of examples
@@ -339,3 +356,167 @@ def read_model_metadata(pickle_file_name):
     error_string = 'Cannot find the following expected keys.\n{0:s}'.format(
         str(missing_keys))
     raise ValueError(error_string)
+
+
+def find_prediction_file(top_directory_name, valid_time_unix_sec,
+                         raise_error_if_missing=False):
+    """Finds file with upconvnet predictions (reconstructed images).
+
+    :param top_directory_name: Name of top-level directory with upconvnet
+        predictions.
+    :param valid_time_unix_sec: Valid time.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: prediction_file_name: Path to prediction file.  If file is missing
+        and `raise_error_if_missing = False`, this will be the expected path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_integer(valid_time_unix_sec)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    year_string = time_conversion.unix_sec_to_string(valid_time_unix_sec, '%Y')
+
+    prediction_file_name = (
+        '{0:s}/{1:s}/{2:s}_{3:s}.nc'
+    ).format(
+        top_directory_name, year_string, PATHLESS_FILE_NAME_PREFIX,
+        time_conversion.unix_sec_to_string(valid_time_unix_sec, TIME_FORMAT)
+    )
+
+    if raise_error_if_missing and not os.path.isfile(prediction_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            prediction_file_name)
+        raise ValueError(error_string)
+
+    return prediction_file_name
+
+
+def write_predictions(
+        netcdf_file_name, reconstructed_image_matrix, example_id_strings,
+        mse_by_example, upconvnet_file_name):
+    """Writes predictions (reconstructed images) to NetCDF file.
+
+    E = number of examples
+    M = number of rows in grid
+    N = number of columns in grid
+    C = number of predictors (channels)
+
+    :param netcdf_file_name: Path to output file.
+    :param reconstructed_image_matrix: E-by-M-by-N-by-C numpy array of
+        reconstructed images.
+    :param example_id_strings: length-E list of example IDs.
+    :param mse_by_example: length-E numpy array of mean squared errors (in
+        normalized, not physical, units).
+    :param upconvnet_file_name: Path to upconvnet that generated the
+        reconstructed images (readable by `cnn.read_model`).
+    """
+
+    # Check input args.
+    error_checking.assert_is_numpy_array_without_nan(reconstructed_image_matrix)
+    error_checking.assert_is_numpy_array(reconstructed_image_matrix,
+                                         num_dimensions=4)
+
+    num_examples = reconstructed_image_matrix.shape[0]
+    these_expected_dim = numpy.array([num_examples], dtype=int)
+
+    error_checking.assert_is_string_list(example_id_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(example_id_strings), exact_dimensions=these_expected_dim
+    )
+
+    error_checking.assert_is_geq_numpy_array(mse_by_example, 0.)
+    error_checking.assert_is_numpy_array(
+        mse_by_example, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_string(netcdf_file_name)
+    error_checking.assert_is_string(upconvnet_file_name)
+
+    # Write to NetCDF file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    dataset_object.setncattr(UPCONVNET_FILE_KEY, upconvnet_file_name)
+
+    dataset_object.createDimension(EXAMPLE_DIMENSION_KEY, num_examples)
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, reconstructed_image_matrix.shape[1]
+    )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, reconstructed_image_matrix.shape[2]
+    )
+    dataset_object.createDimension(
+        CHANNEL_DIMENSION_KEY, reconstructed_image_matrix.shape[3]
+    )
+
+    num_id_characters = numpy.max(numpy.array([
+        len(id) for id in example_id_strings
+    ]))
+
+    dataset_object.createDimension(ID_CHAR_DIMENSION_KEY, num_id_characters)
+
+    # Add reconstructed images.
+    dataset_object.createVariable(
+        RECON_IMAGE_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(EXAMPLE_DIMENSION_KEY, ROW_DIMENSION_KEY,
+                    COLUMN_DIMENSION_KEY, CHANNEL_DIMENSION_KEY)
+    )
+    dataset_object.variables[RECON_IMAGE_MATRIX_KEY][:] = (
+        reconstructed_image_matrix
+    )
+
+    # Add mean squared errors.
+    dataset_object.createVariable(
+        MEAN_SQUARED_ERRORS_KEY, datatype=numpy.float32,
+        dimensions=EXAMPLE_DIMENSION_KEY
+    )
+    dataset_object.variables[MEAN_SQUARED_ERRORS_KEY][:] = mse_by_example
+
+    # Add example IDs.
+    this_string_format = 'S{0:d}'.format(num_id_characters)
+    example_ids_char_array = netCDF4.stringtochar(numpy.array(
+        example_id_strings, dtype=this_string_format
+    ))
+
+    dataset_object.createVariable(
+        EXAMPLE_IDS_KEY, datatype='S1',
+        dimensions=(EXAMPLE_DIMENSION_KEY, ID_CHAR_DIMENSION_KEY)
+    )
+    dataset_object.variables[EXAMPLE_IDS_KEY][:] = numpy.array(
+        example_ids_char_array)
+
+    dataset_object.close()
+
+
+def read_predictions(netcdf_file_name):
+    """Reads predictions (reconstructed images) from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: prediction_dict: Dictionary with the following keys.
+    prediction_dict["reconstructed_image_matrix"]: See doc for
+        `write_predictions`.
+    prediction_dict["example_id_strings"]: Same.
+    prediction_dict["mse_by_example"]: Same.
+    prediction_dict["upconvnet_file_name"]: Same.
+    """
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    prediction_dict = {
+        RECON_IMAGE_MATRIX_KEY: numpy.array(
+            dataset_object.variables[RECON_IMAGE_MATRIX_KEY][:]
+        ),
+        EXAMPLE_IDS_KEY: [
+            str(s) for s in
+            netCDF4.chartostring(dataset_object.variables[EXAMPLE_IDS_KEY][:])
+        ],
+        MEAN_SQUARED_ERRORS_KEY: numpy.array(
+            dataset_object.variables[MEAN_SQUARED_ERRORS_KEY][:]
+        ),
+        UPCONVNET_FILE_KEY: str(getattr(dataset_object, UPCONVNET_FILE_KEY))
+    }
+
+    dataset_object.close()
+    return prediction_dict
