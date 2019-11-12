@@ -230,7 +230,7 @@ def apply_upconvnet(
 
     error_checking.assert_is_boolean(verbose)
     error_checking.assert_is_numpy_array_without_nan(image_matrix)
-    error_checking.assert_is_numpy_array(image_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(image_matrix, num_dimensions=4)
 
     num_examples = image_matrix.shape[0]
     if num_examples_per_batch is None:

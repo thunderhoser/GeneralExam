@@ -188,7 +188,8 @@ def _run(cnn_file_name, upconvnet_file_name, top_training_dir_name,
 
     # Write upconvnet metadata to file.
     ucn_metafile_name = cnn.find_metafile(
-        model_file_name=output_dir_name, raise_error_if_missing=False
+        model_file_name='{0:s}/foo.h5'.format(output_dir_name),
+        raise_error_if_missing=False
     )
     print('Writing upconvnet metadata to: "{0:s}"...'.format(ucn_metafile_name))
 
