@@ -49,7 +49,8 @@ def _plot_roc_curves(class_probability_matrix, observed_labels,
                 forecast_probabilities=class_probability_matrix[:, k],
                 observed_labels=(observed_labels == k).astype(int),
                 threshold_arg=gg_evaluation.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-                unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
+                forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS
+            )
         )
 
         auc_by_class[k] = gg_evaluation.get_area_under_roc_curve(
@@ -111,7 +112,8 @@ def _plot_performance_diagrams(class_probability_matrix, observed_labels,
                 forecast_probabilities=class_probability_matrix[:, k],
                 observed_labels=(observed_labels == k).astype(int),
                 threshold_arg=gg_evaluation.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-                unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS)
+                forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS
+            )
         )
 
         aupd_by_class[k] = gg_evaluation.get_area_under_perf_diagram(
@@ -179,7 +181,7 @@ def _plot_attributes_diagrams(class_probability_matrix, observed_labels,
             climatology=this_climatology)
 
         reliability_by_class[k] = this_bss_dict[gg_evaluation.RELIABILITY_KEY]
-        bss_by_class[k] = this_bss_dict[gg_evaluation.BRIER_SKILL_SCORE_KEY]
+        bss_by_class[k] = this_bss_dict[gg_evaluation.BSS_KEY]
 
         _, this_axes_object = pyplot.subplots(
             1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -187,14 +189,16 @@ def _plot_attributes_diagrams(class_probability_matrix, observed_labels,
 
         model_eval_plotting.plot_reliability_curve(
             axes_object=this_axes_object,
-            mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
-            mean_observed_label_by_bin=this_class_freq_by_bin)
+            mean_forecast_by_bin=this_mean_forecast_by_bin,
+            event_frequency_by_bin=this_class_freq_by_bin)
 
         this_title_string = (
             'REL = {0:.4f} ... RES = {1:.4f} ... BSS = {2:.4f}'
-        ).format(this_bss_dict[gg_evaluation.RELIABILITY_KEY],
-                 this_bss_dict[gg_evaluation.RESOLUTION_KEY],
-                 this_bss_dict[gg_evaluation.BRIER_SKILL_SCORE_KEY])
+        ).format(
+            this_bss_dict[gg_evaluation.RELIABILITY_KEY],
+            this_bss_dict[gg_evaluation.RESOLUTION_KEY],
+            this_bss_dict[gg_evaluation.BSS_KEY]
+        )
 
         print(this_title_string)
         pyplot.title(this_title_string)
@@ -213,8 +217,8 @@ def _plot_attributes_diagrams(class_probability_matrix, observed_labels,
 
         model_eval_plotting.plot_attributes_diagram(
             figure_object=this_figure_object, axes_object=this_axes_object,
-            mean_forecast_prob_by_bin=this_mean_forecast_by_bin,
-            mean_observed_label_by_bin=this_class_freq_by_bin,
+            mean_forecast_by_bin=this_mean_forecast_by_bin,
+            event_frequency_by_bin=this_class_freq_by_bin,
             num_examples_by_bin=this_num_examples_by_bin)
 
         pyplot.title(this_title_string)

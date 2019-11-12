@@ -3,8 +3,6 @@
 import copy
 import argparse
 import numpy
-import matplotlib
-matplotlib.use('agg')
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import upconvnet
 from generalexam.machine_learning import machine_learning_utils as ml_utils
@@ -15,7 +13,8 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 PREDICTION_FILE_ARG_NAME = 'input_prediction_file_name'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
-OUTPUT_DIR_ARG_NAME = 'top_output_dir_name'
+COLOUR_MAP_ARG_NAME = 'diff_colour_map_name'
+OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 NUM_EXAMPLES_ARG_NAME = plot_examples.NUM_EXAMPLES_ARG_NAME
 PLOT_BARBS_ARG_NAME = plot_examples.PLOT_BARBS_ARG_NAME
 WIND_BARB_COLOUR_ARG_NAME = plot_examples.WIND_BARB_COLOUR_ARG_NAME
@@ -38,6 +37,10 @@ EXAMPLE_DIR_HELP_STRING = (
     ' therein will be found by `learning_examples_io.find_file` and read by '
     '`learning_examples_io.read_file`.')
 
+COLOUR_MAP_HELP_STRING = (
+    'Name of colour scheme for differences (must be accepted by '
+    '`pyplot.get_cmap`).')
+
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  Figures will be saved here.')
 
@@ -49,6 +52,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
     help=EXAMPLE_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + COLOUR_MAP_ARG_NAME, type=str, required=False, default='seismic',
+    help=COLOUR_MAP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -111,10 +118,10 @@ INPUT_ARG_PARSER.add_argument(
     help=plot_examples.RESOLUTION_HELP_STRING)
 
 
-def _run(prediction_file_name, top_example_dir_name, num_examples_to_plot,
-         plot_wind_as_barbs, wind_barb_colour, wind_colour_map_name,
-         non_wind_colour_map_name, num_panel_rows, add_titles,
-         colour_bar_length, main_font_size, title_font_size,
+def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
+         num_examples_to_plot, plot_wind_as_barbs, wind_barb_colour,
+         wind_colour_map_name, non_wind_colour_map_name, num_panel_rows,
+         add_titles, colour_bar_length, main_font_size, title_font_size,
          colour_bar_font_size, figure_resolution_dpi, top_output_dir_name):
     """Plots one or more examples and their upconvnet reconstructions.
 
@@ -122,6 +129,7 @@ def _run(prediction_file_name, top_example_dir_name, num_examples_to_plot,
 
     :param prediction_file_name: See documentation at top of file.
     :param top_example_dir_name: Same.
+    :param diff_colour_map_name: Same.
     :param num_examples_to_plot: Same.
     :param plot_wind_as_barbs: Same.
     :param wind_barb_colour: Same.
@@ -275,8 +283,8 @@ def _run(prediction_file_name, top_example_dir_name, num_examples_to_plot,
         num_examples_to_plot=num_examples_to_plot,
         plot_diffs=True, plot_wind_as_barbs=plot_wind_as_barbs,
         wind_barb_colour=wind_barb_colour,
-        wind_colour_map_name=wind_colour_map_name,
-        non_wind_colour_map_name=non_wind_colour_map_name,
+        wind_colour_map_name=diff_colour_map_name,
+        non_wind_colour_map_name=diff_colour_map_name,
         num_panel_rows=num_panel_rows, add_titles=add_titles,
         colour_bar_length=colour_bar_length,
         main_font_size=main_font_size, title_font_size=title_font_size,
@@ -292,6 +300,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, PREDICTION_FILE_ARG_NAME
         ),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
+        diff_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         num_examples_to_plot=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         plot_wind_as_barbs=bool(getattr(INPUT_ARG_OBJECT, PLOT_BARBS_ARG_NAME)),
         wind_barb_colour=numpy.array(

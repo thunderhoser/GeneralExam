@@ -8,7 +8,7 @@ from generalexam.machine_learning import keras_metrics
 
 L1_WEIGHT = 0.
 L2_WEIGHT = 0.001
-NUM_CHANNELS_TO_FIRST_NUM_FILTERS = 8
+NUM_CHANNELS_TO_FIRST_NUM_FILTERS = 4.5
 NUM_CONV_LAYER_SETS = 2
 NUM_CONV_LAYERS_PER_SET = 2
 NUM_CONV_FILTER_ROWS = 3
@@ -63,21 +63,23 @@ def create_cnn(num_half_rows, num_half_columns, num_channels):
 
     # Add convolutional layers.
     for _ in range(NUM_CONV_LAYER_SETS):
+        if current_num_filters is None:
+            current_num_filters = int(numpy.round(
+                num_channels * NUM_CHANNELS_TO_FIRST_NUM_FILTERS
+            ))
+        else:
+            current_num_filters *= 2
+
         for _ in range(NUM_CONV_LAYERS_PER_SET):
-
-            if current_num_filters is None:
-                current_num_filters = (
-                    num_channels * NUM_CHANNELS_TO_FIRST_NUM_FILTERS)
+            if current_layer_object is None:
                 this_input_layer_object = input_layer_object
-
             else:
-                current_num_filters *= 2
                 this_input_layer_object = current_layer_object
 
             current_layer_object = keras.layers.Conv2D(
                 filters=current_num_filters,
                 kernel_size=(NUM_CONV_FILTER_ROWS, NUM_CONV_FILTER_COLUMNS),
-                strides=(1, 1), padding='valid', data_format='channels_last',
+                strides=(1, 1), padding='same', data_format='channels_last',
                 dilation_rate=(1, 1), activation=None, use_bias=True,
                 kernel_initializer='glorot_uniform', bias_initializer='zeros',
                 kernel_regularizer=regularizer_object
