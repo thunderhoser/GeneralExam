@@ -449,7 +449,7 @@ def find_best_binarization_threshold(
     possible_thresholds = model_eval.get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=class_probability_matrix[:, 0],
-        unique_forecast_precision=forecast_precision_for_thresholds)
+        forecast_precision=forecast_precision_for_thresholds)
 
     num_thresholds = len(possible_thresholds)
     criterion_values = numpy.full(num_thresholds, numpy.nan)
