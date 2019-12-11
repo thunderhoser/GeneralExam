@@ -1,8 +1,9 @@
 """Methods for converting atmospheric variables."""
 
 import numpy
-from sharppy.sharptab import thermo
+# from sharppy.sharptab import thermo
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_utils import thermo_utils
 
 ZERO_CELSIUS_IN_KELVINS = 273.15
 PASCALS_TO_MILLIBARS = 0.01
@@ -50,9 +51,10 @@ def dewpoint_to_wet_bulb_temperature(
         if nan_flags[i]:
             continue
 
-        wet_bulb_temperatures_1d_celsius[i] = thermo.wetbulb(
+        wet_bulb_temperatures_1d_celsius[i] = thermo_utils.wetbulb(
             p=total_pressures_1d_millibars[i], t=temperatures_1d_celsius[i],
-            td=dewpoints_1d_celsius[i])
+            td=dewpoints_1d_celsius[i]
+        )
 
     return ZERO_CELSIUS_IN_KELVINS + numpy.reshape(
         wet_bulb_temperatures_1d_celsius, tuple(orig_dimensions.tolist()))
