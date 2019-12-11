@@ -8,6 +8,7 @@ import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
@@ -17,6 +18,7 @@ from generalexam.ge_io import predictor_io
 from generalexam.ge_io import wpc_bulletin_input
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
+from generalexam.ge_utils import conversions
 from generalexam.plotting import front_plotting
 
 DEFAULT_TIME_FORMAT = '%Y%m%d%H'
@@ -188,6 +190,78 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _read_one_file(top_predictor_dir_name, thermal_field_name,
+                   pressure_level_mb, valid_time_unix_sec):
+    """Reads predictors from one file.
+
+    :param top_predictor_dir_name: See documentation at top of file.
+    :param thermal_field_name: Same.
+    :param pressure_level_mb: Same.
+    :param valid_time_unix_sec: Valid time.
+    :return: predictor_dict: See doc for `predictor_io.read_file`.
+    """
+
+    predictor_names = [
+        thermal_field_name, predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+        predictor_utils.V_WIND_GRID_RELATIVE_NAME
+    ]
+
+    pressure_levels_mb = numpy.full(
+        len(predictor_names), pressure_level_mb, dtype=int
+    )
+
+    predictor_file_name = predictor_io.find_file(
+        top_directory_name=top_predictor_dir_name,
+        valid_time_unix_sec=valid_time_unix_sec)
+
+    try:
+        predictor_dict = predictor_io.read_file(
+            netcdf_file_name=predictor_file_name,
+            pressure_levels_to_keep_mb=pressure_levels_mb,
+            field_names_to_keep=predictor_names)
+    except Exception as e:
+        if thermal_field_name != predictor_utils.WET_BULB_THETA_NAME:
+            raise e
+
+        dummy_predictor_names = [
+            predictor_utils.TEMPERATURE_NAME,
+            predictor_utils.SPECIFIC_HUMIDITY_NAME,
+            predictor_utils.PRESSURE_NAME,
+            predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+            predictor_utils.V_WIND_GRID_RELATIVE_NAME
+        ]
+
+        dummy_pressure_levels_mb = numpy.full(
+            len(dummy_predictor_names), pressure_level_mb, dtype=int
+        )
+
+        predictor_dict = predictor_io.read_file(
+            netcdf_file_name=predictor_file_name,
+            pressure_levels_to_keep_mb=dummy_pressure_levels_mb,
+            field_names_to_keep=dummy_predictor_names)
+
+        predictor_matrix = predictor_dict[predictor_utils.DATA_MATRIX_KEY]
+
+        dewpoint_matrix_kelvins = (
+            moisture_conversions.specific_humidity_to_dewpoint(
+                specific_humidities_kg_kg01=predictor_matrix[..., 1],
+                total_pressures_pascals=predictor_matrix[..., 2]
+            )
+        )
+
+        predictor_matrix[..., 2] = conversions.dewpoint_to_wet_bulb_temperature(
+            dewpoints_kelvins=dewpoint_matrix_kelvins,
+            temperatures_kelvins=predictor_matrix[..., 0],
+            total_pressures_pascals=predictor_matrix[..., 2]
+        )
+
+        predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_matrix
+        predictor_dict[predictor_utils.FIELD_NAMES_KEY] = predictor_names
+        predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] = pressure_levels_mb
+
+    return predictor_dict
+
+
 def _plot_one_time(
         predictor_matrix, predictor_names, front_polyline_table, high_low_table,
         thermal_colour_map_object, max_colour_percentile, full_grid_name,
@@ -274,9 +348,10 @@ def _plot_one_time(
             orientation_string='horizontal', extend_min=True, extend_max=True,
             padding=0.05)
 
-        # colour_bar_object.set_label(
-        #     r'Wet-bulb potential temperature ($^{\circ}$C)'
-        # )
+        # TODO(thunderhoser): This is a HACK.
+        colour_bar_object.set_label(
+            r'Wet-bulb potential temperature ($^{\circ}$C)'
+        )
 
         tick_values = colour_bar_object.ax.get_xticks()
         colour_bar_object.ax.set_xticks(tick_values)
@@ -412,23 +487,13 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         last_time_string, DEFAULT_TIME_FORMAT)
 
     # Find out full grid (either NCEP 221 or extended 221 grid).
-    predictor_names = [
-        thermal_field_name, predictor_utils.U_WIND_GRID_RELATIVE_NAME,
-        predictor_utils.V_WIND_GRID_RELATIVE_NAME
-    ]
-
-    pressure_levels_mb = numpy.full(
-        len(predictor_names), pressure_level_mb, dtype=int
-    )
-
-    this_file_name = predictor_io.find_file(
-        top_directory_name=top_predictor_dir_name,
+    this_predictor_dict = _read_one_file(
+        top_predictor_dir_name=top_predictor_dir_name,
+        thermal_field_name=thermal_field_name,
+        pressure_level_mb=pressure_level_mb,
         valid_time_unix_sec=first_time_unix_sec)
 
-    this_predictor_dict = predictor_io.read_file(
-        netcdf_file_name=this_file_name,
-        pressure_levels_to_keep_mb=pressure_levels_mb,
-        field_names_to_keep=predictor_names)
+    predictor_names = this_predictor_dict[predictor_utils.FIELD_NAMES_KEY]
 
     num_grid_rows = this_predictor_dict[
         predictor_utils.DATA_MATRIX_KEY].shape[1]
@@ -500,15 +565,11 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             this_high_low_table = wpc_bulletin_input.read_highs_and_lows(
                 this_file_name)
 
-        this_file_name = predictor_io.find_file(
-            top_directory_name=top_predictor_dir_name,
+        this_predictor_dict = _read_one_file(
+            top_predictor_dir_name=top_predictor_dir_name,
+            thermal_field_name=thermal_field_name,
+            pressure_level_mb=pressure_level_mb,
             valid_time_unix_sec=this_time_unix_sec)
-
-        print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_predictor_dict = predictor_io.read_file(
-            netcdf_file_name=this_file_name,
-            pressure_levels_to_keep_mb=pressure_levels_mb,
-            field_names_to_keep=predictor_names)
 
         this_predictor_matrix = this_predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
