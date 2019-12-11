@@ -234,10 +234,13 @@ def _run(top_front_dir_name, first_time_string, last_time_string,
             time_conversion.unix_sec_to_string(this_time_unix_sec, TIME_FORMAT)
         )
 
-        if first_letter_label is None:
-            letter_label = None
-        else:
-            letter_label = chr(ord(letter_label) + letter_interval)
+        if first_letter_label is not None:
+            if letter_label is None:
+                letter_label = first_letter_label
+            else:
+                letter_label = chr(
+                    ord(letter_label) + letter_interval
+                )
 
         _plot_fronts_one_time(
             input_file_name=this_front_file_name,
