@@ -2,8 +2,8 @@
 
 import os.path
 import argparse
+import numpy
 import matplotlib
-
 matplotlib.use('agg')
 from matplotlib import pyplot
 from gewittergefahr.gg_utils import time_conversion
@@ -22,6 +22,10 @@ TIME_INTERVAL_SEC = 10800
 NUM_GRID_ROWS, NUM_GRID_COLUMNS = nwp_model_utils.get_grid_dimensions(
     model_name=nwp_model_utils.NARR_MODEL_NAME,
     grid_name=nwp_model_utils.NAME_OF_221GRID)
+
+NUM_PARALLELS = 8
+NUM_MERIDIANS = 8
+BORDER_COLOUR = numpy.full(3, 0.)
 
 FIGURE_RESOLUTION_DPI = 300
 FIGURE_WIDTH_INCHES = FIGURE_HEIGHT_INCHES = 15
@@ -118,6 +122,22 @@ def _plot_fronts_one_time(
     figure_object, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID)
+
+    plotting_utils.plot_coastlines(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR)
+    plotting_utils.plot_countries(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR)
+    plotting_utils.plot_states_and_provinces(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR)
+    plotting_utils.plot_parallels(
+        basemap_object=basemap_object, axes_object=axes_object,
+        num_parallels=NUM_PARALLELS)
+    plotting_utils.plot_meridians(
+        basemap_object=basemap_object, axes_object=axes_object,
+        num_meridians=NUM_MERIDIANS)
 
     front_plotting.plot_gridded_labels(
         gridded_front_matrix=gridded_front_matrix, axes_object=axes_object,
