@@ -132,6 +132,11 @@ def _plot_fronts_one_time(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID)
 
+    gridded_front_matrix = gridded_front_matrix[
+        row_limits[0]:(row_limits[1] + 1),
+        column_limits[0]:(column_limits[1] + 1)
+    ]
+
     figure_object, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID,
