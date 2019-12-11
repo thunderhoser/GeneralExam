@@ -215,6 +215,8 @@ def _read_one_file(top_predictor_dir_name, thermal_field_name,
         top_directory_name=top_predictor_dir_name,
         valid_time_unix_sec=valid_time_unix_sec)
 
+    print('Reading data from: "{0:s}"...'.format(predictor_file_name))
+
     try:
         predictor_dict = predictor_io.read_file(
             netcdf_file_name=predictor_file_name,
@@ -360,10 +362,10 @@ def _plot_one_time(
             orientation_string='horizontal', extend_min=True, extend_max=True,
             padding=0.05)
 
-        # TODO(thunderhoser): This is a HACK.
-        colour_bar_object.set_label(
-            r'Wet-bulb potential temperature ($^{\circ}$C)'
-        )
+        # # TODO(thunderhoser): This is a HACK.
+        # colour_bar_object.set_label(
+        #     r'Wet-bulb potential temperature ($^{\circ}$C)'
+        # )
 
         tick_values = colour_bar_object.ax.get_xticks()
         colour_bar_object.ax.set_xticks(tick_values)
@@ -644,7 +646,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             full_grid_name=full_grid_name,
             full_grid_row_limits=full_grid_row_limits,
             full_grid_column_limits=full_grid_column_limits,
-            title_string='', letter_label=this_letter_label,
+            title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name)
 
         print('\n')
