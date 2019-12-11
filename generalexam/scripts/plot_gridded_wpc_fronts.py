@@ -25,6 +25,11 @@ NUM_GRID_ROWS, NUM_GRID_COLUMNS = nwp_model_utils.get_grid_dimensions(
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
+MIN_LATITUDE_DEG = 20.
+MIN_LONGITUDE_DEG = 220.
+MAX_LATITUDE_DEG = 80.
+MAX_LONGITUDE_DEG = 290.
+
 BORDER_COLOUR = numpy.full(3, 0.)
 
 FIGURE_RESOLUTION_DPI = 300
@@ -119,9 +124,22 @@ def _plot_fronts_one_time(
 
     gridded_front_matrix = gridded_front_matrix[0, ...]
 
-    figure_object, axes_object, basemap_object = nwp_plotting.init_basemap(
+    row_limits, column_limits = nwp_plotting.latlng_limits_to_rowcol_limits(
+        min_latitude_deg=MIN_LATITUDE_DEG,
+        max_latitude_deg=MAX_LATITUDE_DEG,
+        min_longitude_deg=MIN_LONGITUDE_DEG,
+        max_longitude_deg=MAX_LONGITUDE_DEG,
         model_name=nwp_model_utils.NARR_MODEL_NAME,
         grid_id=nwp_model_utils.NAME_OF_221GRID)
+
+    figure_object, axes_object, basemap_object = nwp_plotting.init_basemap(
+        model_name=nwp_model_utils.NARR_MODEL_NAME,
+        grid_id=nwp_model_utils.NAME_OF_221GRID,
+        first_row_in_full_grid=row_limits[0],
+        last_row_in_full_grid=row_limits[1],
+        first_column_in_full_grid=column_limits[0],
+        last_column_in_full_grid=column_limits[1]
+    )
 
     plotting_utils.plot_coastlines(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -142,7 +160,10 @@ def _plot_fronts_one_time(
     front_plotting.plot_gridded_labels(
         gridded_front_matrix=gridded_front_matrix, axes_object=axes_object,
         basemap_object=basemap_object,
-        full_grid_name=nwp_model_utils.NAME_OF_221GRID)
+        full_grid_name=nwp_model_utils.NAME_OF_221GRID,
+        first_row_in_full_grid=row_limits[0],
+        first_column_in_full_grid=column_limits[0]
+    )
 
     if letter_label is not None:
         plotting_utils.label_axes(
