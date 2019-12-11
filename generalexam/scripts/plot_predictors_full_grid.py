@@ -426,9 +426,6 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         top_directory_name=top_predictor_dir_name,
         valid_time_unix_sec=first_time_unix_sec)
 
-    print(pressure_levels_mb)
-    print(predictor_names)
-
     this_predictor_dict = predictor_io.read_file(
         netcdf_file_name=this_file_name,
         pressure_levels_to_keep_mb=pressure_levels_mb,

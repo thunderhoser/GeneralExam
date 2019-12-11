@@ -261,6 +261,9 @@ def read_file(
         exact_dimensions=numpy.array([num_fields_to_keep], dtype=int)
     )
 
+    print(predictor_dict[predictor_utils.FIELD_NAMES_KEY])
+    print(predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY])
+
     field_indices = [
         numpy.where(numpy.logical_and(
             numpy.array(predictor_dict[predictor_utils.FIELD_NAMES_KEY]) == f,
