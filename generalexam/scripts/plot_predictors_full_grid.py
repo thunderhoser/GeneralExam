@@ -25,6 +25,7 @@ DEFAULT_TIME_FORMAT = '%Y%m%d%H'
 NICE_TIME_FORMAT = '%H00 UTC %-d %b %Y'
 TIME_INTERVAL_SECONDS = 10800
 
+MB_TO_PASCALS = 100.
 KG_TO_GRAMS = 1000.
 ZERO_CELSIUS_IN_KELVINS = 273.15
 
@@ -226,10 +227,12 @@ def _read_one_file(top_predictor_dir_name, thermal_field_name,
         dummy_predictor_names = [
             predictor_utils.TEMPERATURE_NAME,
             predictor_utils.SPECIFIC_HUMIDITY_NAME,
-            predictor_utils.PRESSURE_NAME,
             predictor_utils.U_WIND_GRID_RELATIVE_NAME,
             predictor_utils.V_WIND_GRID_RELATIVE_NAME
         ]
+
+        if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
+            dummy_predictor_names.insert(2, predictor_utils.PRESSURE_NAME)
 
         dummy_pressure_levels_mb = numpy.full(
             len(dummy_predictor_names), pressure_level_mb, dtype=int
@@ -241,19 +244,28 @@ def _read_one_file(top_predictor_dir_name, thermal_field_name,
             field_names_to_keep=dummy_predictor_names)
 
         predictor_matrix = predictor_dict[predictor_utils.DATA_MATRIX_KEY]
+        if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
+            pressure_matrix_pa = predictor_matrix[..., 2]
+        else:
+            pressure_matrix_pa = numpy.full(
+                predictor_matrix.shape[:-1], pressure_level_mb * MB_TO_PASCALS
+            )
 
         dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
                 specific_humidities_kg_kg01=predictor_matrix[..., 1],
-                total_pressures_pascals=predictor_matrix[..., 2]
+                total_pressures_pascals=pressure_matrix_pa
             )
         )
 
-        predictor_matrix[..., 2] = conversions.dewpoint_to_wet_bulb_temperature(
+        theta_w_matrix_kelvins = conversions.dewpoint_to_wet_bulb_temperature(
             dewpoints_kelvins=dewpoint_matrix_kelvins,
             temperatures_kelvins=predictor_matrix[..., 0],
-            total_pressures_pascals=predictor_matrix[..., 2]
+            total_pressures_pascals=pressure_matrix_pa
         )
+
+        predictor_matrix = predictor_matrix[..., -3:]
+        predictor_matrix[..., 0] = theta_w_matrix_kelvins
 
         predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_matrix
         predictor_dict[predictor_utils.FIELD_NAMES_KEY] = predictor_names
