@@ -42,9 +42,9 @@ TIME_HELP_STRING = (
     'from `{0:s}`...`{1:s}`.'
 ).format(FIRST_TIME_ARG_NAME, LAST_TIME_ARG_NAME)
 
-# TODO(thunderhoser): Figure this oot.
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file with normalization params.  Will be written by ``.'
+    'Path to output file with normalization params.  Will be written by '
+    '`predictor_io.write_normalization_params`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -243,6 +243,16 @@ def _run(top_predictor_dir_name, mask_file_name, first_time_string,
         ).format(
             field_names[k], pressure_levels_mb[k], this_mean, this_stdev
         ))
+
+    print(SEPARATOR_STRING)
+    print('Writing normalization params to file: "{0:s}"...'.format(
+        output_file_name
+    ))
+    predictor_io.write_normalization_params(
+        mean_value_dict=mean_value_dict,
+        standard_deviation_dict=standard_deviation_dict,
+        pickle_file_name=output_file_name
+    )
 
 
 if __name__ == '__main__':

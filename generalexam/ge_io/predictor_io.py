@@ -1,6 +1,7 @@
 """IO methods for predictors (processed NARR or ERA5 grids)."""
 
 import copy
+import pickle
 import os.path
 import numpy
 import netCDF4
@@ -277,3 +278,38 @@ def read_file(
         predictor_utils.DATA_MATRIX_KEY][..., field_indices]
 
     return predictor_dict
+
+
+def write_normalization_params(mean_value_dict, standard_deviation_dict,
+                               pickle_file_name):
+    """Writes normalization params to Pickle file.
+
+    :param mean_value_dict: Dictionary of mean values.  Each key is a tuple with
+        (predictor_name, pressure_level_mb), where the pressure level must be an
+        integer.
+    :param standard_deviation_dict: Same but for standard deviations.
+    :param pickle_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_value_dict, pickle_file_handle)
+    pickle.dump(standard_deviation_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_normalization_params(pickle_file_name):
+    """Reads normalization params from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mean_value_dict: See doc for `write_normalization_params`.
+    :return: standard_deviation_dict: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mean_value_dict = pickle.load(pickle_file_handle)
+    standard_deviation_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return mean_value_dict, standard_deviation_dict
