@@ -210,6 +210,9 @@ def _run(top_predictor_dir_name, mask_file_name, first_time_string,
             if mask_matrix is not None:
                 this_data_matrix[mask_matrix == 0] = numpy.nan
 
+            if field_names[k] == predictor_utils.HEIGHT_NAME:
+                print(this_data_matrix[100:110, 100:110])
+
             this_param_dict = _update_intermediate_params(
                 intermediate_param_dict=this_param_dict,
                 new_data_matrix=this_data_matrix)
