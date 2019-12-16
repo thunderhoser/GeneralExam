@@ -39,6 +39,7 @@ PREDICTOR_NAMES_KEY = 'narr_predictor_names'
 PRESSURE_LEVELS_KEY = 'pressure_levels_mb'
 NUM_HALF_ROWS_KEY = 'num_rows_in_half_grid'
 NUM_HALF_COLUMNS_KEY = 'num_columns_in_half_grid'
+NORMALIZATION_FILE_KEY = 'normalization_file_name'
 NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 FIRST_TRAINING_TIME_KEY = 'training_start_time_unix_sec'
 LAST_TRAINING_TIME_KEY = 'training_end_time_unix_sec'
@@ -52,8 +53,8 @@ METADATA_KEYS = [
     NUM_EXAMPLES_PER_TIME_KEY, NUM_TRAINING_BATCHES_KEY,
     NUM_VALIDATION_BATCHES_KEY, DILATION_DISTANCE_KEY, CLASS_FRACTIONS_KEY,
     WEIGHT_LOSS_KEY, PREDICTOR_NAMES_KEY, PRESSURE_LEVELS_KEY,
-    NUM_HALF_ROWS_KEY, NUM_HALF_COLUMNS_KEY, NORMALIZATION_TYPE_KEY,
-    FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
+    NUM_HALF_ROWS_KEY, NUM_HALF_COLUMNS_KEY, NORMALIZATION_FILE_KEY,
+    NORMALIZATION_TYPE_KEY, FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY,
     MASK_MATRIX_KEY, AUGMENTATION_DICT_KEY
 ]
@@ -173,8 +174,8 @@ def write_metadata(
         num_ex_per_train_batch, num_ex_per_validn_batch, num_examples_per_time,
         num_training_batches_per_epoch, num_validation_batches_per_epoch,
         predictor_names, pressure_levels_mb, num_half_rows, num_half_columns,
-        normalization_type_string, dilation_distance_metres,
-        class_fractions, weight_loss_function,
+        normalization_file_name, normalization_type_string,
+        dilation_distance_metres, class_fractions, weight_loss_function,
         first_training_time_unix_sec, last_training_time_unix_sec,
         first_validation_time_unix_sec, last_validation_time_unix_sec,
         mask_matrix=None, augmentation_dict=None):
@@ -199,8 +200,10 @@ def write_metadata(
     :param num_half_rows: Number of rows in half-grid (on either side of center)
         for predictors.
     :param num_half_columns: Same but for columns.
-    :param normalization_type_string: Normalization method (see doc for
-        `machine_learning_utils.normalize_predictors`).
+    :param normalization_file_name: Path to normalization file used for
+        `machine_learning_utils.normalize_predictors_global`.
+    :param normalization_type_string: Method used for
+        `machine_learning_utils.normalize_predictors_nonglobal`.
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param class_fractions: 1-D numpy array with sampling fraction used for each
@@ -233,6 +236,7 @@ def write_metadata(
         PRESSURE_LEVELS_KEY: pressure_levels_mb,
         NUM_HALF_ROWS_KEY: num_half_rows,
         NUM_HALF_COLUMNS_KEY: num_half_columns,
+        NORMALIZATION_FILE_KEY: normalization_file_name,
         NORMALIZATION_TYPE_KEY: normalization_type_string,
         DILATION_DISTANCE_KEY: dilation_distance_metres,
         CLASS_FRACTIONS_KEY: class_fractions,
@@ -276,6 +280,9 @@ def read_metadata(pickle_file_name):
 
     if AUGMENTATION_DICT_KEY not in metadata_dict:
         metadata_dict[AUGMENTATION_DICT_KEY] = None
+
+    if NORMALIZATION_FILE_KEY not in metadata_dict:
+        metadata_dict[NORMALIZATION_FILE_KEY] = None
 
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
@@ -458,9 +465,10 @@ def apply_model(model_object, predictor_matrix, num_examples_per_batch=1000,
 
 def apply_model_to_full_grid(
         model_object, top_predictor_dir_name, valid_time_unix_sec,
-        pressure_levels_mb, predictor_names, normalization_type_string,
-        top_gridded_front_dir_name=None, dilation_distance_metres=None,
-        isotonic_model_object_by_class=None, mask_matrix=None):
+        pressure_levels_mb, predictor_names, normalization_file_name=None,
+        normalization_type_string=None, top_gridded_front_dir_name=None,
+        dilation_distance_metres=None, isotonic_model_object_by_class=None,
+        mask_matrix=None):
     """Applies CNN independently to each grid cell in a full grid.
 
     M = number of rows in full grid
@@ -481,8 +489,11 @@ def apply_model_to_full_grid(
         (millibars).
     :param predictor_names: length-C list of predictor names (each must be
         accepted by `predictor_utils.check_field_name`).
-    :param normalization_type_string: Normalization method for predictors (see
-        doc for `machine_learning_utils.normalize_predictors`).
+    :param normalization_file_name: Path to normalization file used for
+        `machine_learning_utils.normalize_predictors_global`.
+    :param normalization_type_string:
+        [used only if `normalization_file_name is None`]
+        Method used for `machine_learning_utils.normalize_predictors_nonglobal`.
     :param top_gridded_front_dir_name: Name of top-level directory with gridded
         front labels.  Files therein will be found by
         `fronts_io.find_gridded_file` and read by
@@ -566,6 +577,7 @@ def apply_model_to_full_grid(
                     valid_time_unix_sec=valid_time_unix_sec,
                     pressure_levels_mb=pressure_levels_mb,
                     predictor_names=predictor_names,
+                    normalization_file_name=normalization_file_name,
                     normalization_type_string=normalization_type_string,
                     dilation_distance_metres=dilation_distance_metres,
                     num_classes=num_classes)
@@ -579,6 +591,7 @@ def apply_model_to_full_grid(
                     valid_time_unix_sec=valid_time_unix_sec,
                     pressure_levels_mb=pressure_levels_mb,
                     predictor_names=predictor_names,
+                    normalization_file_name=normalization_file_name,
                     normalization_type_string=normalization_type_string)
 
             full_size_predictor_matrix = this_dict[

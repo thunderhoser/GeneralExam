@@ -141,9 +141,10 @@ def _do_data_augmentation(
 def downsized_generator_from_scratch(
         top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
         last_time_unix_sec, predictor_names, pressure_levels_mb, num_half_rows,
-        num_half_columns, normalization_type_string, dilation_distance_metres,
-        class_fractions, num_examples_per_batch, num_examples_per_time,
-        narr_mask_matrix=None, augmentation_dict=None):
+        num_half_columns, dilation_distance_metres, class_fractions,
+        num_examples_per_batch, num_examples_per_time, narr_mask_matrix=None,
+        augmentation_dict=None, normalization_file_name=None,
+        normalization_type_string=None):
     """Generates downsized examples (for patch classification) from scratch.
 
     E = number of examples
@@ -168,8 +169,6 @@ def downsized_generator_from_scratch(
     :param num_half_rows: Number of half-rows in predictor grid.  M (defined in
         the above discussion) will be `2 * num_half_rows + 1`.
     :param num_half_columns: Same but for columns.
-    :param normalization_type_string: Normalization method for predictors (see
-        doc for `machine_learning_utils.normalize_predictors_nonglobal`).
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param class_fractions: length-K numpy array with sampling fraction for each
@@ -189,6 +188,13 @@ def downsized_generator_from_scratch(
     augmentation_dict["ccw_rotation_angles_deg"]: Same.
     augmentation_dict["noise_standard_deviation"]: Same.
     augmentation_dict["num_noisings"]: Same.
+
+    :param normalization_file_name: Path to file with global normalization
+        params (will be read by `predictor_io.read_normalization_params`).
+    :param normalization_type_string:
+        [used only if `normalization_file_name is None`]
+        Normalization method (see doc for
+        `machine_learning_utils.normalize_predictors_nonglobal`).
 
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
     :return: target_matrix: E-by-K numpy array of target values (all 0 or 1).
@@ -213,6 +219,7 @@ def downsized_generator_from_scratch(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+
     numpy.random.shuffle(valid_times_unix_sec)
 
     num_times = len(valid_times_unix_sec)
@@ -241,7 +248,6 @@ def downsized_generator_from_scratch(
                 ).format(this_front_file_name)
 
                 warnings.warn(warning_string)
-
                 time_index = time_index + 1 if time_index + 1 < num_times else 0
                 continue
 
@@ -253,8 +259,8 @@ def downsized_generator_from_scratch(
             time_index = time_index + 1 if time_index + 1 < num_times else 0
 
             print('Reading data from: "{0:s}"...'.format(
-                this_predictor_file_name))
-
+                this_predictor_file_name
+            ))
             this_predictor_dict = predictor_io.read_file(
                 netcdf_file_name=this_predictor_file_name,
                 pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -267,15 +273,24 @@ def downsized_generator_from_scratch(
             for j in range(len(predictor_names)):
                 this_full_predictor_matrix[..., j] = (
                     ml_utils.fill_nans_in_predictor_images(
-                        this_full_predictor_matrix[..., j])
+                        this_full_predictor_matrix[..., j]
+                    )
                 )
 
-            this_full_predictor_matrix = (
-                ml_utils.normalize_predictors_nonglobal(
-                    predictor_matrix=this_full_predictor_matrix,
-                    normalization_type_string=normalization_type_string
-                )[0]
-            )
+            if normalization_file_name is None:
+                this_full_predictor_matrix, _ = (
+                    ml_utils.normalize_predictors_nonglobal(
+                        predictor_matrix=this_full_predictor_matrix,
+                        normalization_type_string=normalization_type_string)
+                )
+            else:
+                this_full_predictor_matrix, _ = (
+                    ml_utils.normalize_predictors_global(
+                        predictor_matrix=this_full_predictor_matrix,
+                        field_names=predictor_names,
+                        pressure_levels_mb=pressure_levels_mb,
+                        param_file_name=normalization_file_name)
+                )
 
             print('Reading data from: "{0:s}"...'.format(this_front_file_name))
             this_gridded_front_table = fronts_io.read_grid_from_file(
@@ -284,7 +299,8 @@ def downsized_generator_from_scratch(
             this_full_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_full_predictor_matrix.shape[1],
-                num_columns_per_image=this_full_predictor_matrix.shape[2])
+                num_columns_per_image=this_full_predictor_matrix.shape[2]
+            )
 
             if num_classes == 2:
                 this_full_target_matrix = ml_utils.binarize_front_images(
@@ -316,7 +332,8 @@ def downsized_generator_from_scratch(
             num_times_in_memory = full_size_target_matrix.shape[0]
 
         print('Creating {0:d} downsized examples...'.format(
-            num_examples_per_batch))
+            num_examples_per_batch
+        ))
 
         sampled_target_point_dict = ml_utils.sample_target_points(
             target_matrix=full_size_target_matrix,
@@ -337,7 +354,8 @@ def downsized_generator_from_scratch(
 
         numpy.random.shuffle(batch_indices)
         predictor_matrix = predictor_matrix[batch_indices, ...].astype(
-            'float32')
+            'float32'
+        )
         target_matrix = to_categorical(
             target_values[batch_indices], num_classes
         )
@@ -367,7 +385,8 @@ def downsized_generator_from_scratch(
 def downsized_generator_from_example_files(
         top_input_dir_name, first_time_unix_sec, last_time_unix_sec,
         predictor_names, pressure_levels_mb, num_half_rows, num_half_columns,
-        num_classes, num_examples_per_batch, augmentation_dict=None):
+        num_classes, num_examples_per_batch, augmentation_dict=None,
+        normalization_file_name=None):
     """Generates downsized examples (for patch classifn) from example files.
 
     E = number of examples
@@ -399,6 +418,12 @@ def downsized_generator_from_example_files(
     augmentation_dict["ccw_rotation_angles_deg"]: Same.
     augmentation_dict["noise_standard_deviation"]: Same.
     augmentation_dict["num_noisings"]: Same.
+
+    :param normalization_file_name: Path to file with global normalization
+        params (readable by `predictor_io.read_normalization_params`).
+
+        If this is None, will keep non-global normalization in files.
+        Otherwise, will change non-global to global normalization.
 
     :return: predictor_matrix: See doc for `downsized_generator_from_scratch`.
     :return: target_matrix: Same.
@@ -438,7 +463,8 @@ def downsized_generator_from_example_files(
                 num_half_rows_to_keep=num_half_rows,
                 num_half_columns_to_keep=num_half_columns,
                 first_time_to_keep_unix_sec=first_time_unix_sec,
-                last_time_to_keep_unix_sec=last_time_unix_sec)
+                last_time_to_keep_unix_sec=last_time_unix_sec,
+                normalization_file_name=normalization_file_name)
 
             file_index = file_index + 1 if file_index + 1 < num_files else 0
 
@@ -459,16 +485,15 @@ def downsized_generator_from_example_files(
                     this_example_dict[examples_io.TARGET_MATRIX_KEY] + 0
                 )
             else:
-                predictor_matrix = numpy.concatenate(
-                    (predictor_matrix,
-                     this_example_dict[examples_io.PREDICTOR_MATRIX_KEY]),
-                    axis=0
-                )
-                target_matrix = numpy.concatenate(
-                    (target_matrix,
-                     this_example_dict[examples_io.TARGET_MATRIX_KEY]),
-                    axis=0
-                )
+                predictor_matrix = numpy.concatenate((
+                    predictor_matrix,
+                    this_example_dict[examples_io.PREDICTOR_MATRIX_KEY]
+                ), axis=0)
+
+                target_matrix = numpy.concatenate((
+                    target_matrix,
+                    this_example_dict[examples_io.TARGET_MATRIX_KEY]
+                ), axis=0)
 
             num_examples_in_memory = target_matrix.shape[0]
 
@@ -504,8 +529,8 @@ def downsized_generator_from_example_files(
 def full_size_generator_from_scratch(
         top_predictor_dir_name, top_gridded_front_dir_name, first_time_unix_sec,
         last_time_unix_sec, predictor_names, pressure_levels_mb,
-        normalization_type_string, dilation_distance_metres, num_classes,
-        num_times_per_batch):
+        dilation_distance_metres, num_classes, num_times_per_batch,
+        normalization_file_name=None, normalization_type_string=None):
     """Generates full-size examples (for semantic segmentation) from scratch.
 
     E = number of examples
@@ -521,13 +546,14 @@ def full_size_generator_from_scratch(
     :param last_time_unix_sec: Same.
     :param predictor_names: Same.
     :param pressure_levels_mb: Same.
-    :param normalization_type_string: Same.
     :param dilation_distance_metres: Same.
     :param num_classes: Number of classes.  If `num_classes == 3`, the problem
         will remain multiclass (no front, warm front, or cold front).  If
         `num_classes == 2`, the problem will be simplified to binary (front or
         no front).
     :param num_times_per_batch: Number of times (full-size examples) per batch.
+    :param normalization_file_name: Same.
+    :param normalization_type_string: Same.
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
     :return: target_matrix: E-by-M-by-N-by-K numpy array of zeros and ones (but
         type is "float64").  If target_matrix[i, m, n, k] = 1, grid cell [m, n]
@@ -547,6 +573,7 @@ def full_size_generator_from_scratch(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+
     numpy.random.shuffle(valid_times_unix_sec)
 
     num_times = len(valid_times_unix_sec)
@@ -572,7 +599,6 @@ def full_size_generator_from_scratch(
                 ).format(this_front_file_name)
 
                 warnings.warn(warning_string)
-
                 time_index = time_index + 1 if time_index + 1 < num_times else 0
                 continue
 
@@ -584,8 +610,8 @@ def full_size_generator_from_scratch(
             time_index = time_index + 1 if time_index + 1 < num_times else 0
 
             print('Reading data from: "{0:s}"...'.format(
-                this_predictor_file_name))
-
+                this_predictor_file_name
+            ))
             this_predictor_dict = predictor_io.read_file(
                 netcdf_file_name=this_predictor_file_name,
                 pressure_levels_to_keep_mb=pressure_levels_mb,
@@ -598,15 +624,25 @@ def full_size_generator_from_scratch(
             for j in range(len(predictor_names)):
                 this_predictor_matrix[..., j] = (
                     ml_utils.fill_nans_in_predictor_images(
-                        this_predictor_matrix[..., j])
+                        this_predictor_matrix[..., j]
+                    )
                 )
 
             this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_predictor_matrix)
-            this_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
-                predictor_matrix=this_predictor_matrix,
-                normalization_type_string=normalization_type_string
-            )[0]
+
+            if normalization_file_name is None:
+                this_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
+                    predictor_matrix=this_predictor_matrix,
+                    normalization_type_string=normalization_type_string
+                )[0]
+            else:
+                this_predictor_matrix = ml_utils.normalize_predictors_global(
+                    predictor_matrix=this_predictor_matrix,
+                    field_names=predictor_names,
+                    pressure_levels_mb=pressure_levels_mb,
+                    param_file_name=normalization_file_name
+                )[0]
 
             print('Reading data from: "{0:s}"...'.format(this_front_file_name))
             this_gridded_front_table = fronts_io.read_grid_from_file(
@@ -615,7 +651,8 @@ def full_size_generator_from_scratch(
             this_target_matrix = ml_utils.front_table_to_images(
                 frontal_grid_table=this_gridded_front_table,
                 num_rows_per_image=this_predictor_matrix.shape[1],
-                num_columns_per_image=this_predictor_matrix.shape[2])
+                num_columns_per_image=this_predictor_matrix.shape[2]
+            )
 
             this_target_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_target_matrix)
@@ -649,15 +686,16 @@ def full_size_generator_from_scratch(
 
         numpy.random.shuffle(batch_indices)
         predictor_matrix = predictor_matrix[batch_indices, ...].astype(
-            'float32')
+            'float32'
+        )
         target_matrix = to_categorical(
-            target_matrix[batch_indices, ...], num_classes)
+            target_matrix[batch_indices, ...], num_classes
+        )
 
         num_instances_by_class = numpy.array(
             [numpy.sum(target_matrix[..., k]) for k in range(num_classes)],
             dtype=int
         )
-
         print('Number of instances of each class: {0:s}'.format(
             str(num_instances_by_class)
         ))

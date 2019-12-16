@@ -15,7 +15,6 @@ from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import learning_examples_io as examples_io
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
 
 RANDOM_SEED = 6695
@@ -177,23 +176,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
         predictor_names_to_keep=PREDICTOR_NAMES,
         pressure_levels_to_keep_mb=pressure_array_mb)
 
-    # TODO(thunderhoser): This is a HACK (assuming that normalization method is
-    # z-score and not min-max).
-    mean_value_matrix = example_dict[examples_io.FIRST_NORM_PARAM_KEY]
-    standard_deviation_matrix = example_dict[examples_io.SECOND_NORM_PARAM_KEY]
-
-    normalization_dict = {
-        ml_utils.MIN_VALUE_MATRIX_KEY: None,
-        ml_utils.MAX_VALUE_MATRIX_KEY: None,
-        ml_utils.MEAN_VALUE_MATRIX_KEY: mean_value_matrix,
-        ml_utils.STDEV_MATRIX_KEY: standard_deviation_matrix
-    }
-
-    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
-        ml_utils.denormalize_predictors_nonglobal(
-            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
-            normalization_dict=normalization_dict)
-    )
+    print('Denormalizing predictors...')
+    example_dict = examples_io.denormalize_examples(example_dict)
+    print(SEPARATOR_STRING)
 
     latitude_matrix_deg, longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(

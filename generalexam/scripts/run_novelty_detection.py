@@ -219,11 +219,16 @@ def _find_baseline_and_test_examples(
             netcdf_file_name=example_file_names[k], metadata_only=False,
             predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
             pressure_levels_to_keep_mb=cnn_metadata_dict[
-                cnn.PRESSURE_LEVELS_KEY],
+                cnn.PRESSURE_LEVELS_KEY
+            ],
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
-            last_time_to_keep_unix_sec=last_time_unix_sec)
+            last_time_to_keep_unix_sec=last_time_unix_sec,
+            normalization_file_name=cnn_metadata_dict[
+                cnn.NORMALIZATION_FILE_KEY
+            ]
+        )
 
         this_num_examples = len(this_example_dict[examples_io.VALID_TIMES_KEY])
         if this_num_examples == 0:
@@ -296,11 +301,16 @@ def _find_baseline_and_test_examples(
             netcdf_file_name=example_file_names[k], metadata_only=False,
             predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
             pressure_levels_to_keep_mb=cnn_metadata_dict[
-                cnn.PRESSURE_LEVELS_KEY],
+                cnn.PRESSURE_LEVELS_KEY
+            ],
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
-            last_time_to_keep_unix_sec=last_time_unix_sec)
+            last_time_to_keep_unix_sec=last_time_unix_sec,
+            normalization_file_name=cnn_metadata_dict[
+                cnn.NORMALIZATION_FILE_KEY
+            ]
+        )
 
         this_predictor_matrix = this_example_dict[
             examples_io.PREDICTOR_MATRIX_KEY]

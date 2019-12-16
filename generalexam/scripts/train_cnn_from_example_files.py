@@ -31,12 +31,13 @@ INPUT_ARG_PARSER = ml_helper.add_input_args(
 
 def _run(input_model_file_name, predictor_names, pressure_levels_mb,
          x_translations_pixels, y_translations_pixels, ccw_rotation_angles_deg,
-         noise_standard_deviation, num_noisings, top_training_dir_name,
-         first_training_time_string, last_training_time_string,
-         num_ex_per_train_batch, top_validation_dir_name,
-         first_validation_time_string, last_validation_time_string,
-         num_ex_per_validn_batch, num_epochs, num_training_batches_per_epoch,
-         num_validation_batches_per_epoch, output_model_file_name):
+         noise_standard_deviation, num_noisings, normalization_file_name,
+         top_training_dir_name, first_training_time_string,
+         last_training_time_string, num_ex_per_train_batch,
+         top_validation_dir_name, first_validation_time_string,
+         last_validation_time_string, num_ex_per_validn_batch, num_epochs,
+         num_training_batches_per_epoch, num_validation_batches_per_epoch,
+         output_model_file_name):
     """Trains CNN with pre-processed example files.
 
     This is effectively the main method.
@@ -49,6 +50,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
     :param ccw_rotation_angles_deg: Same.
     :param noise_standard_deviation: Same.
     :param num_noisings: Same.
+    :param normalization_file_name: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -97,6 +99,9 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         trainval_io.NUM_NOISINGS_KEY: num_noisings,
         trainval_io.NOISE_STDEV_KEY: noise_standard_deviation
     }
+
+    if normalization_file_name in ['', 'None']:
+        normalization_file_name = None
 
     # Read architecture.
     print('Reading architecture from: "{0:s}"...'.format(input_model_file_name))
@@ -148,6 +153,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+        normalization_file_name=normalization_file_name,
         normalization_type_string=normalization_type_string,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=CLASS_FRACTIONS_DUMMY,
@@ -168,7 +174,8 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         num_examples_per_batch=num_ex_per_train_batch,
         predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
-        num_classes=num_classes, augmentation_dict=augmentation_dict)
+        num_classes=num_classes, augmentation_dict=augmentation_dict,
+        normalization_file_name=normalization_file_name)
 
     validation_generator = trainval_io.downsized_generator_from_example_files(
         top_input_dir_name=top_validation_dir_name,
@@ -177,7 +184,8 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         num_examples_per_batch=num_ex_per_validn_batch,
         predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
-        num_classes=num_classes)
+        num_classes=num_classes,
+        normalization_file_name=normalization_file_name)
 
     cnn.train_cnn(
         model_object=model_object,
@@ -214,6 +222,8 @@ if __name__ == '__main__':
         noise_standard_deviation=getattr(
             INPUT_ARG_OBJECT, ml_helper.NOISE_STDEV_ARG_NAME),
         num_noisings=getattr(INPUT_ARG_OBJECT, ml_helper.NUM_NOISINGS_ARG_NAME),
+        normalization_file_name=getattr(
+            INPUT_ARG_OBJECT, ml_helper.NORMALIZATION_FILE_ARG_NAME),
         top_training_dir_name=getattr(
             INPUT_ARG_OBJECT, ml_helper.TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(

@@ -518,6 +518,44 @@ def subset_examples(example_dict, desired_indices):
     return small_example_dict
 
 
+def denormalize_examples(example_dict):
+    """Denormalizes predictors for the given examples.
+
+    :param example_dict: Dictionary created by `create_examples`.
+    :return: example_dict: Same but denormalized.
+    """
+
+    normalization_dict = {
+        ml_utils.MIN_VALUE_MATRIX_KEY: None,
+        ml_utils.MAX_VALUE_MATRIX_KEY: None,
+        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
+        ml_utils.STDEV_MATRIX_KEY: None
+    }
+
+    if example_dict[NORMALIZATION_TYPE_KEY] == ml_utils.Z_SCORE_STRING:
+        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
+            FIRST_NORM_PARAM_KEY
+        ]
+        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
+            SECOND_NORM_PARAM_KEY
+        ]
+    else:
+        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
+            FIRST_NORM_PARAM_KEY
+        ]
+        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
+            SECOND_NORM_PARAM_KEY
+        ]
+
+    predictor_matrix = example_dict[PREDICTOR_MATRIX_KEY]
+    predictor_matrix = ml_utils.denormalize_predictors_nonglobal(
+        predictor_matrix=predictor_matrix, normalization_dict=normalization_dict
+    )
+    example_dict[PREDICTOR_MATRIX_KEY] = predictor_matrix
+
+    return example_dict
+
+
 def create_example_id(valid_time_unix_sec, row_index, column_index,
                       check_args=True):
     """Creates ID for one example.
@@ -1027,7 +1065,8 @@ def read_file(
         netcdf_file_name, metadata_only=False, predictor_names_to_keep=None,
         pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
         num_half_columns_to_keep=None, id_strings_to_keep=None,
-        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None):
+        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None,
+        normalization_file_name=None):
     """Reads learning examples from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
@@ -1045,6 +1084,13 @@ def read_file(
     :param last_time_to_keep_unix_sec:
         [used only if `id_strings_to_keep is None`]
         Last valid time to keep.  If None, will not subset this way.
+
+    :param normalization_file_name: Path to file with global normalization
+        params (readable by `predictor_io.read_normalization_params`).
+
+        If this is None, will keep non-global normalization in files.
+        Otherwise, will change non-global to global normalization.
+
     :return: example_dict: Dictionary with the following keys.
     example_dict["target_times_unix_sec"]: See doc for `create_examples`.
     example_dict["row_indices"]: Same.
@@ -1124,6 +1170,25 @@ def read_file(
             num_half_rows=num_half_rows_to_keep,
             num_half_columns=num_half_columns_to_keep)
 
+        if normalization_file_name is not None:
+            example_dict = denormalize_examples(example_dict)
+
+            example_dict[PREDICTOR_MATRIX_KEY], norm_dict = (
+                ml_utils.normalize_predictors_global(
+                    predictor_matrix=example_dict[PREDICTOR_MATRIX_KEY],
+                    field_names=example_dict[PREDICTOR_NAMES_KEY],
+                    pressure_levels_mb=example_dict[PRESSURE_LEVELS_KEY],
+                    param_file_name=normalization_file_name)
+            )
+
+            example_dict[NORMALIZATION_TYPE_KEY] = ml_utils.Z_SCORE_STRING
+            example_dict[FIRST_NORM_PARAM_KEY] = norm_dict[
+                ml_utils.MEAN_VALUE_MATRIX_KEY
+            ]
+            example_dict[SECOND_NORM_PARAM_KEY] = norm_dict[
+                ml_utils.STDEV_MATRIX_KEY
+            ]
+
     if predictor_names_to_keep is None or pressure_levels_to_keep_mb is None:
         return example_dict
 
@@ -1160,7 +1225,7 @@ def read_file(
 def read_specific_examples_many_files(
         top_example_dir_name, example_id_strings, predictor_names_to_keep=None,
         pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
-        num_half_columns_to_keep=None):
+        num_half_columns_to_keep=None, normalization_file_name=None):
     """Reads specific examples from many files.
 
     :param top_example_dir_name: Name of top-level directory with learning
@@ -1170,6 +1235,7 @@ def read_specific_examples_many_files(
     :param pressure_levels_to_keep_mb: Same.
     :param num_half_rows_to_keep: Same.
     :param num_half_columns_to_keep: Same.
+    :param normalization_file_name: Same.
     :return: example_dict: Same.
     """
 
@@ -1198,6 +1264,7 @@ def read_specific_examples_many_files(
             pressure_levels_to_keep_mb=pressure_levels_to_keep_mb,
             num_half_rows_to_keep=num_half_rows_to_keep,
             num_half_columns_to_keep=num_half_columns_to_keep,
+            normalization_file_name=normalization_file_name,
             id_strings_to_keep=[example_id_strings[k] for k in these_indices]
         )
 

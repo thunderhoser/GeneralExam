@@ -166,13 +166,19 @@ def _read_examples(
         this_example_dict = examples_io.read_file(
             netcdf_file_name=example_file_names[i],
             predictor_names_to_keep=model_metadata_dict[
-                cnn.PREDICTOR_NAMES_KEY],
+                cnn.PREDICTOR_NAMES_KEY
+            ],
             pressure_levels_to_keep_mb=model_metadata_dict[
-                cnn.PRESSURE_LEVELS_KEY],
+                cnn.PRESSURE_LEVELS_KEY
+            ],
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
             first_time_to_keep_unix_sec=first_time_unix_sec,
-            last_time_to_keep_unix_sec=last_time_unix_sec)
+            last_time_to_keep_unix_sec=last_time_unix_sec,
+            normalization_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_KEY
+            ]
+        )
 
         this_num_examples = this_example_dict[
             examples_io.PREDICTOR_MATRIX_KEY].shape[0]

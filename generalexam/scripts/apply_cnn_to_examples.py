@@ -115,7 +115,8 @@ def _apply_cnn_one_time(
             cnn.PRESSURE_LEVELS_KEY],
         num_half_rows_to_keep=model_metadata_dict[cnn.NUM_HALF_ROWS_KEY],
         num_half_columns_to_keep=model_metadata_dict[
-            cnn.NUM_HALF_COLUMNS_KEY]
+            cnn.NUM_HALF_COLUMNS_KEY],
+        normalization_file_name=model_metadata_dict[cnn.NORMALIZATION_FILE_KEY]
     )
 
     example_id_strings = examples_io.create_example_ids(

@@ -98,7 +98,11 @@ def _generator_from_example_files(
         pressure_levels_mb=cnn_metadata_dict[ge_cnn.PRESSURE_LEVELS_KEY],
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
         num_classes=num_classes, num_examples_per_batch=num_examples_per_batch,
-        augmentation_dict=None)
+        normalization_file_name=cnn_metadata_dict[
+            ge_cnn.NORMALIZATION_FILE_KEY
+        ],
+        augmentation_dict=None
+    )
 
     while True:
         try:

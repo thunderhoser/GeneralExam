@@ -5,7 +5,6 @@ import argparse
 import numpy
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import upconvnet
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.scripts import plot_input_examples_simple as plot_examples
 
@@ -169,6 +168,7 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
+    normalization_file_name = cnn_metadata_dict[cnn.NORMALIZATION_FILE_KEY]
 
     print(SEPARATOR_STRING)
     actual_example_dict = examples_io.read_specific_examples_many_files(
@@ -177,55 +177,31 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
         predictor_names_to_keep=predictor_names,
         pressure_levels_to_keep_mb=pressure_levels_mb,
         num_half_rows_to_keep=cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY],
-        num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY]
+        num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY],
+        normalization_file_name=normalization_file_name
     )
     print(SEPARATOR_STRING)
 
-    # Denormalize data.
     print('Denormalizing predictors...')
 
-    normalization_type_string = actual_example_dict[
-        examples_io.NORMALIZATION_TYPE_KEY]
-
-    normalization_dict = {
-        ml_utils.MIN_VALUE_MATRIX_KEY: None,
-        ml_utils.MAX_VALUE_MATRIX_KEY: None,
-        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
-        ml_utils.STDEV_MATRIX_KEY: None
-    }
-
-    if normalization_type_string == ml_utils.Z_SCORE_STRING:
-        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = (
-            actual_example_dict[examples_io.FIRST_NORM_PARAM_KEY]
-        )
-
-        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = actual_example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-    else:
-        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = actual_example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = actual_example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-
-    actual_image_matrix = ml_utils.denormalize_predictors_nonglobal(
-        predictor_matrix=actual_example_dict[examples_io.PREDICTOR_MATRIX_KEY],
-        normalization_dict=normalization_dict
-    )
-    reconstructed_image_matrix = ml_utils.denormalize_predictors_nonglobal(
-        predictor_matrix=reconstructed_image_matrix,
-        normalization_dict=normalization_dict
-    )
-
-    actual_example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
-        actual_image_matrix + 0.
+    actual_example_dict = examples_io.denormalize_examples(actual_example_dict)
+    actual_image_matrix = (
+        actual_example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.
     )
 
     reconstructed_example_dict = {
-        examples_io.PREDICTOR_MATRIX_KEY: reconstructed_image_matrix + 0.,
+        examples_io.PREDICTOR_MATRIX_KEY: reconstructed_image_matrix,
         examples_io.PREDICTOR_NAMES_KEY: predictor_names,
         examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb
     }
+    reconstructed_example_dict = examples_io.denormalize_examples(
+        reconstructed_example_dict
+    )
+    reconstructed_image_matrix = (
+        reconstructed_example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.
+    )
+
+    print(SEPARATOR_STRING)
 
     valid_times_unix_sec, row_indices, column_indices = (
         examples_io.example_ids_to_metadata(example_id_strings)

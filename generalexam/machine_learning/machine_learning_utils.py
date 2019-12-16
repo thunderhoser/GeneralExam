@@ -462,6 +462,7 @@ def normalize_predictors_global(
     :param param_file_name: Path to file with pre-computed means and standard
         deviations.  Will be read by `predictor_io.read_normalization_params`.
     :return: predictor_matrix: Same as input but normalized.
+    :return: normalization_dict: See doc for `normalize_predictors_nonglobal`.
     """
 
     _check_args_for_global_norm(
@@ -472,7 +473,12 @@ def normalize_predictors_global(
         predictor_io.read_normalization_params(param_file_name)
     )
 
+    num_examples = predictor_matrix.shape[0]
     num_channels = predictor_matrix.shape[-1]
+    mean_value_matrix = numpy.full((num_examples, num_channels), numpy.nan)
+    standard_deviation_matrix = numpy.full(
+        (num_examples, num_channels), numpy.nan
+    )
 
     for k in range(num_channels):
         this_mean = mean_value_dict[field_names[k], pressure_levels_mb[k]]
@@ -483,8 +489,17 @@ def normalize_predictors_global(
         predictor_matrix[..., k] = (
             (predictor_matrix[..., k] - this_mean) / this_stdev
         )
+        mean_value_matrix[:, k] = this_mean
+        standard_deviation_matrix[:, k] = this_stdev
 
-    return predictor_matrix
+    normalization_dict = {
+        MIN_VALUE_MATRIX_KEY: None,
+        MAX_VALUE_MATRIX_KEY: None,
+        MEAN_VALUE_MATRIX_KEY: mean_value_matrix,
+        STDEV_MATRIX_KEY: standard_deviation_matrix
+    }
+
+    return predictor_matrix, normalization_dict
 
 
 def denormalize_predictors_global(

@@ -183,9 +183,14 @@ def _run(model_file_name, example_file_name, num_examples, example_indices,
         netcdf_file_name=example_file_name,
         predictor_names_to_keep=model_metadata_dict[ge_cnn.PREDICTOR_NAMES_KEY],
         pressure_levels_to_keep_mb=model_metadata_dict[
-            ge_cnn.PRESSURE_LEVELS_KEY],
+            ge_cnn.PRESSURE_LEVELS_KEY
+        ],
         num_half_rows_to_keep=num_half_rows,
-        num_half_columns_to_keep=num_half_columns)
+        num_half_columns_to_keep=num_half_columns,
+        normalization_file_name=model_metadata_dict[
+            ge_cnn.NORMALIZATION_FILE_KEY
+        ]
+    )
 
     print(SEPARATOR_STRING)
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]

@@ -100,7 +100,8 @@ def _apply_upconvnet_one_time(
         predictor_names_to_keep=cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
         pressure_levels_to_keep_mb=cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
         num_half_rows_to_keep=cnn_metadata_dict[cnn.NUM_HALF_ROWS_KEY],
-        num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY]
+        num_half_columns_to_keep=cnn_metadata_dict[cnn.NUM_HALF_COLUMNS_KEY],
+        normalization_file_name=cnn_metadata_dict[cnn.NORMALIZATION_FILE_KEY]
     )
 
     example_id_strings = examples_io.create_example_ids(

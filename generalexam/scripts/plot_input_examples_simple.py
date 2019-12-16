@@ -14,7 +14,6 @@ from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import example_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -1022,35 +1021,7 @@ def _run(example_file_name, num_examples_to_plot, model_file_name,
         num_half_columns_to_keep=num_half_columns)
 
     print('Denormalizing predictors...')
-
-    normalization_dict = {
-        ml_utils.MIN_VALUE_MATRIX_KEY: None,
-        ml_utils.MAX_VALUE_MATRIX_KEY: None,
-        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
-        ml_utils.STDEV_MATRIX_KEY: None
-    }
-
-    normalization_type_string = example_dict[examples_io.NORMALIZATION_TYPE_KEY]
-
-    if normalization_type_string == ml_utils.Z_SCORE_STRING:
-        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-    else:
-        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-
-    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
-        ml_utils.denormalize_predictors_nonglobal(
-            predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
-            normalization_dict=normalization_dict)
-    )
-
+    example_dict = examples_io.denormalize_examples(example_dict)
     print(SEPARATOR_STRING)
 
     plot_real_examples(

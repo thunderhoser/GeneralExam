@@ -26,10 +26,10 @@ INPUT_ARG_PARSER = ml_helper.add_input_args(
 
 def _run(input_model_file_name, predictor_names, pressure_levels_mb,
          x_translations_pixels, y_translations_pixels, ccw_rotation_angles_deg,
-         noise_standard_deviation, num_noisings, dilation_distance_metres,
-         num_examples_per_time, weight_loss_function, class_fractions,
-         top_predictor_dir_name, top_gridded_front_dir_name, mask_file_name,
-         first_training_time_string, last_training_time_string,
+         noise_standard_deviation, num_noisings, normalization_file_name,
+         dilation_distance_metres, num_examples_per_time, weight_loss_function,
+         class_fractions, top_predictor_dir_name, top_gridded_front_dir_name,
+         mask_file_name, first_training_time_string, last_training_time_string,
          num_ex_per_train_batch, first_validation_time_string,
          last_validation_time_string, num_ex_per_validn_batch, num_epochs,
          num_training_batches_per_epoch, num_validation_batches_per_epoch,
@@ -46,6 +46,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
     :param ccw_rotation_angles_deg: Same.
     :param noise_standard_deviation: Same.
     :param num_noisings: Same.
+    :param normalization_file_name: Same.
     :param dilation_distance_metres: Same.
     :param num_examples_per_time: Same.
     :param weight_loss_function: Same.
@@ -100,6 +101,9 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         trainval_io.NOISE_STDEV_KEY: noise_standard_deviation
     }
 
+    if normalization_file_name in ['', 'None']:
+        normalization_file_name = None
+
     if mask_file_name in ['', 'None']:
         mask_matrix = None
     else:
@@ -139,6 +143,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+        normalization_file_name=normalization_file_name,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
@@ -157,6 +162,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         last_time_unix_sec=last_training_time_unix_sec,
         predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+        normalization_file_name=normalization_file_name,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
@@ -171,6 +177,7 @@ def _run(input_model_file_name, predictor_names, pressure_levels_mb,
         last_time_unix_sec=last_validation_time_unix_sec,
         predictor_names=predictor_names, pressure_levels_mb=pressure_levels_mb,
         num_half_rows=num_half_rows, num_half_columns=num_half_columns,
+        normalization_file_name=normalization_file_name,
         normalization_type_string=NORMALIZATION_TYPE_STRING,
         dilation_distance_metres=dilation_distance_metres,
         class_fractions=class_fractions,
@@ -211,6 +218,8 @@ if __name__ == '__main__':
         noise_standard_deviation=getattr(
             INPUT_ARG_OBJECT, ml_helper.NOISE_STDEV_ARG_NAME),
         num_noisings=getattr(INPUT_ARG_OBJECT, ml_helper.NUM_NOISINGS_ARG_NAME),
+        normalization_file_name=getattr(
+            INPUT_ARG_OBJECT, ml_helper.NORMALIZATION_FILE_ARG_NAME),
         dilation_distance_metres=float(getattr(
             INPUT_ARG_OBJECT, ml_helper.DILATION_DISTANCE_ARG_NAME)),
         num_examples_per_time=getattr(

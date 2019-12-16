@@ -256,6 +256,8 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
                 valid_time_unix_sec=valid_times_unix_sec[i],
                 pressure_levels_mb=model_metadata_dict[cnn.PRESSURE_LEVELS_KEY],
                 predictor_names=model_metadata_dict[cnn.PREDICTOR_NAMES_KEY],
+                normalization_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_KEY],
                 normalization_type_string=model_metadata_dict[
                     cnn.NORMALIZATION_TYPE_KEY],
                 dilation_distance_metres=dilation_distance_metres,

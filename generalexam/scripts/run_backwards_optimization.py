@@ -13,7 +13,6 @@ from gewittergefahr.deep_learning import \
 from gewittergefahr.deep_learning import model_interpretation
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import learning_examples_io as examples_io
-from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.machine_learning import \
     backwards_optimization as ge_backwards_opt
 from generalexam.scripts import make_saliency_maps
@@ -214,6 +213,7 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
     predictor_names = model_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = model_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
+    normalization_file_name = model_metadata_dict[cnn.NORMALIZATION_FILE_KEY]
 
     if example_file_name is None:
         print('Reading example IDs from: "{0:s}"...'.format(
@@ -227,7 +227,8 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             predictor_names_to_keep=predictor_names,
             pressure_levels_to_keep_mb=pressure_levels_mb,
             num_half_rows_to_keep=num_half_rows,
-            num_half_columns_to_keep=num_half_columns)
+            num_half_columns_to_keep=num_half_columns,
+            normalization_file_name=normalization_file_name)
     else:
         print('Reading pre-optimized examples from: "{0:s}"...'.format(
             example_file_name
@@ -238,7 +239,8 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             predictor_names_to_keep=predictor_names,
             pressure_levels_to_keep_mb=pressure_levels_mb,
             num_half_rows_to_keep=num_half_rows,
-            num_half_columns_to_keep=num_half_columns)
+            num_half_columns_to_keep=num_half_columns,
+            normalization_file_name=normalization_file_name)
 
         example_id_strings = examples_io.create_example_ids(
             valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
@@ -246,36 +248,10 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
         )
 
-    # Denormalize predictors.
     print('Denormalizing pre-optimized examples...')
-
-    # TODO(thunderhoser): All this nonsense should be in a separate method.
-    input_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
-    normalization_type_string = example_dict[examples_io.NORMALIZATION_TYPE_KEY]
-
-    normalization_dict = {
-        ml_utils.MIN_VALUE_MATRIX_KEY: None,
-        ml_utils.MAX_VALUE_MATRIX_KEY: None,
-        ml_utils.MEAN_VALUE_MATRIX_KEY: None,
-        ml_utils.STDEV_MATRIX_KEY: None
-    }
-
-    if normalization_type_string == ml_utils.Z_SCORE_STRING:
-        normalization_dict[ml_utils.MEAN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.STDEV_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-    else:
-        normalization_dict[ml_utils.MIN_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.FIRST_NORM_PARAM_KEY]
-
-        normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
-            examples_io.SECOND_NORM_PARAM_KEY]
-
-    denorm_input_matrix = ml_utils.denormalize_predictors_nonglobal(
-        predictor_matrix=input_matrix + 0.,
-        normalization_dict=normalization_dict)
+    input_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.
+    example_dict = examples_io.denormalize_examples(example_dict)
+    denorm_input_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
 
     print(SEPARATOR_STRING)
 
@@ -342,9 +318,9 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     print(SEPARATOR_STRING)
 
     print('Denormalizing optimized examples...')
-    denorm_output_matrix = ml_utils.denormalize_predictors_nonglobal(
-        predictor_matrix=output_matrix + 0.,
-        normalization_dict=normalization_dict)
+    example_dict[examples_io.PREDICTOR_MATRIX_KEY] = output_matrix
+    example_dict = examples_io.denormalize_examples(example_dict)
+    denorm_output_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY]
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
     ge_backwards_opt.write_standard_file(

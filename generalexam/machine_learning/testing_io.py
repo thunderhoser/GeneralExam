@@ -33,7 +33,7 @@ def create_downsized_examples_no_targets(
         num_half_columns, full_size_predictor_matrix=None,
         top_predictor_dir_name=None, valid_time_unix_sec=None,
         pressure_levels_mb=None, predictor_names=None,
-        normalization_type_string=None):
+        normalization_file_name=None, normalization_type_string=None):
     """Created downsized examples without target values.
 
     If `full_size_predictor_matrix` is defined, this method will not use the
@@ -56,8 +56,12 @@ def create_downsized_examples_no_targets(
         (millibars).
     :param predictor_names: length-C list of predictor names (each must be
         accepted by `predictor_utils.check_field_name`).
-    :param normalization_type_string: Normalization method for predictors (see
-        doc for `machine_learning_utils.normalize_predictors_nonglobal`).
+    :param normalization_file_name: Path to file with global normalization
+        params (will be read by `predictor_io.read_normalization_params`).
+    :param normalization_type_string:
+        [used only if `normalization_file_name is None`]
+        Normalization method (see doc for
+        `machine_learning_utils.normalize_predictors_nonglobal`).
     :return: result_dict: Dictionary with the following keys.
     result_dict['predictor_matrix']: E-by-m-by-n-by-C numpy array of predictor
         values.
@@ -87,10 +91,20 @@ def create_downsized_examples_no_targets(
                 )
             )
 
-        full_size_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
-            predictor_matrix=full_size_predictor_matrix,
-            normalization_type_string=normalization_type_string
-        )[0]
+        if normalization_file_name is None:
+            full_size_predictor_matrix, _ = (
+                ml_utils.normalize_predictors_nonglobal(
+                    predictor_matrix=full_size_predictor_matrix,
+                    normalization_type_string=normalization_type_string)
+            )
+        else:
+            full_size_predictor_matrix, _ = (
+                ml_utils.normalize_predictors_global(
+                    predictor_matrix=full_size_predictor_matrix,
+                    field_names=predictor_names,
+                    pressure_levels_mb=pressure_levels_mb,
+                    param_file_name=normalization_file_name)
+            )
 
     error_checking.assert_is_integer_numpy_array(center_row_indices)
     error_checking.assert_is_numpy_array(center_row_indices, num_dimensions=1)
@@ -135,8 +149,8 @@ def create_downsized_examples_with_targets(
         full_size_target_matrix=None, top_predictor_dir_name=None,
         top_gridded_front_dir_name=None, valid_time_unix_sec=None,
         pressure_levels_mb=None, predictor_names=None,
-        normalization_type_string=None, dilation_distance_metres=None,
-        num_classes=3):
+        dilation_distance_metres=None, num_classes=3,
+        normalization_file_name=None, normalization_type_string=None):
     """Created downsized examples with target values.
 
     If `full_size_predictor_matrix` is defined, this method will not use input
@@ -162,7 +176,6 @@ def create_downsized_examples_with_targets(
         `create_downsized_examples_no_targets`.
     :param pressure_levels_mb: Same.
     :param predictor_names: Same.
-    :param normalization_type_string: Same.
     :param dilation_distance_metres:
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
@@ -170,6 +183,10 @@ def create_downsized_examples_with_targets(
         will remain multiclass (no front, warm front, or cold front).  If
         `num_classes == 2`, the problem will be simplified to binary (front or
         no front).
+
+    :param normalization_file_name: Same.
+    :param normalization_type_string: Same.
+
     :return: result_dict: Dictionary with the following keys.
     result_dict['predictor_matrix']: E-by-m-by-n-by-C numpy array of predictor
         values.
@@ -206,10 +223,19 @@ def create_downsized_examples_with_targets(
                 )
             )
 
-        full_size_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
-            predictor_matrix=full_size_predictor_matrix,
-            normalization_type_string=normalization_type_string
-        )[0]
+        if normalization_file_name is None:
+            full_size_predictor_matrix, _ = (
+                ml_utils.normalize_predictors_nonglobal(
+                    predictor_matrix=full_size_predictor_matrix,
+                    normalization_type_string=normalization_type_string)
+            )
+        else:
+            full_size_predictor_matrix = ml_utils.normalize_predictors_global(
+                predictor_matrix=full_size_predictor_matrix,
+                field_names=predictor_names,
+                pressure_levels_mb=pressure_levels_mb,
+                param_file_name=normalization_file_name
+            )[0]
 
         gridded_front_file_name = fronts_io.find_gridded_file(
             top_directory_name=top_gridded_front_dir_name,
@@ -297,8 +323,9 @@ def create_downsized_examples_with_targets(
 
 def create_full_size_example(
         top_predictor_dir_name, top_gridded_front_dir_name, valid_time_unix_sec,
-        pressure_levels_mb, predictor_names, normalization_type_string,
-        dilation_distance_metres, num_classes):
+        pressure_levels_mb, predictor_names, dilation_distance_metres,
+        num_classes, normalization_file_name=None,
+        normalization_type_string=None):
     """Creates full-size example (for semantic segmentation).
 
     M = number of rows in full grid
@@ -311,9 +338,10 @@ def create_full_size_example(
     :param valid_time_unix_sec: Same.
     :param pressure_levels_mb: Same.
     :param predictor_names: Same.
-    :param normalization_type_string: Same.
     :param dilation_distance_metres: Same.
     :param num_classes: Same.
+    :param normalization_file_name: Same.
+    :param normalization_type_string: Same
     :return: predictor_matrix: 1-by-M-by-N-by-C numpy array of predictor values.
     :return: target_matrix: 1-by-M-by-N-by-K numpy array of zeros and ones (but
         type is "float64").  If target_matrix[0, i, j, k] = 1, grid cell [i, j]
@@ -358,10 +386,19 @@ def create_full_size_example(
         )
 
     predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
-    predictor_matrix = ml_utils.normalize_predictors_nonglobal(
-        predictor_matrix=predictor_matrix,
-        normalization_type_string=normalization_type_string
-    )[0]
+
+    if normalization_file_name is None:
+        predictor_matrix = ml_utils.normalize_predictors_nonglobal(
+            predictor_matrix=predictor_matrix,
+            normalization_type_string=normalization_type_string
+        )[0]
+    else:
+        predictor_matrix = ml_utils.normalize_predictors_global(
+            predictor_matrix=predictor_matrix,
+            field_names=predictor_names,
+            pressure_levels_mb=pressure_levels_mb,
+            param_file_name=normalization_file_name
+        )[0]
 
     print('Reading data from: "{0:s}"...'.format(gridded_front_file_name))
     gridded_front_table = fronts_io.read_grid_from_file(

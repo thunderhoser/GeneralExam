@@ -63,7 +63,6 @@ FIGURE_HEIGHT_INCHES = 15
 
 def _check_contingency_table(contingency_table_as_matrix):
     """Checks contingency table for errors.
-
     :param contingency_table_as_matrix: K-by-K numpy array.
         contingency_table_as_matrix[i, j] is the number of examples for which
         the predicted label is i and the true label is j.
@@ -83,11 +82,9 @@ def _check_contingency_table(contingency_table_as_matrix):
 
 def _non_zero(input_value):
     """Makes input non-zero.
-
     Specifically, if the input is in [0, epsilon], this method returns epsilon
     (machine limit for representable positive floating-point numbers).  If the
     input is in [-epsilon, 0), this method returns -epsilon.
-
     :param input_value: Input value.
     :return: output_value: Closest number to input value that is not in
         [-epsilon, epsilon].
@@ -102,7 +99,6 @@ def _non_zero(input_value):
 
 def _get_num_predictions_in_class(contingency_table_as_matrix, class_index):
     """Returns number of predictions in the [k]th class (class_index = k).
-
     :param contingency_table_as_matrix: See documentation for
         `get_contingency_table`.
     :param class_index: k in the above discussion.
@@ -114,7 +110,6 @@ def _get_num_predictions_in_class(contingency_table_as_matrix, class_index):
 
 def _get_num_true_labels_in_class(contingency_table_as_matrix, class_index):
     """Returns number of true labels in the [k]th class (class_index = k).
-
     :param contingency_table_as_matrix: See documentation for
         `get_contingency_table`.
     :param class_index: k in the above discussion.
@@ -128,11 +123,9 @@ def _get_random_sample_points(
         num_points, for_downsized_examples, narr_mask_matrix=None,
         random_seed=None):
     """Samples random points from NARR grid.
-
     M = number of rows in NARR grid
     N = number of columns in NARR grid
     P = number of points sampled
-
     :param num_points: Number of points to sample.
     :param for_downsized_examples: Boolean flag.  If True, this method will
         sample center points for downsized images.  If False, will sample
@@ -193,9 +186,7 @@ def _get_random_sample_points(
 
 def _get_a_for_gerrity_score(contingency_table_as_matrix):
     """Returns a-vector for Gerrity score.
-
     The equation for a is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-
     :param contingency_table_as_matrix: See documentation for
         `_check_contingency_table`.
     :return: a_vector: As advertised.
@@ -215,9 +206,7 @@ def _get_a_for_gerrity_score(contingency_table_as_matrix):
 
 def _get_s_for_gerrity_score(contingency_table_as_matrix):
     """Returns S-matrix for Gerrity score.
-
     The equation for S is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-
     :param contingency_table_as_matrix: See documentation for
         `_check_contingency_table`.
     :return: s_matrix: As advertised.
@@ -250,10 +239,8 @@ def _get_s_for_gerrity_score(contingency_table_as_matrix):
 
 def check_evaluation_pairs(class_probability_matrix, observed_labels):
     """Checks evaluation pairs for errors.
-
     P = number of evaluation pairs
     K = number of classes
-
     :param class_probability_matrix: P-by-K numpy array of floats.
         class_probability_matrix[i, k] is the predicted probability that the
         [i]th example belongs to the [k]th class.
@@ -285,11 +272,9 @@ def create_eval_pairs_for_cnn(
         isotonic_model_object_by_class=None, mask_matrix=None,
         random_seed=None):
     """Creates evaluation pairs for a CNN (convolutional neural net).
-
     An "evaluation pair" is a forecast-observation pair.  Keep in mind that a
     CNN does patch classification (as opposed to an FCN, which does semantic
     segmentation), so a CNN works on downsized examples.
-
     :param model_object: Trained CNN (instance of `keras.models.Model` or
         `keras.models.Sequential`).
     :param top_predictor_dir_name: See doc for
@@ -400,20 +385,16 @@ def find_best_binarization_threshold(
         forecast_precision_for_thresholds=
         DEFAULT_FORECAST_PRECISION):
     """Finds the best binarization threshold.
-
     A "binarization threshold" is used to determinize probabilistic (either
     binary or multi-class) predictions, using the following procedure.
     f* = binarization threshold, and f_0 is the forecast probability of class 0
     (no front).
-
     [1] If f_0 >= f*, predict no front.
     [2] If f_0 < f*, predict a front.  In multi-class problems, frontal type
         (warm or cold) is determined by whichever of the non-zero classes has
         the highest predicted probability.
-
     In the following definitions, P = number of evaluation pairs and K = number
     of classes.
-
     :param class_probability_matrix: See documentation for
         `check_evaluation_pairs`.
     :param observed_labels: See doc for `check_evaluation_pairs`.
@@ -498,9 +479,7 @@ def find_best_binarization_threshold(
 
 def determinize_probabilities(class_probability_matrix, binarization_threshold):
     """Determinizes probabilistic predictions.
-
     P = number of evaluation pairs
-
     :param class_probability_matrix: See documentation for
         `check_evaluation_pairs`.
     :param binarization_threshold: See documentation for
@@ -531,10 +510,8 @@ def determinize_probabilities(class_probability_matrix, binarization_threshold):
 
 def get_contingency_table(predicted_labels, observed_labels, num_classes):
     """Creates either binary or multi-class contingency table.
-
     P = number of evaluation pairs
     K = number of classes
-
     :param predicted_labels: length-P numpy array of predicted class labels
         (integers).
     :param observed_labels: length-P numpy array of true class labels
@@ -578,7 +555,6 @@ def get_contingency_table(predicted_labels, observed_labels, num_classes):
 
 def get_accuracy(contingency_table_as_matrix):
     """Computes accuracy (either binary or multi-class).
-
     :param contingency_table_as_matrix: See documentation for
         `_check_contingency_table`.
     :return: accuracy: Accuracy (float in range 0...1).
@@ -602,7 +578,6 @@ def get_accuracy(contingency_table_as_matrix):
 
 def get_peirce_score(contingency_table_as_matrix):
     """Computes Peirce score (either binary or multi-class).
-
     :param contingency_table_as_matrix: See documentation for
         `_check_contingency_table`.
     :return: peirce_score: Peirce score (float in range -1...1).
@@ -638,7 +613,6 @@ def get_peirce_score(contingency_table_as_matrix):
 
 def get_heidke_score(contingency_table_as_matrix):
     """Computes Heidke score (either binary or multi-class).
-
     :param contingency_table_as_matrix: See documentation for
         `_check_contingency_table`.
     :return: heidke_score: Heidke score (float in range -inf...1).
@@ -668,9 +642,7 @@ def get_heidke_score(contingency_table_as_matrix):
 
 def get_gerrity_score(contingency_table_as_matrix):
     """Computes Gerrity score (either binary or multi-class).
-
     The full equations are here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-
     :param contingency_table_as_matrix: See documentation for
         `_check_contingency_table`.
     :return: gerrity_score: Gerrity score (float in range -1...1).
@@ -686,11 +658,9 @@ def get_gerrity_score(contingency_table_as_matrix):
 
 def get_multiclass_csi(contingency_table_as_matrix):
     """Computes multiclass critical success index.
-
     This works for binary classification as well.  In the multiclass setting,
     "correct nulls" are evaluation pairs where both forecast and observed class
      are 0.
-
     :param contingency_table_as_matrix: See doc for `_check_contingency_table`.
     :return: multiclass_csi: Multiclass CSI.
     """
@@ -713,10 +683,8 @@ def write_file(
         scikit_learn_auc_by_class, aupd_by_class, reliability_by_class,
         bss_by_class, pickle_file_name):
     """Writes results to Pickle file.
-
     P = number of evaluation pairs (forecast-observation pairs)
     K = number of classes
-
     :param class_probability_matrix: P-by-K numpy array of class probabilities.
     :param observed_labels: length-P numpy array of class labels (integers in
         0...[K - 1]).
@@ -773,7 +741,6 @@ def write_file(
 
 def read_file(pickle_file_name):
     """Reads results from Pickle file.
-
     :param pickle_file_name: Path to input file.
     :return: result_dict: Dictionary with all keys listed in `write_file`.
     :raises: ValueError: if dictionary does not contain all keys in
@@ -801,10 +768,8 @@ def plot_scores_2d(
         y_tick_label_strings, colour_map_object=pyplot.cm.plasma,
         axes_object=None):
     """Plots scores on 2-D grid.
-
     M = number of rows in grid
     N = number of columns in grid
-
     :param score_matrix: M-by-N numpy array of scores.
     :param min_colour_value: Minimum value in colour scheme.
     :param max_colour_value: Max value in colour scheme.
