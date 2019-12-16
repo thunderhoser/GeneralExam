@@ -360,7 +360,7 @@ def _check_normalization_type(normalization_type_string):
 def _check_args_for_global_norm(predictor_matrix, field_names,
                                 pressure_levels_mb):
     """Checks input args for (de)normalization with global means and stdevs.
-    
+
     :param predictor_matrix: numpy array of predictor maps.  Dimensions may be
         E x M x N x C or E x M x N x T x C.
     :param field_names: length-C list of field names.
@@ -452,10 +452,10 @@ def get_class_weight_dict(class_frequencies):
 def normalize_predictors_global(
         predictor_matrix, field_names, pressure_levels_mb, param_file_name):
     """Normalizes predictor variables.
-    
+
     Specifically, this method does z-score normalization, using global means and
     standard deviations.
-    
+
     :param predictor_matrix: See doc for `_check_args_for_global_norm`.
     :param field_names: Same.
     :param pressure_levels_mb: Same.
@@ -467,32 +467,32 @@ def normalize_predictors_global(
     _check_args_for_global_norm(
         predictor_matrix=predictor_matrix, field_names=field_names,
         pressure_levels_mb=pressure_levels_mb)
-    
+
     mean_value_dict, standard_deviation_dict = (
         predictor_io.read_normalization_params(param_file_name)
     )
 
     num_channels = predictor_matrix.shape[-1]
-    
+
     for k in range(num_channels):
         this_mean = mean_value_dict[field_names[k], pressure_levels_mb[k]]
         this_stdev = standard_deviation_dict[
             field_names[k], pressure_levels_mb[k]
         ]
-        
+
         predictor_matrix[..., k] = (
             (predictor_matrix[..., k] - this_mean) / this_stdev
         )
-    
+
     return predictor_matrix
 
 
 def denormalize_predictors_global(
         predictor_matrix, field_names, pressure_levels_mb, param_file_name):
     """Denormalizes predictor variables.
-    
+
     This method is the inverse of `normalize_predictors_global`.
-    
+
     :param predictor_matrix: See doc for `_check_args_for_global_norm`.
     :param field_names: Same.
     :param pressure_levels_mb: Same.
