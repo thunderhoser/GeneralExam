@@ -8,6 +8,130 @@ from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 
 TOLERANCE = 1e-6
+MIN_OROGRAPHIC_HEIGHT_M_ASL = -500.
+
+# The following constants are used to test _subset_channels.
+ALL_PREDICTOR_NAMES = [
+    predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
+]
+ALL_PRESSURE_LEVELS_MB = numpy.array(
+    [1000, 1000, 1000, 1000, 850, 850, 850, 850], dtype=int
+)
+
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
+THESE_ROW_INDICES = numpy.array([50, 75, 100, 125, 150, 175], dtype=int)
+THESE_COLUMN_INDICES = THESE_ROW_INDICES + 50
+
+THESE_DIMENSIONS = (
+    len(THESE_TIMES_UNIX_SEC), 33, 33, len(ALL_PREDICTOR_NAMES)
+)
+MAIN_PREDICTOR_MATRIX = numpy.random.uniform(
+    low=MIN_OROGRAPHIC_HEIGHT_M_ASL - 2, high=MIN_OROGRAPHIC_HEIGHT_M_ASL - 1,
+    size=THESE_DIMENSIONS
+)
+
+THESE_DIMENSIONS = (
+    len(THESE_TIMES_UNIX_SEC), len(ALL_PREDICTOR_NAMES)
+)
+MAIN_MEAN_VALUE_MATRIX = numpy.random.uniform(
+    low=MIN_OROGRAPHIC_HEIGHT_M_ASL - 2, high=MIN_OROGRAPHIC_HEIGHT_M_ASL - 1,
+    size=THESE_DIMENSIONS
+)
+MAIN_STDEV_MATRIX = numpy.random.uniform(
+    low=MIN_OROGRAPHIC_HEIGHT_M_ASL - 2, high=MIN_OROGRAPHIC_HEIGHT_M_ASL - 1,
+    size=THESE_DIMENSIONS
+)
+
+MAIN_EXAMPLE_DICT = {
+    examples_io.PREDICTOR_MATRIX_KEY: MAIN_PREDICTOR_MATRIX,
+    examples_io.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
+    examples_io.ROW_INDICES_KEY: THESE_ROW_INDICES,
+    examples_io.COLUMN_INDICES_KEY: THESE_COLUMN_INDICES,
+    examples_io.PREDICTOR_NAMES_KEY: ALL_PREDICTOR_NAMES,
+    examples_io.PRESSURE_LEVELS_KEY: ALL_PRESSURE_LEVELS_MB,
+    examples_io.NORMALIZATION_TYPE_KEY: ml_utils.Z_SCORE_STRING,
+    examples_io.FIRST_NORM_PARAM_KEY: MAIN_MEAN_VALUE_MATRIX,
+    examples_io.SECOND_NORM_PARAM_KEY: MAIN_STDEV_MATRIX
+}
+
+FIRST_PREDICTOR_NAMES = [
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME, predictor_utils.TEMPERATURE_NAME,
+    predictor_utils.TEMPERATURE_NAME
+]
+FIRST_PRESSURE_LEVELS_MB = numpy.array([1000, 850, 1000], dtype=int)
+FIRST_METADATA_ONLY_FLAG = True
+
+FIRST_EXAMPLE_DICT = copy.deepcopy(MAIN_EXAMPLE_DICT)
+FIRST_EXAMPLE_DICT[examples_io.PREDICTOR_NAMES_KEY] = FIRST_PREDICTOR_NAMES
+FIRST_EXAMPLE_DICT[examples_io.PRESSURE_LEVELS_KEY] = (
+    FIRST_PRESSURE_LEVELS_MB
+)
+
+SECOND_PREDICTOR_NAMES = copy.deepcopy(FIRST_PREDICTOR_NAMES)
+SECOND_PRESSURE_LEVELS_MB = FIRST_PRESSURE_LEVELS_MB + 0
+SECOND_METADATA_ONLY_FLAG = False
+
+SECOND_EXAMPLE_DICT = copy.deepcopy(FIRST_EXAMPLE_DICT)
+SECOND_EXAMPLE_DICT[examples_io.PREDICTOR_MATRIX_KEY] = (
+    SECOND_EXAMPLE_DICT[examples_io.PREDICTOR_MATRIX_KEY][..., [3, 4, 0]]
+)
+SECOND_EXAMPLE_DICT[examples_io.FIRST_NORM_PARAM_KEY] = (
+    SECOND_EXAMPLE_DICT[examples_io.FIRST_NORM_PARAM_KEY][..., [3, 4, 0]]
+)
+SECOND_EXAMPLE_DICT[examples_io.SECOND_NORM_PARAM_KEY] = (
+    SECOND_EXAMPLE_DICT[examples_io.SECOND_NORM_PARAM_KEY][..., [3, 4, 0]]
+)
+
+DUMMY_PRESSURES_MB = numpy.array(
+    [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+)
+THIRD_PREDICTOR_NAMES = [predictor_utils.HEIGHT_NAME] + FIRST_PREDICTOR_NAMES
+THIRD_PRESSURE_LEVELS_MB = numpy.concatenate(
+    (DUMMY_PRESSURES_MB, FIRST_PRESSURE_LEVELS_MB), axis=0
+)
+THIRD_METADATA_ONLY_FLAG = True
+
+THIRD_EXAMPLE_DICT = copy.deepcopy(MAIN_EXAMPLE_DICT)
+THIRD_EXAMPLE_DICT[examples_io.PREDICTOR_NAMES_KEY] = (
+    FIRST_PREDICTOR_NAMES + [predictor_utils.HEIGHT_NAME]
+)
+THIRD_EXAMPLE_DICT[examples_io.PRESSURE_LEVELS_KEY] = numpy.concatenate(
+    (FIRST_PRESSURE_LEVELS_MB, DUMMY_PRESSURES_MB), axis=0
+)
+
+FOURTH_PREDICTOR_NAMES = copy.deepcopy(THIRD_PREDICTOR_NAMES)
+FOURTH_PRESSURE_LEVELS_MB = THIRD_PRESSURE_LEVELS_MB + 0
+FOURTH_METADATA_ONLY_FLAG = False
+FOURTH_EXAMPLE_DICT = copy.deepcopy(THIRD_EXAMPLE_DICT)
+
+THESE_DIMENSIONS = MAIN_PREDICTOR_MATRIX.shape[:-1] + (1,)
+NEW_DATA_MATRIX = numpy.random.uniform(
+    low=MIN_OROGRAPHIC_HEIGHT_M_ASL, high=MIN_OROGRAPHIC_HEIGHT_M_ASL + 1,
+    size=THESE_DIMENSIONS
+)
+FOURTH_EXAMPLE_DICT[examples_io.PREDICTOR_MATRIX_KEY] = numpy.concatenate((
+    THIRD_EXAMPLE_DICT[examples_io.PREDICTOR_MATRIX_KEY][..., [3, 4, 0]],
+    NEW_DATA_MATRIX
+), axis=-1)
+
+THESE_DIMENSIONS = MAIN_MEAN_VALUE_MATRIX.shape[:-1] + (1,)
+NEW_PARAM_MATRIX = numpy.random.uniform(
+    low=MIN_OROGRAPHIC_HEIGHT_M_ASL, high=MIN_OROGRAPHIC_HEIGHT_M_ASL + 1,
+    size=THESE_DIMENSIONS
+)
+FOURTH_EXAMPLE_DICT[examples_io.FIRST_NORM_PARAM_KEY] = numpy.concatenate((
+    THIRD_EXAMPLE_DICT[examples_io.FIRST_NORM_PARAM_KEY][..., [3, 4, 0]],
+    NEW_PARAM_MATRIX
+), axis=-1)
+FOURTH_EXAMPLE_DICT[examples_io.SECOND_NORM_PARAM_KEY] = numpy.concatenate((
+    THIRD_EXAMPLE_DICT[examples_io.SECOND_NORM_PARAM_KEY][..., [3, 4, 0]],
+    NEW_PARAM_MATRIX
+), axis=-1)
 
 # The following constants are used to test _shrink_predictor_grid.
 LARGE_2D_MATRIX = numpy.array([
@@ -52,7 +176,7 @@ BATCH_NUMBER = 1234
 SHUFFLED_FILE_NAME = (
     'poop/batches0001000-0001999/downsized_3d_examples_batch0001234.nc')
 
-# The following constants are used to test subset_examples and _subset_channels.
+# The following constants are used to test subset_examples.
 PREDICTOR_MATRIX_FIELD1 = numpy.full((16, 32), 0.)
 
 PREDICTOR_MATRIX_EXAMPLE1 = numpy.stack((
@@ -166,63 +290,6 @@ EXAMPLE_DICT_SELECTED_EXAMPLES = {
     examples_io.SECOND_NORM_PARAM_KEY: THIS_STDEV_MATRIX
 }
 
-CHANNEL_INDICES_TO_KEEP = numpy.array([3, 0], dtype=int)
-
-PREDICTOR_MATRIX_EXAMPLE1 = numpy.stack((
-    PREDICTOR_MATRIX_FIELD1 + 3, PREDICTOR_MATRIX_FIELD1
-), axis=-1)
-
-THIS_PREDICTOR_MATRIX = numpy.stack((
-    PREDICTOR_MATRIX_EXAMPLE1 - 3, PREDICTOR_MATRIX_EXAMPLE1 - 2,
-    PREDICTOR_MATRIX_EXAMPLE1 - 1, PREDICTOR_MATRIX_EXAMPLE1 + 1,
-    PREDICTOR_MATRIX_EXAMPLE1 + 2, PREDICTOR_MATRIX_EXAMPLE1 + 3
-), axis=0)
-
-THESE_PREDICTOR_NAMES = [
-    predictor_utils.SPECIFIC_HUMIDITY_NAME, predictor_utils.TEMPERATURE_NAME
-]
-
-THESE_PRESSURE_LEVELS_MB = numpy.array([
-    850, predictor_utils.DUMMY_SURFACE_PRESSURE_MB
-], dtype=int)
-
-THIS_MEAN_MATRIX = numpy.array([
-    [0.007, 290],
-    [0.007, 290],
-    [0.007, 290],
-    [0.008, 295],
-    [0.008, 295],
-    [0.008, 295]
-], dtype=float)
-
-THIS_STDEV_MATRIX = numpy.array([
-    [0.003, 5],
-    [0.003, 5],
-    [0.003, 5],
-    [0.004, 6],
-    [0.004, 6],
-    [0.004, 6]
-], dtype=float)
-
-EXAMPLE_DICT_SELECTED_CHANNELS = {
-    examples_io.PREDICTOR_MATRIX_KEY: THIS_PREDICTOR_MATRIX,
-    examples_io.TARGET_MATRIX_KEY:
-        ORIGINAL_EXAMPLE_DICT[examples_io.TARGET_MATRIX_KEY],
-    examples_io.VALID_TIMES_KEY:
-        ORIGINAL_EXAMPLE_DICT[examples_io.VALID_TIMES_KEY],
-    examples_io.ROW_INDICES_KEY:
-        ORIGINAL_EXAMPLE_DICT[examples_io.ROW_INDICES_KEY],
-    examples_io.COLUMN_INDICES_KEY:
-        ORIGINAL_EXAMPLE_DICT[examples_io.COLUMN_INDICES_KEY],
-    examples_io.PREDICTOR_NAMES_KEY: THESE_PREDICTOR_NAMES,
-    examples_io.PRESSURE_LEVELS_KEY: THESE_PRESSURE_LEVELS_MB,
-    examples_io.DILATION_DISTANCE_KEY: DILATION_DISTANCE_METRES,
-    examples_io.MASK_MATRIX_KEY: NARR_MASK_MATRIX,
-    examples_io.NORMALIZATION_TYPE_KEY: NORMALIZATION_TYPE_STRING,
-    examples_io.FIRST_NORM_PARAM_KEY: THIS_MEAN_MATRIX,
-    examples_io.SECOND_NORM_PARAM_KEY: THIS_STDEV_MATRIX
-}
-
 INTEGER_ARRAY_KEYS = [
     examples_io.VALID_TIMES_KEY, examples_io.ROW_INDICES_KEY,
     examples_io.COLUMN_INDICES_KEY, examples_io.PRESSURE_LEVELS_KEY
@@ -297,6 +364,89 @@ def _compare_example_dicts(first_example_dict, second_example_dict):
 class LearningExamplesIoTests(unittest.TestCase):
     """Each method is a unit test for learning_examples_io.py."""
 
+    def test_subset_channels_first(self):
+        """Ensures correct output from _subset_channels.
+
+        In this case, using first set of inputs.
+        """
+
+        this_example_dict = examples_io._subset_channels(
+            example_dict=copy.deepcopy(MAIN_EXAMPLE_DICT),
+            metadata_only=FIRST_METADATA_ONLY_FLAG,
+            predictor_names=FIRST_PREDICTOR_NAMES,
+            pressure_levels_mb=FIRST_PRESSURE_LEVELS_MB
+        )
+
+        self.assertTrue(_compare_example_dicts(
+            this_example_dict, FIRST_EXAMPLE_DICT
+        ))
+
+    def test_subset_channels_second(self):
+        """Ensures correct output from _subset_channels.
+
+        In this case, using second set of inputs.
+        """
+
+        this_example_dict = examples_io._subset_channels(
+            example_dict=copy.deepcopy(MAIN_EXAMPLE_DICT),
+            metadata_only=SECOND_METADATA_ONLY_FLAG,
+            predictor_names=SECOND_PREDICTOR_NAMES,
+            pressure_levels_mb=SECOND_PRESSURE_LEVELS_MB
+        )
+
+        self.assertTrue(_compare_example_dicts(
+            this_example_dict, SECOND_EXAMPLE_DICT
+        ))
+
+    def test_subset_channels_third(self):
+        """Ensures correct output from _subset_channels.
+
+        In this case, using third set of inputs.
+        """
+
+        this_example_dict = examples_io._subset_channels(
+            example_dict=copy.deepcopy(MAIN_EXAMPLE_DICT),
+            metadata_only=THIRD_METADATA_ONLY_FLAG,
+            predictor_names=THIRD_PREDICTOR_NAMES,
+            pressure_levels_mb=THIRD_PRESSURE_LEVELS_MB
+        )
+
+        self.assertTrue(_compare_example_dicts(
+            this_example_dict, THIRD_EXAMPLE_DICT
+        ))
+
+    def test_subset_channels_fourth(self):
+        """Ensures correct output from _subset_channels.
+
+        In this case, using third set of inputs.
+        """
+
+        actual_example_dict = examples_io._subset_channels(
+            example_dict=copy.deepcopy(MAIN_EXAMPLE_DICT),
+            metadata_only=FOURTH_METADATA_ONLY_FLAG,
+            predictor_names=FOURTH_PREDICTOR_NAMES,
+            pressure_levels_mb=FOURTH_PRESSURE_LEVELS_MB
+        )
+
+        expected_example_dict = copy.deepcopy(FOURTH_EXAMPLE_DICT)
+
+        these_keys = [
+            examples_io.PREDICTOR_MATRIX_KEY, examples_io.FIRST_NORM_PARAM_KEY,
+            examples_io.SECOND_NORM_PARAM_KEY
+        ]
+
+        for this_key in these_keys:
+            actual_example_dict[this_key] = numpy.minimum(
+                actual_example_dict[this_key], MIN_OROGRAPHIC_HEIGHT_M_ASL
+            )
+            expected_example_dict[this_key] = numpy.minimum(
+                expected_example_dict[this_key], MIN_OROGRAPHIC_HEIGHT_M_ASL
+            )
+
+        self.assertTrue(_compare_example_dicts(
+            actual_example_dict, expected_example_dict
+        ))
+
     def test_shrink_predictor_grid(self):
         """Ensures correct output from _shrink_predictor_grid."""
 
@@ -349,18 +499,6 @@ class LearningExamplesIoTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             examples_io._file_name_to_batch_number(NON_SHUFFLED_FILE_NAME)
-
-    def test_subset_channels(self):
-        """Ensures correct output from _subset_channels."""
-
-        this_example_dict = examples_io._subset_channels(
-            example_dict=copy.deepcopy(ORIGINAL_EXAMPLE_DICT),
-            metadata_only=False, indices_to_keep=CHANNEL_INDICES_TO_KEEP
-        )
-
-        self.assertTrue(_compare_example_dicts(
-            this_example_dict, EXAMPLE_DICT_SELECTED_CHANNELS
-        ))
 
     def test_find_file_shuffled(self):
         """Ensures correct output from find_file.

@@ -69,10 +69,18 @@ def _run(input_file_name, output_file_name):
     source_longitudes_deg = numpy.array(
         dataset_object.variables[era5_input.NETCDF_LONGITUDES_KEY][:]
     )
-    source_latitudes_deg = source_latitudes_deg[::-1]
 
+    source_latitudes_deg = source_latitudes_deg[::-1]
     source_latitudes_deg = source_latitudes_deg[1:]
     height_matrix_m_asl = height_matrix_m_asl[:, 1:, ...]
+    height_matrix_m_asl = numpy.flip(height_matrix_m_asl, axis=1)
+
+    # figure_object, axes_object = pyplot.subplots(1, 1, figsize=(15, 15))
+    # pyplot.pcolormesh(
+    #     source_longitudes_deg, source_latitudes_deg,
+    #     height_matrix_m_asl[0, ..., 0], cmap=pyplot.get_cmap('YlOrRd'),
+    #     vmin=0., vmax=2000., shading='flat', edgecolors='None', ax=axes_object)
+    # pyplot.show()
 
     print((
         'Minimum height before interp = {0:.1f} m ASL ... max = {1:.1f} ... '

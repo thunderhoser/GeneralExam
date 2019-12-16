@@ -134,8 +134,96 @@ def _file_name_to_batch_number(example_file_name):
         raise ValueError(error_string)
 
 
+def _add_orography_to_examples(example_dict, normalization_file_name=None):
+    """Adds orography (surface height above sea level) as predictor.
+
+    :param example_dict: See output doc for `read_file`.
+    :param normalization_file_name: See input doc for `read_file`.
+    :return: example_dict: Same but with extra predictor.
+    """
+
+    num_half_rows = int(numpy.floor(
+        float(example_dict[PREDICTOR_MATRIX_KEY].shape[1]) / 2
+    ))
+    num_half_columns = int(numpy.floor(
+        float(example_dict[PREDICTOR_MATRIX_KEY].shape[2]) / 2
+    ))
+
+    target_point_dict = {
+        ml_utils.ROW_INDICES_BY_TIME_KEY:
+            [example_dict[ROW_INDICES_KEY]],
+        ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+            [example_dict[COLUMN_INDICES_KEY]]
+    }
+
+    dummy_target_matrix = numpy.full(
+        NARR_OROGRAPHY_MATRIX_M_ASL.shape[:-1], 0, dtype=int
+    )
+
+    orography_matrix_m_asl = ml_utils.downsize_grids_around_selected_points(
+        predictor_matrix=NARR_OROGRAPHY_MATRIX_M_ASL,
+        target_matrix=dummy_target_matrix,
+        num_rows_in_half_window=num_half_rows,
+        num_columns_in_half_window=num_half_columns,
+        target_point_dict=target_point_dict
+    )[0]
+
+    norm_type_string = example_dict[NORMALIZATION_TYPE_KEY]
+    dummy_pressure_levels_mb = numpy.array(
+        [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+    )
+
+    if normalization_file_name is None:
+        orography_matrix_m_asl, orography_norm_dict = (
+            ml_utils.normalize_predictors_nonglobal(
+                predictor_matrix=orography_matrix_m_asl,
+                normalization_type_string=norm_type_string)
+        )
+    else:
+        orography_matrix_m_asl, orography_norm_dict = (
+            ml_utils.normalize_predictors_global(
+                predictor_matrix=orography_matrix_m_asl,
+                field_names=[predictor_utils.HEIGHT_NAME],
+                pressure_levels_mb=dummy_pressure_levels_mb,
+                param_file_name=normalization_file_name)
+        )
+
+    norm_type_string = example_dict[NORMALIZATION_TYPE_KEY]
+
+    if norm_type_string == ml_utils.Z_SCORE_STRING:
+        example_dict[FIRST_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[FIRST_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.MEAN_VALUE_MATRIX_KEY]
+        ), axis=-1)
+
+        example_dict[SECOND_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[SECOND_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.STDEV_MATRIX_KEY]
+        ), axis=-1)
+    else:
+        example_dict[FIRST_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[FIRST_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.MIN_VALUE_MATRIX_KEY]
+        ), axis=-1)
+
+        example_dict[SECOND_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[SECOND_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.MAX_VALUE_MATRIX_KEY]
+        ), axis=-1)
+
+    example_dict[PREDICTOR_MATRIX_KEY] = numpy.concatenate((
+        example_dict[PREDICTOR_MATRIX_KEY], orography_matrix_m_asl
+    ), axis=-1)
+    example_dict[PREDICTOR_NAMES_KEY].append(predictor_utils.HEIGHT_NAME)
+    example_dict[PRESSURE_LEVELS_KEY] = numpy.concatenate((
+        example_dict[PRESSURE_LEVELS_KEY], dummy_pressure_levels_mb
+    ))
+
+    return example_dict
+
+
 def _subset_channels(example_dict, metadata_only, predictor_names,
-                     pressure_levels_mb, normalization_file_name):
+                     pressure_levels_mb, normalization_file_name=None):
     """Subsets examples by channel.
 
     C = number of channels to keep
@@ -355,94 +443,6 @@ def _shrink_predictor_grid(predictor_matrix, num_half_rows=None,
         ]
 
     return predictor_matrix
-
-
-def _add_orography_to_examples(example_dict, normalization_file_name):
-    """Adds orography (surface height above sea level) as predictor.
-
-    :param example_dict: See output doc for `read_file`.
-    :param normalization_file_name: See input doc for `read_file`.
-    :return: example_dict: Same but with extra predictor.
-    """
-
-    num_half_rows = numpy.floor(
-        float(example_dict[PREDICTOR_MATRIX_KEY].shape[1]) / 2
-    )
-    num_half_columns = numpy.floor(
-        float(example_dict[PREDICTOR_MATRIX_KEY].shape[2]) / 2
-    )
-
-    target_point_dict = {
-        ml_utils.ROW_INDICES_BY_TIME_KEY:
-            [example_dict[ROW_INDICES_KEY]],
-        ml_utils.COLUMN_INDICES_BY_TIME_KEY:
-            [example_dict[COLUMN_INDICES_KEY]]
-    }
-
-    dummy_target_matrix = numpy.full(
-        NARR_OROGRAPHY_MATRIX_M_ASL.shape[:-1], 0, dtype=int
-    )
-
-    orography_matrix_m_asl = ml_utils.downsize_grids_around_selected_points(
-        predictor_matrix=NARR_OROGRAPHY_MATRIX_M_ASL,
-        target_matrix=dummy_target_matrix,
-        num_rows_in_half_window=num_half_rows,
-        num_columns_in_half_window=num_half_columns,
-        target_point_dict=target_point_dict
-    )[0]
-
-    norm_type_string = example_dict[NORMALIZATION_TYPE_KEY]
-    dummy_pressure_levels_mb = numpy.array(
-        [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
-    )
-
-    if normalization_file_name is None:
-        orography_matrix_m_asl, orography_norm_dict = (
-            ml_utils.normalize_predictors_nonglobal(
-                predictor_matrix=orography_matrix_m_asl,
-                normalization_type_string=norm_type_string)
-        )
-    else:
-        orography_matrix_m_asl, orography_norm_dict = (
-            ml_utils.normalize_predictors_global(
-                predictor_matrix=orography_matrix_m_asl,
-                field_names=[predictor_utils.HEIGHT_NAME],
-                pressure_levels_mb=dummy_pressure_levels_mb,
-                param_file_name=normalization_file_name)
-        )
-
-    norm_type_string = example_dict[NORMALIZATION_TYPE_KEY]
-
-    if norm_type_string == ml_utils.Z_SCORE_STRING:
-        example_dict[FIRST_NORM_PARAM_KEY] = numpy.concatenate((
-            example_dict[FIRST_NORM_PARAM_KEY],
-            orography_norm_dict[ml_utils.MEAN_VALUE_MATRIX_KEY]
-        ), axis=-1)
-
-        example_dict[SECOND_NORM_PARAM_KEY] = numpy.concatenate((
-            example_dict[SECOND_NORM_PARAM_KEY],
-            orography_norm_dict[ml_utils.STDEV_MATRIX_KEY]
-        ), axis=-1)
-    else:
-        example_dict[FIRST_NORM_PARAM_KEY] = numpy.concatenate((
-            example_dict[FIRST_NORM_PARAM_KEY],
-            orography_norm_dict[ml_utils.MIN_VALUE_MATRIX_KEY]
-        ), axis=-1)
-
-        example_dict[SECOND_NORM_PARAM_KEY] = numpy.concatenate((
-            example_dict[SECOND_NORM_PARAM_KEY],
-            orography_norm_dict[ml_utils.MAX_VALUE_MATRIX_KEY]
-        ), axis=-1)
-
-    example_dict[PREDICTOR_MATRIX_KEY] = numpy.concatenate((
-        example_dict[PREDICTOR_MATRIX_KEY], orography_matrix_m_asl
-    ), axis=-1)
-    example_dict[PREDICTOR_NAMES_KEY].append(predictor_utils.HEIGHT_NAME)
-    example_dict[PRESSURE_LEVELS_KEY] = numpy.concatenate((
-        example_dict[PRESSURE_LEVELS_KEY], dummy_pressure_levels_mb
-    ))
-
-    return example_dict
 
 
 def create_examples(
