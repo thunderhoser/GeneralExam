@@ -77,6 +77,15 @@ MAIN_KEYS = [
     COLUMN_INDICES_KEY, FIRST_NORM_PARAM_KEY, SECOND_NORM_PARAM_KEY
 ]
 
+THIS_DIR_NAME = os.path.dirname(__file__)
+PARENT_DIR_NAME = '/'.join(THIS_DIR_NAME.split('/')[:-1])
+OROGRAPHY_FILE_NAME = '{0:s}/era5_orography.nc'.format(PARENT_DIR_NAME)
+
+THIS_DICT = predictor_io.read_file(netcdf_file_name=OROGRAPHY_FILE_NAME)
+NARR_OROGRAPHY_MATRIX_M_ASL = (
+    THIS_DICT[predictor_utils.DATA_MATRIX_KEY][:, 100:-100, 100:-100, :]
+)
+
 
 def _file_name_to_times(example_file_name):
     """Parses valid times from file name.
@@ -285,6 +294,94 @@ def _shrink_predictor_grid(predictor_matrix, num_half_rows=None,
         ]
 
     return predictor_matrix
+
+
+def _add_orography_to_examples(example_dict, normalization_file_name):
+    """Adds orography (surface height above sea level) as predictor.
+
+    :param example_dict: See output doc for `read_file`.
+    :param normalization_file_name: See input doc for `read_file`.
+    :return: example_dict: Same but with extra predictor.
+    """
+
+    num_half_rows = numpy.floor(
+        float(example_dict[PREDICTOR_MATRIX_KEY].shape[1]) / 2
+    )
+    num_half_columns = numpy.floor(
+        float(example_dict[PREDICTOR_MATRIX_KEY].shape[2]) / 2
+    )
+
+    target_point_dict = {
+        ml_utils.ROW_INDICES_BY_TIME_KEY:
+            [example_dict[ROW_INDICES_KEY]],
+        ml_utils.COLUMN_INDICES_BY_TIME_KEY:
+            [example_dict[COLUMN_INDICES_KEY]]
+    }
+
+    dummy_target_matrix = numpy.full(
+        NARR_OROGRAPHY_MATRIX_M_ASL.shape[:-1], 0, dtype=int
+    )
+
+    orography_matrix_m_asl = ml_utils.downsize_grids_around_selected_points(
+        predictor_matrix=NARR_OROGRAPHY_MATRIX_M_ASL,
+        target_matrix=dummy_target_matrix,
+        num_rows_in_half_window=num_half_rows,
+        num_columns_in_half_window=num_half_columns,
+        target_point_dict=target_point_dict
+    )[0]
+
+    norm_type_string = example_dict[NORMALIZATION_TYPE_KEY]
+    dummy_pressure_levels_mb = numpy.array(
+        [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+    )
+
+    if normalization_file_name is None:
+        orography_matrix_m_asl, orography_norm_dict = (
+            ml_utils.normalize_predictors_nonglobal(
+                predictor_matrix=orography_matrix_m_asl,
+                normalization_type_string=norm_type_string)
+        )
+    else:
+        orography_matrix_m_asl, orography_norm_dict = (
+            ml_utils.normalize_predictors_global(
+                predictor_matrix=orography_matrix_m_asl,
+                field_names=[predictor_utils.HEIGHT_NAME],
+                pressure_levels_mb=dummy_pressure_levels_mb,
+                param_file_name=normalization_file_name)
+        )
+
+    norm_type_string = example_dict[NORMALIZATION_TYPE_KEY]
+
+    if norm_type_string == ml_utils.Z_SCORE_STRING:
+        example_dict[FIRST_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[FIRST_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.MEAN_VALUE_MATRIX_KEY]
+        ), axis=-1)
+
+        example_dict[SECOND_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[SECOND_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.STDEV_MATRIX_KEY]
+        ), axis=-1)
+    else:
+        example_dict[FIRST_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[FIRST_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.MIN_VALUE_MATRIX_KEY]
+        ), axis=-1)
+
+        example_dict[SECOND_NORM_PARAM_KEY] = numpy.concatenate((
+            example_dict[SECOND_NORM_PARAM_KEY],
+            orography_norm_dict[ml_utils.MAX_VALUE_MATRIX_KEY]
+        ), axis=-1)
+
+    example_dict[PREDICTOR_MATRIX_KEY] = numpy.concatenate((
+        example_dict[PREDICTOR_MATRIX_KEY], orography_matrix_m_asl
+    ), axis=-1)
+    example_dict[PREDICTOR_NAMES_KEY].append(predictor_utils.HEIGHT_NAME)
+    example_dict[PRESSURE_LEVELS_KEY] = numpy.concatenate((
+        example_dict[PRESSURE_LEVELS_KEY], dummy_pressure_levels_mb
+    ))
+
+    return example_dict
 
 
 def create_examples(
@@ -1062,11 +1159,11 @@ def write_file(netcdf_file_name, example_dict, append_to_file=False):
 
 
 def read_file(
-        netcdf_file_name, metadata_only=False, predictor_names_to_keep=None,
-        pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
-        num_half_columns_to_keep=None, id_strings_to_keep=None,
-        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None,
-        normalization_file_name=None):
+        netcdf_file_name, metadata_only=False,
+        predictor_names_to_keep=None, pressure_levels_to_keep_mb=None,
+        num_half_rows_to_keep=None, num_half_columns_to_keep=None,
+        id_strings_to_keep=None, first_time_to_keep_unix_sec=None,
+        last_time_to_keep_unix_sec=None, normalization_file_name=None):
     """Reads learning examples from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
@@ -1199,15 +1296,30 @@ def read_file(
     error_checking.assert_is_numpy_array(
         numpy.array(predictor_names_to_keep), num_dimensions=1
     )
-    these_expected_dim = numpy.array([len(predictor_names_to_keep)], dtype=int)
 
     error_checking.assert_is_numpy_array(pressure_levels_to_keep_mb)
     pressure_levels_to_keep_mb = numpy.round(
         pressure_levels_to_keep_mb
     ).astype(int)
 
+    num_channels = len(predictor_names_to_keep)
+    these_expected_dim = numpy.array([num_channels], dtype=int)
     error_checking.assert_is_numpy_array(
-        pressure_levels_to_keep_mb, exact_dimensions=these_expected_dim)
+        pressure_levels_to_keep_mb, exact_dimensions=these_expected_dim
+    )
+
+    orography_flags = numpy.logical_and(
+        numpy.array(predictor_names_to_keep) == predictor_utils.HEIGHT_NAME,
+        pressure_levels_to_keep_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+    )
+    add_orography = numpy.any(orography_flags)
+
+    if add_orography:
+        these_indices = numpy.where(numpy.invert(orography_flags))[0]
+        predictor_names_to_keep = [
+            predictor_names_to_keep[k] for k in these_indices
+        ]
+        pressure_levels_to_keep_mb = pressure_levels_to_keep_mb[these_indices]
 
     good_channel_indices = [
         numpy.where(numpy.logical_and(
@@ -1217,15 +1329,23 @@ def read_file(
         for n, l in zip(predictor_names_to_keep, pressure_levels_to_keep_mb)
     ]
 
-    return _subset_channels(
+    example_dict = _subset_channels(
         example_dict=example_dict, metadata_only=metadata_only,
         indices_to_keep=good_channel_indices)
 
+    if not add_orography:
+        return example_dict
+
+    return _add_orography_to_examples(
+        example_dict=example_dict,
+        normalization_file_name=normalization_file_name)
+
 
 def read_specific_examples_many_files(
-        top_example_dir_name, example_id_strings, predictor_names_to_keep=None,
-        pressure_levels_to_keep_mb=None, num_half_rows_to_keep=None,
-        num_half_columns_to_keep=None, normalization_file_name=None):
+        top_example_dir_name, example_id_strings,
+        predictor_names_to_keep=None, pressure_levels_to_keep_mb=None,
+        num_half_rows_to_keep=None, num_half_columns_to_keep=None,
+        normalization_file_name=None):
     """Reads specific examples from many files.
 
     :param top_example_dir_name: Name of top-level directory with learning
