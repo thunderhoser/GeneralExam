@@ -179,6 +179,14 @@ def _run(top_predictor_dir_name, mask_file_name, first_time_string,
         first_predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY]
     ).astype(int)
 
+    dummy_pressures_mb = numpy.array(
+        [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+    )
+    field_names.append(predictor_utils.HEIGHT_NAME)
+    pressure_levels_mb = numpy.concatenate(
+        (pressure_levels_mb, dummy_pressures_mb), axis=0
+    )
+
     orig_param_dict = {
         NUM_VALUES_KEY: 0, MEAN_VALUE_KEY: 0., MEAN_OF_SQUARES_KEY: 0.
     }
