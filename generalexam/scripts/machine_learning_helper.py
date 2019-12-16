@@ -218,7 +218,7 @@ def add_input_args(argument_parser, use_downsized_files):
         default=0, help=NUM_NOISINGS_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + NORMALIZATION_FILE_ARG_NAME, type=int, required=False,
+        '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=False,
         default='', help=NORMALIZATION_FILE_HELP_STRING)
 
     if use_downsized_files:
