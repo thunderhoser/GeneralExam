@@ -1330,6 +1330,7 @@ def read_file(
 
         if normalization_file_name is not None:
             example_dict = denormalize_examples(example_dict)
+            print('\n\n\nFOOOOOO\n\n\n')
 
             example_dict[PREDICTOR_MATRIX_KEY], norm_dict = (
                 ml_utils.normalize_predictors_global(

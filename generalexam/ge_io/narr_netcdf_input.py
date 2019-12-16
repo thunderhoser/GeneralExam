@@ -76,10 +76,8 @@ def _check_raw_field_name(raw_field_name, at_surface=None):
     if at_surface is not None:
         error_checking.assert_is_boolean(at_surface)
 
-    if at_surface is None:
+    if at_surface is None or at_surface:
         valid_field_names = RAW_FIELD_NAMES
-    elif at_surface:
-        valid_field_names = [f for f in RAW_FIELD_NAMES if f != HEIGHT_NAME_RAW]
     else:
         valid_field_names = [
             f for f in RAW_FIELD_NAMES if f != PRESSURE_NAME_RAW

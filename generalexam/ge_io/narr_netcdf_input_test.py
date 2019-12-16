@@ -72,17 +72,14 @@ class NarrNetcdfIoTests(unittest.TestCase):
         narr_netcdf_input._check_raw_field_name(
             raw_field_name=narr_netcdf_input.PRESSURE_NAME_RAW, at_surface=True)
 
-    def test_check_raw_field_name_surface_bad(self):
+    def test_check_raw_field_name_surface_hgt(self):
         """Ensures correct output from _check_raw_field_name.
 
-        In this case, looking for surface field and the input is *not* a surface
-        field.
+        In this case, looking for surface height (orography).
         """
 
-        with self.assertRaises(ValueError):
-            narr_netcdf_input._check_raw_field_name(
-                raw_field_name=narr_netcdf_input.HEIGHT_NAME_RAW,
-                at_surface=True)
+        narr_netcdf_input._check_raw_field_name(
+            raw_field_name=narr_netcdf_input.HEIGHT_NAME_RAW, at_surface=True)
 
     def test_check_raw_field_name_nonsurface_good(self):
         """Ensures correct output from _check_raw_field_name.
