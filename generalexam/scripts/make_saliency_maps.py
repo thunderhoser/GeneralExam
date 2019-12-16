@@ -333,7 +333,7 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
         normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = example_dict[
             examples_io.SECOND_NORM_PARAM_KEY]
 
-    denorm_predictor_matrix = ml_utils.denormalize_predictors(
+    denorm_predictor_matrix = ml_utils.denormalize_predictors_nonglobal(
         predictor_matrix=predictor_matrix + 0.,
         normalization_dict=normalization_dict
     )

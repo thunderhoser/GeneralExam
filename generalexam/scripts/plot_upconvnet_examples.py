@@ -208,13 +208,14 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
         normalization_dict[ml_utils.MAX_VALUE_MATRIX_KEY] = actual_example_dict[
             examples_io.SECOND_NORM_PARAM_KEY]
 
-    actual_image_matrix = ml_utils.denormalize_predictors(
+    actual_image_matrix = ml_utils.denormalize_predictors_nonglobal(
         predictor_matrix=actual_example_dict[examples_io.PREDICTOR_MATRIX_KEY],
-        normalization_dict=normalization_dict)
-
-    reconstructed_image_matrix = ml_utils.denormalize_predictors(
+        normalization_dict=normalization_dict
+    )
+    reconstructed_image_matrix = ml_utils.denormalize_predictors_nonglobal(
         predictor_matrix=reconstructed_image_matrix,
-        normalization_dict=normalization_dict)
+        normalization_dict=normalization_dict
+    )
 
     actual_example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
         actual_image_matrix + 0.

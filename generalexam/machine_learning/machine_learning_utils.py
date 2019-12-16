@@ -18,6 +18,7 @@ import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from generalexam.ge_io import predictor_io
 from generalexam.ge_utils import utils
 from generalexam.ge_utils import front_utils
 
@@ -356,6 +357,36 @@ def _check_normalization_type(normalization_type_string):
         raise ValueError(error_string)
 
 
+def _check_args_for_global_norm(predictor_matrix, field_names,
+                                pressure_levels_mb):
+    """Checks input args for (de)normalization with global means and stdevs.
+    
+    :param predictor_matrix: numpy array of predictor maps.  Dimensions may be
+        E x M x N x C or E x M x N x T x C.
+    :param field_names: length-C list of field names.
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
+    """
+
+    _check_predictor_matrix(
+        predictor_matrix, allow_nan=True, min_num_dimensions=4,
+        max_num_dimensions=5)
+
+    num_channels = predictor_matrix.shape[-1]
+    expected_dim = numpy.array([num_channels], dtype=int)
+
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names), exact_dimensions=expected_dim
+    )
+
+    error_checking.assert_is_greater_numpy_array(pressure_levels_mb, 0)
+    pressure_levels_mb = numpy.round(pressure_levels_mb).astype(int)
+    error_checking.assert_is_numpy_array(
+        pressure_levels_mb, exact_dimensions=expected_dim
+    )
+
+
 def check_narr_mask(mask_matrix):
     """Error-checks NARR mask.
 
@@ -418,10 +449,84 @@ def get_class_weight_dict(class_frequencies):
     return class_weight_dict
 
 
-def normalize_predictors(
+def normalize_predictors_global(
+        predictor_matrix, field_names, pressure_levels_mb, param_file_name):
+    """Normalizes predictor variables.
+    
+    Specifically, this method does z-score normalization, using global means and
+    standard deviations.
+    
+    :param predictor_matrix: See doc for `_check_args_for_global_norm`.
+    :param field_names: Same.
+    :param pressure_levels_mb: Same.
+    :param param_file_name: Path to file with pre-computed means and standard
+        deviations.  Will be read by `predictor_io.read_normalization_params`.
+    :return: predictor_matrix: Same as input but normalized.
+    """
+
+    _check_args_for_global_norm(
+        predictor_matrix=predictor_matrix, field_names=field_names,
+        pressure_levels_mb=pressure_levels_mb)
+    
+    mean_value_dict, standard_deviation_dict = (
+        predictor_io.read_normalization_params(param_file_name)
+    )
+
+    num_channels = predictor_matrix.shape[-1]
+    
+    for k in range(num_channels):
+        this_mean = mean_value_dict[field_names[k], pressure_levels_mb[k]]
+        this_stdev = standard_deviation_dict[
+            field_names[k], pressure_levels_mb[k]
+        ]
+        
+        predictor_matrix[..., k] = (
+            (predictor_matrix[..., k] - this_mean) / this_stdev
+        )
+    
+    return predictor_matrix
+
+
+def denormalize_predictors_global(
+        predictor_matrix, field_names, pressure_levels_mb, param_file_name):
+    """Denormalizes predictor variables.
+    
+    This method is the inverse of `normalize_predictors_global`.
+    
+    :param predictor_matrix: See doc for `_check_args_for_global_norm`.
+    :param field_names: Same.
+    :param pressure_levels_mb: Same.
+    :param param_file_name: Same.
+    :return: predictor_matrix: Same as input but denormalized.
+    """
+
+    _check_args_for_global_norm(
+        predictor_matrix=predictor_matrix, field_names=field_names,
+        pressure_levels_mb=pressure_levels_mb)
+
+    mean_value_dict, standard_deviation_dict = (
+        predictor_io.read_normalization_params(param_file_name)
+    )
+
+    num_channels = predictor_matrix.shape[-1]
+
+    for k in range(num_channels):
+        this_mean = mean_value_dict[field_names[k], pressure_levels_mb[k]]
+        this_stdev = standard_deviation_dict[
+            field_names[k], pressure_levels_mb[k]
+        ]
+
+        predictor_matrix[..., k] = this_mean + (
+            predictor_matrix[..., k] * this_stdev
+        )
+
+    return predictor_matrix
+
+
+def normalize_predictors_nonglobal(
         predictor_matrix, normalization_type_string=MINMAX_STRING,
         percentile_offset=1.):
-    """Normalizes predictor variables.
+    """Normalizes predictor variables with different params for each example.
 
     If normalization_type_string = "z_score", each variable is normalized with
     the following equation, where `mean_value` and `standard_deviation` are the
@@ -471,7 +576,7 @@ def normalize_predictors(
     _check_normalization_type(normalization_type_string)
 
     num_examples = predictor_matrix.shape[0]
-    num_predictors = predictor_matrix.shape[-1]
+    num_channels = predictor_matrix.shape[-1]
 
     min_value_matrix = None
     max_value_matrix = None
@@ -482,58 +587,62 @@ def normalize_predictors(
         error_checking.assert_is_geq(percentile_offset, 0.)
         error_checking.assert_is_less_than(percentile_offset, 50.)
 
-        min_value_matrix = numpy.full((num_examples, num_predictors), numpy.nan)
-        max_value_matrix = numpy.full((num_examples, num_predictors), numpy.nan)
+        min_value_matrix = numpy.full((num_examples, num_channels), numpy.nan)
+        max_value_matrix = numpy.full((num_examples, num_channels), numpy.nan)
 
         for i in range(num_examples):
-            for m in range(num_predictors):
+            for k in range(num_channels):
                 if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
                     print('NORMALIZING WITH ONLY INNER GRID')
 
-                    min_value_matrix[i, m] = numpy.nanpercentile(
-                        predictor_matrix[i, 100:-100, 100:-100, ..., m],
+                    min_value_matrix[i, k] = numpy.nanpercentile(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., k],
                         percentile_offset
                     )
-                    max_value_matrix[i, m] = numpy.nanpercentile(
-                        predictor_matrix[i, 100:-100, 100:-100, ..., m],
+                    max_value_matrix[i, k] = numpy.nanpercentile(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., k],
                         100. - percentile_offset
                     )
                 else:
-                    min_value_matrix[i, m] = numpy.nanpercentile(
-                        predictor_matrix[i, ..., m], percentile_offset)
-                    max_value_matrix[i, m] = numpy.nanpercentile(
-                        predictor_matrix[i, ..., m], 100. - percentile_offset)
+                    min_value_matrix[i, k] = numpy.nanpercentile(
+                        predictor_matrix[i, ..., k], percentile_offset
+                    )
+                    max_value_matrix[i, k] = numpy.nanpercentile(
+                        predictor_matrix[i, ..., k], 100. - percentile_offset
+                    )
 
-                predictor_matrix[i, ..., m] = (
-                    (predictor_matrix[i, ..., m] - min_value_matrix[i, m]) /
-                    (max_value_matrix[i, m] - min_value_matrix[i, m])
+                predictor_matrix[i, ..., k] = (
+                    (predictor_matrix[i, ..., k] - min_value_matrix[i, k]) /
+                    (max_value_matrix[i, k] - min_value_matrix[i, k])
                 )
     else:
-        mean_value_matrix = numpy.full(
-            (num_examples, num_predictors), numpy.nan)
+        mean_value_matrix = numpy.full((num_examples, num_channels), numpy.nan)
         standard_deviation_matrix = numpy.full(
-            (num_examples, num_predictors), numpy.nan)
+            (num_examples, num_channels), numpy.nan
+        )
 
         for i in range(num_examples):
-            for m in range(num_predictors):
+            for k in range(num_channels):
                 if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
                     print('NORMALIZING WITH ONLY INNER GRID')
 
-                    mean_value_matrix[i, m] = numpy.nanmean(
-                        predictor_matrix[i, 100:-100, 100:-100, ..., m]
+                    mean_value_matrix[i, k] = numpy.nanmean(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., k]
                     )
-                    standard_deviation_matrix[i, m] = numpy.nanstd(
-                        predictor_matrix[i, 100:-100, 100:-100, ..., m], ddof=1
+                    standard_deviation_matrix[i, k] = numpy.nanstd(
+                        predictor_matrix[i, 100:-100, 100:-100, ..., k], ddof=1
                     )
                 else:
-                    mean_value_matrix[i, m] = numpy.nanmean(
-                        predictor_matrix[i, ..., m])
-                    standard_deviation_matrix[i, m] = numpy.nanstd(
-                        predictor_matrix[i, ..., m], ddof=1)
+                    mean_value_matrix[i, k] = numpy.nanmean(
+                        predictor_matrix[i, ..., k]
+                    )
+                    standard_deviation_matrix[i, k] = numpy.nanstd(
+                        predictor_matrix[i, ..., k], ddof=1
+                    )
 
-                predictor_matrix[i, ..., m] = (
-                    (predictor_matrix[i, ..., m] - mean_value_matrix[i, m]) /
-                    standard_deviation_matrix[i, m]
+                predictor_matrix[i, ..., k] = (
+                    (predictor_matrix[i, ..., k] - mean_value_matrix[i, k]) /
+                    standard_deviation_matrix[i, k]
                 )
 
     normalization_dict = {
@@ -546,10 +655,11 @@ def normalize_predictors(
     return predictor_matrix, normalization_dict
 
 
-def denormalize_predictors(predictor_matrix, normalization_dict):
-    """Deormalizes predictor variables.
+def denormalize_predictors_nonglobal(predictor_matrix, normalization_dict):
+    """Denormalizes predictor variables with different params for each example.
 
-    :param predictor_matrix: See output doc for `normalize_predictors`.
+    :param predictor_matrix: See output doc for
+        `normalize_predictors_nonglobal`.
     :param normalization_dict: Same.
     :return: predictor_matrix: Denormalized version of input (same dimensions).
     """
@@ -561,7 +671,8 @@ def denormalize_predictors(predictor_matrix, normalization_dict):
     num_examples = predictor_matrix.shape[0]
     num_predictors = predictor_matrix.shape[-1]
     expected_param_dimensions = numpy.array(
-        [num_examples, num_predictors], dtype=int)
+        [num_examples, num_predictors], dtype=int
+    )
 
     if normalization_dict[MIN_VALUE_MATRIX_KEY] is None:
         normalization_type_string = Z_SCORE_STRING + ''
@@ -583,8 +694,7 @@ def denormalize_predictors(predictor_matrix, normalization_dict):
         for i in range(num_examples):
             for m in range(num_predictors):
                 predictor_matrix[i, ..., m] = (
-                    min_value_matrix[i, m] +
-                    predictor_matrix[i, ..., m] *
+                    min_value_matrix[i, m] + predictor_matrix[i, ..., m] *
                     (max_value_matrix[i, m] - min_value_matrix[i, m])
                 )
     else:
@@ -596,16 +706,17 @@ def denormalize_predictors(predictor_matrix, normalization_dict):
             mean_value_matrix, exact_dimensions=expected_param_dimensions)
 
         error_checking.assert_is_numpy_array_without_nan(
-            standard_deviation_matrix)
+            standard_deviation_matrix
+        )
         error_checking.assert_is_numpy_array(
             standard_deviation_matrix,
-            exact_dimensions=expected_param_dimensions)
+            exact_dimensions=expected_param_dimensions
+        )
 
         for i in range(num_examples):
             for m in range(num_predictors):
                 predictor_matrix[i, ..., m] = (
-                    mean_value_matrix[i, m] +
-                    predictor_matrix[i, ..., m] *
+                    mean_value_matrix[i, m] + predictor_matrix[i, ..., m] *
                     standard_deviation_matrix[i, m]
                 )
 

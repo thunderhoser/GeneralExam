@@ -1046,7 +1046,7 @@ def _run(example_file_name, num_examples_to_plot, model_file_name,
             examples_io.SECOND_NORM_PARAM_KEY]
 
     example_dict[examples_io.PREDICTOR_MATRIX_KEY] = (
-        ml_utils.denormalize_predictors(
+        ml_utils.denormalize_predictors_nonglobal(
             predictor_matrix=example_dict[examples_io.PREDICTOR_MATRIX_KEY],
             normalization_dict=normalization_dict)
     )

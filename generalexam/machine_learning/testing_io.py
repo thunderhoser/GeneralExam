@@ -57,7 +57,7 @@ def create_downsized_examples_no_targets(
     :param predictor_names: length-C list of predictor names (each must be
         accepted by `predictor_utils.check_field_name`).
     :param normalization_type_string: Normalization method for predictors (see
-        doc for `machine_learning_utils.normalize_predictors`).
+        doc for `machine_learning_utils.normalize_predictors_nonglobal`).
     :return: result_dict: Dictionary with the following keys.
     result_dict['predictor_matrix']: E-by-m-by-n-by-C numpy array of predictor
         values.
@@ -87,9 +87,10 @@ def create_downsized_examples_no_targets(
                 )
             )
 
-        full_size_predictor_matrix, _ = ml_utils.normalize_predictors(
+        full_size_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
             predictor_matrix=full_size_predictor_matrix,
-            normalization_type_string=normalization_type_string)
+            normalization_type_string=normalization_type_string
+        )[0]
 
     error_checking.assert_is_integer_numpy_array(center_row_indices)
     error_checking.assert_is_numpy_array(center_row_indices, num_dimensions=1)
@@ -205,9 +206,10 @@ def create_downsized_examples_with_targets(
                 )
             )
 
-        full_size_predictor_matrix, _ = ml_utils.normalize_predictors(
+        full_size_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
             predictor_matrix=full_size_predictor_matrix,
-            normalization_type_string=normalization_type_string)
+            normalization_type_string=normalization_type_string
+        )[0]
 
         gridded_front_file_name = fronts_io.find_gridded_file(
             top_directory_name=top_gridded_front_dir_name,
@@ -356,9 +358,10 @@ def create_full_size_example(
         )
 
     predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(predictor_matrix)
-    predictor_matrix, _ = ml_utils.normalize_predictors(
+    predictor_matrix = ml_utils.normalize_predictors_nonglobal(
         predictor_matrix=predictor_matrix,
-        normalization_type_string=normalization_type_string)
+        normalization_type_string=normalization_type_string
+    )[0]
 
     print('Reading data from: "{0:s}"...'.format(gridded_front_file_name))
     gridded_front_table = fronts_io.read_grid_from_file(

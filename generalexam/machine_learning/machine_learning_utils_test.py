@@ -175,7 +175,7 @@ NUM_POINTS_BY_CLASS_TERNARY_SMALL = numpy.array([1, 1, 2])
 CLASS_WEIGHT_DICT_BINARY = {0: 0.9, 1: 0.1}
 CLASS_WEIGHT_DICT_TERNARY = {0: 0.6087, 1: 0.3043, 2: 0.0870}
 
-# The following constants are used to test normalize_predictors with
+# The following constants are used to test normalize_predictors_nonglobal with
 # normalization type = "minmax".
 PRCTILE_OFFSET_FOR_NORMALIZATION = 0.
 
@@ -231,7 +231,7 @@ THIS_SECOND_MATRIX_4D = numpy.stack(
 PREDICTOR_MATRIX_5D_MINMAX_NORM = numpy.stack(
     (THIS_FIRST_MATRIX_4D, THIS_SECOND_MATRIX_4D), axis=-2)
 
-# The following constants are used to test normalize_predictors with
+# The following constants are used to test normalize_predictors_nonglobal with
 # normalization type = "z_score".
 THIS_MEAN = numpy.mean(FIRST_PREDICTOR_MATRIX_2D)
 THIS_STDEV = numpy.std(FIRST_PREDICTOR_MATRIX_2D, ddof=1)
@@ -1162,14 +1162,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
                 CLASS_WEIGHT_DICT_TERNARY[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
-    def test_normalize_predictors_4d_minmax(self):
-        """Ensures correct output from normalize_predictors.
+    def test_normalize_4d_minmax(self):
+        """Ensures correct output from normalize_predictors_nonglobal.
 
         In this case, predictor matrix is 4-D (no time dimension) and
         normalization method is min-max.
         """
 
-        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+        this_predictor_matrix, _ = ml_utils.normalize_predictors_nonglobal(
             predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
             normalization_type_string=ml_utils.MINMAX_STRING,
             percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
@@ -1179,14 +1179,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_normalize_predictors_5d_minmax(self):
-        """Ensures correct output from normalize_predictors.
+    def test_normalize_5d_minmax(self):
+        """Ensures correct output from normalize_predictors_nonglobal.
 
         In this case, predictor matrix is 5-D (has time dimension) and
         normalization method is min-max.
         """
 
-        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+        this_predictor_matrix, _ = ml_utils.normalize_predictors_nonglobal(
             predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
             normalization_type_string=ml_utils.MINMAX_STRING,
             percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
@@ -1196,14 +1196,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_normalize_predictors_4d_z(self):
-        """Ensures correct output from normalize_predictors.
+    def test_normalize_4d_zscore(self):
+        """Ensures correct output from normalize_predictors_nonglobal.
 
         In this case, predictor matrix is 4-D (no time dimension) and
         normalization method is z-score.
         """
 
-        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+        this_predictor_matrix, _ = ml_utils.normalize_predictors_nonglobal(
             predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
             normalization_type_string=ml_utils.Z_SCORE_STRING)
 
@@ -1212,14 +1212,14 @@ class MachineLearningUtilsTests(unittest.TestCase):
             equal_nan=True
         ))
 
-    def test_normalize_predictors_5d_z(self):
-        """Ensures correct output from normalize_predictors.
+    def test_normalize_5d_zscore(self):
+        """Ensures correct output from normalize_predictors_nonglobal.
 
         In this case, predictor matrix is 5-D (has time dimension) and
         normalization method is z-score.
         """
 
-        this_predictor_matrix, _ = ml_utils.normalize_predictors(
+        this_predictor_matrix, _ = ml_utils.normalize_predictors_nonglobal(
             predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
             normalization_type_string=ml_utils.Z_SCORE_STRING)
 
@@ -1228,21 +1228,21 @@ class MachineLearningUtilsTests(unittest.TestCase):
             equal_nan=True
         ))
 
-    def test_denormalize_predictors_4d_minmax(self):
-        """Ensures correct output from denormalize_predictors.
+    def test_denormalize_4d_minmax(self):
+        """Ensures correct output from denormalize_predictors_nonglobal.
 
         In this case, predictor matrix is 4-D (no time dimension) and
         normalization method is min-max.
         """
 
         this_predictor_matrix, this_normalization_dict = (
-            ml_utils.normalize_predictors(
+            ml_utils.normalize_predictors_nonglobal(
                 predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
                 normalization_type_string=ml_utils.MINMAX_STRING,
                 percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
         )
 
-        this_predictor_matrix = ml_utils.denormalize_predictors(
+        this_predictor_matrix = ml_utils.denormalize_predictors_nonglobal(
             predictor_matrix=this_predictor_matrix,
             normalization_dict=this_normalization_dict)
 
@@ -1251,21 +1251,21 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_denormalize_predictors_5d_minmax(self):
-        """Ensures correct output from denormalize_predictors.
+    def test_denormalize_5d_minmax(self):
+        """Ensures correct output from denormalize_predictors_nonglobal.
 
         In this case, predictor matrix is 5-D (no time dimension) and
         normalization method is min-max.
         """
 
         this_predictor_matrix, this_normalization_dict = (
-            ml_utils.normalize_predictors(
+            ml_utils.normalize_predictors_nonglobal(
                 predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
                 normalization_type_string=ml_utils.MINMAX_STRING,
                 percentile_offset=PRCTILE_OFFSET_FOR_NORMALIZATION)
         )
 
-        this_predictor_matrix = ml_utils.denormalize_predictors(
+        this_predictor_matrix = ml_utils.denormalize_predictors_nonglobal(
             predictor_matrix=this_predictor_matrix,
             normalization_dict=this_normalization_dict)
 
@@ -1274,20 +1274,20 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_denormalize_predictors_4d_z(self):
-        """Ensures correct output from denormalize_predictors.
+    def test_denormalize_4d_zscore(self):
+        """Ensures correct output from denormalize_predictors_nonglobal.
 
         In this case, predictor matrix is 4-D (no time dimension) and
         normalization method is z-score.
         """
 
         this_predictor_matrix, this_normalization_dict = (
-            ml_utils.normalize_predictors(
+            ml_utils.normalize_predictors_nonglobal(
                 predictor_matrix=PREDICTOR_MATRIX_4D_DENORM + 0.,
                 normalization_type_string=ml_utils.Z_SCORE_STRING)
         )
 
-        this_predictor_matrix = ml_utils.denormalize_predictors(
+        this_predictor_matrix = ml_utils.denormalize_predictors_nonglobal(
             predictor_matrix=this_predictor_matrix,
             normalization_dict=this_normalization_dict)
 
@@ -1296,20 +1296,20 @@ class MachineLearningUtilsTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_denormalize_predictors_5d_z(self):
-        """Ensures correct output from denormalize_predictors.
+    def test_denormalize_5d_zscore(self):
+        """Ensures correct output from denormalize_predictors_nonglobal.
 
         In this case, predictor matrix is 5-D (no time dimension) and
         normalization method is z-score.
         """
 
         this_predictor_matrix, this_normalization_dict = (
-            ml_utils.normalize_predictors(
+            ml_utils.normalize_predictors_nonglobal(
                 predictor_matrix=PREDICTOR_MATRIX_5D_DENORM + 0.,
                 normalization_type_string=ml_utils.Z_SCORE_STRING)
         )
 
-        this_predictor_matrix = ml_utils.denormalize_predictors(
+        this_predictor_matrix = ml_utils.denormalize_predictors_nonglobal(
             predictor_matrix=this_predictor_matrix,
             normalization_dict=this_normalization_dict)
 

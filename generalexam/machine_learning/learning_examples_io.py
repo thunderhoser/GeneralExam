@@ -317,7 +317,7 @@ def create_examples(
         the 3 classes (no front, warm front, cold front).
     :param max_num_examples: Max number of examples to create.
     :param normalization_type_string: Normalization method for predictors (see
-        `machine_learning_utils.normalize_predictors`).
+        `machine_learning_utils.normalize_predictors_nonglobal`).
     :param narr_mask_matrix: See doc for
         `machine_learning_utils.check_narr_mask`.  Masked grid cells will not be
         used as the center of a learning example.  If this is None, no grid
@@ -383,9 +383,11 @@ def create_examples(
     if narr_mask_matrix is None:
         narr_mask_matrix = numpy.full(predictor_matrix.shape[1:3], 1, dtype=int)
 
-    predictor_matrix, normalization_dict = ml_utils.normalize_predictors(
-        predictor_matrix=predictor_matrix,
-        normalization_type_string=normalization_type_string)
+    predictor_matrix, normalization_dict = (
+        ml_utils.normalize_predictors_nonglobal(
+            predictor_matrix=predictor_matrix,
+            normalization_type_string=normalization_type_string)
+    )
 
     print('Reading data from: "{0:s}"...'.format(gridded_front_file_name))
     gridded_front_table = fronts_io.read_grid_from_file(

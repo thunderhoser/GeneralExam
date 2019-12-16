@@ -169,7 +169,7 @@ def downsized_generator_from_scratch(
         the above discussion) will be `2 * num_half_rows + 1`.
     :param num_half_columns: Same but for columns.
     :param normalization_type_string: Normalization method for predictors (see
-        doc for `machine_learning_utils.normalize_predictors`).
+        doc for `machine_learning_utils.normalize_predictors_nonglobal`).
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param class_fractions: length-K numpy array with sampling fraction for each
@@ -270,9 +270,12 @@ def downsized_generator_from_scratch(
                         this_full_predictor_matrix[..., j])
                 )
 
-            this_full_predictor_matrix, _ = ml_utils.normalize_predictors(
-                predictor_matrix=this_full_predictor_matrix,
-                normalization_type_string=normalization_type_string)
+            this_full_predictor_matrix = (
+                ml_utils.normalize_predictors_nonglobal(
+                    predictor_matrix=this_full_predictor_matrix,
+                    normalization_type_string=normalization_type_string
+                )[0]
+            )
 
             print('Reading data from: "{0:s}"...'.format(this_front_file_name))
             this_gridded_front_table = fronts_io.read_grid_from_file(
@@ -600,9 +603,10 @@ def full_size_generator_from_scratch(
 
             this_predictor_matrix = ml_utils.subset_narr_grid_for_fcn_input(
                 this_predictor_matrix)
-            this_predictor_matrix, _ = ml_utils.normalize_predictors(
+            this_predictor_matrix = ml_utils.normalize_predictors_nonglobal(
                 predictor_matrix=this_predictor_matrix,
-                normalization_type_string=normalization_type_string)
+                normalization_type_string=normalization_type_string
+            )[0]
 
             print('Reading data from: "{0:s}"...'.format(this_front_file_name))
             this_gridded_front_table = fronts_io.read_grid_from_file(
