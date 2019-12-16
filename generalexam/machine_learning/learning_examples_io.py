@@ -134,13 +134,19 @@ def _file_name_to_batch_number(example_file_name):
         raise ValueError(error_string)
 
 
-def _subset_channels(example_dict, metadata_only, indices_to_keep):
-    """Subsets examples by predictor channel.
+def _subset_channels(example_dict, metadata_only, predictor_names,
+                     pressure_levels_mb, normalization_file_name):
+    """Subsets examples by channel.
+
+    C = number of channels to keep
 
     :param example_dict: Dictionary in the format returned by `read_file`.
     :param metadata_only: Boolean flag.  If True, will expect only metadata in
         `example_dict`.
-    :param indices_to_keep: 1-D numpy array with indices of channels to keep.
+    :param predictor_names: length-C list of predictor names.
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
+    :param normalization_file_name: See doc for `read_file`.
     :return: example_dict: Same as input but with the following exceptions.
 
     [1] Keys "narr_predictor_names" and "pressure_levels_mb" may have different
@@ -150,13 +156,63 @@ def _subset_channels(example_dict, metadata_only, indices_to_keep):
         "second_normalization_param_matrix" may be shorter.
     """
 
+    # Check input args.
+    error_checking.assert_is_string_list(predictor_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(predictor_names), num_dimensions=1
+    )
+
+    error_checking.assert_is_numpy_array(pressure_levels_mb)
+    pressure_levels_mb = numpy.round(pressure_levels_mb).astype(int)
+
+    num_channels = len(predictor_names)
+    these_expected_dim = numpy.array([num_channels], dtype=int)
+    error_checking.assert_is_numpy_array(
+        pressure_levels_mb, exact_dimensions=these_expected_dim
+    )
+
+    orography_flags = numpy.logical_and(
+        numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
+        pressure_levels_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+    )
+    add_orography = numpy.any(orography_flags)
+
+    if add_orography:
+        these_indices = numpy.where(numpy.invert(orography_flags))[0]
+        predictor_names = [predictor_names[k] for k in these_indices]
+        pressure_levels_mb = pressure_levels_mb[these_indices]
+
+    # Do the subsetting.
+    all_predictor_names = numpy.array(example_dict[PREDICTOR_NAMES_KEY])
+    all_pressure_levels_mb = example_dict[PRESSURE_LEVELS_KEY]
+
+    indices_to_keep = [
+        numpy.where(numpy.logical_and(
+            all_predictor_names == n, all_pressure_levels_mb == l
+        ))[0][0]
+        for n, l in zip(predictor_names, pressure_levels_mb)
+    ]
+
     example_dict[PREDICTOR_NAMES_KEY] = [
         example_dict[PREDICTOR_NAMES_KEY][k] for k in indices_to_keep
     ]
-    example_dict[PRESSURE_LEVELS_KEY] = example_dict[PRESSURE_LEVELS_KEY][
-        indices_to_keep]
+    example_dict[PRESSURE_LEVELS_KEY] = (
+        example_dict[PRESSURE_LEVELS_KEY][indices_to_keep]
+    )
 
     if metadata_only:
+        if add_orography:
+            dummy_pressures_mb = numpy.array(
+                [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+            )
+
+            example_dict[PREDICTOR_NAMES_KEY].append(
+                predictor_utils.HEIGHT_NAME
+            )
+            example_dict[PRESSURE_LEVELS_KEY] = numpy.concatenate((
+                example_dict[PRESSURE_LEVELS_KEY], dummy_pressures_mb
+            ), axis=0)
+
         return example_dict
 
     example_dict[PREDICTOR_MATRIX_KEY] = example_dict[PREDICTOR_MATRIX_KEY][
@@ -169,7 +225,12 @@ def _subset_channels(example_dict, metadata_only, indices_to_keep):
         ..., indices_to_keep
     ]
 
-    return example_dict
+    if not add_orography:
+        return example_dict
+
+    return _add_orography_to_examples(
+        example_dict=example_dict,
+        normalization_file_name=normalization_file_name)
 
 
 def _read_specific_examples(netcdf_dataset_object, metadata_only,
@@ -1289,55 +1350,10 @@ def read_file(
     if predictor_names_to_keep is None or pressure_levels_to_keep_mb is None:
         return example_dict
 
-    all_predictor_names = example_dict[PREDICTOR_NAMES_KEY]
-    all_pressure_levels_mb = example_dict[PRESSURE_LEVELS_KEY]
-
-    error_checking.assert_is_string_list(predictor_names_to_keep)
-    error_checking.assert_is_numpy_array(
-        numpy.array(predictor_names_to_keep), num_dimensions=1
-    )
-
-    error_checking.assert_is_numpy_array(pressure_levels_to_keep_mb)
-    pressure_levels_to_keep_mb = numpy.round(
-        pressure_levels_to_keep_mb
-    ).astype(int)
-
-    num_channels = len(predictor_names_to_keep)
-    these_expected_dim = numpy.array([num_channels], dtype=int)
-    error_checking.assert_is_numpy_array(
-        pressure_levels_to_keep_mb, exact_dimensions=these_expected_dim
-    )
-
-    orography_flags = numpy.logical_and(
-        numpy.array(predictor_names_to_keep) == predictor_utils.HEIGHT_NAME,
-        pressure_levels_to_keep_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
-    )
-    add_orography = numpy.any(orography_flags)
-
-    if add_orography:
-        these_indices = numpy.where(numpy.invert(orography_flags))[0]
-        predictor_names_to_keep = [
-            predictor_names_to_keep[k] for k in these_indices
-        ]
-        pressure_levels_to_keep_mb = pressure_levels_to_keep_mb[these_indices]
-
-    good_channel_indices = [
-        numpy.where(numpy.logical_and(
-            numpy.array(all_predictor_names) == n,
-            all_pressure_levels_mb == l
-        ))[0][0]
-        for n, l in zip(predictor_names_to_keep, pressure_levels_to_keep_mb)
-    ]
-
-    example_dict = _subset_channels(
+    return _subset_channels(
         example_dict=example_dict, metadata_only=metadata_only,
-        indices_to_keep=good_channel_indices)
-
-    if not add_orography:
-        return example_dict
-
-    return _add_orography_to_examples(
-        example_dict=example_dict,
+        predictor_names=predictor_names_to_keep,
+        pressure_levels_mb=pressure_levels_to_keep_mb,
         normalization_file_name=normalization_file_name)
 
 

@@ -1,12 +1,12 @@
 """IO methods for predictors (processed NARR or ERA5 grids)."""
 
-import copy
 import pickle
 import os.path
 import numpy
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import predictor_utils
@@ -18,6 +18,147 @@ ROW_DIMENSION_KEY = 'grid_row'
 COLUMN_DIMENSION_KEY = 'grid_column'
 FIELD_DIMENSION_KEY = 'field'
 FIELD_NAME_CHAR_DIM_KEY = 'field_name_character'
+
+THIS_DIR_NAME = os.path.dirname(__file__)
+PARENT_DIR_NAME = '/'.join(THIS_DIR_NAME.split('/')[:-1])
+OROGRAPHY_FILE_NAME = '{0:s}/era5_orography.nc'.format(PARENT_DIR_NAME)
+
+DATASET_OBJECT = netcdf_io.open_netcdf(OROGRAPHY_FILE_NAME)
+FULL_OROGRAPHY_MATRIX_M_ASL = numpy.array(
+    DATASET_OBJECT.variables[predictor_utils.DATA_MATRIX_KEY][:]
+)
+FULL_OROGRAPHY_MATRIX_M_ASL = numpy.expand_dims(
+    FULL_OROGRAPHY_MATRIX_M_ASL, axis=0
+)
+DATASET_OBJECT.close()
+
+
+def _add_orography(predictor_dict):
+    """Adds orography (surface height above sea level) as predictor.
+
+    :param predictor_dict: See doc for `predictor_utils.check_predictor_dict`.
+    :return: predictor_dict: Same but with extra predictor.
+    """
+
+    predictor_matrix = predictor_dict[predictor_utils.DATA_MATRIX_KEY]
+    grid_name = nwp_model_utils.dimensions_to_grid(
+        num_rows=predictor_matrix.shape[1],
+        num_columns=predictor_matrix.shape[2]
+    )
+
+    if grid_name == nwp_model_utils.NAME_OF_EXTENDED_221GRID:
+        new_predictor_matrix = FULL_OROGRAPHY_MATRIX_M_ASL
+    else:
+        new_predictor_matrix = (
+            FULL_OROGRAPHY_MATRIX_M_ASL[:, 100:-100, 100:-100, :]
+        )
+
+    num_times = predictor_matrix.shape[0]
+    new_predictor_matrix = numpy.repeat(
+        new_predictor_matrix, repeats=num_times, axis=0
+    )
+    predictor_matrix = numpy.concatenate(
+        (predictor_matrix, new_predictor_matrix), axis=-1
+    )
+
+    dummy_pressures_mb = numpy.array(
+        [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+    )
+
+    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_matrix
+    predictor_dict[predictor_utils.FIELD_NAMES_KEY].append(
+        predictor_utils.HEIGHT_NAME
+    )
+    predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] = numpy.concatenate((
+        predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY], dummy_pressures_mb
+    ), axis=0)
+
+    return predictor_dict
+
+
+def _subset_channels(predictor_dict, metadata_only, field_names,
+                     pressure_levels_mb):
+    """Subsets predictors by channel.
+
+    C = number of channels to keep
+
+    :param predictor_dict: See doc for `predictor_utils.check_predictor_dict`.
+    :param metadata_only: Boolean flag.  If True, will change only metadata in
+        `predictor_dict`.
+    :param field_names: length-C list of field names.
+    :param pressure_levels_mb: length-C numpy array of pressure levels
+        (millibars).
+    :return: example_dict: Same as input but maybe with different channels.
+    """
+
+    # Check input args.
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names), num_dimensions=1
+    )
+
+    error_checking.assert_is_numpy_array(pressure_levels_mb)
+    pressure_levels_mb = numpy.round(pressure_levels_mb).astype(int)
+
+    num_channels = len(field_names)
+    these_expected_dim = numpy.array([num_channels], dtype=int)
+    error_checking.assert_is_numpy_array(
+        pressure_levels_mb, exact_dimensions=these_expected_dim
+    )
+
+    orography_flags = numpy.logical_and(
+        numpy.array(field_names) == predictor_utils.HEIGHT_NAME,
+        pressure_levels_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+    )
+    add_orography = numpy.any(orography_flags)
+
+    if add_orography:
+        these_indices = numpy.where(numpy.invert(orography_flags))[0]
+        field_names = [field_names[k] for k in these_indices]
+        pressure_levels_mb = pressure_levels_mb[these_indices]
+
+    # Do the subsetting.
+    all_field_names = numpy.array(
+        predictor_dict[predictor_utils.FIELD_NAMES_KEY]
+    )
+    all_pressure_levels_mb = predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY]
+
+    indices_to_keep = [
+        numpy.where(numpy.logical_and(
+            all_field_names == n, all_pressure_levels_mb == l
+        ))[0][0]
+        for n, l in zip(field_names, pressure_levels_mb)
+    ]
+
+    predictor_dict[predictor_utils.FIELD_NAMES_KEY] = field_names
+    predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] = pressure_levels_mb
+
+    if metadata_only:
+        if add_orography:
+            dummy_pressures_mb = numpy.array(
+                [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+            )
+
+            predictor_dict[predictor_utils.FIELD_NAMES_KEY].append(
+                predictor_utils.HEIGHT_NAME
+            )
+            predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] = (
+                numpy.concatenate((
+                    predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY],
+                    dummy_pressures_mb
+                ), axis=0)
+            )
+
+        return predictor_dict
+
+    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = (
+        predictor_dict[predictor_utils.DATA_MATRIX_KEY][..., indices_to_keep]
+    )
+
+    if not add_orography:
+        return predictor_dict
+
+    return _add_orography(predictor_dict)
 
 
 def find_file(
@@ -56,7 +197,7 @@ def write_file(netcdf_file_name, predictor_dict):
     """Writes data to predictor file (NetCDF with all data at one time step).
 
     :param netcdf_file_name: Path to output file.
-    :param predictor_dict: See doc for `check_predictor_dict`.
+    :param predictor_dict: See doc for `predictor_utils.check_predictor_dict`.
     :raises: ValueError: if `predictor_dict` contains more than one time step.
     """
 
@@ -228,56 +369,26 @@ def read_file(
             predictor_utils.LONGITUDES_KEY: None
         })
 
-    if metadata_only:
+    if not metadata_only:
+        predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.array(
+            dataset_object.variables[predictor_utils.DATA_MATRIX_KEY][:]
+        )
+        predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.expand_dims(
+            predictor_dict[predictor_utils.DATA_MATRIX_KEY], axis=0
+        )
+
+        if is_old_file:
+            predictor_dict[predictor_utils.DATA_MATRIX_KEY] = (
+                predictor_dict[predictor_utils.DATA_MATRIX_KEY][..., 0, :]
+            )
+
+    if field_names_to_keep is None or pressure_levels_to_keep_mb is None:
         return predictor_dict
 
-    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.array(
-        dataset_object.variables[predictor_utils.DATA_MATRIX_KEY][:]
-    )
-    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = numpy.expand_dims(
-        predictor_dict[predictor_utils.DATA_MATRIX_KEY], axis=0)
-
-    if is_old_file:
-        predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_dict[
-            predictor_utils.DATA_MATRIX_KEY][..., 0, :]
-
-    if field_names_to_keep is None and pressure_levels_to_keep_mb is None:
-        field_names_to_keep = copy.deepcopy(
-            predictor_dict[predictor_utils.FIELD_NAMES_KEY]
-        )
-        pressure_levels_to_keep_mb = (
-            predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] + 0
-        )
-
-    pressure_levels_to_keep_mb = numpy.round(
-        pressure_levels_to_keep_mb
-    ).astype(int)
-
-    error_checking.assert_is_numpy_array(
-        numpy.array(field_names_to_keep), num_dimensions=1)
-
-    num_fields_to_keep = len(field_names_to_keep)
-    error_checking.assert_is_numpy_array(
-        pressure_levels_to_keep_mb,
-        exact_dimensions=numpy.array([num_fields_to_keep], dtype=int)
-    )
-
-    field_indices = [
-        numpy.where(numpy.logical_and(
-            numpy.array(predictor_dict[predictor_utils.FIELD_NAMES_KEY]) == f,
-            predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY] == p
-        ))[0][0]
-        for f, p in zip(field_names_to_keep, pressure_levels_to_keep_mb)
-    ]
-
-    predictor_dict[
-        predictor_utils.PRESSURE_LEVELS_KEY] = pressure_levels_to_keep_mb
-    predictor_dict[predictor_utils.FIELD_NAMES_KEY] = field_names_to_keep
-
-    predictor_dict[predictor_utils.DATA_MATRIX_KEY] = predictor_dict[
-        predictor_utils.DATA_MATRIX_KEY][..., field_indices]
-
-    return predictor_dict
+    return _subset_channels(
+        predictor_dict=predictor_dict, metadata_only=metadata_only,
+        field_names=field_names_to_keep,
+        pressure_levels_mb=pressure_levels_to_keep_mb)
 
 
 def write_normalization_params(mean_value_dict, standard_deviation_dict,
