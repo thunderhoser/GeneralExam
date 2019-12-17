@@ -308,40 +308,41 @@ def find_best_determinization_threshold(
 
     :return: best_threshold: Best probability threshold.
     :return: best_score: Score at best probability threshold.
+    :return: all_thresholds: 1-D numpy array with all thresholds attempted.
     """
 
     check_predictions_and_obs(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 
-    thresholds = numpy.linspace(0., 1., num=NUM_DETERMINIZATION_THRESHOLDS)
+    all_thresholds = numpy.linspace(0., 1., num=NUM_DETERMINIZATION_THRESHOLDS)
     score_by_threshold = numpy.full(NUM_DETERMINIZATION_THRESHOLDS, numpy.nan)
 
-    for k in range(NUM_DETERMINIZATION_THRESHOLDS):
-        if numpy.mod(k, 10) == 0:
+    for i in range(NUM_DETERMINIZATION_THRESHOLDS):
+        if numpy.mod(i, 10) == 0:
             print((
                 'Have tried {0:d} of {1:d} determinization thresholds...'
             ).format(
-                k, NUM_DETERMINIZATION_THRESHOLDS
+                i, NUM_DETERMINIZATION_THRESHOLDS
             ))
 
         these_predicted_labels = determinize_predictions(
             class_probability_matrix=class_probability_matrix,
-            threshold=thresholds[k]
+            threshold=all_thresholds[i]
         )
 
         this_contingency_matrix = get_contingency_table(
             predicted_labels=these_predicted_labels,
             observed_labels=observed_labels)
 
-        score_by_threshold[k] = scoring_function(this_contingency_matrix)
+        score_by_threshold[i] = scoring_function(this_contingency_matrix)
 
     print('Have tried all {0:d} determinization thresholds!'.format(
         NUM_DETERMINIZATION_THRESHOLDS
     ))
 
     best_score = numpy.nanmax(score_by_threshold)
-    best_threshold = thresholds[numpy.nanargmax(score_by_threshold)]
+    best_threshold = all_thresholds[numpy.nanargmax(score_by_threshold)]
 
     return best_threshold, best_score
 
