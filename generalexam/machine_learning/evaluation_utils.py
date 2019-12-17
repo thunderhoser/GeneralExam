@@ -1,56 +1,48 @@
 """Methods for evaluating probabilistic binary or multiclass classification."""
 
-import pickle
 import numpy
+import xarray
+from gewittergefahr.gg_utils import model_evaluation as gg_evaluation
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 NUM_CLASSES = 3
+NUM_BINS_FOR_RELIABILITY = 20
 NUM_DETERMINIZATION_THRESHOLDS = 1001
 
-NARR_TIME_INTERVAL_SECONDS = 10800
-DEFAULT_FORECAST_PRECISION = 1e-3
-LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
+BOOTSTRAP_REPLICATE_DIM = 'bootstrap_replicate'
+DETERMINIZN_THRESHOLD_DIM = 'determinizn_threshold'
+PROBABILITY_BIN_DIM = 'probability_bin'
+PREDICTED_CLASS_DIM = 'predicted_class'
+OBSERVED_CLASS_DIM = 'observed_class'
+EXAMPLE_DIM = 'example'
 
-MIN_OPTIMIZATION_DIRECTION = 'min'
-MAX_OPTIMIZATION_DIRECTION = 'max'
-VALID_OPTIMIZATION_DIRECTIONS = [
-    MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION
-]
-
-CLASS_PROBABILITY_MATRIX_KEY = 'class_probability_matrix'
-OBSERVED_LABELS_KEY = 'observed_labels'
-BINARIZATION_THRESHOLD_KEY = 'binarization_threshold'
 ACCURACY_KEY = 'accuracy'
 PEIRCE_SCORE_KEY = 'peirce_score'
 HEIDKE_SCORE_KEY = 'heidke_score'
 GERRITY_SCORE_KEY = 'gerrity_score'
 BINARY_POD_KEY = 'binary_pod'
 BINARY_POFD_KEY = 'binary_pofd'
-BINARY_SUCCESS_RATIO_KEY = 'binary_success_ratio'
-BINARY_FOCN_KEY = 'binary_focn'
-BINARY_ACCURACY_KEY = 'binary_accuracy'
-BINARY_CSI_KEY = 'binary_csi'
-BINARY_FREQUENCY_BIAS_KEY = 'binary_frequency_bias'
-AUC_BY_CLASS_KEY = 'auc_by_class'
-SCIKIT_LEARN_AUC_BY_CLASS_KEY = 'scikit_learn_auc_by_class'
-AUPD_BY_CLASS_KEY = 'aupd_by_class'
-RELIABILITY_BY_CLASS_KEY = 'reliability_by_class'
-BSS_BY_CLASS_KEY = 'bss_by_class'
+BINARY_FAR_KEY = 'binary_far'
+BINARY_FREQ_BIAS_KEY = 'binary_freq_bias'
+CSI_KEY = 'critical_success_index'
 
-REQUIRED_KEYS = [
-    CLASS_PROBABILITY_MATRIX_KEY, OBSERVED_LABELS_KEY,
-    BINARIZATION_THRESHOLD_KEY, ACCURACY_KEY, PEIRCE_SCORE_KEY,
-    HEIDKE_SCORE_KEY, GERRITY_SCORE_KEY, BINARY_POD_KEY, BINARY_POFD_KEY,
-    BINARY_SUCCESS_RATIO_KEY, BINARY_FOCN_KEY, BINARY_ACCURACY_KEY,
-    BINARY_CSI_KEY, BINARY_FREQUENCY_BIAS_KEY, AUC_BY_CLASS_KEY,
-    SCIKIT_LEARN_AUC_BY_CLASS_KEY, AUPD_BY_CLASS_KEY, RELIABILITY_BY_CLASS_KEY,
-    BSS_BY_CLASS_KEY
-]
+AREA_UNDER_ROCC_KEY = 'area_under_roc_curve'
+AREA_UNDER_PD_KEY = 'area_under_perf_diagram'
 
-TICK_LABEL_FONT_SIZE = 35
-FIGURE_WIDTH_INCHES = 15
-FIGURE_HEIGHT_INCHES = 15
+MEAN_PROBABILITY_KEY = 'mean_probability'
+EVENT_FREQUENCY_KEY = 'event_frequency'
+NUM_EXAMPLES_KEY = 'num_examples'
+RESOLUTION_KEY = 'resolution'
+RELIABILITY_KEY = 'reliability'
+BSS_KEY = 'brier_skill_score'
+
+BEST_THRESHOLD_KEY = 'best_determinization_threshold'
+CONTINGENCY_MATRIX_KEY = 'contingency_matrix'
+
+CLASS_PROBABILITY_KEY = 'class_probability'
+OBSERVED_LABEL_KEY = 'observed_label'
+CLIMO_COUNT_KEY = 'climo_count'
 
 
 def _check_contingency_table(contingency_matrix):
@@ -557,92 +549,246 @@ def get_csi(contingency_matrix):
         return numpy.nan
 
 
-def write_file(
-        class_probability_matrix, observed_labels, binarization_threshold,
-        accuracy, peirce_score, heidke_score, gerrity_score, binary_pod,
-        binary_pofd, binary_success_ratio, binary_focn, binary_accuracy,
-        binary_csi, binary_frequency_bias, auc_by_class,
-        scikit_learn_auc_by_class, aupd_by_class, reliability_by_class,
-        bss_by_class, pickle_file_name):
-    """Writes results to Pickle file.
+def run_evaluation(
+        class_probability_matrix, observed_labels, best_determinizn_threshold,
+        all_determinizn_thresholds, climo_counts, bootstrap_rep_index):
+    """Runs full model evaluation.
 
-    P = number of evaluation pairs (forecast-observation pairs)
-    K = number of classes
+    T = number of determinization thresholds
 
-    :param class_probability_matrix: P-by-K numpy array of class probabilities.
-    :param observed_labels: length-P numpy array of class labels (integers in
-        0...[K - 1]).
-    :param binarization_threshold: Probability threshold (on no-front
-        probability) used to discriminate between front and no front.
-    :param accuracy: Accuracy.
-    :param peirce_score: Peirce score.
-    :param heidke_score: Heidke score.
-    :param gerrity_score: Gerrity score.
-    :param binary_pod: Binary probability of detection.
-    :param binary_pofd: Binary probability of false detection.
-    :param binary_success_ratio: Binary success ratio.
-    :param binary_focn: Binary frequency of correct nulls.
-    :param binary_accuracy: Binary accuracy.
-    :param binary_csi: Binary CSI.
-    :param binary_frequency_bias: Binary frequency bias.
-    :param auc_by_class: length-K numpy array with AUC (area under ROC curve)
-        for each class.
-    :param scikit_learn_auc_by_class: Same but according to scikit-learn.
-    :param aupd_by_class: length-K numpy array with AUPD (area under performance
-        diagram) for each class.
-    :param reliability_by_class: length-K numpy array of reliabilities.
-    :param bss_by_class: length-K numpy array of Brier skill scores.
-    :param pickle_file_name: Path to output file.
+    :param class_probability_matrix: See doc for `check_predictions_and_obs`.
+    :param observed_labels: Same.
+    :param best_determinizn_threshold: Best determinization threshold.
+    :param all_determinizn_thresholds: length-T numpy array of determinization
+        thresholds.
+    :param climo_counts: length-3 numpy array with climatological count for each
+        class (used in attributes diagrams).
+    :param bootstrap_rep_index: Index for this bootstrap replicate.
+    :return: result_table_xarray: xarray table with results (variable and
+        dimension names should make the table self-explanatory).
     """
 
-    result_dict = {
-        CLASS_PROBABILITY_MATRIX_KEY: class_probability_matrix,
-        OBSERVED_LABELS_KEY: observed_labels,
-        BINARIZATION_THRESHOLD_KEY: binarization_threshold,
-        ACCURACY_KEY: accuracy,
-        PEIRCE_SCORE_KEY: peirce_score,
-        HEIDKE_SCORE_KEY: heidke_score,
-        GERRITY_SCORE_KEY: gerrity_score,
-        BINARY_POD_KEY: binary_pod,
-        BINARY_POFD_KEY: binary_pofd,
-        BINARY_SUCCESS_RATIO_KEY: binary_success_ratio,
-        BINARY_FOCN_KEY: binary_focn,
-        BINARY_ACCURACY_KEY: binary_accuracy,
-        BINARY_CSI_KEY: binary_csi,
-        BINARY_FREQUENCY_BIAS_KEY: binary_frequency_bias,
-        AUC_BY_CLASS_KEY: auc_by_class,
-        SCIKIT_LEARN_AUC_BY_CLASS_KEY: scikit_learn_auc_by_class,
-        AUPD_BY_CLASS_KEY: aupd_by_class,
-        RELIABILITY_BY_CLASS_KEY: reliability_by_class,
-        BSS_BY_CLASS_KEY: bss_by_class
+    # Check input args.
+    check_predictions_and_obs(class_probability_matrix=class_probability_matrix,
+                              observed_labels=observed_labels)
+
+    error_checking.assert_is_numpy_array(
+        all_determinizn_thresholds, num_dimensions=1
+    )
+    error_checking.assert_is_geq_numpy_array(all_determinizn_thresholds, 0.)
+    error_checking.assert_is_leq_numpy_array(all_determinizn_thresholds, 1.)
+    error_checking.assert_is_geq(best_determinizn_threshold, 0.)
+    error_checking.assert_is_leq(best_determinizn_threshold, 1.)
+
+    error_checking.assert_is_numpy_array(
+        climo_counts, exact_dimensions=numpy.array([NUM_CLASSES], dtype=int)
+    )
+    error_checking.assert_is_integer_numpy_array(climo_counts)
+    error_checking.assert_is_greater_numpy_array(climo_counts, 0)
+
+    error_checking.assert_is_integer(bootstrap_rep_index)
+    error_checking.assert_is_geq(bootstrap_rep_index, 0)
+
+    climo_frequencies = climo_counts.astype(float) / numpy.sum(climo_counts)
+    num_thresholds = len(all_determinizn_thresholds)
+
+    # Do calculations.
+    these_dim = (1, num_thresholds)
+    accuracy_matrix = numpy.full(these_dim, numpy.nan)
+    peirce_score_matrix = numpy.full(these_dim, numpy.nan)
+    heidke_score_matrix = numpy.full(these_dim, numpy.nan)
+    gerrity_score_matrix = numpy.full(these_dim, numpy.nan)
+    binary_pod_matrix = numpy.full(these_dim, numpy.nan)
+    binary_pofd_matrix = numpy.full(these_dim, numpy.nan)
+    binary_far_matrix = numpy.full(these_dim, numpy.nan)
+    binary_freq_bias_matrix = numpy.full(these_dim, numpy.nan)
+    csi_matrix = numpy.full(these_dim, numpy.nan)
+    contingency_table_matrix = numpy.full(
+        (1, num_thresholds, NUM_CLASSES, NUM_CLASSES), -1, dtype=int
+    )
+
+    for i in range(num_thresholds):
+        if numpy.mod(i, 10) == 0:
+            print((
+                'Have computed scores for {0:d} of {1:d} thresholds...'
+            ).format(
+                i, num_thresholds
+            ))
+
+        these_predicted_labels = determinize_predictions(
+            class_probability_matrix=class_probability_matrix,
+            threshold=all_determinizn_thresholds[i]
+        )
+
+        contingency_table_matrix[0, i, ...] = get_contingency_table(
+            predicted_labels=these_predicted_labels,
+            observed_labels=observed_labels)
+
+        this_ct_matrix = contingency_table_matrix[0, i, ...]
+
+        accuracy_matrix[0, i] = get_accuracy(this_ct_matrix)
+        peirce_score_matrix[0, i] = get_peirce_score(this_ct_matrix)
+        heidke_score_matrix[0, i] = get_heidke_score(this_ct_matrix)
+        gerrity_score_matrix[0, i] = get_gerrity_score(this_ct_matrix)
+        binary_pod_matrix[0, i] = get_binary_pod(this_ct_matrix)
+        binary_pofd_matrix[0, i] = get_binary_pofd(this_ct_matrix)
+        binary_far_matrix[0, i] = get_binary_far(this_ct_matrix)
+        binary_freq_bias_matrix[0, i] = get_binary_frequency_bias(
+            this_ct_matrix
+        )
+        csi_matrix[0, i] = get_csi(this_ct_matrix)
+
+    print('Have computed scores for all {0:d} thresholds!'.format(
+        num_thresholds
+    ))
+
+    auc = gg_evaluation.get_area_under_roc_curve(
+        pod_by_threshold=binary_pod_matrix[0, :],
+        pofd_by_threshold=binary_pofd_matrix[0, :]
+    )
+    aupd = gg_evaluation.get_area_under_perf_diagram(
+        pod_by_threshold=binary_pod_matrix[0, :],
+        success_ratio_by_threshold=1 - binary_far_matrix[0, :]
+    )
+
+    these_dim = (1, NUM_CLASSES, NUM_BINS_FOR_RELIABILITY)
+    mean_probability_matrix = numpy.full(these_dim, numpy.nan)
+    event_frequency_matrix = numpy.full(these_dim, numpy.nan)
+    num_examples_matrix = numpy.full(these_dim, -1, dtype=int)
+
+    these_dim = (1, NUM_CLASSES)
+    reliability_matrix = numpy.full(these_dim, numpy.nan)
+    resolution_matrix = numpy.full(these_dim, numpy.nan)
+    bss_matrix = numpy.full(these_dim, numpy.nan)
+
+    for k in range(NUM_CLASSES):
+        these_mean_probs, these_event_freqs, these_num_examples = (
+            gg_evaluation.get_points_in_reliability_curve(
+                forecast_probabilities=class_probability_matrix[:, k],
+                observed_labels=(observed_labels == k).astype(int),
+                num_forecast_bins=NUM_BINS_FOR_RELIABILITY
+            )
+        )
+
+        mean_probability_matrix[0, k, :] = these_mean_probs
+        event_frequency_matrix[0, k, :] = these_event_freqs
+        num_examples_matrix[0, k, :] = these_num_examples
+
+        this_bss_dict = gg_evaluation.get_brier_skill_score(
+            mean_forecast_prob_by_bin=these_mean_probs,
+            mean_observed_label_by_bin=these_event_freqs,
+            num_examples_by_bin=these_num_examples,
+            climatology=climo_frequencies[k]
+        )
+
+        reliability_matrix[0, k] = this_bss_dict[gg_evaluation.RELIABILITY_KEY]
+        resolution_matrix[0, k] = this_bss_dict[gg_evaluation.RESOLUTION_KEY]
+        bss_matrix[0, k] = this_bss_dict[gg_evaluation.BSS_KEY]
+
+    # Add results to xarray table.
+    these_dim = (BOOTSTRAP_REPLICATE_DIM, DETERMINIZN_THRESHOLD_DIM)
+    main_data_dict = {
+        ACCURACY_KEY: (these_dim, accuracy_matrix),
+        PEIRCE_SCORE_KEY: (these_dim, peirce_score_matrix),
+        HEIDKE_SCORE_KEY: (these_dim, heidke_score_matrix),
+        GERRITY_SCORE_KEY: (these_dim, gerrity_score_matrix),
+        BINARY_POD_KEY: (these_dim, binary_pod_matrix),
+        BINARY_POFD_KEY: (these_dim, binary_pofd_matrix),
+        BINARY_FAR_KEY: (these_dim, binary_far_matrix),
+        BINARY_FREQ_BIAS_KEY: (these_dim, binary_freq_bias_matrix),
+        CSI_KEY: (these_dim, csi_matrix)
     }
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(result_dict, pickle_file_handle)
-    pickle_file_handle.close()
+    new_dict = {
+        AREA_UNDER_ROCC_KEY: (BOOTSTRAP_REPLICATE_DIM, numpy.array([auc])),
+        AREA_UNDER_PD_KEY: (BOOTSTRAP_REPLICATE_DIM, numpy.array([aupd])),
+        BEST_THRESHOLD_KEY: (
+            BOOTSTRAP_REPLICATE_DIM, numpy.array([best_determinizn_threshold])
+        )
+    }
+    main_data_dict.update(new_dict)
+
+    these_dim = (BOOTSTRAP_REPLICATE_DIM, OBSERVED_CLASS_DIM)
+    new_dict = {
+        RESOLUTION_KEY: (these_dim, resolution_matrix),
+        RELIABILITY_KEY: (these_dim, reliability_matrix),
+        BSS_KEY: (these_dim, bss_matrix)
+    }
+    main_data_dict.update(new_dict)
+
+    these_dim = (
+        BOOTSTRAP_REPLICATE_DIM, OBSERVED_CLASS_DIM, PROBABILITY_BIN_DIM
+    )
+    new_dict = {
+        MEAN_PROBABILITY_KEY: (these_dim, mean_probability_matrix),
+        EVENT_FREQUENCY_KEY: (these_dim, event_frequency_matrix),
+        NUM_EXAMPLES_KEY: (these_dim, num_examples_matrix)
+    }
+    main_data_dict.update(new_dict)
+
+    these_dim = (
+        BOOTSTRAP_REPLICATE_DIM, DETERMINIZN_THRESHOLD_DIM,
+        PREDICTED_CLASS_DIM, OBSERVED_CLASS_DIM
+    )
+    new_dict = {
+        CONTINGENCY_MATRIX_KEY: (these_dim, contingency_table_matrix)
+    }
+    main_data_dict.update(new_dict)
+
+    new_dict = {
+        CLASS_PROBABILITY_KEY: (
+            (EXAMPLE_DIM, OBSERVED_CLASS_DIM), class_probability_matrix
+        ),
+        OBSERVED_LABEL_KEY: (EXAMPLE_DIM, observed_labels),
+        CLIMO_COUNT_KEY: (OBSERVED_CLASS_DIM, climo_counts)
+    }
+    main_data_dict.update(new_dict)
+
+    num_examples_total = len(observed_labels)
+    example_indices = numpy.linspace(
+        0, num_examples_total - 1, num=num_examples_total, dtype=int
+    )
+    class_indices = numpy.linspace(
+        0, NUM_CLASSES - 1, num=NUM_CLASSES, dtype=int
+    )
+    bin_indices = numpy.linspace(
+        0, NUM_BINS_FOR_RELIABILITY - 1, num=NUM_BINS_FOR_RELIABILITY, dtype=int
+    )
+    bootstrap_replicate_indices = numpy.array([bootstrap_rep_index], dtype=int)
+
+    metadata_dict = {
+        BOOTSTRAP_REPLICATE_DIM: bootstrap_replicate_indices,
+        DETERMINIZN_THRESHOLD_DIM: all_determinizn_thresholds,
+        PROBABILITY_BIN_DIM: bin_indices,
+        PREDICTED_CLASS_DIM: class_indices,
+        OBSERVED_CLASS_DIM: class_indices,
+        EXAMPLE_DIM: example_indices
+    }
+
+    return xarray.Dataset(data_vars=main_data_dict, coords=metadata_dict)
 
 
-def read_file(pickle_file_name):
-    """Reads results from Pickle file.
+def write_file(result_table_xarray, netcdf_file_name):
+    """Writes evaluation results to NetCDF file.
 
-    :param pickle_file_name: Path to input file.
-    :return: result_dict: Dictionary with all keys listed in `write_file`.
-    :raises: ValueError: if dictionary does not contain all keys in
-        `REQUIRED_KEYS`.
+    :param result_table_xarray: xarray table produced by `run_evaluation`.
+    :param netcdf_file_name: Path to output file.
     """
 
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    result_dict = pickle.load(pickle_file_handle, encoding='latin1')
-    pickle_file_handle.close()
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
 
-    missing_keys = list(set(REQUIRED_KEYS) - set(result_dict.keys()))
-    if len(missing_keys) == 0:
-        return result_dict
+    # result_table_xarray.to_netcdf(
+    #     path=netcdf_file_name, mode='w', format='NETCDF3_64BIT_OFFSET')
 
-    error_string = (
-        '\n{0:s}\nKeys listed above were expected, but not found, in file '
-        '"{1:s}".'
-    ).format(str(missing_keys), pickle_file_name)
+    result_table_xarray.to_netcdf(
+        path=netcdf_file_name, mode='w', format='NETCDF3_64BIT')
 
-    raise ValueError(error_string)
+
+def read_file(netcdf_file_name):
+    """Reads evaluation results from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: result_table_xarray: xarray table produced by `run_evaluation`.
+    """
+
+    return xarray.open_dataset(netcdf_file_name)
