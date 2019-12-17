@@ -82,7 +82,8 @@ def _plot_roc_curve(result_table_xarray, output_file_name,
     pofd_matrix = result_table_xarray[evaluation_utils.BINARY_POFD_KEY].values
     num_bootstrap_reps = pod_matrix.shape[0]
     num_thresholds = pod_matrix.shape[1]
-    print(pod_matrix.shape)
+    print(pod_matrix)
+    print(pofd_matrix)
 
     # TODO(thunderhoser): Allow for only one best threshold in file.
     best_threshold = (
