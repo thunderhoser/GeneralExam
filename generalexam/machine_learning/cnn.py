@@ -23,8 +23,11 @@ from generalexam.machine_learning import testing_io
 from generalexam.machine_learning import isotonic_regression
 from generalexam.machine_learning import keras_metrics
 
-NUM_EPOCHS_FOR_EARLY_STOPPING = 6
-MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
+PLATEAU_PATIENCE_EPOCHS = 3
+PLATEAU_LEARNING_RATE_MULTIPLIER = 0.5
+PLATEAU_COOLDOWN_EPOCHS = 0
+EARLY_STOPPING_PATIENCE_EPOCHS = 15
+CROSS_ENTROPY_PATIENCE = 0.005
 
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_EX_PER_TRAIN_BATCH_KEY = 'num_ex_per_train_batch'
@@ -355,19 +358,35 @@ def train_cnn(
     else:
         class_weight_dict = None
 
+    history_file_name = '{0:s}/history.csv'.format(
+        os.path.split(output_model_file_name)[0]
+    )
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False
+    )
+
     checkpoint_object = keras.callbacks.ModelCheckpoint(
         output_model_file_name, monitor='val_loss', verbose=1,
         save_best_only=True, save_weights_only=False, mode='min', period=1)
 
     early_stopping_object = keras.callbacks.EarlyStopping(
-        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
-        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+        monitor='val_loss', min_delta=CROSS_ENTROPY_PATIENCE,
+        patience=EARLY_STOPPING_PATIENCE_EPOCHS, verbose=1, mode='min')
+
+    plateau_object = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', factor=PLATEAU_LEARNING_RATE_MULTIPLIER,
+        patience=PLATEAU_PATIENCE_EPOCHS, verbose=1, mode='min',
+        min_delta=CROSS_ENTROPY_PATIENCE, cooldown=PLATEAU_COOLDOWN_EPOCHS)
+
+    list_of_callback_objects = [
+        history_object, checkpoint_object, early_stopping_object, plateau_object
+    ]
 
     model_object.fit_generator(
         generator=training_generator,
         steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
         verbose=1, class_weight=class_weight_dict,
-        callbacks=[checkpoint_object, early_stopping_object],
+        callbacks=list_of_callback_objects,
         validation_data=validation_generator,
         validation_steps=num_validation_batches_per_epoch)
 
