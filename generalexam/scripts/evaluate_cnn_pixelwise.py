@@ -116,7 +116,6 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
             class_probability_matrix=class_probability_matrix,
             observed_labels=observed_labels, scoring_function=scoring_function)
     )
-    print(all_thresholds)
 
     print((
         '\nBest determinization threshold = {0:.4f} ... corresponding "{1:s}" '
