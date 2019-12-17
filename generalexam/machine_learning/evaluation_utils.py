@@ -315,7 +315,9 @@ def find_best_determinization_threshold(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 
-    all_thresholds = numpy.linspace(0., 1., num=NUM_DETERMINIZATION_THRESHOLDS)
+    all_thresholds = gg_evaluation.get_binarization_thresholds(
+        threshold_arg=NUM_DETERMINIZATION_THRESHOLDS
+    )
     score_by_threshold = numpy.full(NUM_DETERMINIZATION_THRESHOLDS, numpy.nan)
 
     for i in range(NUM_DETERMINIZATION_THRESHOLDS):
