@@ -318,14 +318,15 @@ def find_best_determinization_threshold(
     all_thresholds = gg_evaluation.get_binarization_thresholds(
         threshold_arg=NUM_DETERMINIZATION_THRESHOLDS
     )
-    score_by_threshold = numpy.full(NUM_DETERMINIZATION_THRESHOLDS, numpy.nan)
+    num_thresholds = len(all_thresholds)
+    score_by_threshold = numpy.full(num_thresholds, numpy.nan)
 
-    for i in range(NUM_DETERMINIZATION_THRESHOLDS):
+    for i in range(num_thresholds):
         if numpy.mod(i, 10) == 0:
             print((
                 'Have tried {0:d} of {1:d} determinization thresholds...'
             ).format(
-                i, NUM_DETERMINIZATION_THRESHOLDS
+                i, num_thresholds
             ))
 
         these_predicted_labels = determinize_predictions(
@@ -340,7 +341,7 @@ def find_best_determinization_threshold(
         score_by_threshold[i] = scoring_function(this_contingency_matrix)
 
     print('Have tried all {0:d} determinization thresholds!'.format(
-        NUM_DETERMINIZATION_THRESHOLDS
+        num_thresholds
     ))
 
     best_score = numpy.nanmax(score_by_threshold)
@@ -579,9 +580,9 @@ def run_evaluation(
         all_determinizn_thresholds, num_dimensions=1
     )
     error_checking.assert_is_geq_numpy_array(all_determinizn_thresholds, 0.)
-    error_checking.assert_is_leq_numpy_array(all_determinizn_thresholds, 1.)
+    error_checking.assert_is_leq_numpy_array(all_determinizn_thresholds, 1.01)
     error_checking.assert_is_geq(best_determinizn_threshold, 0.)
-    error_checking.assert_is_leq(best_determinizn_threshold, 1.)
+    error_checking.assert_is_leq(best_determinizn_threshold, 1.01)
 
     error_checking.assert_is_numpy_array(
         climo_counts, exact_dimensions=numpy.array([NUM_CLASSES], dtype=int)
