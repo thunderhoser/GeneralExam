@@ -2,19 +2,11 @@
 
 import pickle
 import numpy
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_utils import time_periods
-from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.machine_learning import testing_io
-from generalexam.machine_learning import machine_learning_utils as ml_utils
-from generalexam.machine_learning import cnn
-from generalexam.machine_learning import isotonic_regression
+
+NUM_CLASSES = 3
+NUM_DETERMINIZATION_THRESHOLDS = 1001
 
 NARR_TIME_INTERVAL_SECONDS = 10800
 DEFAULT_FORECAST_PRECISION = 1e-3
@@ -61,33 +53,30 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 
 
-def _check_contingency_table(contingency_table_as_matrix):
+def _check_contingency_table(contingency_matrix):
     """Checks contingency table for errors.
-    :param contingency_table_as_matrix: K-by-K numpy array.
-        contingency_table_as_matrix[i, j] is the number of examples for which
-        the predicted label is i and the true label is j.
+
+    :param contingency_matrix: 3-by-3 numpy array.  contingency_matrix[i, j] is
+        the number of examples where the predicted label is i and correct label
+        is j.
     """
 
+    expected_dim = numpy.array([NUM_CLASSES, NUM_CLASSES], dtype=int)
     error_checking.assert_is_numpy_array(
-        contingency_table_as_matrix, num_dimensions=2)
+        contingency_matrix, exact_dimensions=expected_dim
+    )
 
-    num_classes = contingency_table_as_matrix.shape[0]
-    error_checking.assert_is_numpy_array(
-        contingency_table_as_matrix,
-        exact_dimensions=numpy.array([num_classes, num_classes]))
-
-    error_checking.assert_is_integer_numpy_array(contingency_table_as_matrix)
-    error_checking.assert_is_geq_numpy_array(contingency_table_as_matrix, 0)
+    error_checking.assert_is_integer_numpy_array(contingency_matrix)
+    error_checking.assert_is_geq_numpy_array(contingency_matrix, 0)
 
 
 def _non_zero(input_value):
     """Makes input non-zero.
-    Specifically, if the input is in [0, epsilon], this method returns epsilon
-    (machine limit for representable positive floating-point numbers).  If the
-    input is in [-epsilon, 0), this method returns -epsilon.
-    :param input_value: Input value.
-    :return: output_value: Closest number to input value that is not in
-        [-epsilon, epsilon].
+
+    :param input_value: Input.
+    :return: output_value: Closest number to input that is outside of
+        [-epsilon, epsilon], where epsilon is the machine limit for
+        floating-point numbers.
     """
 
     epsilon = numpy.finfo(float).eps
@@ -97,125 +86,70 @@ def _non_zero(input_value):
     return min([input_value, -epsilon])
 
 
-def _get_num_predictions_in_class(contingency_table_as_matrix, class_index):
-    """Returns number of predictions in the [k]th class (class_index = k).
-    :param contingency_table_as_matrix: See documentation for
-        `get_contingency_table`.
-    :param class_index: k in the above discussion.
-    :return: num_predictions_in_class: Number of predictions in the [k]th class.
+def _num_examples_with_predicted_class(contingency_matrix, class_index):
+    """Returns number of examples where a given class is predicted.
+
+    This method returns number of examples where [k]th class is predicted, k
+    being `class_index`.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :param class_index: See above.
+    :return: num_examples: See above.
     """
 
-    return numpy.sum(contingency_table_as_matrix[class_index, :])
+    return numpy.sum(contingency_matrix[class_index, :])
 
 
-def _get_num_true_labels_in_class(contingency_table_as_matrix, class_index):
-    """Returns number of true labels in the [k]th class (class_index = k).
-    :param contingency_table_as_matrix: See documentation for
-        `get_contingency_table`.
-    :param class_index: k in the above discussion.
-    :return: num_true_labels_in_class: Number of true labels in the [k]th class.
+def _num_examples_with_observed_class(contingency_matrix, class_index):
+    """Returns number of examples where a given class is observed.
+
+    This method returns number of examples where [k]th class is observed, k
+    being `class_index`.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :param class_index: See above.
+    :return: num_examples: See above.
     """
 
-    return numpy.sum(contingency_table_as_matrix[:, class_index])
+    return numpy.sum(contingency_matrix[:, class_index])
 
 
-def _get_random_sample_points(
-        num_points, for_downsized_examples, narr_mask_matrix=None,
-        random_seed=None):
-    """Samples random points from NARR grid.
-    M = number of rows in NARR grid
-    N = number of columns in NARR grid
-    P = number of points sampled
-    :param num_points: Number of points to sample.
-    :param for_downsized_examples: Boolean flag.  If True, this method will
-        sample center points for downsized images.  If False, will sample
-        evaluation points from a full-size image.
-    :param narr_mask_matrix: M-by-N numpy array of integers (0 or 1).  If
-        narr_mask_matrix[i, j] = 0, cell [i, j] in the full grid will never be
-        sampled.  If `narr_mask_matrix is None`, any grid cell can be sampled.
-    :param random_seed: Seed (input to `numpy.random.seed`).
-    :return: row_indices: length-P numpy array with row indices of sampled
-        points.
-    :return: column_indices: length-P numpy array with column indices of sampled
-        points.
+def _get_a_for_gerrity_score(contingency_matrix):
+    """Returns vector a for Gerrity score.
+
+    The equation for a is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: a_vector: See above.
     """
 
-    if for_downsized_examples:
-        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-            model_name=nwp_model_utils.NARR_MODEL_NAME,
-            grid_name=nwp_model_utils.NAME_OF_221GRID)
-    else:
-        num_grid_rows = (
-            ml_utils.LAST_NARR_ROW_FOR_FCN_INPUT -
-            ml_utils.FIRST_NARR_ROW_FOR_FCN_INPUT + 1
-        )
-        num_grid_columns = (
-            ml_utils.LAST_NARR_COLUMN_FOR_FCN_INPUT -
-            ml_utils.FIRST_NARR_COLUMN_FOR_FCN_INPUT + 1
-        )
-        narr_mask_matrix = None
+    num_classes = contingency_matrix.shape[0]
+    num_examples = numpy.sum(contingency_matrix)
 
-    if narr_mask_matrix is None:
-        num_grid_cells = num_grid_rows * num_grid_columns
-        possible_linear_indices = numpy.linspace(
-            0, num_grid_cells - 1, num=num_grid_cells, dtype=int)
-    else:
-        error_checking.assert_is_integer_numpy_array(narr_mask_matrix)
-        error_checking.assert_is_geq_numpy_array(narr_mask_matrix, 0)
-        error_checking.assert_is_leq_numpy_array(narr_mask_matrix, 1)
-
-        these_expected_dim = numpy.array(
-            [num_grid_rows, num_grid_columns], dtype=int)
-        error_checking.assert_is_numpy_array(
-            narr_mask_matrix, exact_dimensions=these_expected_dim)
-
-        possible_linear_indices = numpy.where(
-            numpy.ravel(narr_mask_matrix) == 1
-        )[0]
-
-    if random_seed is not None:
-        numpy.random.seed(random_seed)
-
-    linear_indices = numpy.random.choice(
-        possible_linear_indices, size=num_points, replace=False)
-
-    return numpy.unravel_index(
-        linear_indices, (num_grid_rows, num_grid_columns)
+    num_examples_by_class = numpy.array([
+        _num_examples_with_observed_class(contingency_matrix, i)
+        for i in range(num_classes)
+    ])
+    cumulative_freq_by_class = numpy.cumsum(
+        num_examples_by_class.astype(float) / num_examples
     )
 
-
-def _get_a_for_gerrity_score(contingency_table_as_matrix):
-    """Returns a-vector for Gerrity score.
-    The equation for a is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: a_vector: As advertised.
-    """
-
-    num_classes = contingency_table_as_matrix.shape[0]
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
-
-    num_examples_by_class = numpy.array(
-        [_get_num_true_labels_in_class(contingency_table_as_matrix, i)
-         for i in range(num_classes)])
-    cumul_frequency_by_class = numpy.cumsum(
-        num_examples_by_class.astype(float) / num_evaluation_pairs)
-
-    return (1. - cumul_frequency_by_class) / cumul_frequency_by_class
+    return (1. - cumulative_freq_by_class) / cumulative_freq_by_class
 
 
-def _get_s_for_gerrity_score(contingency_table_as_matrix):
-    """Returns S-matrix for Gerrity score.
+def _get_s_for_gerrity_score(contingency_matrix):
+    """Returns matrix S for Gerrity score.
+
     The equation for S is here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: s_matrix: As advertised.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: s_matrix: See above.
     """
 
-    a_vector = _get_a_for_gerrity_score(contingency_table_as_matrix)
+    a_vector = _get_a_for_gerrity_score(contingency_matrix)
     a_vector_reciprocal = 1. / a_vector
 
-    num_classes = contingency_table_as_matrix.shape[0]
+    num_classes = contingency_matrix.shape[0]
     s_matrix = numpy.full((num_classes, num_classes), numpy.nan)
 
     for i in range(num_classes):
@@ -223,7 +157,8 @@ def _get_s_for_gerrity_score(contingency_table_as_matrix):
             if i == j:
                 s_matrix[i, j] = (
                     numpy.sum(a_vector_reciprocal[:i]) +
-                    numpy.sum(a_vector[i:-1]))
+                    numpy.sum(a_vector[i:-1])
+                )
                 continue
 
             if i > j:
@@ -232,274 +167,107 @@ def _get_s_for_gerrity_score(contingency_table_as_matrix):
 
             s_matrix[i, j] = (
                 numpy.sum(a_vector_reciprocal[:i]) - (j - i) +
-                numpy.sum(a_vector[j:-1]))
+                numpy.sum(a_vector[j:-1])
+            )
 
     return s_matrix / (num_classes - 1)
 
 
-def check_evaluation_pairs(class_probability_matrix, observed_labels):
-    """Checks evaluation pairs for errors.
-    P = number of evaluation pairs
-    K = number of classes
-    :param class_probability_matrix: P-by-K numpy array of floats.
-        class_probability_matrix[i, k] is the predicted probability that the
-        [i]th example belongs to the [k]th class.
-    :param observed_labels: length-P numpy array of integers.  If
-        observed_labels[i] = k, the [i]th example truly belongs to the [k]th
-        class.
+def _check_probabilities(class_probability_matrix, num_examples=None):
+    """Error-checks probabilities.
+
+    E = number of examples
+
+    :param class_probability_matrix: E-by-3 numpy array of class probabilities.
+    :param num_examples: Expected number of examples.
     """
 
-    error_checking.assert_is_numpy_array(
-        class_probability_matrix, num_dimensions=2)
+    # TODO(thunderhoser): Verify that probabilities are MECE?
+
     error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
     error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
 
-    num_evaluation_pairs = class_probability_matrix.shape[0]
-    num_classes = class_probability_matrix.shape[1]
+    if num_examples is None:
+        error_checking.assert_is_numpy_array(
+            class_probability_matrix, num_dimensions=2
+        )
+        num_examples = class_probability_matrix.shape[0]
 
+    expected_dim = numpy.array([num_examples, NUM_CLASSES], dtype=int)
     error_checking.assert_is_numpy_array(
-        observed_labels, exact_dimensions=numpy.array([num_evaluation_pairs]))
+        class_probability_matrix, exact_dimensions=expected_dim
+    )
+
+
+def check_predictions_and_obs(observed_labels, class_probability_matrix=None,
+                              predicted_labels=None):
+    """Error-checks predictions and observations.
+
+    E = number of examples
+
+    :param observed_labels: length-E numpy array of observed labels (classes in
+        0...2).
+    :param class_probability_matrix: E-by-3 numpy array of class probabilities.
+    :param predicted_labels: length-E numpy array of predicted labels (classes
+        in 0...2).
+    """
+
+    error_checking.assert_is_numpy_array(observed_labels, num_dimensions=1)
     error_checking.assert_is_integer_numpy_array(observed_labels)
     error_checking.assert_is_geq_numpy_array(observed_labels, 0)
-    error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
+    error_checking.assert_is_less_than_numpy_array(observed_labels, NUM_CLASSES)
 
+    num_examples = len(observed_labels)
 
-def create_eval_pairs_for_cnn(
-        model_object, top_predictor_dir_name, top_gridded_front_dir_name,
-        first_time_unix_sec, last_time_unix_sec, num_times,
-        num_examples_per_time, pressure_levels_mb, predictor_names,
-        normalization_type_string, dilation_distance_metres,
-        isotonic_model_object_by_class=None, mask_matrix=None,
-        random_seed=None):
-    """Creates evaluation pairs for a CNN (convolutional neural net).
-    An "evaluation pair" is a forecast-observation pair.  Keep in mind that a
-    CNN does patch classification (as opposed to an FCN, which does semantic
-    segmentation), so a CNN works on downsized examples.
-    :param model_object: Trained CNN (instance of `keras.models.Model` or
-        `keras.models.Sequential`).
-    :param top_predictor_dir_name: See doc for
-        `testing_io.create_downsized_examples_with_targets`.
-    :param top_gridded_front_dir_name: Same.
-    :param first_time_unix_sec: First time in period.  Evaluation pairs will be
-        drawn randomly from the period
-        `first_time_unix_sec`...`last_time_unix_sec`.
-    :param last_time_unix_sec: See above.
-    :param num_times: Number of times to draw randomly from the period.
-    :param num_examples_per_time: Number of examples (grid cells) to draw
-        randomly from each time.
-    :param pressure_levels_mb: See doc for
-        `testing_io.create_downsized_examples_with_targets`.
-    :param predictor_names: Same.
-    :param normalization_type_string: Same.
-    :param dilation_distance_metres: Same.
-    :param isotonic_model_object_by_class: See doc for
-        `cnn.apply_model_to_full_grid`.
-    :param mask_matrix: Same.
-    :param random_seed: Seed (input to `numpy.random.seed`).
-    :return: class_probability_matrix: See documentation for
-        `check_evaluation_pairs`.
-    :return: observed_labels: Same.
-    """
+    if class_probability_matrix is not None:
+        _check_probabilities(class_probability_matrix=class_probability_matrix,
+                             num_examples=num_examples)
 
-    error_checking.assert_is_integer(num_times)
-    error_checking.assert_is_greater(num_times, 0)
-    error_checking.assert_is_integer(num_examples_per_time)
-    error_checking.assert_is_greater(num_examples_per_time, 0)
-
-    valid_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_time_unix_sec,
-        end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=NARR_TIME_INTERVAL_SECONDS, include_endpoint=True)
-
-    if random_seed is not None:
-        numpy.random.seed(random_seed)
-
-    numpy.random.shuffle(valid_times_unix_sec)
-    valid_times_unix_sec = valid_times_unix_sec[:num_times]
-
-    valid_time_strings = [
-        time_conversion.unix_sec_to_string(t, LOG_MESSAGE_TIME_FORMAT)
-        for t in valid_times_unix_sec
-    ]
-
-    num_classes = cnn.model_to_num_classes(model_object)
-    num_half_rows, num_half_columns = cnn.model_to_grid_dimensions(model_object)
-
-    class_probability_matrix = numpy.full(
-        (num_times, num_examples_per_time, num_classes), numpy.nan
-    )
-    observed_label_matrix = numpy.full(
-        (num_times, num_examples_per_time), -1, dtype=int
-    )
-
-    this_random_seed = random_seed + 0
-
-    for i in range(num_times):
-        print('Creating {0:d} evaluation pairs for {1:s}...'.format(
-            num_examples_per_time, valid_time_strings[i]))
-
-        this_random_seed += 1
-        these_row_indices, these_column_indices = _get_random_sample_points(
-            num_points=num_examples_per_time, for_downsized_examples=True,
-            narr_mask_matrix=mask_matrix, random_seed=this_random_seed)
-
-        this_dict = testing_io.create_downsized_examples_with_targets(
-            center_row_indices=these_row_indices,
-            center_column_indices=these_column_indices,
-            num_half_rows=num_half_rows, num_half_columns=num_half_columns,
-            top_predictor_dir_name=top_predictor_dir_name,
-            top_gridded_front_dir_name=top_gridded_front_dir_name,
-            valid_time_unix_sec=valid_times_unix_sec[i],
-            pressure_levels_mb=pressure_levels_mb,
-            predictor_names=predictor_names,
-            normalization_type_string=normalization_type_string,
-            dilation_distance_metres=dilation_distance_metres,
-            num_classes=num_classes)
-
-        this_predictor_matrix = this_dict[testing_io.PREDICTOR_MATRIX_KEY]
-        observed_label_matrix[i, :] = this_dict[testing_io.TARGET_VALUES_KEY]
-        class_probability_matrix[i, ...] = model_object.predict(
-            this_predictor_matrix, batch_size=num_examples_per_time)
-
-    class_probability_matrix = numpy.reshape(
-        class_probability_matrix,
-        (num_times * num_examples_per_time, num_classes)
-    )
-    observed_labels = numpy.reshape(
-        observed_label_matrix, observed_label_matrix.size)
-
-    if isotonic_model_object_by_class is not None:
-        class_probability_matrix = (
-            isotonic_regression.apply_model_for_each_class(
-                orig_class_probability_matrix=class_probability_matrix,
-                observed_labels=observed_labels,
-                model_object_by_class=isotonic_model_object_by_class)
+    if predicted_labels is not None:
+        error_checking.assert_is_integer_numpy_array(predicted_labels)
+        error_checking.assert_is_geq_numpy_array(predicted_labels, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            predicted_labels, NUM_CLASSES
         )
 
-    return class_probability_matrix, observed_labels
+        expected_dim = numpy.array([num_examples], dtype=int)
+        error_checking.assert_is_numpy_array(
+            predicted_labels, exact_dimensions=expected_dim
+        )
 
 
-def find_best_binarization_threshold(
-        class_probability_matrix, observed_labels, threshold_arg,
-        criterion_function, optimization_direction=MAX_OPTIMIZATION_DIRECTION,
-        forecast_precision_for_thresholds=
-        DEFAULT_FORECAST_PRECISION):
-    """Finds the best binarization threshold.
-    A "binarization threshold" is used to determinize probabilistic (either
-    binary or multi-class) predictions, using the following procedure.
-    f* = binarization threshold, and f_0 is the forecast probability of class 0
-    (no front).
-    [1] If f_0 >= f*, predict no front.
-    [2] If f_0 < f*, predict a front.  In multi-class problems, frontal type
-        (warm or cold) is determined by whichever of the non-zero classes has
-        the highest predicted probability.
-    In the following definitions, P = number of evaluation pairs and K = number
-    of classes.
-    :param class_probability_matrix: See documentation for
-        `check_evaluation_pairs`.
-    :param observed_labels: See doc for `check_evaluation_pairs`.
-    :param threshold_arg: See documentation for
-        `model_evaluation.get_binarization_thresholds`.  Determines which
-        thresholds will be tried.
-    :param criterion_function: Criterion to be either minimized or maximized.
-        This must be a function that takes input `contingency_table_as_matrix`
-        and returns a single float.  See `get_gerrity_score` in this module for
-        an example.
-    :param optimization_direction: Direction in which criterion function is
-        optimized.  Options are "min" and "max".
-    :param forecast_precision_for_thresholds: See documentation for
-        `model_evaluation.get_binarization_thresholds`.  Determines which
-        thresholds will be tried.
-    :return: best_threshold: Best binarization threshold.
-    :return: best_criterion_value: Value of criterion function at said
-        threshold.
+def determinize_predictions(class_probability_matrix, threshold):
+    """Determinizes predictions.
+
+    In other words, convert from probabilities to deterministic labels.
+
+    E = number of examples
+    K = number of classes
+
+    :param class_probability_matrix: See doc for `check_predictions_and_obs`.
+    :param threshold: Determinization threshold.  This is a probability
+        threshold p* such that:
+
+        If no-front probability >= p*, deterministic label = no front.
+
+        If no-front probability < p*, deterministic label = max of other two
+        probabilities.
+
+    :return: predicted_labels: length-E numpy array of predicted class labels
+        (integers in 0...[K - 1]).
     """
 
-    check_evaluation_pairs(
-        class_probability_matrix=class_probability_matrix,
-        observed_labels=observed_labels)
+    _check_probabilities(
+        class_probability_matrix=class_probability_matrix, num_examples=None
+    )
+    error_checking.assert_is_geq(threshold, 0.)
+    error_checking.assert_is_leq(threshold, 1.01)
 
-    error_checking.assert_is_string(optimization_direction)
-    if optimization_direction not in VALID_OPTIMIZATION_DIRECTIONS:
-        error_string = (
-            '\n\n{0:s}\nValid optimization directions (listed above) do not '
-            'include "{1:s}".').format(VALID_OPTIMIZATION_DIRECTIONS,
-                                       optimization_direction)
-        raise ValueError(error_string)
+    num_examples = class_probability_matrix.shape[0]
+    predicted_labels = numpy.full(num_examples, -1, dtype=int)
 
-    possible_thresholds = model_eval.get_binarization_thresholds(
-        threshold_arg=threshold_arg,
-        forecast_probabilities=class_probability_matrix[:, 0],
-        forecast_precision=forecast_precision_for_thresholds)
-
-    num_thresholds = len(possible_thresholds)
-    criterion_values = numpy.full(num_thresholds, numpy.nan)
-
-    # for i in range(num_thresholds):
-    #     these_predicted_labels = model_eval.binarize_forecast_probs(
-    #         forecast_probabilities=class_probability_matrix[:, 0],
-    #         binarization_threshold=possible_thresholds[i])
-    #
-    #     these_predicted_labels = numpy.invert(
-    #         these_predicted_labels.astype(bool)).astype(int)
-    #
-    #     this_contingency_table_as_dict = model_eval.get_contingency_table(
-    #         forecast_labels=these_predicted_labels,
-    #         observed_labels=(observed_labels > 0).astype(int))
-    #
-    #     criterion_values[i] = criterion_function(
-    #         this_contingency_table_as_dict)
-
-    for i in range(num_thresholds):
-        print(i)
-
-        these_predicted_labels = determinize_probabilities(
-            class_probability_matrix=class_probability_matrix,
-            binarization_threshold=possible_thresholds[i])
-
-        this_contingency_table_as_matrix = get_contingency_table(
-            predicted_labels=these_predicted_labels,
-            observed_labels=observed_labels,
-            num_classes=class_probability_matrix.shape[1])
-
-        criterion_values[i] = criterion_function(
-            this_contingency_table_as_matrix)
-
-    if optimization_direction == MAX_OPTIMIZATION_DIRECTION:
-        best_criterion_value = numpy.nanmax(criterion_values)
-        best_probability_threshold = possible_thresholds[
-            numpy.nanargmax(criterion_values)]
-    else:
-        best_criterion_value = numpy.nanmin(criterion_values)
-        best_probability_threshold = possible_thresholds[
-            numpy.nanargmin(criterion_values)]
-
-    return best_probability_threshold, best_criterion_value
-
-
-def determinize_probabilities(class_probability_matrix, binarization_threshold):
-    """Determinizes probabilistic predictions.
-    P = number of evaluation pairs
-    :param class_probability_matrix: See documentation for
-        `check_evaluation_pairs`.
-    :param binarization_threshold: See documentation for
-        `find_best_binarization_threshold`.
-    :return: predicted_labels: length-P numpy array of predicted class labels
-        (integers).
-    """
-
-    error_checking.assert_is_numpy_array(
-        class_probability_matrix, num_dimensions=2)
-    error_checking.assert_is_geq_numpy_array(class_probability_matrix, 0.)
-    error_checking.assert_is_leq_numpy_array(class_probability_matrix, 1.)
-    error_checking.assert_is_geq(binarization_threshold, 0.)
-    error_checking.assert_is_leq(binarization_threshold, 1.01)
-
-    num_evaluation_pairs = class_probability_matrix.shape[0]
-    predicted_labels = numpy.full(num_evaluation_pairs, -1, dtype=int)
-
-    for i in range(num_evaluation_pairs):
-        if class_probability_matrix[i, 0] >= binarization_threshold:
+    for i in range(num_examples):
+        if class_probability_matrix[i, 0] >= threshold:
             predicted_labels[i] = 0
             continue
 
@@ -508,171 +276,285 @@ def determinize_probabilities(class_probability_matrix, binarization_threshold):
     return predicted_labels
 
 
-def get_contingency_table(predicted_labels, observed_labels, num_classes):
-    """Creates either binary or multi-class contingency table.
-    P = number of evaluation pairs
-    K = number of classes
-    :param predicted_labels: length-P numpy array of predicted class labels
-        (integers).
-    :param observed_labels: length-P numpy array of true class labels
-        (integers).
-    :param num_classes: Number of classes.
-    :return: contingency_table_as_matrix: K-by-K numpy array.
-        contingency_table_as_matrix[i, j] is the number of examples for which
-        the predicted label is i and the true label is j.
+def get_contingency_table(predicted_labels, observed_labels):
+    """Creates contingency table.
+
+    :param predicted_labels: See doc for `check_predictions_and_obs`.
+    :param observed_labels: Same.
+    :return: contingency_matrix: See doc for `_check_contingency_table`.
     """
 
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_greater(num_classes, 2)
+    check_predictions_and_obs(observed_labels=observed_labels,
+                              predicted_labels=predicted_labels)
 
-    error_checking.assert_is_numpy_array(predicted_labels, num_dimensions=1)
-    error_checking.assert_is_integer_numpy_array(predicted_labels)
-    error_checking.assert_is_geq_numpy_array(predicted_labels, 0)
-    error_checking.assert_is_less_than_numpy_array(
-        predicted_labels, num_classes)
-
-    num_evaluation_pairs = len(predicted_labels)
-    error_checking.assert_is_numpy_array(
-        observed_labels,
-        exact_dimensions=numpy.array([num_evaluation_pairs], dtype=int)
+    contingency_matrix = numpy.full(
+        (NUM_CLASSES, NUM_CLASSES), -1, dtype=int
     )
 
-    error_checking.assert_is_integer_numpy_array(observed_labels)
-    error_checking.assert_is_geq_numpy_array(observed_labels, 0)
-    error_checking.assert_is_less_than_numpy_array(observed_labels, num_classes)
+    for i in range(NUM_CLASSES):
+        for j in range(NUM_CLASSES):
+            contingency_matrix[i, j] = numpy.sum(numpy.logical_and(
+                predicted_labels == i, observed_labels == j
+            ))
 
-    contingency_table_as_matrix = numpy.full(
-        (num_classes, num_classes), -1, dtype=int)
-
-    for i in range(num_classes):
-        for j in range(num_classes):
-            contingency_table_as_matrix[i, j] = numpy.sum(
-                numpy.logical_and(predicted_labels == i, observed_labels == j)
-            )
-
-    return contingency_table_as_matrix
+    return contingency_matrix
 
 
-def get_accuracy(contingency_table_as_matrix):
-    """Computes accuracy (either binary or multi-class).
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: accuracy: Accuracy (float in range 0...1).
+def find_best_determinization_threshold(
+        class_probability_matrix, observed_labels, scoring_function):
+    """Finds best probability threshold for determinizing predictions.
+
+    The "best probability threshold" is that which maximizes the scoring
+    function.
+
+    :param class_probability_matrix: See doc for `check_predictions_and_obs`.
+    :param observed_labels: Same.
+    :param scoring_function: Scoring function.  Must have one input (contingency
+        table as 3 x 3 numpy array) and one output (scalar value to be
+        maximized).  `get_gerrity_score` in this file is an example of a valid
+        scoring function.
+
+    :return: best_threshold: Best probability threshold.
+    :return: best_score: Score at best probability threshold.
     """
 
-    error_checking.assert_is_numpy_array(
-        contingency_table_as_matrix, num_dimensions=2)
+    check_predictions_and_obs(
+        class_probability_matrix=class_probability_matrix,
+        observed_labels=observed_labels)
 
-    num_classes = contingency_table_as_matrix.shape[0]
-    error_checking.assert_is_numpy_array(
-        contingency_table_as_matrix,
-        exact_dimensions=numpy.array([num_classes, num_classes]))
+    thresholds = numpy.linspace(0., 1., num=NUM_DETERMINIZATION_THRESHOLDS)
+    score_by_threshold = numpy.full(NUM_DETERMINIZATION_THRESHOLDS, numpy.nan)
 
-    error_checking.assert_is_integer_numpy_array(contingency_table_as_matrix)
-    error_checking.assert_is_geq_numpy_array(contingency_table_as_matrix, 0)
+    for k in range(NUM_DETERMINIZATION_THRESHOLDS):
+        if numpy.mod(k, 10) == 0:
+            print((
+                'Have tried {0:d} of {1:d} determinization thresholds...'
+            ).format(
+                k, NUM_DETERMINIZATION_THRESHOLDS
+            ))
 
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
-    num_correct_pairs = numpy.trace(contingency_table_as_matrix)
-    return float(num_correct_pairs) / num_evaluation_pairs
+        these_predicted_labels = determinize_predictions(
+            class_probability_matrix=class_probability_matrix,
+            threshold=thresholds[k]
+        )
+
+        this_contingency_matrix = get_contingency_table(
+            predicted_labels=these_predicted_labels,
+            observed_labels=observed_labels)
+
+        score_by_threshold[k] = scoring_function(this_contingency_matrix)
+
+    print('Have tried all {0:d} determinization thresholds!'.format(
+        NUM_DETERMINIZATION_THRESHOLDS
+    ))
+
+    best_score = numpy.nanmax(score_by_threshold)
+    best_threshold = thresholds[numpy.nanargmax(score_by_threshold)]
+
+    return best_threshold, best_score
 
 
-def get_peirce_score(contingency_table_as_matrix):
-    """Computes Peirce score (either binary or multi-class).
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: peirce_score: Peirce score (float in range -1...1).
+def get_accuracy(contingency_matrix):
+    """Computes accuracy.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: accuracy: Accuracy (range 0...1).
     """
 
-    _check_contingency_table(contingency_table_as_matrix)
+    _check_contingency_table(contingency_matrix)
 
-    num_classes = contingency_table_as_matrix.shape[0]
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+    num_examples = numpy.sum(contingency_matrix)
+    num_correct = numpy.trace(contingency_matrix)
+    return float(num_correct) / num_examples
+
+
+def get_peirce_score(contingency_matrix):
+    """Computes Peirce score.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: peirce_score: Peirce score (range -1...1).
+    """
+
+    _check_contingency_table(contingency_matrix)
 
     first_numerator_term = 0
     second_numerator_term = 0
     denominator_term = 0
 
-    for i in range(num_classes):
-        first_numerator_term += contingency_table_as_matrix[i, i]
+    for i in range(NUM_CLASSES):
+        first_numerator_term += contingency_matrix[i, i]
 
         second_numerator_term += (
-            _get_num_predictions_in_class(contingency_table_as_matrix, i) *
-            _get_num_true_labels_in_class(contingency_table_as_matrix, i))
+            _num_examples_with_predicted_class(contingency_matrix, i) *
+            _num_examples_with_observed_class(contingency_matrix, i)
+        )
 
-        denominator_term += _get_num_true_labels_in_class(
-            contingency_table_as_matrix, i)**2
+        denominator_term += (
+            _num_examples_with_observed_class(contingency_matrix, i) ** 2
+        )
 
-    first_numerator_term = float(first_numerator_term) / num_evaluation_pairs
-    second_numerator_term = float(
-        second_numerator_term) / num_evaluation_pairs**2
-    denominator = _non_zero(
-        1. - float(denominator_term) / num_evaluation_pairs**2)
+    num_examples = numpy.sum(contingency_matrix)
+
+    first_numerator_term = float(first_numerator_term) / num_examples
+    second_numerator_term = float(second_numerator_term) / num_examples ** 2
+    denominator = _non_zero(1. - float(denominator_term) / num_examples ** 2)
 
     return (first_numerator_term - second_numerator_term) / denominator
 
 
-def get_heidke_score(contingency_table_as_matrix):
-    """Computes Heidke score (either binary or multi-class).
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: heidke_score: Heidke score (float in range -inf...1).
+def get_heidke_score(contingency_matrix):
+    """Computes Heidke score.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: heidke_score: Heidke score (range -inf...1).
     """
 
-    _check_contingency_table(contingency_table_as_matrix)
-
-    num_classes = contingency_table_as_matrix.shape[0]
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+    _check_contingency_table(contingency_matrix)
 
     first_numerator_term = 0
     second_numerator_term = 0
 
-    for i in range(num_classes):
-        first_numerator_term += contingency_table_as_matrix[i, i]
-        second_numerator_term += (
-            _get_num_predictions_in_class(contingency_table_as_matrix, i) *
-            _get_num_true_labels_in_class(contingency_table_as_matrix, i))
+    for i in range(NUM_CLASSES):
+        first_numerator_term += contingency_matrix[i, i]
 
-    first_numerator_term = float(first_numerator_term) / num_evaluation_pairs
-    second_numerator_term = float(
-        second_numerator_term) / num_evaluation_pairs**2
+        second_numerator_term += (
+            _num_examples_with_predicted_class(contingency_matrix, i) *
+            _num_examples_with_observed_class(contingency_matrix, i)
+        )
+
+    num_examples = numpy.sum(contingency_matrix)
+
+    first_numerator_term = float(first_numerator_term) / num_examples
+    second_numerator_term = (float(second_numerator_term) / num_examples**2)
     denominator = _non_zero(1. - second_numerator_term)
 
     return (first_numerator_term - second_numerator_term) / denominator
 
 
-def get_gerrity_score(contingency_table_as_matrix):
-    """Computes Gerrity score (either binary or multi-class).
-    The full equations are here: http://www.bom.gov.au/wmo/lrfvs/gerrity.shtml
-    :param contingency_table_as_matrix: See documentation for
-        `_check_contingency_table`.
-    :return: gerrity_score: Gerrity score (float in range -1...1).
+def get_gerrity_score(contingency_matrix):
+    """Computes Gerrity score.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: gerrity_score: Gerrity score (range -1...1).
     """
 
-    s_matrix = _get_s_for_gerrity_score(contingency_table_as_matrix)
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+    s_matrix = _get_s_for_gerrity_score(contingency_matrix)
+    num_examples = numpy.sum(contingency_matrix)
 
-    return numpy.sum(
-        contingency_table_as_matrix * s_matrix
-    ) / num_evaluation_pairs
+    return numpy.sum(contingency_matrix * s_matrix) / num_examples
 
 
-def get_multiclass_csi(contingency_table_as_matrix):
-    """Computes multiclass critical success index.
-    This works for binary classification as well.  In the multiclass setting,
-    "correct nulls" are evaluation pairs where both forecast and observed class
-     are 0.
-    :param contingency_table_as_matrix: See doc for `_check_contingency_table`.
-    :return: multiclass_csi: Multiclass CSI.
+def get_binary_pod(contingency_matrix):
+    """Computes binary probability of detection (POD).
+
+    Binary POD = fraction of frontal examples that are correctly labeled.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: binary_pod: Binary POD.
     """
 
-    num_correct_nulls = contingency_table_as_matrix[0, 0]
-    num_correct_forecasts = numpy.trace(contingency_table_as_matrix)
-    num_evaluation_pairs = numpy.sum(contingency_table_as_matrix)
+    _check_contingency_table(contingency_matrix)
 
-    return (
-        float(num_correct_forecasts - num_correct_nulls) /
-        float(num_evaluation_pairs - num_correct_nulls)
+    numerator = contingency_matrix[1, 1] + contingency_matrix[2, 2]
+    denominator = (
+        _num_examples_with_observed_class(contingency_matrix, 1) +
+        _num_examples_with_observed_class(contingency_matrix, 2)
     )
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_binary_pofd(contingency_matrix):
+    """Computes binary probability of false detection (POFD).
+
+    Binary POFD = fraction of non-frontal examples that are labeled frontal.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: binary_pofd: Binary POFD.
+    """
+
+    _check_contingency_table(contingency_matrix)
+
+    denominator = _num_examples_with_observed_class(contingency_matrix, 0)
+    numerator = denominator - contingency_matrix[0, 0]
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_binary_far(contingency_matrix):
+    """Computes binary false-alarm ratio (FAR).
+
+    Binary FAR = fraction of examples labeled frontal that are incorrect.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: binary_far: Binary FAR.
+    """
+
+    _check_contingency_table(contingency_matrix)
+
+    denominator = (
+        _num_examples_with_predicted_class(contingency_matrix, 1) +
+        _num_examples_with_predicted_class(contingency_matrix, 2)
+    )
+    numerator = denominator - (
+        contingency_matrix[1, 1] + contingency_matrix[2, 2]
+    )
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_binary_frequency_bias(contingency_matrix):
+    """Computes binary frequency bias.
+
+    Frequency bias = ratio of examples labeled frontal to ones that are actually
+    frontal.
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: binary_freq_bias: Binary frequency bias.
+    """
+
+    _check_contingency_table(contingency_matrix)
+
+    numerator = (
+        _num_examples_with_predicted_class(contingency_matrix, 1) +
+        _num_examples_with_predicted_class(contingency_matrix, 2)
+    )
+    denominator = (
+        _num_examples_with_observed_class(contingency_matrix, 1) +
+        _num_examples_with_observed_class(contingency_matrix, 2)
+    )
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_csi(contingency_matrix):
+    """Computes critical success index (CSI).
+
+    :param contingency_matrix: See doc for `_check_contingency_table`.
+    :return: csi: Critical success index.
+    """
+
+    _check_contingency_table(contingency_matrix)
+
+    numerator = contingency_matrix[1, 1] + contingency_matrix[2, 2]
+    denominator = numpy.sum(contingency_matrix) - contingency_matrix[0, 0]
+
+    try:
+        return float(numerator) / denominator
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def write_file(
@@ -683,8 +565,10 @@ def write_file(
         scikit_learn_auc_by_class, aupd_by_class, reliability_by_class,
         bss_by_class, pickle_file_name):
     """Writes results to Pickle file.
+
     P = number of evaluation pairs (forecast-observation pairs)
     K = number of classes
+
     :param class_probability_matrix: P-by-K numpy array of class probabilities.
     :param observed_labels: length-P numpy array of class labels (integers in
         0...[K - 1]).
@@ -741,6 +625,7 @@ def write_file(
 
 def read_file(pickle_file_name):
     """Reads results from Pickle file.
+
     :param pickle_file_name: Path to input file.
     :return: result_dict: Dictionary with all keys listed in `write_file`.
     :raises: ValueError: if dictionary does not contain all keys in
@@ -761,68 +646,3 @@ def read_file(pickle_file_name):
     ).format(str(missing_keys), pickle_file_name)
 
     raise ValueError(error_string)
-
-
-def plot_scores_2d(
-        score_matrix, min_colour_value, max_colour_value, x_tick_label_strings,
-        y_tick_label_strings, colour_map_object=pyplot.cm.plasma,
-        axes_object=None):
-    """Plots scores on 2-D grid.
-    M = number of rows in grid
-    N = number of columns in grid
-    :param score_matrix: M-by-N numpy array of scores.
-    :param min_colour_value: Minimum value in colour scheme.
-    :param max_colour_value: Max value in colour scheme.
-    :param x_tick_label_strings: length-N list of labels for x-axis.
-    :param y_tick_label_strings: length-M list of labels for y-axis.
-    :param colour_map_object: Colour scheme (instance of
-        `matplotlib.pyplot.cm`).
-    :param axes_object: Will plot on these axes (instance of
-        `matplotlib.axes._subplots.AxesSubplot`).  If `axes_object is None`,
-        will create new axes.
-    :return: axes_object: See input doc.
-    """
-
-    error_checking.assert_is_real_numpy_array(score_matrix)
-    error_checking.assert_is_numpy_array(score_matrix, num_dimensions=2)
-    error_checking.assert_is_greater(max_colour_value, min_colour_value)
-
-    num_grid_rows = score_matrix.shape[0]
-    num_grid_columns = score_matrix.shape[1]
-
-    error_checking.assert_is_string_list(x_tick_label_strings)
-    error_checking.assert_is_numpy_array(
-        numpy.array(x_tick_label_strings),
-        exact_dimensions=numpy.array([num_grid_columns], dtype=int)
-    )
-
-    error_checking.assert_is_string_list(y_tick_label_strings)
-    error_checking.assert_is_numpy_array(
-        numpy.array(y_tick_label_strings),
-        exact_dimensions=numpy.array([num_grid_rows], dtype=int)
-    )
-
-    if axes_object is None:
-        _, axes_object = pyplot.subplots(
-            1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
-        )
-
-    score_matrix_to_plot = numpy.ma.masked_where(
-        numpy.isnan(score_matrix), score_matrix)
-
-    axes_object.imshow(
-        score_matrix_to_plot, cmap=colour_map_object, origin='lower',
-        vmin=min_colour_value, vmax=max_colour_value)
-
-    x_tick_values = numpy.linspace(
-        0, num_grid_columns - 1, num=num_grid_columns, dtype=float)
-    y_tick_values = numpy.linspace(
-        0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
-
-    axes_object.set_xticks(x_tick_values)
-    axes_object.set_xticklabels(x_tick_label_strings, rotation=90.)
-
-    axes_object.set_yticks(y_tick_values)
-    axes_object.set_yticklabels(y_tick_label_strings)
-
-    return axes_object
