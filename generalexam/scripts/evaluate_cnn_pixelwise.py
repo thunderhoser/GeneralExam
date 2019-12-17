@@ -18,7 +18,7 @@ PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 SCORING_FUNCTION_ARG_NAME = 'scoring_function_name'
-OUTPUT_FILE_ARG_NAME = 'output_FILE_name'
+OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 PREDICTION_DIR_HELP_STRING = (
     'Name of top-level directory with ungridded predictions from the CNN.  '
