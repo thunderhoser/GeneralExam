@@ -154,7 +154,7 @@ def write_file(
         `class_probability_matrix`.
     """
 
-    evaluation_utils.check_evaluation_pairs(
+    evaluation_utils.check_predictions_and_obs(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 
