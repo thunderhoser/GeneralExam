@@ -344,7 +344,7 @@ def find_best_determinization_threshold(
     best_score = numpy.nanmax(score_by_threshold)
     best_threshold = all_thresholds[numpy.nanargmax(score_by_threshold)]
 
-    return best_threshold, best_score
+    return best_threshold, best_score, all_thresholds
 
 
 def get_accuracy(contingency_matrix):
