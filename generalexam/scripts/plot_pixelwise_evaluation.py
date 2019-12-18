@@ -354,6 +354,7 @@ def _plot_attributes_diagram(
         result_table_xarray[evaluation_utils.NUM_EXAMPLES_KEY].values[:, k, :],
         axis=1
     )
+    num_examples_by_bin = numpy.round(num_examples_by_bin).astype(int)
 
     num_bootstrap_reps = probability_matrix.shape[0]
     num_bins = probability_matrix.shape[1]
