@@ -83,6 +83,10 @@ def _plot_roc_curve(result_table_xarray, output_file_name,
     num_bootstrap_reps = pod_matrix.shape[0]
     num_thresholds = pod_matrix.shape[1]
 
+    print(
+        result_table_xarray.coords[evaluation_utils.DETERMINIZN_THRESHOLD_DIM]
+    )
+
     # TODO(thunderhoser): Allow for only one best threshold in file.
     best_threshold = (
         result_table_xarray[evaluation_utils.BEST_THRESHOLD_KEY].values[0]
@@ -424,7 +428,7 @@ def _plot_attributes_diagram(
             num_examples_by_bin=num_examples_by_bin)
 
     axes_object.text(
-        0.02, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
         horizontalalignment='left', verticalalignment='top',
         transform=axes_object.transAxes
     )

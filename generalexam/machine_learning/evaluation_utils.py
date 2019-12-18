@@ -706,9 +706,6 @@ def run_evaluation(
     new_dict = {
         AREA_UNDER_ROCC_KEY: (BOOTSTRAP_REPLICATE_DIM, numpy.array([auc])),
         AREA_UNDER_PD_KEY: (BOOTSTRAP_REPLICATE_DIM, numpy.array([aupd])),
-        BEST_THRESHOLD_KEY: (
-            BOOTSTRAP_REPLICATE_DIM, numpy.array([best_determinizn_threshold])
-        )
     }
     main_data_dict.update(new_dict)
 
@@ -769,7 +766,10 @@ def run_evaluation(
         EXAMPLE_DIM: example_indices
     }
 
-    return xarray.Dataset(data_vars=main_data_dict, coords=metadata_dict)
+    return xarray.Dataset(
+        data_vars=main_data_dict, coords=metadata_dict,
+        attrs={BEST_THRESHOLD_KEY: best_determinizn_threshold}
+    )
 
 
 def write_file(result_table_xarray, netcdf_file_name):
