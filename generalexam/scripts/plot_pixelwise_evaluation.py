@@ -83,19 +83,15 @@ def _plot_roc_curve(result_table_xarray, output_file_name,
     num_bootstrap_reps = pod_matrix.shape[0]
     num_thresholds = pod_matrix.shape[1]
 
-    print(
-        result_table_xarray.coords[evaluation_utils.DETERMINIZN_THRESHOLD_DIM].values
-    )
-
-    # TODO(thunderhoser): Allow for only one best threshold in file.
     best_threshold = (
-        result_table_xarray[evaluation_utils.BEST_THRESHOLD_KEY].values[0]
+        result_table_xarray.attrs[evaluation_utils.BEST_THRESHOLD_KEY]
     )
-    # best_threshold_index = numpy.argmin(numpy.absolute(
-    #     best_threshold -
-    #     result_table_xarray[evaluation_utils.THRES].values[0]
-    # ))
-    best_threshold_index = 0
+    all_thresholds = result_table_xarray.coords[
+        evaluation_utils.DETERMINIZN_THRESHOLD_DIM
+    ].values
+    best_threshold_index = numpy.argmin(numpy.absolute(
+        best_threshold - all_thresholds
+    ))
 
     auc_values = (
         result_table_xarray[evaluation_utils.AREA_UNDER_ROCC_KEY].values
@@ -218,13 +214,14 @@ def _plot_performance_diagram(result_table_xarray, output_file_name,
     num_thresholds = pod_matrix.shape[1]
 
     best_threshold = (
-        result_table_xarray[evaluation_utils.BEST_THRESHOLD_KEY].values[0]
+        result_table_xarray.attrs[evaluation_utils.BEST_THRESHOLD_KEY]
     )
-    # best_threshold_index = numpy.argmin(numpy.absolute(
-    #     best_threshold -
-    #     result_table_xarray[evaluation_utils.THRES].values[0]
-    # ))
-    best_threshold_index = 0
+    all_thresholds = result_table_xarray.coords[
+        evaluation_utils.DETERMINIZN_THRESHOLD_DIM
+    ].values
+    best_threshold_index = numpy.argmin(numpy.absolute(
+        best_threshold - all_thresholds
+    ))
 
     aupd_values = (
         result_table_xarray[evaluation_utils.AREA_UNDER_PD_KEY].values
@@ -354,6 +351,7 @@ def _plot_attributes_diagram(
         evaluation_utils.EVENT_FREQUENCY_KEY
     ].values[:, k, :]
 
+    # TODO(thunderhoser): Make this independent of bootstrap replicates.
     num_examples_by_bin = numpy.mean(
         result_table_xarray[evaluation_utils.NUM_EXAMPLES_KEY].values[:, k, :],
         axis=0
