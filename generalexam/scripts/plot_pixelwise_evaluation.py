@@ -352,7 +352,7 @@ def _plot_attributes_diagram(
 
     num_examples_by_bin = numpy.mean(
         result_table_xarray[evaluation_utils.NUM_EXAMPLES_KEY].values[:, k, :],
-        axis=1
+        axis=0
     )
     num_examples_by_bin = numpy.round(num_examples_by_bin).astype(int)
 
