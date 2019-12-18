@@ -84,7 +84,7 @@ def _plot_roc_curve(result_table_xarray, output_file_name,
     num_thresholds = pod_matrix.shape[1]
 
     print(
-        result_table_xarray.coords[evaluation_utils.DETERMINIZN_THRESHOLD_DIM]
+        result_table_xarray.coords[evaluation_utils.DETERMINIZN_THRESHOLD_DIM].values
     )
 
     # TODO(thunderhoser): Allow for only one best threshold in file.
