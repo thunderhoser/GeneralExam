@@ -418,6 +418,21 @@ def read_normalization_params(pickle_file_name):
     :return: standard_deviation_dict: Same.
     """
 
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/scratch/ralager', '/condo/swatwork/ralager'
+        )
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/condo/swatwork/ralager', '/glade/work/ryanlage'
+        )
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/glade/work/ryanlage', '/glade/scratch/ryanlage'
+        )
+
     pickle_file_handle = open(pickle_file_name, 'rb')
     mean_value_dict = pickle.load(pickle_file_handle)
     standard_deviation_dict = pickle.load(pickle_file_handle)

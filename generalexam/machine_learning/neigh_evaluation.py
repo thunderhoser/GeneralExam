@@ -448,8 +448,6 @@ def make_contingency_tables(
         file does not handle negative observations.
     """
 
-    # TODO(thunderhoser): Incorporate time lag here?
-
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
     error_checking.assert_is_boolean(normalize)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
