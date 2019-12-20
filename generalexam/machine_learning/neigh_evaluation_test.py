@@ -6,6 +6,103 @@ from generalexam.machine_learning import neigh_evaluation
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test dilate_narr_mask and erode_narr_mask.
+FIRST_DILATION_DISTANCE_METRES = 35000.
+SECOND_DILATION_DISTANCE_METRES = 50000.
+THIRD_DILATION_DISTANCE_METRES = 100000.
+FOURTH_DILATION_DISTANCE_METRES = 150000.
+FIRST_EROSION_DISTANCE_METRES = 35000.
+SECOND_EROSION_DISTANCE_METRES = 50000.
+THIRD_EROSION_DISTANCE_METRES = 100000.
+
+ORIG_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 1, 1, 1, 0, 0, 1, 0],
+    [0, 0, 0, 1, 1, 0, 0, 0, 0, 1],
+    [0, 0, 1, 1, 0, 0, 0, 0, 1, 0],
+    [0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+    [0, 0, 1, 1, 1, 1, 1, 0, 0, 0]
+], dtype=int)
+
+FIRST_DILATED_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 0, 1, 1, 1, 1, 0, 0, 1, 1],
+    [0, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 1, 1, 0, 0]
+], dtype=int)
+
+SECOND_DILATED_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 0, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
+], dtype=int)
+
+THIRD_DILATED_MASK_MATRIX = numpy.array([
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+], dtype=int)
+
+FOURTH_DILATED_MASK_MATRIX = numpy.array([
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+], dtype=int)
+
+FIRST_ERODED_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
+], dtype=int)
+
+SECOND_ERODED_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 0, 0, 0, 0]
+], dtype=int)
+
+THIRD_ERODED_MASK_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+], dtype=int)
+
 # The following constants are used to test determinize_predictions_1threshold
 # and determinize_predictions_2thresholds.
 THIS_CLASS0_PROB_MATRIX = numpy.array([
@@ -243,6 +340,104 @@ BINARY_FREQUENCY_BIAS_LARGE_NEIGH = float(14 * 34) / (30 * 15)
 
 class NeighEvaluationTests(unittest.TestCase):
     """Each method is a unit test for neigh_evaluation.py."""
+
+    def test_dilate_narr_mask_first(self):
+        """Ensures correct output from dilate_narr_mask.
+
+        In this case, using first dilation distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.dilate_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=FIRST_DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, FIRST_DILATED_MASK_MATRIX
+        ))
+
+    def test_dilate_narr_mask_second(self):
+        """Ensures correct output from dilate_narr_mask.
+
+        In this case, using second dilation distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.dilate_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=SECOND_DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, SECOND_DILATED_MASK_MATRIX
+        ))
+
+    def test_dilate_narr_mask_third(self):
+        """Ensures correct output from dilate_narr_mask.
+
+        In this case, using third dilation distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.dilate_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=THIRD_DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, THIRD_DILATED_MASK_MATRIX
+        ))
+
+    def test_dilate_narr_mask_fourth(self):
+        """Ensures correct output from dilate_narr_mask.
+
+        In this case, using fourth dilation distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.dilate_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=FOURTH_DILATION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, FOURTH_DILATED_MASK_MATRIX
+        ))
+
+    def test_erode_narr_mask_first(self):
+        """Ensures correct output from erode_narr_mask.
+
+        In this case, using first erosion distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.erode_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=FIRST_EROSION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, FIRST_ERODED_MASK_MATRIX
+        ))
+
+    def test_erode_narr_mask_second(self):
+        """Ensures correct output from erode_narr_mask.
+
+        In this case, using second erosion distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.erode_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=SECOND_EROSION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, SECOND_ERODED_MASK_MATRIX
+        ))
+
+    def test_erode_narr_mask_third(self):
+        """Ensures correct output from erode_narr_mask.
+
+        In this case, using third erosion distance.
+        """
+
+        this_mask_matrix = neigh_evaluation.erode_narr_mask(
+            narr_mask_matrix=ORIG_MASK_MATRIX + 0,
+            neigh_distance_metres=THIRD_EROSION_DISTANCE_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_mask_matrix, THIRD_ERODED_MASK_MATRIX
+        ))
 
     def test_determinize_predictions_1threshold(self):
         """Ensures correct output from determinize_predictions_1threshold."""

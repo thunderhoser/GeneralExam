@@ -427,7 +427,7 @@ def _plot_attributes_diagram(
 
     axes_object.text(
         0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
-        horizontalalignment='left', verticalalignment='top',
+        horizontalalignment='right', verticalalignment='bottom',
         transform=axes_object.transAxes
     )
 

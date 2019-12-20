@@ -215,6 +215,51 @@ def check_gridded_predictions(prediction_matrix, expect_probs):
     )
 
 
+def dilate_narr_mask(narr_mask_matrix, neigh_distance_metres):
+    """Dilates NARR mask.
+
+    All grid points within `neigh_distance_metres` of an unmasked grid point in
+    the original mask, will also be unmasked after dilation.
+
+    The resulting mask determines grid points at which a prediction must be
+    made, *not* grid points used for evaluation.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param narr_mask_matrix: M-by-N numpy array of integers.  If
+        narr_mask_matrix[i, j] = 1, grid point [i, j] is unmasked.
+    :param neigh_distance_metres: Neighbourhood distance for evaluation.
+    :return: narr_mask_matrix: Same as input but with more ones.
+    """
+
+    return front_utils.dilate_binary_label_matrix(
+        binary_label_matrix=narr_mask_matrix,
+        dilation_distance_metres=neigh_distance_metres,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES)
+
+
+def erode_narr_mask(narr_mask_matrix, neigh_distance_metres):
+    """Erodes NARR mask.
+
+    All grid points within `neigh_distance_metres` of a masked grid point in the
+    original mask, will also be masked after erosion.
+
+    The resulting mask determines grid points to be used for evaluation.
+
+    :param narr_mask_matrix: See doc for `dilate_narr_mask`.
+    :param neigh_distance_metres: Same.
+    :return: narr_mask_matrix: Same as input but with more zeros.
+    """
+
+    this_matrix = front_utils.dilate_binary_label_matrix(
+        binary_label_matrix=1 - narr_mask_matrix,
+        dilation_distance_metres=neigh_distance_metres,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES)
+
+    return 1 - this_matrix
+
+
 def determinize_predictions_1threshold(
         class_probability_matrix, binarization_threshold):
     """Determinizes predictions (converts from probabilistic to deterministic).
