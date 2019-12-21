@@ -207,10 +207,17 @@ def create_downsized_examples_with_targets(
             raise_error_if_missing=True)
 
         print('Reading data from: "{0:s}"...'.format(predictor_file_name))
+        print(predictor_names)
+        print(pressure_levels_mb)
+
         predictor_dict = predictor_io.read_file(
             netcdf_file_name=predictor_file_name,
             pressure_levels_to_keep_mb=pressure_levels_mb,
             field_names_to_keep=predictor_names)
+
+        print('\n\n\n\n')
+        print(predictor_dict[predictor_utils.FIELD_NAMES_KEY])
+        print(predictor_dict[predictor_utils.PRESSURE_LEVELS_KEY])
 
         full_size_predictor_matrix = predictor_dict[
             predictor_utils.DATA_MATRIX_KEY
@@ -224,14 +231,12 @@ def create_downsized_examples_with_targets(
             )
 
         if normalization_file_name is None:
-            print('NORMALIZING NON-GLOBALLY')
             full_size_predictor_matrix, _ = (
                 ml_utils.normalize_predictors_nonglobal(
                     predictor_matrix=full_size_predictor_matrix,
                     normalization_type_string=normalization_type_string)
             )
         else:
-            print('NORMALIZING GLOBALLY')
             full_size_predictor_matrix = ml_utils.normalize_predictors_global(
                 predictor_matrix=full_size_predictor_matrix,
                 field_names=predictor_names,
