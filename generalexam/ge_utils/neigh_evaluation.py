@@ -859,11 +859,6 @@ def write_results(
         `make_contingency_tables`.
     """
 
-    _check_3class_contingency_tables(
-        prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
-        actual_oriented_ct_matrix=actual_oriented_ct_matrix,
-        expect_normalized=False)
-
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
     error_checking.assert_is_string_list(prediction_file_names)
     error_checking.assert_is_numpy_array(
@@ -882,6 +877,13 @@ def write_results(
     error_checking.assert_is_numpy_array(
         actual_oriented_ct_matrix, exact_dimensions=these_expected_dim
     )
+
+    for k in range(num_bootstrap_reps):
+        _check_3class_contingency_tables(
+            prediction_oriented_ct_matrix=prediction_oriented_ct_matrix[k, ...],
+            actual_oriented_ct_matrix=actual_oriented_ct_matrix[k, ...],
+            expect_normalized=False
+        )
 
     evaluation_dict = {
         PREDICTION_FILES_KEY: prediction_file_names,
