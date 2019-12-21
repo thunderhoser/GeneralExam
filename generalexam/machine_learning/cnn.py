@@ -647,8 +647,8 @@ def apply_model_to_full_grid(
         this_prob_matrix = model_object.predict(
             this_predictor_matrix, batch_size=len(these_row_indices)
         )
-        print(numpy.percentile(this_prob_matrix[..., 1]))
-        print(numpy.percentile(this_prob_matrix[..., 2]))
+        print(numpy.percentile(this_prob_matrix[..., 1], 90))
+        print(numpy.percentile(this_prob_matrix[..., 2], 90))
 
         class_probability_matrix[
             0, these_row_indices, these_column_indices, ...
