@@ -644,11 +644,15 @@ def apply_model_to_full_grid(
                 this_dict[testing_io.TARGET_VALUES_KEY]
             )
 
-        class_probability_matrix[
-            0, these_row_indices, these_column_indices, ...
-        ] = model_object.predict(
+        this_prob_matrix = model_object.predict(
             this_predictor_matrix, batch_size=len(these_row_indices)
         )
+        print(numpy.percentile(this_prob_matrix[..., 1]))
+        print(numpy.percentile(this_prob_matrix[..., 2]))
+
+        class_probability_matrix[
+            0, these_row_indices, these_column_indices, ...
+        ] = this_prob_matrix
 
     if isotonic_model_object_by_class is None:
         return class_probability_matrix, target_matrix
