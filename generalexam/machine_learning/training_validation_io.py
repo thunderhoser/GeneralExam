@@ -287,8 +287,12 @@ def downsized_generator_from_scratch(
                 this_full_predictor_matrix, _ = (
                     ml_utils.normalize_predictors_global(
                         predictor_matrix=this_full_predictor_matrix,
-                        field_names=predictor_names,
-                        pressure_levels_mb=pressure_levels_mb,
+                        field_names=this_predictor_dict[
+                            predictor_utils.FIELD_NAMES_KEY
+                        ],
+                        pressure_levels_mb=this_predictor_dict[
+                            predictor_utils.PRESSURE_LEVELS_KEY
+                        ],
                         param_file_name=normalization_file_name)
                 )
 
@@ -639,8 +643,12 @@ def full_size_generator_from_scratch(
             else:
                 this_predictor_matrix = ml_utils.normalize_predictors_global(
                     predictor_matrix=this_predictor_matrix,
-                    field_names=predictor_names,
-                    pressure_levels_mb=pressure_levels_mb,
+                    field_names=this_predictor_dict[
+                        predictor_utils.FIELD_NAMES_KEY
+                    ],
+                    pressure_levels_mb=this_predictor_dict[
+                        predictor_utils.PRESSURE_LEVELS_KEY
+                    ],
                     param_file_name=normalization_file_name
                 )[0]
 

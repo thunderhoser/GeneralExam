@@ -101,8 +101,10 @@ def create_downsized_examples_no_targets(
             full_size_predictor_matrix, _ = (
                 ml_utils.normalize_predictors_global(
                     predictor_matrix=full_size_predictor_matrix,
-                    field_names=predictor_names,
-                    pressure_levels_mb=pressure_levels_mb,
+                    field_names=predictor_dict[predictor_utils.FIELD_NAMES_KEY],
+                    pressure_levels_mb=predictor_dict[
+                        predictor_utils.PRESSURE_LEVELS_KEY
+                    ],
                     param_file_name=normalization_file_name)
             )
 
@@ -239,8 +241,10 @@ def create_downsized_examples_with_targets(
         else:
             full_size_predictor_matrix = ml_utils.normalize_predictors_global(
                 predictor_matrix=full_size_predictor_matrix,
-                field_names=predictor_names,
-                pressure_levels_mb=pressure_levels_mb,
+                field_names=predictor_dict[predictor_utils.FIELD_NAMES_KEY],
+                pressure_levels_mb=predictor_dict[
+                    predictor_utils.PRESSURE_LEVELS_KEY
+                ],
                 param_file_name=normalization_file_name
             )[0]
 
@@ -402,8 +406,10 @@ def create_full_size_example(
     else:
         predictor_matrix = ml_utils.normalize_predictors_global(
             predictor_matrix=predictor_matrix,
-            field_names=predictor_names,
-            pressure_levels_mb=pressure_levels_mb,
+            field_names=predictor_dict[predictor_utils.FIELD_NAMES_KEY],
+            pressure_levels_mb=predictor_dict[
+                predictor_utils.PRESSURE_LEVELS_KEY
+            ],
             param_file_name=normalization_file_name
         )[0]
 
