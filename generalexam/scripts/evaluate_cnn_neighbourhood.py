@@ -8,6 +8,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import prediction_io
+from generalexam.machine_learning import cnn
 from generalexam.machine_learning import neigh_evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -95,7 +96,8 @@ def _decompose_contingency_tables(
     A = number of actual fronts
 
     :param prediction_oriented_ct_matrix: See doc for
-        `neigh_evaluation.make_contingency_tables` with `normalize == False`.
+        `neigh_evaluation._check_3class_contingency_tables` with
+        `normalize == False`.
     :param actual_oriented_ct_matrix: Same.
     :return: match_dict: Dictionary with the following keys.
     match_dict["predicted_front_enums"]: length-P numpy array of predicted
@@ -160,29 +162,33 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
     :param match_dict: Dictionary created by `_decompose_contingency_tables`.
     :param test_mode: Never mind.  Just leave this alone.
     :return: binary_ct_as_dict: See doc for
-        `neigh_evaluation.make_contingency_tables` with `normalize == True`.
+        `neigh_evaluation.make_contingency_tables`.
     :return: prediction_oriented_ct_matrix: Same.
     :return: actual_oriented_ct_matrix: Same.
     """
 
     predicted_front_enums = match_dict[PREDICTED_LABELS_KEY]
     predicted_to_actual_front_enums = match_dict[
-        PREDICTED_TO_ACTUAL_FRONTS_KEY]
+        PREDICTED_TO_ACTUAL_FRONTS_KEY
+    ]
     actual_front_enums = match_dict[ACTUAL_LABELS_KEY]
     actual_to_predicted_front_enums = match_dict[
-        ACTUAL_TO_PREDICTED_FRONTS_KEY]
+        ACTUAL_TO_PREDICTED_FRONTS_KEY
+    ]
 
     num_predicted_fronts = len(predicted_front_enums)
     predicted_front_indices = numpy.linspace(
-        0, num_predicted_fronts - 1, num=num_predicted_fronts, dtype=int)
+        0, num_predicted_fronts - 1, num=num_predicted_fronts, dtype=int
+    )
 
     num_actual_fronts = len(actual_front_enums)
     actual_front_indices = numpy.linspace(
-        0, num_actual_fronts - 1, num=num_actual_fronts, dtype=int)
+        0, num_actual_fronts - 1, num=num_actual_fronts, dtype=int
+    )
 
-    dimensions = (NUM_CLASSES, NUM_CLASSES)
-    prediction_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
-    actual_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+    these_dim = (NUM_CLASSES, NUM_CLASSES)
+    prediction_oriented_ct_matrix = numpy.full(these_dim, numpy.nan)
+    actual_oriented_ct_matrix = numpy.full(these_dim, numpy.nan)
     binary_ct_as_dict = dict()
 
     if test_mode:
@@ -248,9 +254,9 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
 
 
 def _do_eval_one_neigh_distance(
-        predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
-        num_bootstrap_reps, confidence_level, prediction_file_names,
-        output_file_name):
+        predicted_label_matrix, actual_label_matrix, training_mask_matrix,
+        neigh_distance_metres, num_bootstrap_reps, confidence_level,
+        prediction_file_names, output_file_name):
     """Does evaluation with one neighbourhood distance.
 
     T = number of time steps
@@ -260,6 +266,9 @@ def _do_eval_one_neigh_distance(
     :param predicted_label_matrix: T-by-M-by-N numpy array of predicted labels
         (in range 0...2).
     :param actual_label_matrix: Same but for actual labels.
+    :param training_mask_matrix: M-by-N numpy array of integers in 0...1,
+        indicating which grid cells were masked during training.  0 means that
+        the grid cell was masked.
     :param neigh_distance_metres: Neighbourhood distance.
     :param num_bootstrap_reps: See documentation at top of file.
     :param confidence_level: Same.
@@ -268,67 +277,55 @@ def _do_eval_one_neigh_distance(
     :param output_file_name: Path to output file.
     """
 
-    _, this_prediction_oriented_matrix, this_actual_oriented_matrix = (
+    main_binary_ct, main_prediction_oriented_ct, main_actual_oriented_ct = (
         neigh_evaluation.make_contingency_tables(
             predicted_label_matrix=predicted_label_matrix,
             actual_label_matrix=actual_label_matrix,
-            neigh_distance_metres=neigh_distance_metres, normalize=False)
+            neigh_distance_metres=neigh_distance_metres,
+            training_mask_matrix=training_mask_matrix, normalize=False)
     )
 
     print(SEPARATOR_STRING)
 
     match_dict = _decompose_contingency_tables(
-        prediction_oriented_ct_matrix=this_prediction_oriented_matrix,
-        actual_oriented_ct_matrix=this_actual_oriented_matrix)
+        prediction_oriented_ct_matrix=main_prediction_oriented_ct,
+        actual_oriented_ct_matrix=main_actual_oriented_ct)
 
-    dimensions = (num_bootstrap_reps, NUM_CLASSES, NUM_CLASSES)
-    prediction_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
-    actual_oriented_ct_matrix = numpy.full(dimensions, numpy.nan)
+    these_dim = (num_bootstrap_reps, NUM_CLASSES, NUM_CLASSES)
+    prediction_oriented_ct_matrix = numpy.full(these_dim, numpy.nan)
+    actual_oriented_ct_matrix = numpy.full(these_dim, numpy.nan)
     list_of_binary_ct_dicts = [dict()] * num_bootstrap_reps
 
     pod_values = numpy.full(num_bootstrap_reps, numpy.nan)
-    success_ratios = numpy.full(num_bootstrap_reps, numpy.nan)
+    far_values = numpy.full(num_bootstrap_reps, numpy.nan)
     csi_values = numpy.full(num_bootstrap_reps, numpy.nan)
     frequency_biases = numpy.full(num_bootstrap_reps, numpy.nan)
 
     for k in range(num_bootstrap_reps):
-        (list_of_binary_ct_dicts[k], prediction_oriented_ct_matrix[k, ...],
-         actual_oriented_ct_matrix[k, ...]
-        ) = _bootstrap_contingency_tables(match_dict)
-        print(SEPARATOR_STRING)
+        if num_bootstrap_reps == 1:
+            list_of_binary_ct_dicts[k] = main_binary_ct
+            prediction_oriented_ct_matrix[k, ...] = main_prediction_oriented_ct
+            actual_oriented_ct_matrix[k, ...] = main_actual_oriented_ct
+        else:
+            (
+                list_of_binary_ct_dicts[k],
+                prediction_oriented_ct_matrix[k, ...],
+                actual_oriented_ct_matrix[k, ...]
+            ) = _bootstrap_contingency_tables(match_dict)
 
-        pod_values[k] = neigh_evaluation.get_binary_pod(
-            list_of_binary_ct_dicts[k]
-        )
-        success_ratios[k] = neigh_evaluation.get_binary_success_ratio(
-            list_of_binary_ct_dicts[k]
-        )
-        csi_values[k] = neigh_evaluation.get_binary_csi(
-            list_of_binary_ct_dicts[k]
-        )
-        frequency_biases[k] = neigh_evaluation.get_binary_frequency_bias(
-            list_of_binary_ct_dicts[k]
-        )
+            print(SEPARATOR_STRING)
 
-        print((
-            'Scores for {0:d}th bootstrap replicate, {1:.1f}-km neighbourhood: '
-            'POD = {2:.4f}, success ratio = {3:.4f}, CSI = {4:.4f}, freq bias ='
-            ' {5:.4f}'
-        ).format(
-            k, neigh_distance_metres * METRES_TO_KM,
-            pod_values[k], success_ratios[k], csi_values[k], frequency_biases[k]
-        ))
-
-        print(SEPARATOR_STRING)
+        pod_values[k] = neigh_evaluation.get_pod(list_of_binary_ct_dicts[k])
+        far_values[k] = neigh_evaluation.get_far(list_of_binary_ct_dicts[k])
+        csi_values[k] = neigh_evaluation.get_csi(list_of_binary_ct_dicts[k])
+        frequency_biases[k] = neigh_evaluation.get_frequency_bias(
+            list_of_binary_ct_dicts[k]
+        )
 
     min_pod = numpy.percentile(pod_values, 50. * (1 - confidence_level))
     max_pod = numpy.percentile(pod_values, 50. * (1 + confidence_level))
-    min_success_ratio = numpy.percentile(
-        success_ratios, 50. * (1 - confidence_level)
-    )
-    max_success_ratio = numpy.percentile(
-        success_ratios, 50. * (1 + confidence_level)
-    )
+    min_far = numpy.percentile(far_values, 50. * (1 - confidence_level))
+    max_far = numpy.percentile(far_values, 50. * (1 + confidence_level))
     min_csi = numpy.percentile(csi_values, 50. * (1 - confidence_level))
     max_csi = numpy.percentile(csi_values, 50. * (1 + confidence_level))
     min_frequency_bias = numpy.percentile(
@@ -340,11 +337,11 @@ def _do_eval_one_neigh_distance(
 
     print((
         '{0:.1f}% confidence interval for POD = [{1:.4f}, {2:.4f}] ... '
-        'success ratio = [{3:.4f}, {4:.4f}] ... CSI = [{5:.4f}, {6:.4f}] ... '
+        'FAR = [{3:.4f}, {4:.4f}] ... CSI = [{5:.4f}, {6:.4f}] ... '
         'frequency bias = [{7:.4f}, {8:.4f}]\n'
     ).format(
         100 * confidence_level, min_pod, max_pod,
-        min_success_ratio, max_success_ratio, min_csi, max_csi,
+        min_far, max_far, min_csi, max_csi,
         min_frequency_bias, max_frequency_bias
     ))
 
@@ -374,25 +371,31 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     :param output_dir_name: Same.
     """
 
+    # Process input args.
     num_bootstrap_reps = max([num_bootstrap_reps, 1])
+
     if num_bootstrap_reps > 1:
         error_checking.assert_is_geq(confidence_level, 0.9)
         error_checking.assert_is_less_than(confidence_level, 1.)
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_time_string, INPUT_TIME_FORMAT)
+        first_time_string, INPUT_TIME_FORMAT
+    )
     last_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_time_string, INPUT_TIME_FORMAT)
-
+        last_time_string, INPUT_TIME_FORMAT
+    )
     valid_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True)
+        time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True
+    )
 
+    # Read predictions.
     num_times = len(valid_times_unix_sec)
     prediction_file_names = [None] * num_times
     predicted_label_matrix = None
     actual_label_matrix = None
+    model_file_name = None
 
     for i in range(num_times):
         prediction_file_names[i] = prediction_io.find_file(
@@ -410,18 +413,31 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         )
 
         this_predicted_label_matrix = this_prediction_dict[
-            prediction_io.PREDICTED_LABELS_KEY]
+            prediction_io.PREDICTED_LABELS_KEY
+        ]
         this_actual_label_matrix = this_prediction_dict[
-            prediction_io.TARGET_MATRIX_KEY]
+            prediction_io.TARGET_MATRIX_KEY
+        ]
+        model_file_name = this_prediction_dict[prediction_io.MODEL_FILE_KEY]
 
         if predicted_label_matrix is None:
-            dimensions = (num_times,) + this_actual_label_matrix.shape[1:]
-            predicted_label_matrix = numpy.full(dimensions, -1, dtype=int)
-            actual_label_matrix = numpy.full(dimensions, -1, dtype=int)
+            these_dim = (num_times,) + this_actual_label_matrix.shape[1:]
+            predicted_label_matrix = numpy.full(these_dim, -1, dtype=int)
+            actual_label_matrix = numpy.full(these_dim, -1, dtype=int)
 
         predicted_label_matrix[i, ...] = this_predicted_label_matrix[0, ...]
         actual_label_matrix[i, ...] = this_actual_label_matrix[0, ...]
 
+    # Read training mask.
+    model_metafile_name = cnn.find_metafile(model_file_name)
+
+    print(SEPARATOR_STRING)
+    print('Reading training mask from: "{0:s}"...'.format(model_metafile_name))
+
+    model_metadata_dict = cnn.read_metadata(model_metafile_name)
+    training_mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
+
+    # Run neighbourhood evaluation.
     for this_neigh_distance_metres in neigh_distances_metres:
         print(SEPARATOR_STRING)
 
@@ -434,6 +450,7 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         _do_eval_one_neigh_distance(
             predicted_label_matrix=predicted_label_matrix,
             actual_label_matrix=actual_label_matrix,
+            training_mask_matrix=training_mask_matrix,
             neigh_distance_metres=this_neigh_distance_metres,
             num_bootstrap_reps=num_bootstrap_reps,
             confidence_level=confidence_level,
