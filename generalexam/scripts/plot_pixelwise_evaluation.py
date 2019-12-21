@@ -18,7 +18,7 @@ from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import model_eval_plotting
-from generalexam.machine_learning import evaluation_utils
+from generalexam.ge_utils import pixelwise_evaluation as pixelwise_eval
 
 BOUNDING_BOX_DICT = {
     'facecolor': 'white',
@@ -41,7 +41,7 @@ CONFIDENCE_LEVEL_ARG_NAME = 'confidence_level'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `evaluation_utils.read_file`.'
+    'Path to input file.  Will be read by `pixelwise_eval.read_file`.'
 )
 
 CONFIDENCE_LEVEL_HELP_STRING = (
@@ -73,28 +73,28 @@ def _plot_roc_curve(result_table_xarray, output_file_name,
     """Plots ROC curve.
 
     :param result_table_xarray: xarray table produced by
-        `evaluation_utils.run_evaluation`.
+        `pixelwise_eval.run_evaluation`.
     :param output_file_name: Path to output file (figure will be saved here).
     :param confidence_level: See documentation at top of file.
     """
 
-    pod_matrix = result_table_xarray[evaluation_utils.BINARY_POD_KEY].values
-    pofd_matrix = result_table_xarray[evaluation_utils.BINARY_POFD_KEY].values
+    pod_matrix = result_table_xarray[pixelwise_eval.BINARY_POD_KEY].values
+    pofd_matrix = result_table_xarray[pixelwise_eval.BINARY_POFD_KEY].values
     num_bootstrap_reps = pod_matrix.shape[0]
     num_thresholds = pod_matrix.shape[1]
 
     best_threshold = (
-        result_table_xarray.attrs[evaluation_utils.BEST_THRESHOLD_KEY]
+        result_table_xarray.attrs[pixelwise_eval.BEST_THRESHOLD_KEY]
     )
     all_thresholds = result_table_xarray.coords[
-        evaluation_utils.DETERMINIZN_THRESHOLD_DIM
+        pixelwise_eval.DETERMINIZN_THRESHOLD_DIM
     ].values
     best_threshold_index = numpy.argmin(numpy.absolute(
         best_threshold - all_thresholds
     ))
 
     auc_values = (
-        result_table_xarray[evaluation_utils.AREA_UNDER_ROCC_KEY].values
+        result_table_xarray[pixelwise_eval.AREA_UNDER_ROCC_KEY].values
     )
 
     if num_bootstrap_reps > 1:
@@ -201,30 +201,30 @@ def _plot_performance_diagram(result_table_xarray, output_file_name,
     """Plots performance diagram.
 
     :param result_table_xarray: xarray table produced by
-        `evaluation_utils.run_evaluation`.
+        `pixelwise_eval.run_evaluation`.
     :param output_file_name: Path to output file (figure will be saved here).
     :param confidence_level: See documentation at top of file.
     """
 
-    pod_matrix = result_table_xarray[evaluation_utils.BINARY_POD_KEY].values
+    pod_matrix = result_table_xarray[pixelwise_eval.BINARY_POD_KEY].values
     success_ratio_matrix = (
-        1. - result_table_xarray[evaluation_utils.BINARY_FAR_KEY].values
+        1. - result_table_xarray[pixelwise_eval.BINARY_FAR_KEY].values
     )
     num_bootstrap_reps = pod_matrix.shape[0]
     num_thresholds = pod_matrix.shape[1]
 
     best_threshold = (
-        result_table_xarray.attrs[evaluation_utils.BEST_THRESHOLD_KEY]
+        result_table_xarray.attrs[pixelwise_eval.BEST_THRESHOLD_KEY]
     )
     all_thresholds = result_table_xarray.coords[
-        evaluation_utils.DETERMINIZN_THRESHOLD_DIM
+        pixelwise_eval.DETERMINIZN_THRESHOLD_DIM
     ].values
     best_threshold_index = numpy.argmin(numpy.absolute(
         best_threshold - all_thresholds
     ))
 
     aupd_values = (
-        result_table_xarray[evaluation_utils.AREA_UNDER_PD_KEY].values
+        result_table_xarray[pixelwise_eval.AREA_UNDER_PD_KEY].values
     )
 
     if num_bootstrap_reps > 1:
@@ -335,7 +335,7 @@ def _plot_attributes_diagram(
     Will plot for the [k]th class, where k = `class_index`.
 
     :param result_table_xarray: xarray table produced by
-        `evaluation_utils.run_evaluation`.
+        `pixelwise_eval.run_evaluation`.
     :param class_index: See discussion above.
     :param output_file_name: Path to output file (figure will be saved here).
     :param confidence_level: See documentation at top of file.
@@ -344,16 +344,16 @@ def _plot_attributes_diagram(
     k = class_index
 
     probability_matrix = result_table_xarray[
-        evaluation_utils.MEAN_PROBABILITY_KEY
+        pixelwise_eval.MEAN_PROBABILITY_KEY
     ].values[:, k, :]
 
     event_frequency_matrix = result_table_xarray[
-        evaluation_utils.EVENT_FREQUENCY_KEY
+        pixelwise_eval.EVENT_FREQUENCY_KEY
     ].values[:, k, :]
 
     # TODO(thunderhoser): Make this independent of bootstrap replicates.
     num_examples_by_bin = numpy.mean(
-        result_table_xarray[evaluation_utils.NUM_EXAMPLES_KEY].values[:, k, :],
+        result_table_xarray[pixelwise_eval.NUM_EXAMPLES_KEY].values[:, k, :],
         axis=0
     )
     num_examples_by_bin = numpy.round(num_examples_by_bin).astype(int)
@@ -361,7 +361,7 @@ def _plot_attributes_diagram(
     num_bootstrap_reps = probability_matrix.shape[0]
     num_bins = probability_matrix.shape[1]
 
-    bss_values = result_table_xarray[evaluation_utils.BSS_KEY].values[:, k]
+    bss_values = result_table_xarray[pixelwise_eval.BSS_KEY].values[:, k]
 
     if num_bootstrap_reps > 1:
         min_bss, max_bss = bootstrapping.get_confidence_interval(
@@ -454,7 +454,7 @@ def _run(input_file_name, confidence_level, output_dir_name):
         directory_name=output_dir_name)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))
-    result_table_xarray = evaluation_utils.read_file(input_file_name)
+    result_table_xarray = pixelwise_eval.read_file(input_file_name)
 
     _plot_roc_curve(
         result_table_xarray=result_table_xarray,
@@ -470,7 +470,7 @@ def _run(input_file_name, confidence_level, output_dir_name):
         confidence_level=confidence_level
     )
 
-    num_classes = result_table_xarray[evaluation_utils.BSS_KEY].values.shape[1]
+    num_classes = result_table_xarray[pixelwise_eval.BSS_KEY].values.shape[1]
 
     for k in range(num_classes):
         _plot_attributes_diagram(

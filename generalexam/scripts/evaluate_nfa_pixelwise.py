@@ -9,18 +9,17 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_io import fronts_io
 from generalexam.ge_utils import nfa
-from generalexam.machine_learning import evaluation_utils
+from generalexam.ge_utils import pixelwise_evaluation as pixelwise_eval
 from generalexam.machine_learning import machine_learning_utils as ml_utils
-from generalexam.scripts import model_evaluation_helper as model_eval_helper
 
 RANDOM_SEED = 6695
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NAME_TO_CRITERION_FUNCTION_DICT = {
-    'gerrity': evaluation_utils.get_gerrity_score,
-    'csi': evaluation_utils.get_multiclass_csi
+SCORE_NAME_TO_FUNCTION = {
+    'gerrity': pixelwise_eval.get_gerrity_score,
+    'csi': pixelwise_eval.get_csi
 }
 
 NUM_CLASSES = 3
@@ -35,8 +34,8 @@ LAST_TIME_ARG_NAME = 'last_time_string'
 NUM_TIMES_ARG_NAME = 'num_times'
 NUM_PIXELS_PER_TIME_ARG_NAME = 'num_pixels_per_time'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
-CRITERION_FUNCTION_ARG_NAME = 'criterion_function_name'
-OUTPUT_DIR_ARG_NAME = 'output_dir_name'
+SCORING_FUNCTION_ARG_NAME = 'scoring_function_name'
+OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 PREDICTION_DIR_HELP_STRING = (
     'Name of directory with gridded NFA predictions.  Files therein will be '
@@ -70,15 +69,14 @@ NUM_PIXELS_PER_TIME_HELP_STRING = (
 
 DILATION_DISTANCE_HELP_STRING = 'Dilation distance for labels (true fronts).'
 
-CRITERION_FUNCTION_HELP_STRING = (
-    'Name of criterion function used to determine best binarization threshold.'
-    '  Must be in the following list:\n{0:s}'
+SCORING_FUNCTION_HELP_STRING = (
+    'Scoring function used to choose best determinization threshold.  Must be '
+    'in the following list:\n{0:s}'
 ).format(
-    str(list(NAME_TO_CRITERION_FUNCTION_DICT.keys()))
+    str(SCORE_NAME_TO_FUNCTION.keys())
 )
 
-OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Results will be saved here.')
+OUTPUT_FILE_HELP_STRING = 'Path to output file (NetCDF).'
 
 DEFAULT_NUM_PIXELS_PER_TIME = 1000
 DEFAULT_DILATION_DISTANCE_METRES = 50000
@@ -118,18 +116,18 @@ INPUT_ARG_PARSER.add_argument(
     help=DILATION_DISTANCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CRITERION_FUNCTION_ARG_NAME, type=str, required=False,
-    default='gerrity', help=CRITERION_FUNCTION_HELP_STRING)
+    '--' + SCORING_FUNCTION_ARG_NAME, type=str, required=False, default='csi',
+    help=SCORING_FUNCTION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
+    help=OUTPUT_FILE_HELP_STRING)
 
 
 def _run(top_prediction_dir_name, top_gridded_front_dir_name,
          use_ensembled_predictions, first_time_string, last_time_string,
          num_times, num_pixels_per_time, dilation_distance_metres,
-         criterion_function_name, output_dir_name):
+         scoring_function_name, output_file_name):
     """Runs pixelwise evaluation for NFA (numerical frontal analysis).
 
     This is effectively the main method.
@@ -142,12 +140,11 @@ def _run(top_prediction_dir_name, top_gridded_front_dir_name,
     :param num_times: Same.
     :param num_pixels_per_time: Same.
     :param dilation_distance_metres: Same.
-    :param criterion_function_name: Same.
-    :param output_dir_name: Same.
+    :param scoring_function_name: Same.
+    :param output_file_name: Same.
     """
 
-    criterion_function = NAME_TO_CRITERION_FUNCTION_DICT[
-        criterion_function_name]
+    scoring_function = SCORE_NAME_TO_FUNCTION[scoring_function_name]
 
     error_checking.assert_is_greater(num_times, 0)
     error_checking.assert_is_greater(num_pixels_per_time, 0)
@@ -266,10 +263,38 @@ def _run(top_prediction_dir_name, top_gridded_front_dir_name,
 
     print(SEPARATOR_STRING)
 
-    model_eval_helper.run_evaluation(
+    best_threshold, best_score, all_thresholds = (
+        pixelwise_eval.find_best_determinization_threshold(
+            class_probability_matrix=class_probability_matrix,
+            observed_labels=observed_labels, scoring_function=scoring_function)
+    )
+
+    print((
+        '\nBest determinization threshold = {0:.4f} ... corresponding "{1:s}" '
+        'score = {2:.4f}'
+    ).format(
+        best_threshold, scoring_function_name, best_score
+    ))
+    print(SEPARATOR_STRING)
+
+    climo_counts = numpy.array([
+        numpy.sum(observed_labels == k)
+        for k in range(pixelwise_eval.NUM_CLASSES)
+    ], dtype=int)
+
+    result_table_xarray = pixelwise_eval.run_evaluation(
         class_probability_matrix=class_probability_matrix,
-        observed_labels=observed_labels, criterion_function=criterion_function,
-        output_dir_name=output_dir_name)
+        observed_labels=observed_labels,
+        best_determinizn_threshold=best_threshold,
+        all_determinizn_thresholds=all_thresholds,
+        climo_counts=climo_counts, bootstrap_rep_index=0)
+
+    print(SEPARATOR_STRING)
+    print('Writing results to: "{0:s}"...'.format(output_file_name))
+
+    pixelwise_eval.write_file(
+        result_table_xarray=result_table_xarray,
+        netcdf_file_name=output_file_name)
 
 
 if __name__ == '__main__':
@@ -277,18 +302,25 @@ if __name__ == '__main__':
 
     _run(
         use_ensembled_predictions=bool(getattr(
-            INPUT_ARG_OBJECT, USE_ENSEMBLE_ARG_NAME)),
+            INPUT_ARG_OBJECT, USE_ENSEMBLE_ARG_NAME
+        )),
         top_prediction_dir_name=getattr(
-            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME
+        ),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         num_times=getattr(INPUT_ARG_OBJECT, NUM_TIMES_ARG_NAME),
         num_pixels_per_time=getattr(
-            INPUT_ARG_OBJECT, NUM_PIXELS_PER_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, NUM_PIXELS_PER_TIME_ARG_NAME
+        ),
         dilation_distance_metres=getattr(
-            INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME),
-        top_gridded_front_dir_name=getattr(INPUT_ARG_OBJECT, FRONT_DIR_ARG_NAME),
-        criterion_function_name=getattr(
-            INPUT_ARG_OBJECT, CRITERION_FUNCTION_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+            INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME
+        ),
+        top_gridded_front_dir_name=getattr(
+            INPUT_ARG_OBJECT, FRONT_DIR_ARG_NAME
+        ),
+        scoring_function_name=getattr(
+            INPUT_ARG_OBJECT, SCORING_FUNCTION_ARG_NAME
+        ),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

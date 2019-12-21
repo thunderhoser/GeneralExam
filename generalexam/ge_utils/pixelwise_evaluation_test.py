@@ -1,8 +1,8 @@
-"""Unit tests for evaluation_utils.py."""
+"""Unit tests for pixelwise_evaluation.py."""
 
 import unittest
 import numpy
-from generalexam.machine_learning import evaluation_utils
+from generalexam.ge_utils import pixelwise_evaluation as pixelwise_eval
 
 TOLERANCE = 1e-6
 GERRITY_TOLERANCE = 1e-4
@@ -55,13 +55,13 @@ BINARY_FREQ_BIAS = 1.
 CRITICAL_SUCCESS_INDEX = 0.5
 
 
-class EvaluationUtilsTests(unittest.TestCase):
-    """Each method is a unit test for evaluation_utils.py."""
+class PixelwiseEvaluationTests(unittest.TestCase):
+    """Each method is a unit test for pixelwise_evaluation.py."""
 
     def test_determinize_predictions(self):
         """Ensures correct output from determinize_predictions."""
 
-        these_predicted_labels = evaluation_utils.determinize_predictions(
+        these_predicted_labels = pixelwise_eval.determinize_predictions(
             class_probability_matrix=CLASS_PROBABILITY_MATRIX,
             threshold=DETERMINIZATION_THRESHOLD)
 
@@ -72,7 +72,7 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_contingency_table(self):
         """Ensures correct output from get_contingency_table."""
 
-        this_contingency_matrix = evaluation_utils.get_contingency_table(
+        this_contingency_matrix = pixelwise_eval.get_contingency_table(
             predicted_labels=PREDICTED_LABELS, observed_labels=OBSERVED_LABELS)
 
         self.assertTrue(numpy.array_equal(
@@ -82,13 +82,13 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_accuracy(self):
         """Ensures correct output from get_accuracy."""
 
-        this_accuracy = evaluation_utils.get_accuracy(CONTINGENCY_MATRIX)
+        this_accuracy = pixelwise_eval.get_accuracy(CONTINGENCY_MATRIX)
         self.assertTrue(numpy.isclose(this_accuracy, ACCURACY, atol=TOLERANCE))
 
     def test_get_peirce_score(self):
         """Ensures correct output from get_peirce_score."""
 
-        this_peirce_score = evaluation_utils.get_peirce_score(
+        this_peirce_score = pixelwise_eval.get_peirce_score(
             CONTINGENCY_MATRIX)
 
         self.assertTrue(numpy.isclose(
@@ -98,7 +98,7 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_heidke_score(self):
         """Ensures correct output from get_heidke_score."""
 
-        this_heidke_score = evaluation_utils.get_heidke_score(
+        this_heidke_score = pixelwise_eval.get_heidke_score(
             CONTINGENCY_MATRIX)
 
         self.assertTrue(numpy.isclose(
@@ -108,7 +108,7 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_a_for_gerrity_score(self):
         """Ensures correct output from _get_a_for_gerrity_score."""
 
-        this_a_vector = evaluation_utils._get_a_for_gerrity_score(
+        this_a_vector = pixelwise_eval._get_a_for_gerrity_score(
             CONTINGENCY_MATRIX)
 
         self.assertTrue(numpy.allclose(
@@ -118,7 +118,7 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_s_for_gerrity_score(self):
         """Ensures correct output from _get_s_for_gerrity_score."""
 
-        this_s_matrix = evaluation_utils._get_s_for_gerrity_score(
+        this_s_matrix = pixelwise_eval._get_s_for_gerrity_score(
             CONTINGENCY_MATRIX)
 
         self.assertTrue(numpy.allclose(
@@ -128,7 +128,7 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_gerrity_score(self):
         """Ensures correct output from get_gerrity_score."""
 
-        this_gerrity_score = evaluation_utils.get_gerrity_score(
+        this_gerrity_score = pixelwise_eval.get_gerrity_score(
             CONTINGENCY_MATRIX)
 
         self.assertTrue(numpy.isclose(
@@ -138,25 +138,25 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_binary_pod(self):
         """Ensures correct output from get_binary_pod."""
 
-        this_pod = evaluation_utils.get_binary_pod(CONTINGENCY_MATRIX)
+        this_pod = pixelwise_eval.get_binary_pod(CONTINGENCY_MATRIX)
         self.assertTrue(numpy.isclose(this_pod, BINARY_POD, atol=TOLERANCE))
 
     def test_get_binary_pofd(self):
         """Ensures correct output from get_binary_pofd."""
 
-        this_pofd = evaluation_utils.get_binary_pofd(CONTINGENCY_MATRIX)
+        this_pofd = pixelwise_eval.get_binary_pofd(CONTINGENCY_MATRIX)
         self.assertTrue(numpy.isclose(this_pofd, BINARY_POFD, atol=TOLERANCE))
 
     def test_get_binary_far(self):
         """Ensures correct output from get_binary_far."""
 
-        this_far = evaluation_utils.get_binary_far(CONTINGENCY_MATRIX)
+        this_far = pixelwise_eval.get_binary_far(CONTINGENCY_MATRIX)
         self.assertTrue(numpy.isclose(this_far, BINARY_FAR, atol=TOLERANCE))
 
     def test_get_binary_frequency_bias(self):
         """Ensures correct output from get_binary_frequency_bias."""
 
-        this_bias = evaluation_utils.get_binary_frequency_bias(
+        this_bias = pixelwise_eval.get_binary_frequency_bias(
             CONTINGENCY_MATRIX)
 
         self.assertTrue(numpy.isclose(
@@ -166,7 +166,7 @@ class EvaluationUtilsTests(unittest.TestCase):
     def test_get_binary_csi(self):
         """Ensures correct output from get_binary_csi."""
 
-        this_csi = evaluation_utils.get_csi(CONTINGENCY_MATRIX)
+        this_csi = pixelwise_eval.get_csi(CONTINGENCY_MATRIX)
         self.assertTrue(numpy.isclose(
             this_csi, CRITICAL_SUCCESS_INDEX, atol=TOLERANCE
         ))

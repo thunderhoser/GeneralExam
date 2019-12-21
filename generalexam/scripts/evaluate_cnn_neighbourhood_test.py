@@ -2,7 +2,7 @@
 
 import unittest
 import numpy
-from generalexam.machine_learning import neigh_evaluation
+from generalexam.ge_utils import neigh_evaluation
 from generalexam.scripts import evaluate_cnn_neighbourhood as eval_cnn_neigh
 
 TOLERANCE = 1e-6

@@ -7,7 +7,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import front_utils
-from generalexam.machine_learning import neigh_evaluation
+from generalexam.ge_utils import neigh_evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 

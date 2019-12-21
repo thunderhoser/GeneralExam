@@ -9,7 +9,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 from generalexam.ge_utils import climatology_utils as climo_utils
-from generalexam.machine_learning import neigh_evaluation
+from generalexam.ge_utils import neigh_evaluation
 
 CLIMO_TIME_INTERVAL_SEC = 10800
 ACCEPTED_HOURS_FOR_CLIMO = numpy.array([0, 3, 6, 9, 12, 15, 18, 21], dtype=int)

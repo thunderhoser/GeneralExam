@@ -5,8 +5,8 @@ from sklearn.metrics import roc_auc_score as sklearn_auc
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation_utils
 from generalexam.ge_utils import predictor_utils
+from generalexam.ge_utils import pixelwise_evaluation as pixelwise_eval
 from generalexam.machine_learning import cnn
-from generalexam.machine_learning import evaluation_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
@@ -73,7 +73,7 @@ def negative_auc_function(observed_labels, class_probability_matrix):
     :return: negative_auc: Negative AUC.
     """
 
-    evaluation_utils.check_evaluation_pairs(
+    pixelwise_eval.check_predictions_and_obs(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 

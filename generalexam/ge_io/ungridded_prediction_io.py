@@ -7,7 +7,7 @@ import netCDF4
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from generalexam.machine_learning import evaluation_utils
+from generalexam.ge_utils import pixelwise_evaluation as pixelwise_eval
 
 TIME_FORMAT = '%Y%m%d%H'
 YEAR_FORMAT_REGEX = '[0-9][0-9][0-9][0-9]'
@@ -154,7 +154,7 @@ def write_file(
         `class_probability_matrix`.
     """
 
-    evaluation_utils.check_predictions_and_obs(
+    pixelwise_eval.check_predictions_and_obs(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 

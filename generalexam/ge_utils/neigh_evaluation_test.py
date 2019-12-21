@@ -2,7 +2,7 @@
 
 import unittest
 import numpy
-from generalexam.machine_learning import neigh_evaluation
+from generalexam.ge_utils import neigh_evaluation
 
 TOLERANCE = 1e-6
 

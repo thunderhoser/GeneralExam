@@ -4,14 +4,14 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_io import ungridded_prediction_io
-from generalexam.machine_learning import evaluation_utils
+from generalexam.ge_utils import pixelwise_evaluation as pixelwise_eval
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 SCORE_NAME_TO_FUNCTION = {
-    'gerrity': evaluation_utils.get_gerrity_score,
-    'csi': evaluation_utils.get_csi
+    'gerrity': pixelwise_eval.get_gerrity_score,
+    'csi': pixelwise_eval.get_csi
 }
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
@@ -112,7 +112,7 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
     print(SEPARATOR_STRING)
 
     best_threshold, best_score, all_thresholds = (
-        evaluation_utils.find_best_determinization_threshold(
+        pixelwise_eval.find_best_determinization_threshold(
             class_probability_matrix=class_probability_matrix,
             observed_labels=observed_labels, scoring_function=scoring_function)
     )
@@ -127,10 +127,10 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
 
     climo_counts = numpy.array([
         numpy.sum(observed_labels == k)
-        for k in range(evaluation_utils.NUM_CLASSES)
+        for k in range(pixelwise_eval.NUM_CLASSES)
     ], dtype=int)
 
-    result_table_xarray = evaluation_utils.run_evaluation(
+    result_table_xarray = pixelwise_eval.run_evaluation(
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels,
         best_determinizn_threshold=best_threshold,
@@ -140,7 +140,7 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
     print(SEPARATOR_STRING)
     print('Writing results to: "{0:s}"...'.format(output_file_name))
 
-    evaluation_utils.write_file(
+    pixelwise_eval.write_file(
         result_table_xarray=result_table_xarray,
         netcdf_file_name=output_file_name)
 

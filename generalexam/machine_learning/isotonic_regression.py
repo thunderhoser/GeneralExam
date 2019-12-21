@@ -22,9 +22,10 @@ def _check_evaluation_pairs(class_probability_matrix, observed_labels):
         class.
     """
 
-    # TODO(thunderhoser): This method is duplicated from evaluation_utils.py.  I
-    # can't just import evaluation_utils.py, because this leads to a circular
-    # import chain.  The answer is to put this method somewhere more general.
+    # TODO(thunderhoser): This method is duplicated from
+    # pixelwise_evaluation.py.  I can't just import pixelwise_evaluation.py,
+    # because this leads to a circular import chain.  The answer is to put this
+    # method somewhere more general.
 
     error_checking.assert_is_numpy_array(
         class_probability_matrix, num_dimensions=2)

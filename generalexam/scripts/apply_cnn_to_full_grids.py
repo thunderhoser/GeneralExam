@@ -10,7 +10,7 @@ from generalexam.ge_io import prediction_io
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import isotonic_regression
-from generalexam.machine_learning import neigh_evaluation
+from generalexam.ge_utils import neigh_evaluation
 
 RANDOM_SEED = 6695
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
