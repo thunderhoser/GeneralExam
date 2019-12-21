@@ -384,29 +384,38 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
     last_time_unix_sec = time_conversion.string_to_unix_sec(
         last_time_string, INPUT_TIME_FORMAT
     )
-    valid_times_unix_sec = time_periods.range_and_interval_to_list(
+    all_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True
     )
 
+    # Find prediction files.
+    prediction_file_names = []
+    valid_times_unix_sec = []
+
+    for this_time_unix_sec in all_times_unix_sec:
+        this_file_name = prediction_io.find_file(
+            directory_name=prediction_dir_name,
+            first_time_unix_sec=this_time_unix_sec,
+            last_time_unix_sec=this_time_unix_sec,
+            raise_error_if_missing=False)
+
+        if not os.path.isfile(this_file_name):
+            continue
+
+        prediction_file_names.append(this_file_name)
+        valid_times_unix_sec.append(this_time_unix_sec)
+
+    valid_times_unix_sec = numpy.array(valid_times_unix_sec, dtype=int)
+
     # Read predictions.
     num_times = len(valid_times_unix_sec)
-    prediction_file_names = [None] * num_times
     predicted_label_matrix = None
     actual_label_matrix = None
     model_file_name = None
 
     for i in range(num_times):
-        prediction_file_names[i] = prediction_io.find_file(
-            directory_name=prediction_dir_name,
-            first_time_unix_sec=valid_times_unix_sec[i],
-            last_time_unix_sec=valid_times_unix_sec[i],
-            raise_error_if_missing=False)
-
-        if not os.path.isfile(prediction_file_names[i]):
-            continue
-
         print('Reading data from: "{0:s}"...'.format(prediction_file_names[i]))
         this_prediction_dict = prediction_io.read_file(
             netcdf_file_name=prediction_file_names[i], read_deterministic=True
