@@ -9,6 +9,9 @@ from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
 TOLERANCE = 1e-6
+NUM_CLASSES = 3
+METRES_TO_KM = 0.001
+
 NARR_GRID_SPACING_METRES = nwp_model_utils.get_xy_grid_spacing(
     model_name=nwp_model_utils.NARR_MODEL_NAME,
     grid_name=nwp_model_utils.NAME_OF_221GRID
@@ -26,7 +29,6 @@ NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 
 PREDICTION_FILES_KEY = 'prediction_file_names'
 NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
-BINARY_CONTINGENCY_TABLE_KEY = 'binary_ct_as_dict'
 BINARY_CONTINGENCY_TABLES_KEY = 'list_of_binary_ct_dicts'
 PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
 ACTUAL_ORIENTED_CT_KEY = 'actual_oriented_ct_matrix'
@@ -37,138 +39,209 @@ REQUIRED_KEYS = [
 ]
 
 
-def _match_actual_wf_grid_cells(
-        predicted_label_matrix_one_time, actual_label_matrix_one_time,
-        neigh_distance_metres, grid_spacing_metres):
-    """Matches actual warm-frontal grid cells with predictions.
+def _match_actual_wf_one_time(
+        predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
+        grid_spacing_metres):
+    """Matches actual warm-frontal grid points at one time.
 
     M = number of rows in grid
     N = number of columns in grid
 
-    :param predicted_label_matrix_one_time: M-by-N numpy array of integers (each
-        must be accepted by `front_utils.check_front_type_enum`).
-    :param actual_label_matrix_one_time: Same.
-    :param neigh_distance_metres: Neighbourhood distance.
-    :param grid_spacing_metres: Grid spacing (this method assumes that the grid
-        is equidistant).
-    :return: num_predicted_by_class: length-3 numpy array with number of
-        matching predictions for each class.  Correspondence between array index
-        and class is given by "ENUM"s listed at the top of this file.
+    :param predicted_label_matrix: M-by-N numpy array of predictions (integers
+        accepted by `front_utils.check_front_type_enum`).
+    :param actual_label_matrix: Same but with actual labels.
+    :param neigh_distance_metres: Neighbourhood distance for matching.
+    :param grid_spacing_metres: Grid spacing.  This method assumes that the grid
+        is equidistant.
+    :return: num_predicted_by_class: length-3 numpy array.
+        num_predicted_by_class[i] is the number of matched grid points where the
+        predicted class is i.  Correspondence between i and the class (no front,
+        warm front, or cold front) is given by `FRONT_TYPE_ENUMS`.
     """
 
-    predicted_label_matrix_one_time = front_utils.dilate_ternary_label_matrix(
-        ternary_label_matrix=predicted_label_matrix_one_time,
+    predicted_label_matrix = front_utils.dilate_ternary_label_matrix(
+        ternary_label_matrix=predicted_label_matrix,
         dilation_distance_metres=neigh_distance_metres,
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.WARM_FRONT_ENUM)
 
-    predicted_front_type_enums = predicted_label_matrix_one_time[
-        numpy.where(actual_label_matrix_one_time == front_utils.WARM_FRONT_ENUM)
+    predicted_types_enum = predicted_label_matrix[
+        numpy.where(actual_label_matrix == front_utils.WARM_FRONT_ENUM)
     ]
 
     num_predicted_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
     for k in range(len(FRONT_TYPE_ENUMS)):
-        num_predicted_by_class[k] = numpy.sum(predicted_front_type_enums == k)
+        num_predicted_by_class[k] = numpy.sum(predicted_types_enum == k)
 
     return num_predicted_by_class
 
 
-def _match_actual_cf_grid_cells(
-        predicted_label_matrix_one_time, actual_label_matrix_one_time,
-        neigh_distance_metres, grid_spacing_metres):
-    """Matches actual cold-frontal grid cells with predictions.
+def _match_actual_cf_one_time(
+        predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
+        grid_spacing_metres):
+    """Matches actual cold-frontal grid points at one time.
 
-    :param predicted_label_matrix_one_time: See doc for
-        `_match_actual_wf_grid_cells`.
-    :param actual_label_matrix_one_time: Same.
+    :param predicted_label_matrix: See doc for `_match_actual_wf_one_time`.
+    :param actual_label_matrix: Same.
     :param neigh_distance_metres: Same.
     :param grid_spacing_metres: Same.
     :return: num_predicted_by_class: Same.
     """
 
-    predicted_label_matrix_one_time = front_utils.dilate_ternary_label_matrix(
-        ternary_label_matrix=predicted_label_matrix_one_time,
+    predicted_label_matrix = front_utils.dilate_ternary_label_matrix(
+        ternary_label_matrix=predicted_label_matrix,
         dilation_distance_metres=neigh_distance_metres,
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.COLD_FRONT_ENUM)
 
-    predicted_front_type_enums = predicted_label_matrix_one_time[
-        numpy.where(actual_label_matrix_one_time == front_utils.COLD_FRONT_ENUM)
+    predicted_types_enum = predicted_label_matrix[
+        numpy.where(actual_label_matrix == front_utils.COLD_FRONT_ENUM)
     ]
 
     num_predicted_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
     for k in range(len(FRONT_TYPE_ENUMS)):
-        num_predicted_by_class[k] = numpy.sum(predicted_front_type_enums == k)
+        num_predicted_by_class[k] = numpy.sum(predicted_types_enum == k)
 
     return num_predicted_by_class
 
 
-def _match_predicted_wf_grid_cells(
-        predicted_label_matrix_one_time, actual_label_matrix_one_time,
-        neigh_distance_metres, grid_spacing_metres):
-    """Matches predicted warm-frontal grid cells with predictions.
+def _match_predicted_wf_one_time(
+        predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
+        grid_spacing_metres):
+    """Matches predicted warm-frontal grid points at one time.
 
-    :param predicted_label_matrix_one_time: See doc for
-        `_match_actual_wf_grid_cells`.
-    :param actual_label_matrix_one_time: Same.
+    :param predicted_label_matrix: See doc for `_match_actual_wf_one_time`.
+    :param actual_label_matrix: Same.
     :param neigh_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :return: num_actual_by_class: length-3 numpy array with number of matching
-        actual labels for each class.  Correspondence between array index
-        and class is given by "ENUM"s listed at the top of this file.
+    :return: num_actual_by_class: length-3 numpy array.  num_actual_by_class[i]
+        is the number of matched grid points where the actual class is j.
+        Correspondence between j and the class (no front, warm front, or cold
+        front) is given by `FRONT_TYPE_ENUMS`.
     """
 
-    actual_label_matrix_one_time = front_utils.dilate_ternary_label_matrix(
-        ternary_label_matrix=actual_label_matrix_one_time,
+    actual_label_matrix = front_utils.dilate_ternary_label_matrix(
+        ternary_label_matrix=actual_label_matrix,
         dilation_distance_metres=neigh_distance_metres,
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.WARM_FRONT_ENUM)
 
-    actual_front_type_enums = actual_label_matrix_one_time[
-        numpy.where(predicted_label_matrix_one_time ==
-                    front_utils.WARM_FRONT_ENUM)
+    actual_types_enum = actual_label_matrix[
+        numpy.where(predicted_label_matrix == front_utils.WARM_FRONT_ENUM)
     ]
 
     num_actual_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
     for k in range(len(FRONT_TYPE_ENUMS)):
-        num_actual_by_class[k] = numpy.sum(actual_front_type_enums == k)
+        num_actual_by_class[k] = numpy.sum(actual_types_enum == k)
 
     return num_actual_by_class
 
 
-def _match_predicted_cf_grid_cells(
-        predicted_label_matrix_one_time, actual_label_matrix_one_time,
-        neigh_distance_metres, grid_spacing_metres):
-    """Matches predicted cold-frontal grid cells with predictions.
+def _match_predicted_cf_one_time(
+        predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
+        grid_spacing_metres):
+    """Matches predicted cold-frontal grid points at one time.
 
-    :param predicted_label_matrix_one_time: See doc for
-        `_match_actual_wf_grid_cells`.
-    :param actual_label_matrix_one_time: Same.
+    :param predicted_label_matrix: See doc for `_match_actual_wf_one_time`.
+    :param actual_label_matrix: Same.
     :param neigh_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :return: num_actual_by_class: See doc for `_match_predicted_wf_grid_cells`.
+    :return: num_actual_by_class: See doc for `_match_predicted_wf_one_time`.
     """
 
-    actual_label_matrix_one_time = front_utils.dilate_ternary_label_matrix(
-        ternary_label_matrix=actual_label_matrix_one_time,
+    actual_label_matrix = front_utils.dilate_ternary_label_matrix(
+        ternary_label_matrix=actual_label_matrix,
         dilation_distance_metres=neigh_distance_metres,
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.COLD_FRONT_ENUM)
 
-    actual_front_type_enums = actual_label_matrix_one_time[
-        numpy.where(predicted_label_matrix_one_time ==
-                    front_utils.COLD_FRONT_ENUM)
+    actual_types_enum = actual_label_matrix[
+        numpy.where(predicted_label_matrix == front_utils.COLD_FRONT_ENUM)
     ]
 
     num_actual_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
     for k in range(len(FRONT_TYPE_ENUMS)):
-        num_actual_by_class[k] = numpy.sum(actual_front_type_enums == k)
+        num_actual_by_class[k] = numpy.sum(actual_types_enum == k)
 
     return num_actual_by_class
 
 
+def _check_3class_contingency_tables(
+        prediction_oriented_ct_matrix, actual_oriented_ct_matrix,
+        expect_normalized):
+    """Error-checks 3-class contingency tables.
+
+    :param prediction_oriented_ct_matrix: 3-by-3 numpy array.
+        prediction_oriented_ct_matrix[i, j] is the total number or fraction of
+        times, when the [i]th class is predicted, that it is matched with an
+        observation of the [j]th class.  Array indices follow
+        `FRONT_TYPE_ENUMS`.  The first row is all NaN, because there is no such
+        thing as a non-frontal region.
+    :param actual_oriented_ct_matrix: 3-by-3 numpy array.
+        actual_oriented_ct_matrix[i, j] is the total number or fraction of
+        times, when the [j]th class is predicted, that it is matched with a
+        prediction of the [i]th class.  Array indices follow `FRONT_TYPE_ENUMS`.
+        The first column is all NaN, because there is no such thing as a
+        non-frontal region.
+    :param expect_normalized: Boolean flag.  If True, will expect normalized
+        contingency tables, containing fractions.  If False, will expect
+        unnormalized tables, containing raw counts.
+    """
+
+    expected_dim = numpy.array([NUM_CLASSES, NUM_CLASSES], dtype=int)
+
+    error_checking.assert_is_numpy_array(
+        prediction_oriented_ct_matrix, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_numpy_array_without_nan(
+        prediction_oriented_ct_matrix[1:, ...]
+    )
+    error_checking.assert_is_geq_numpy_array(
+        prediction_oriented_ct_matrix[1:, ...], 0
+    )
+    assert numpy.all(numpy.isnan(
+        prediction_oriented_ct_matrix[0, ...]
+    ))
+
+    error_checking.assert_is_numpy_array(
+        actual_oriented_ct_matrix, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_numpy_array_without_nan(
+        actual_oriented_ct_matrix[..., 1:]
+    )
+    error_checking.assert_is_geq_numpy_array(
+        actual_oriented_ct_matrix[..., 1:], 0
+    )
+    assert numpy.all(numpy.isnan(
+        actual_oriented_ct_matrix[..., 0]
+    ))
+
+    if expect_normalized:
+        assert numpy.allclose(
+            numpy.sum(prediction_oriented_ct_matrix[1:, ...], axis=1),
+            1., atol=TOLERANCE
+        )
+
+        assert numpy.allclose(
+            numpy.sum(actual_oriented_ct_matrix[..., 1:], axis=0),
+            1., atol=TOLERANCE
+        )
+    else:
+        assert numpy.allclose(
+            prediction_oriented_ct_matrix,
+            numpy.round(prediction_oriented_ct_matrix),
+            atol=TOLERANCE, equal_nan=True
+        )
+
+        assert numpy.allclose(
+            actual_oriented_ct_matrix,
+            numpy.round(actual_oriented_ct_matrix),
+            atol=TOLERANCE, equal_nan=True
+        )
+
+
 def check_gridded_predictions(prediction_matrix, expect_probs):
-    """Error-checks gridded predictions.
+    """Checks gridded predictions for errors.
 
     T = number of time steps
     M = number of rows in grid
@@ -176,28 +249,29 @@ def check_gridded_predictions(prediction_matrix, expect_probs):
     K = number of classes
 
     :param prediction_matrix: [if `expect_probs == True`]
-        T-by-M-by-N-by-K numpy array of class probabilities, where
-        prediction_matrix[i, m, n, k] = probability that grid cell [m, n] in the
-        [i]th example belongs to the [k]th class.
+        T-by-M-by-N-by-K numpy array of class probabilities.
 
         [if `expect_probs == False`]
-        T-by-M-by-N numpy array of integers (each must be accepted by
+        T-by-M-by-N numpy array of predicted labels (integers accepted by
         `front_utils.check_front_type_enum`).
 
-    :param expect_probs: Boolean flag.  If True, will expect `prediction_matrix`
-        to contain probabilities.  If False, will expect `prediction_matrix` to
-        contain deterministic labels.
+    :param expect_probs: Boolean flag.  If True, will expect probabilities.  If
+        False, will expect deterministic labels.
     """
 
     if expect_probs:
         error_checking.assert_is_numpy_array(
-            prediction_matrix, num_dimensions=4)
+            prediction_matrix, num_dimensions=4
+        )
         error_checking.assert_is_geq_numpy_array(prediction_matrix, 0.)
         error_checking.assert_is_leq_numpy_array(prediction_matrix, 1.)
 
-        num_classes = prediction_matrix.shape[-1]
-        error_checking.assert_is_geq(num_classes, 3)
-        error_checking.assert_is_leq(num_classes, 3)
+        expected_dim = numpy.array(
+            prediction_matrix.shape[:-1] + (NUM_CLASSES,), dtype=int
+        )
+        error_checking.assert_is_numpy_array(
+            prediction_matrix, exact_dimensions=expected_dim
+        )
 
         summed_prediction_matrix = numpy.sum(prediction_matrix, axis=-1)
         assert numpy.allclose(summed_prediction_matrix, 1., atol=TOLERANCE)
@@ -206,7 +280,6 @@ def check_gridded_predictions(prediction_matrix, expect_probs):
 
     error_checking.assert_is_integer_numpy_array(prediction_matrix)
     error_checking.assert_is_numpy_array(prediction_matrix, num_dimensions=3)
-
     error_checking.assert_is_geq_numpy_array(
         prediction_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
     )
@@ -260,40 +333,28 @@ def erode_narr_mask(narr_mask_matrix, neigh_distance_metres):
     return 1 - this_matrix
 
 
-def determinize_predictions_1threshold(
-        class_probability_matrix, binarization_threshold):
-    """Determinizes predictions (converts from probabilistic to deterministic).
+def determinize_predictions_1threshold(class_probability_matrix, nf_threshold):
+    """Converts probabilities to deterministic labels.
 
-    In this case there is only one threshold, for the NF probability.
+    This method uses only one threshold, on the NF probability.
 
-    :param class_probability_matrix: See doc for `check_gridded_predictions`
-        with `expect_probs == True`.
-    :param binarization_threshold: Binarization threshold.  For each case (i.e.,
-        each grid cell at each time step), if NF probability >=
-        `binarization_threshold`, the deterministic label will be NF.
-        Otherwise, the deterministic label will be the max of WF and CF
-        probabilities.
-    :return: predicted_label_matrix: See doc for `check_gridded_predictions`
-        with `expect_probs == False`.
+    :param class_probability_matrix: See doc for `check_gridded_predictions`.
+    :param nf_threshold: NF-probability threshold.
+    :return: predicted_label_matrix: See doc for `check_gridded_predictions`.
     """
 
     check_gridded_predictions(prediction_matrix=class_probability_matrix,
                               expect_probs=True)
 
-    error_checking.assert_is_geq(binarization_threshold, 0.)
-    error_checking.assert_is_leq(binarization_threshold, 1.)
+    error_checking.assert_is_geq(nf_threshold, 0.)
+    error_checking.assert_is_leq(nf_threshold, 1.)
 
     predicted_label_matrix = 1 + numpy.argmax(
         class_probability_matrix[..., 1:], axis=-1
     )
 
-    nf_flag_matrix = (
-        class_probability_matrix[..., front_utils.NO_FRONT_ENUM] >=
-        binarization_threshold
-    )
-
     predicted_label_matrix[
-        numpy.where(nf_flag_matrix)
+        class_probability_matrix[..., front_utils.NO_FRONT_ENUM] >= nf_threshold
     ] = front_utils.NO_FRONT_ENUM
 
     return predicted_label_matrix
@@ -301,18 +362,14 @@ def determinize_predictions_1threshold(
 
 def determinize_predictions_2thresholds(
         class_probability_matrix, wf_threshold, cf_threshold):
-    """Determinizes predictions (converts from probabilistic to deterministic).
+    """Converts probabilities to deterministic labels.
 
-    In this case there are two thresholds, one for WF probability and one for CF
-    probability.  If both probabilities exceed their respective thresholds, the
-    highest one is used to determine the label.
+    This method uses two thresholds, on both the WF and CF probability.
 
-    :param class_probability_matrix: See doc for `check_gridded_predictions`
-        with `expect_probs == True`.
+    :param class_probability_matrix: See doc for `check_gridded_predictions`.
     :param wf_threshold: WF-probability threshold.
     :param cf_threshold: CF-probability threshold.
-    :return: predicted_label_matrix: See doc for `check_gridded_predictions`
-        with `expect_probs == False`.
+    :return: predicted_label_matrix: See doc for `check_gridded_predictions`.
     """
 
     check_gridded_predictions(prediction_matrix=class_probability_matrix,
@@ -325,7 +382,8 @@ def determinize_predictions_2thresholds(
 
     predicted_label_matrix = numpy.full(
         class_probability_matrix.shape[:-1], front_utils.NO_FRONT_ENUM,
-        dtype=int)
+        dtype=int
+    )
 
     wf_flag_matrix = numpy.logical_and(
         class_probability_matrix[..., front_utils.WARM_FRONT_ENUM] >=
@@ -348,24 +406,19 @@ def determinize_predictions_2thresholds(
 
 
 def remove_small_regions_one_time(
-        predicted_label_matrix, min_region_length_metres,
-        buffer_distance_metres, grid_spacing_metres=NARR_GRID_SPACING_METRES):
-    """Removes small regions of frontal (WF or CF) labels.
+        predicted_label_matrix, min_length_metres, buffer_distance_metres,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES):
+    """Removes small frontal (either WF or CF) regions.
 
-    M = number of rows in grid
-    N = number of columns in grid
-
-    :param predicted_label_matrix: M-by-N numpy array of integers (each must be
-        accepted by `front_utils.check_front_type_enum`).
-    :param min_region_length_metres: Minimum region length (applied to major
-        axis).
-    :param buffer_distance_metres: Buffer distance.  Small region R will be
-        removed if it is > `buffer_distance_metres` away from the nearest large
-        region.
-    :param grid_spacing_metres: Grid spacing (this method assumes that the grid
-        is equidistant).
-    :return: predicted_label_matrix: Same as input but maybe with fewer frontal
-        labels.
+    :param predicted_label_matrix: See doc for `check_gridded_predictions`.
+    :param min_length_metres: Minimum length of region's major axis.
+    :param buffer_distance_metres: Buffer distance.  A small region will be
+        removed only if it is more than `buffer_distance_metres` away from the
+        nearest large region of the same type.
+    :param grid_spacing_metres: Grid spacing.  This method assumes that the grid
+        is equidistant.
+    :return: predicted_label_matrix: Same as input but maybe with different
+        values.
     """
 
     error_checking.assert_is_numpy_array(predicted_label_matrix)
@@ -374,15 +427,16 @@ def remove_small_regions_one_time(
         expect_probs=False
     )
 
-    error_checking.assert_is_greater(min_region_length_metres, 0.)
+    error_checking.assert_is_greater(min_length_metres, 0.)
     error_checking.assert_is_greater(buffer_distance_metres, 0.)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
     region_dict = front_utils.gridded_labels_to_regions(
-        ternary_label_matrix=predicted_label_matrix, compute_lengths=True)
-
-    region_lengths_metres = grid_spacing_metres * region_dict[
-        front_utils.MAJOR_AXIS_LENGTHS_KEY]
+        ternary_label_matrix=predicted_label_matrix, compute_lengths=True
+    )
+    region_lengths_metres = (
+        grid_spacing_metres * region_dict[front_utils.MAJOR_AXIS_LENGTHS_KEY]
+    )
 
     # for i in range(len(region_lengths_metres)):
     #     print (
@@ -397,7 +451,7 @@ def remove_small_regions_one_time(
     #         0.001 * region_lengths_metres[i]
     #     )
 
-    small_region_flags = region_lengths_metres < min_region_length_metres
+    small_region_flags = region_lengths_metres < min_length_metres
     if not numpy.any(small_region_flags):
         return predicted_label_matrix
 
@@ -416,8 +470,12 @@ def remove_small_regions_one_time(
         this_small_region_closed = False
 
         for j in large_region_indices:
-            if (region_dict[front_utils.FRONT_TYPES_KEY][i] !=
-                    region_dict[front_utils.FRONT_TYPES_KEY][j]):
+            are_regions_same_type = (
+                region_dict[front_utils.FRONT_TYPES_KEY][i] ==
+                region_dict[front_utils.FRONT_TYPES_KEY][j]
+            )
+
+            if not are_regions_same_type:
                 continue
 
             these_rows = region_dict[front_utils.ROWS_BY_REGION_KEY][j]
@@ -429,8 +487,10 @@ def remove_small_regions_one_time(
             ))
 
             this_distance_matrix_metres = grid_spacing_metres * (
-                euclidean_distances(X=this_small_region_coord_matrix,
-                                    Y=this_large_region_coord_matrix)
+                euclidean_distances(
+                    X=this_small_region_coord_matrix,
+                    Y=this_large_region_coord_matrix
+                )
             )
 
             this_small_region_closed = (
@@ -453,59 +513,76 @@ def remove_small_regions_one_time(
 
 def make_contingency_tables(
         predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
-        normalize, grid_spacing_metres=NARR_GRID_SPACING_METRES):
+        normalize, grid_spacing_metres=NARR_GRID_SPACING_METRES,
+        training_mask_matrix=None):
     """Creates contingency tables.
 
-    :param predicted_label_matrix: See doc for `check_gridded_predictions`
-        with `expect_probs == False`.
-    :param actual_label_matrix: Same.
-    :param neigh_distance_metres: Neighbourhood distance.
-    :param normalize: Boolean flag.  If True, will normalize contingency tables
-        so that each row in `prediction_oriented_ct_matrix` and each column in
-        `actual_oriented_ct_matrix` sums to 1.0.  If False, will return raw
-        counts.
-    :param grid_spacing_metres: Grid spacing (this method assumes that the grid
-        is equidistant).
+    M = number of rows in grid
+    N = number of columns in grid
 
-    :return: binary_ct_as_dict: Dictionary with the following keys.
-    binary_ct_as_dict['num_actual_oriented_true_positives']: Number of actual
-        frontal grid cells with a matching prediction within
-        `neigh_distance_metres`.
-    binary_ct_as_dict['num_prediction_oriented_true_positives']: Number of
-        predicted frontal grid cells with a matching actual within
-        `neigh_distance_metres`.
-    binary_ct_as_dict['num_false_positives']: Number of predicted frontal grid
-        cells with *no* matching actual within `neigh_distance_metres`.
-    binary_ct_as_dict['num_false_negatives']: Number of actual frontal grid
-        cells with *no* matching prediction within `neigh_distance_metres`.
+    :param predicted_label_matrix: See doc for `are_regions_same_type`.
+    :param actual_label_matrix: Same as `predicted_label_matrix` but with
+        actual, not predicted, fronts.
+    :param neigh_distance_metres: Neighbourhood distance for matching frontal
+        grid points.
+    :param normalize: Boolean flag.  If True, will normalize 3-class contingency
+        tables so that each row in `prediction_oriented_ct_matrix` and each
+        column in `actual_oriented_ct_matrix` adds up to 1.  If False, will
+        return raw counts.
+    :param grid_spacing_metres: Grid spacing.  This method assumes that the grid
+        is equidistant.
+    :param training_mask_matrix: M-by-N numpy array of integers in 0...1,
+        indicating which grid cells were masked during training.  0 means that
+        the grid cell was masked.
 
-    :return: prediction_oriented_ct_matrix: 3-by-3 numpy array.
-        prediction_oriented_ct_matrix[i, j] is the total number or fraction of
-        times, when the [i]th class is predicted, that the [j]th class is
-        observed.  Array indices follow the "ENUM"s listed at the top of this
-        file, and the first row (for NF predictions) is all NaN, because this
-        file does not handle negative predictions.
-    :return: actual_oriented_ct_matrix: 3-by-3 numpy array.
-        actual_oriented_ct_matrix[i, j] is the total number or fraction of
-        times, when the [j]th class is observed, that the [i]th class is
-        predicted.  Array indices follow the "ENUM"s listed at the top of this
-        file, and the first column (for NF predictions) is all NaN, because this
-        file does not handle negative observations.
+    :return: binary_ct_dict: Dictionary with the following keys.
+    binary_ct_dict["num_actual_oriented_true_positives"]: Number of actual
+        frontal grid points matched with a predicted grid point of the same
+        type.
+    binary_ct_dict["num_predicted_oriented_true_positives"]: Number of predicted
+        frontal grid points matched with an actual grid point of the same type.
+    binary_ct_dict["num_false_positives"]: Number of predicted frontal grid
+        points *not* matched with an actual grid point of the same type.
+    binary_ct_dict["num_false_negatives"]: Number of actual frontal grid points
+        *not* matched with a predicted grid point of the same type.
+
+    :return: prediction_oriented_ct_matrix: See doc for
+        `_check_3class_contingency_tables`.
+    :return: actual_oriented_ct_matrix: Same.
     """
+
+    check_gridded_predictions(
+        prediction_matrix=predicted_label_matrix, expect_probs=False
+    )
+    check_gridded_predictions(
+        prediction_matrix=actual_label_matrix, expect_probs=False
+    )
+    error_checking.assert_is_numpy_array(
+        actual_label_matrix,
+        exact_dimensions=numpy.array(predicted_label_matrix.shape, dtype=int)
+    )
 
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
     error_checking.assert_is_boolean(normalize)
     error_checking.assert_is_greater(grid_spacing_metres, 0.)
 
-    check_gridded_predictions(
-        prediction_matrix=predicted_label_matrix, expect_probs=False)
-    check_gridded_predictions(
-        prediction_matrix=actual_label_matrix, expect_probs=False)
+    if training_mask_matrix is None:
+        mask_matrix = None
+    else:
+        mask_matrix = erode_narr_mask(
+            narr_mask_matrix=training_mask_matrix + 0,
+            neigh_distance_metres=neigh_distance_metres
+        )
 
-    error_checking.assert_is_numpy_array(
-        actual_label_matrix,
-        exact_dimensions=numpy.array(predicted_label_matrix.shape, dtype=int)
-    )
+        orig_num_unmasked_pts = numpy.sum(training_mask_matrix == 1)
+        num_unmasked_grid_pts = numpy.sum(mask_matrix == 1)
+
+        print((
+            'Number of unmasked grid points for training = {0:d} ... for '
+            'neighbourhood evaluation = {1:d}'
+        ).format(
+            orig_num_unmasked_pts, num_unmasked_grid_pts
+        ))
 
     binary_ct_as_dict = {
         NUM_ACTUAL_ORIENTED_TP_KEY: 0,
@@ -514,107 +591,128 @@ def make_contingency_tables(
         NUM_FALSE_NEGATIVES_KEY: 0
     }
 
-    num_classes = len(FRONT_TYPE_ENUMS)
-    dimensions = (num_classes, num_classes)
-
-    prediction_oriented_ct_matrix = numpy.full(dimensions, 0.)
+    prediction_oriented_ct_matrix = numpy.full((NUM_CLASSES, NUM_CLASSES), 0.)
     prediction_oriented_ct_matrix[0, :] = numpy.nan
-    actual_oriented_ct_matrix = numpy.full(dimensions, 0.)
+    actual_oriented_ct_matrix = numpy.full((NUM_CLASSES, NUM_CLASSES), 0.)
     actual_oriented_ct_matrix[:, 0] = numpy.nan
 
     num_times = predicted_label_matrix.shape[0]
 
     for i in range(num_times):
         print((
-            'Matching actual WF grid cells at {0:d}th of {1:d} times...'
-        ).format(i + 1, num_times))
+            'Matching actual WF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
 
-        this_num_predicted_by_class = _match_actual_wf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
-            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
+        this_actual_label_matrix = actual_label_matrix[i, ...] + 0
+        if mask_matrix is not None:
+            this_actual_label_matrix[mask_matrix == 0] = (
+                front_utils.NO_FRONT_ENUM
+            )
+
+        these_num_predicted = _match_actual_wf_one_time(
+            predicted_label_matrix=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix=this_actual_label_matrix,
             neigh_distance_metres=neigh_distance_metres,
-            grid_spacing_metres=grid_spacing_metres)
+            grid_spacing_metres=grid_spacing_metres
+        )
 
         actual_oriented_ct_matrix[:, front_utils.WARM_FRONT_ENUM] = (
             actual_oriented_ct_matrix[:, front_utils.WARM_FRONT_ENUM] +
-            this_num_predicted_by_class
+            these_num_predicted
         )
-
         binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY] += (
-            this_num_predicted_by_class[front_utils.WARM_FRONT_ENUM]
+            these_num_predicted[front_utils.WARM_FRONT_ENUM]
         )
         binary_ct_as_dict[NUM_FALSE_NEGATIVES_KEY] += (
-            numpy.sum(this_num_predicted_by_class) -
-            this_num_predicted_by_class[front_utils.WARM_FRONT_ENUM]
+            numpy.sum(these_num_predicted) -
+            these_num_predicted[front_utils.WARM_FRONT_ENUM]
         )
 
         print((
-            'Matching actual CF grid cells at {0:d}th of {1:d} times...'
-        ).format(i + 1, num_times))
+            'Matching actual CF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
 
-        this_num_predicted_by_class = _match_actual_cf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
-            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
+        these_num_predicted = _match_actual_cf_one_time(
+            predicted_label_matrix=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix=this_actual_label_matrix,
             neigh_distance_metres=neigh_distance_metres,
-            grid_spacing_metres=grid_spacing_metres)
+            grid_spacing_metres=grid_spacing_metres
+        )
 
         actual_oriented_ct_matrix[:, front_utils.COLD_FRONT_ENUM] = (
             actual_oriented_ct_matrix[:, front_utils.COLD_FRONT_ENUM] +
-            this_num_predicted_by_class
+            these_num_predicted
         )
-
         binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY] += (
-            this_num_predicted_by_class[front_utils.COLD_FRONT_ENUM]
+            these_num_predicted[front_utils.COLD_FRONT_ENUM]
         )
         binary_ct_as_dict[NUM_FALSE_NEGATIVES_KEY] += (
-            numpy.sum(this_num_predicted_by_class) -
-            this_num_predicted_by_class[front_utils.COLD_FRONT_ENUM]
+            numpy.sum(these_num_predicted) -
+            these_num_predicted[front_utils.COLD_FRONT_ENUM]
         )
 
         print((
-            'Matching predicted WF grid cells at {0:d}th of {1:d} times...'
-        ).format(i + 1, num_times))
+            'Matching predicted WF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
 
-        this_num_actual_by_class = _match_predicted_wf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
-            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
+        this_predicted_label_matrix = predicted_label_matrix[i, ...] + 0
+        if mask_matrix is not None:
+            this_predicted_label_matrix[mask_matrix == 0] = (
+                front_utils.NO_FRONT_ENUM
+            )
+
+        these_num_actual = _match_predicted_wf_one_time(
+            predicted_label_matrix=this_predicted_label_matrix,
+            actual_label_matrix=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
-            grid_spacing_metres=grid_spacing_metres)
+            grid_spacing_metres=grid_spacing_metres
+        )
 
         prediction_oriented_ct_matrix[front_utils.WARM_FRONT_ENUM, :] = (
             prediction_oriented_ct_matrix[front_utils.WARM_FRONT_ENUM, :] +
-            this_num_actual_by_class
+            these_num_actual
         )
-
         binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY] += (
-            this_num_actual_by_class[front_utils.WARM_FRONT_ENUM]
+            these_num_actual[front_utils.WARM_FRONT_ENUM]
         )
         binary_ct_as_dict[NUM_FALSE_POSITIVES_KEY] += (
-            numpy.sum(this_num_actual_by_class) -
-            this_num_actual_by_class[front_utils.WARM_FRONT_ENUM]
+            numpy.sum(these_num_actual) -
+            these_num_actual[front_utils.WARM_FRONT_ENUM]
         )
 
         print((
-            'Matching predicted CF grid cells at {0:d}th of {1:d} times...\n'
-        ).format(i + 1, num_times))
+            'Matching predicted CF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
 
-        this_num_actual_by_class = _match_predicted_cf_grid_cells(
-            predicted_label_matrix_one_time=predicted_label_matrix[i, ...] + 0,
-            actual_label_matrix_one_time=actual_label_matrix[i, ...] + 0,
+        these_num_actual = _match_predicted_cf_one_time(
+            predicted_label_matrix=this_predicted_label_matrix,
+            actual_label_matrix=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
-            grid_spacing_metres=grid_spacing_metres)
+            grid_spacing_metres=grid_spacing_metres
+        )
 
         prediction_oriented_ct_matrix[front_utils.COLD_FRONT_ENUM, :] = (
             prediction_oriented_ct_matrix[front_utils.COLD_FRONT_ENUM, :] +
-            this_num_actual_by_class
+            these_num_actual
         )
-
         binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY] += (
-            this_num_actual_by_class[front_utils.COLD_FRONT_ENUM]
+            these_num_actual[front_utils.COLD_FRONT_ENUM]
         )
         binary_ct_as_dict[NUM_FALSE_POSITIVES_KEY] += (
-            numpy.sum(this_num_actual_by_class) -
-            this_num_actual_by_class[front_utils.COLD_FRONT_ENUM]
+            numpy.sum(these_num_actual) -
+            these_num_actual[front_utils.COLD_FRONT_ENUM]
         )
 
     if normalize:
@@ -632,38 +730,19 @@ def normalize_contingency_tables(prediction_oriented_ct_matrix,
                                  actual_oriented_ct_matrix):
     """Normalizes 3-class contingency tables.
 
-    :param prediction_oriented_ct_matrix: See output doc for
-        `make_contingency_tables` with `normalize == False`.
+    :param prediction_oriented_ct_matrix: See doc for
+        `_check_3class_contingency_tables`.
     :param actual_oriented_ct_matrix: Same.
-    :return: prediction_oriented_ct_matrix: See output doc for
-        `make_contingency_tables` with `normalize == True`.
-    :return: actual_oriented_ct_matrix: Same.
+    :return: prediction_oriented_ct_matrix: Normalized version of input.
+    :return: actual_oriented_ct_matrix: Normalized version of input.
     """
 
-    num_classes = len(FRONT_TYPE_ENUMS)
-    expected_dim = numpy.array([num_classes, num_classes], dtype=int)
+    _check_3class_contingency_tables(
+        prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix=actual_oriented_ct_matrix,
+        expect_normalized=False)
 
-    error_checking.assert_is_numpy_array(
-        prediction_oriented_ct_matrix, exact_dimensions=expected_dim)
-    assert numpy.all(numpy.isnan(prediction_oriented_ct_matrix[0, ...]))
-    error_checking.assert_is_numpy_array_without_nan(
-        prediction_oriented_ct_matrix[1:, ...]
-    )
-    error_checking.assert_is_geq_numpy_array(
-        prediction_oriented_ct_matrix[1:, ...], 0
-    )
-
-    error_checking.assert_is_numpy_array(
-        actual_oriented_ct_matrix, exact_dimensions=expected_dim)
-    assert numpy.all(numpy.isnan(actual_oriented_ct_matrix[..., 0]))
-    error_checking.assert_is_numpy_array_without_nan(
-        actual_oriented_ct_matrix[..., 1:]
-    )
-    error_checking.assert_is_geq_numpy_array(
-        actual_oriented_ct_matrix[..., 1:], 0
-    )
-
-    for k in range(1, num_classes):
+    for k in range(1, NUM_CLASSES):
         if numpy.sum(prediction_oriented_ct_matrix[k, :]) == 0:
             prediction_oriented_ct_matrix[k, :] = numpy.nan
         else:
@@ -672,7 +751,7 @@ def normalize_contingency_tables(prediction_oriented_ct_matrix,
                 numpy.sum(prediction_oriented_ct_matrix[k, :])
             )
 
-    for k in range(1, num_classes):
+    for k in range(1, NUM_CLASSES):
         if numpy.sum(actual_oriented_ct_matrix[:, k]) == 0:
             actual_oriented_ct_matrix[:, k] = numpy.nan
         else:
@@ -684,15 +763,18 @@ def normalize_contingency_tables(prediction_oriented_ct_matrix,
     return prediction_oriented_ct_matrix, actual_oriented_ct_matrix
 
 
-def get_binary_pod(binary_ct_as_dict):
-    """Returns probability of detection.
+def get_pod(binary_ct_as_dict):
+    """Computes POD (probability of detection).
 
     :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :return: binary_pod: Binary POD.
+    :return: pod: Probability of detection.
     """
 
     numerator = binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY]
-    denominator = numerator + binary_ct_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    denominator = (
+        binary_ct_as_dict[NUM_ACTUAL_ORIENTED_TP_KEY] +
+        binary_ct_as_dict[NUM_FALSE_NEGATIVES_KEY]
+    )
 
     try:
         return float(numerator) / denominator
@@ -700,25 +782,18 @@ def get_binary_pod(binary_ct_as_dict):
         return numpy.nan
 
 
-def get_binary_fom(binary_ct_as_dict):
-    """Returns frequency of misses.
+def get_far(binary_ct_as_dict):
+    """Computes FAR (false-alarm ratio).
 
     :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :return: binary_fom: Binary FOM.
+    :return: far: False-alarm ratio.
     """
 
-    return 1. - get_binary_pod(binary_ct_as_dict)
-
-
-def get_binary_success_ratio(binary_ct_as_dict):
-    """Returns success ratio.
-
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :return: binary_success_ratio: Binary success ratio.
-    """
-
-    numerator = binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY]
-    denominator = numerator + binary_ct_as_dict[NUM_FALSE_POSITIVES_KEY]
+    numerator = binary_ct_as_dict[NUM_FALSE_POSITIVES_KEY]
+    denominator = (
+        binary_ct_as_dict[NUM_FALSE_POSITIVES_KEY] +
+        binary_ct_as_dict[NUM_PREDICTION_ORIENTED_TP_KEY]
+    )
 
     try:
         return float(numerator) / denominator
@@ -726,44 +801,34 @@ def get_binary_success_ratio(binary_ct_as_dict):
         return numpy.nan
 
 
-def get_binary_far(binary_ct_as_dict):
-    """Returns false-alarm rate.
+def get_csi(binary_ct_as_dict):
+    """Computes CSI (critical success index).
 
     :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :return: binary_far: Binary FAR.
+    :return: CSI: Critical success index.
     """
 
-    return 1. - get_binary_success_ratio(binary_ct_as_dict)
-
-
-def get_binary_csi(binary_ct_as_dict):
-    """Returns critical success index.
-
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :return: binary_csi: Binary CSI.
-    """
-
-    binary_pod = get_binary_pod(binary_ct_as_dict)
-    binary_success_ratio = get_binary_success_ratio(binary_ct_as_dict)
+    pod = get_pod(binary_ct_as_dict)
+    success_ratio = 1. - get_far(binary_ct_as_dict)
 
     try:
-        return (binary_pod ** -1 + binary_success_ratio ** -1 - 1) ** -1
+        return (pod ** -1 + success_ratio ** -1 - 1) ** -1
     except ZeroDivisionError:
         return numpy.nan
 
 
-def get_binary_frequency_bias(binary_ct_as_dict):
-    """Returns frequency bias.
+def get_frequency_bias(binary_ct_as_dict):
+    """Computes frequency bias.
 
     :param binary_ct_as_dict: See doc for `make_contingency_tables`.
-    :return: binary_frequency_bias: Binary frequency bias.
+    :return: frequency_bias: Frequency bias.
     """
 
-    binary_pod = get_binary_pod(binary_ct_as_dict)
-    binary_success_ratio = get_binary_success_ratio(binary_ct_as_dict)
+    pod = get_pod(binary_ct_as_dict)
+    success_ratio = 1. - get_far(binary_ct_as_dict)
 
     try:
-        return binary_pod / binary_success_ratio
+        return pod / success_ratio
     except ZeroDivisionError:
         return numpy.nan
 
@@ -775,20 +840,29 @@ def write_results(
     """Writes results of neighbourhood evaluation to Pickle file.
 
     B = number of bootstrap replicates
+    K = number of classes = 3
 
     :param pickle_file_name: Path to output file.
     :param prediction_file_names: 1-D list of paths to input files (readable by
         `prediction_io.read_file`).
-    :param neigh_distance_metres: Neighbourhood distance.
-    :param list_of_binary_ct_dicts: length-B list of binary contingency tables
-        created by `make_contingency_tables`.
+    :param neigh_distance_metres: Neighbourhood distance for matching actual
+        with predicted frontal grid points.
+    :param list_of_binary_ct_dicts: length-B list of binary contingency tables,
+        each created by `make_contingency_tables`.
     :param prediction_oriented_ct_matrix: B-by-3-by-3 numpy array, where
-        prediction_oriented_ct_matrix[i, ...] is the prediction-oriented
-        contingency table, created by `make_contingency_tables`, for the [i]th
-        bootstrap replicate.
-    :param actual_oriented_ct_matrix: Same but with actual-oriented contingency
-        tables.
+        prediction_oriented_ct_matrix[k, ...] is the unnormalized prediction-
+        oriented contingency table for the [k]th bootstrap replicate, created by
+        `make_contingency_tables`.
+    :param actual_oriented_ct_matrix: B-by-3-by-3 numpy array, where
+        actual_oriented_ct_matrix[k, ...] is the unnormalized actual-oriented
+        contingency table for the [k]th bootstrap replicate, created by
+        `make_contingency_tables`.
     """
+
+    _check_3class_contingency_tables(
+        prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix=actual_oriented_ct_matrix,
+        expect_normalized=False)
 
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
     error_checking.assert_is_string_list(prediction_file_names)
@@ -797,13 +871,11 @@ def write_results(
     )
 
     error_checking.assert_is_list(list_of_binary_ct_dicts)
-
-    num_classes = len(FRONT_TYPE_ENUMS)
     num_bootstrap_reps = len(list_of_binary_ct_dicts)
-    these_expected_dim = numpy.array(
-        [num_bootstrap_reps, num_classes, num_classes], dtype=int
-    )
 
+    these_expected_dim = numpy.array(
+        [num_bootstrap_reps, NUM_CLASSES, NUM_CLASSES], dtype=int
+    )
     error_checking.assert_is_numpy_array(
         prediction_oriented_ct_matrix, exact_dimensions=these_expected_dim
     )
@@ -830,8 +902,14 @@ def read_results(pickle_file_name):
     """Reads results of neighbourhood evaluation from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: evaluation_dict: Dictionary with keys listed in `write_results`.
-    :raises: ValueError: if any of the expected keys are not found.
+    :return: evaluation_dict: Dictionary with the following keys.
+    evaluation_dict["prediction_file_names"]: See doc for `write_results`.
+    evaluation_dict["neigh_distance_metres"]: Same.
+    evaluation_dict["list_of_binary_ct_dicts"]: Same.
+    evaluation_dict["prediction_oriented_ct_matrix"]: Same.
+    evaluation_dict["actual_oriented_ct_matrix"]: Same.
+
+    :raises: ValueError: if any expected key is not found in dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
