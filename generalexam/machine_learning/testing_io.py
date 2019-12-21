@@ -224,12 +224,14 @@ def create_downsized_examples_with_targets(
             )
 
         if normalization_file_name is None:
+            print('NORMALIZING NON-GLOBALLY')
             full_size_predictor_matrix, _ = (
                 ml_utils.normalize_predictors_nonglobal(
                     predictor_matrix=full_size_predictor_matrix,
                     normalization_type_string=normalization_type_string)
             )
         else:
+            print('NORMALIZING GLOBALLY')
             full_size_predictor_matrix = ml_utils.normalize_predictors_global(
                 predictor_matrix=full_size_predictor_matrix,
                 field_names=predictor_names,
