@@ -801,15 +801,19 @@ def get_far(binary_ct_as_dict):
         return numpy.nan
 
 
-def get_csi(binary_ct_as_dict):
+def get_csi(binary_ct_as_dict, far_weight=1.):
     """Computes CSI (critical success index).
 
     :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :param far_weight: Weight for FAR.  Make this < 1 to penalize false alarms
+        less.
     :return: CSI: Critical success index.
     """
 
+    error_checking.assert_is_leq(far_weight, 1.)
+
     pod = get_pod(binary_ct_as_dict)
-    success_ratio = 1. - get_far(binary_ct_as_dict)
+    success_ratio = 1. - far_weight * get_far(binary_ct_as_dict)
 
     try:
         return (pod ** -1 + success_ratio ** -1 - 1) ** -1

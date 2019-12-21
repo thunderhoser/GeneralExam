@@ -20,6 +20,8 @@ NUM_CLASSES = 3
 METRES_TO_KM = 0.001
 TIME_INTERVAL_SECONDS = 10800
 
+FAR_WEIGHT_FOR_CSI = 0.5
+
 PREDICTED_LABELS_KEY = 'predicted_front_enums'
 PREDICTED_TO_ACTUAL_FRONTS_KEY = 'predicted_to_actual_front_enums'
 ACTUAL_LABELS_KEY = 'actual_front_enums'
@@ -299,6 +301,7 @@ def _do_eval_one_neigh_distance(
     pod_values = numpy.full(num_bootstrap_reps, numpy.nan)
     far_values = numpy.full(num_bootstrap_reps, numpy.nan)
     csi_values = numpy.full(num_bootstrap_reps, numpy.nan)
+    weighted_csi_values = numpy.full(num_bootstrap_reps, numpy.nan)
     frequency_biases = numpy.full(num_bootstrap_reps, numpy.nan)
 
     for k in range(num_bootstrap_reps):
@@ -317,32 +320,63 @@ def _do_eval_one_neigh_distance(
 
         pod_values[k] = neigh_evaluation.get_pod(list_of_binary_ct_dicts[k])
         far_values[k] = neigh_evaluation.get_far(list_of_binary_ct_dicts[k])
-        csi_values[k] = neigh_evaluation.get_csi(list_of_binary_ct_dicts[k])
+        csi_values[k] = neigh_evaluation.get_csi(
+            binary_ct_as_dict=list_of_binary_ct_dicts[k], far_weight=1.
+        )
+        weighted_csi_values[k] = neigh_evaluation.get_csi(
+            binary_ct_as_dict=list_of_binary_ct_dicts[k],
+            far_weight=FAR_WEIGHT_FOR_CSI
+        )
         frequency_biases[k] = neigh_evaluation.get_frequency_bias(
             list_of_binary_ct_dicts[k]
         )
 
     min_pod = numpy.percentile(pod_values, 50. * (1 - confidence_level))
     max_pod = numpy.percentile(pod_values, 50. * (1 + confidence_level))
+    print((
+        '{0:.1f}% confidence interval for POD = [{1:.4f}, {2:.4f}]'
+    ).format(
+        100 * confidence_level, min_pod, max_pod
+    ))
+
     min_far = numpy.percentile(far_values, 50. * (1 - confidence_level))
     max_far = numpy.percentile(far_values, 50. * (1 + confidence_level))
+    print((
+        '{0:.1f}% confidence interval for FAR = [{1:.4f}, {2:.4f}]'
+    ).format(
+        100 * confidence_level, min_far, max_far
+    ))
+
     min_csi = numpy.percentile(csi_values, 50. * (1 - confidence_level))
     max_csi = numpy.percentile(csi_values, 50. * (1 + confidence_level))
+    print((
+        '{0:.1f}% confidence interval for CSI = [{1:.4f}, {2:.4f}]'
+    ).format(
+        100 * confidence_level, min_csi, max_csi
+    ))
+
+    min_weighted_csi = numpy.percentile(
+        weighted_csi_values, 50. * (1 - confidence_level)
+    )
+    max_weighted_csi = numpy.percentile(
+        weighted_csi_values, 50. * (1 + confidence_level)
+    )
+    print((
+        '{0:.1f}% confidence interval for weighted CSI = [{1:.4f}, {2:.4f}]'
+    ).format(
+        100 * confidence_level, min_weighted_csi, max_weighted_csi
+    ))
+
     min_frequency_bias = numpy.percentile(
         frequency_biases, 50. * (1 - confidence_level)
     )
     max_frequency_bias = numpy.percentile(
         frequency_biases, 50. * (1 + confidence_level)
     )
-
     print((
-        '{0:.1f}% confidence interval for POD = [{1:.4f}, {2:.4f}] ... '
-        'FAR = [{3:.4f}, {4:.4f}] ... CSI = [{5:.4f}, {6:.4f}] ... '
-        'frequency bias = [{7:.4f}, {8:.4f}]\n'
+        '{0:.1f}% confidence interval for frequency bias = [{1:.4f}, {2:.4f}]'
     ).format(
-        100 * confidence_level, min_pod, max_pod,
-        min_far, max_far, min_csi, max_csi,
-        min_frequency_bias, max_frequency_bias
+        100 * confidence_level, min_frequency_bias, max_frequency_bias
     ))
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))

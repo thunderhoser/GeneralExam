@@ -330,9 +330,12 @@ ACTUAL_ORIENTED_TABLE_LARGE_NEIGH = numpy.array([
 ])
 
 # The following constants are used to test evaluation scores.
+FAR_WEIGHT = 0.5
+
 POD_LARGE_NEIGH = 14. / 30
 FAR_LARGE_NEIGH = 19. / 34
-CSI_LARGE_NEIGH = (30. / 14 + 34. / 15 - 1) ** -1
+UNWEIGHTED_CSI_LARGE_NEIGH = (30. / 14 + 34. / 15 - 1) ** -1
+WEIGHTED_CSI_LARGE_NEIGH = (30. / 14 + 34. / 24.5 - 1) ** -1
 FREQUENCY_BIAS_LARGE_NEIGH = float(14 * 34) / (30 * 15)
 
 
@@ -751,7 +754,7 @@ class NeighEvaluationTests(unittest.TestCase):
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_get_pod_large_neigh(self):
+    def test_get_pod(self):
         """Ensures correct output from get_pod."""
 
         self.assertTrue(numpy.isclose(
@@ -759,7 +762,7 @@ class NeighEvaluationTests(unittest.TestCase):
             atol=TOLERANCE
         ))
 
-    def test_get_far_large_neigh(self):
+    def test_get_far(self):
         """Ensures correct output from get_far."""
 
         self.assertTrue(numpy.isclose(
@@ -767,15 +770,27 @@ class NeighEvaluationTests(unittest.TestCase):
             atol=TOLERANCE
         ))
 
-    def test_get_csi_large_neigh(self):
-        """Ensures correct output from get_csi."""
+    def test_get_unweighted_csi(self):
+        """Ensures correct output from get_csi (unweighted in this case)."""
+
+        this_csi = neigh_evaluation.get_csi(
+            binary_ct_as_dict=BINARY_TABLE_LARGE_NEIGH, far_weight=1.)
 
         self.assertTrue(numpy.isclose(
-            neigh_evaluation.get_csi(BINARY_TABLE_LARGE_NEIGH), CSI_LARGE_NEIGH,
-            atol=TOLERANCE
+            this_csi, UNWEIGHTED_CSI_LARGE_NEIGH, atol=TOLERANCE
         ))
 
-    def test_get_frequency_bias_large_neigh(self):
+    def test_get_weighted_csi(self):
+        """Ensures correct output from get_csi (weighted in this case)."""
+
+        this_csi = neigh_evaluation.get_csi(
+            binary_ct_as_dict=BINARY_TABLE_LARGE_NEIGH, far_weight=FAR_WEIGHT)
+
+        self.assertTrue(numpy.isclose(
+            this_csi, WEIGHTED_CSI_LARGE_NEIGH, atol=TOLERANCE
+        ))
+
+    def test_get_frequency_bias(self):
         """Ensures correct output from get_frequency_bias."""
 
         self.assertTrue(numpy.isclose(
