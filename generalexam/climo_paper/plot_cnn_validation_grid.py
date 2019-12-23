@@ -202,7 +202,7 @@ def _read_evaluation_file(evaluation_file_name):
         result_table_xarray[pixelwise_eval.AREA_UNDER_PD_KEY].values
     )
     csi = numpy.mean(
-        result_table_xarray[pixelwise_eval.AREA_UNDER_PD_KEY].values[
+        result_table_xarray[pixelwise_eval.CSI_KEY].values[
             :, best_threshold_index
         ]
     )
