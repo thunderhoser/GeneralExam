@@ -1,5 +1,6 @@
 """Runs neigh evaluation on gridded deterministic labels from CNN."""
 
+import copy
 import os.path
 import argparse
 import numpy
@@ -12,6 +13,7 @@ from generalexam.machine_learning import cnn
 from generalexam.ge_utils import neigh_evaluation
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 INPUT_TIME_FORMAT = '%Y%m%d%H'
 LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
@@ -88,6 +90,78 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+
+def _handle_one_prediction_file(
+        prediction_file_name, neigh_distances_metres, binary_ct_by_neigh,
+        prediction_oriented_ct_by_neigh, actual_oriented_ct_by_neigh,
+        training_mask_matrix=None):
+    """Handles one prediction file.
+
+    D = number of neighbourhood distances
+
+    :param prediction_file_name: Path to input file (will be read by
+        `prediction_io.read_file`).
+    :param neigh_distances_metres: length-D numpy array of distances for
+        neighbourhood evaluation.
+    :param binary_ct_by_neigh: length-D list of binary contingency tables in
+        format produced by `neigh_evaluation.make_contingency_tables`.
+    :param prediction_oriented_ct_by_neigh: length-D list of prediction-oriented
+        contingency tables in format produced by
+        `neigh_evaluation.make_contingency_tables`.
+    :param actual_oriented_ct_by_neigh: length-D list of actual-oriented
+        contingency tables in format produced by
+        `neigh_evaluation.make_contingency_tables`.
+    :param training_mask_matrix: See doc for
+        `neigh_evaluation.make_contingency_tables`.  If this is None, will be
+        read from CNN metadata on the fly.
+    :return: binary_ct_by_neigh: Same as input but with different values.
+    :return: prediction_oriented_ct_by_neigh: Same as input but with different
+        values.
+    :return: actual_oriented_ct_by_neigh: Same as input but with different
+        values.
+    :return: training_mask_matrix: Same as input but cannot be None.
+    """
+
+    print('Reading data from: "{0:s}"...'.format(prediction_file_name))
+    prediction_dict = prediction_io.read_file(
+        netcdf_file_name=prediction_file_name, read_deterministic=True
+    )
+
+    predicted_label_matrix = prediction_dict[prediction_io.PREDICTED_LABELS_KEY]
+    actual_label_matrix = prediction_dict[prediction_io.TARGET_MATRIX_KEY]
+
+    if training_mask_matrix is None:
+        model_file_name = prediction_dict[prediction_io.MODEL_FILE_KEY]
+        model_metafile_name = cnn.find_metafile(model_file_name)
+
+        print('Reading training mask from: "{0:s}"...'.format(
+            model_metafile_name
+        ))
+        model_metadata_dict = cnn.read_metadata(model_metafile_name)
+        training_mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
+
+    num_neigh_distances = len(neigh_distances_metres)
+
+    for k in range(num_neigh_distances):
+        this_binary_ct, this_prediction_oriented_ct, this_actual_oriented_ct = (
+            neigh_evaluation.make_contingency_tables(
+                predicted_label_matrix=predicted_label_matrix,
+                actual_label_matrix=actual_label_matrix,
+                neigh_distance_metres=neigh_distances_metres[k],
+                training_mask_matrix=training_mask_matrix, normalize=False
+            )
+        )
+
+        if binary_ct_by_neigh[k] is None:
+            binary_ct_by_neigh[k] = copy.deepcopy(this_binary_ct)
+            prediction_oriented_ct_by_neigh = this_prediction_oriented_ct + 0.
+            actual_oriented_ct_by_neigh = this_actual_oriented_ct + 0.
+
+    return (
+        binary_ct_by_neigh, prediction_oriented_ct_by_neigh,
+        actual_oriented_ct_by_neigh, training_mask_matrix
+    )
 
 
 def _decompose_contingency_tables(
@@ -256,42 +330,35 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
 
 
 def _do_eval_one_neigh_distance(
-        predicted_label_matrix, actual_label_matrix, training_mask_matrix,
-        neigh_distance_metres, num_bootstrap_reps, confidence_level,
-        prediction_file_names, output_file_name):
+        binary_ct_as_dict, prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix, neigh_distance_metres, num_bootstrap_reps,
+        confidence_level, prediction_file_names, output_file_name):
     """Does evaluation with one neighbourhood distance.
 
-    T = number of time steps
-    M = number of rows in grid
-    N = number of columns in grid
-
-    :param predicted_label_matrix: T-by-M-by-N numpy array of predicted labels
-        (in range 0...2).
-    :param actual_label_matrix: Same but for actual labels.
-    :param training_mask_matrix: M-by-N numpy array of integers in 0...1,
-        indicating which grid cells were masked during training.  0 means that
-        the grid cell was masked.
+    :param binary_ct_as_dict: Binary contingency table in format produced
+        by `neigh_evaluation.make_contingency_tables`.
+    :param prediction_oriented_ct_matrix: Prediction-oriented contingency table
+        in format produced by `neigh_evaluation.make_contingency_tables`.
+    :param actual_oriented_ct_matrix: Actual-oriented contingency table in
+        format produced by `neigh_evaluation.make_contingency_tables`.
     :param neigh_distance_metres: Neighbourhood distance.
     :param num_bootstrap_reps: See documentation at top of file.
     :param confidence_level: Same.
-    :param prediction_file_names: length-T list of paths to input (prediction)
-        files.
-    :param output_file_name: Path to output file.
+    :param prediction_file_names: 1-D list of paths to prediction files (will be
+        saved as metadata in output file).
+    :param output_file_name: Path to output file (will be written by
+       `neigh_evaluation.write_results`).
     """
 
-    main_binary_ct, main_prediction_oriented_ct, main_actual_oriented_ct = (
-        neigh_evaluation.make_contingency_tables(
-            predicted_label_matrix=predicted_label_matrix,
-            actual_label_matrix=actual_label_matrix,
-            neigh_distance_metres=neigh_distance_metres,
-            training_mask_matrix=training_mask_matrix, normalize=False)
-    )
+    # Save non-bootstrapped versions of contingency tables.
+    main_binary_ct = binary_ct_as_dict
+    main_prediction_oriented_ct = prediction_oriented_ct_matrix + 0.
+    main_actual_oriented_ct = actual_oriented_ct_matrix + 0.
 
-    print(SEPARATOR_STRING)
-
+    # Bootstrap contingency tables.
     match_dict = _decompose_contingency_tables(
-        prediction_oriented_ct_matrix=main_prediction_oriented_ct,
-        actual_oriented_ct_matrix=main_actual_oriented_ct)
+        prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix=actual_oriented_ct_matrix)
 
     these_dim = (num_bootstrap_reps, NUM_CLASSES, NUM_CLASSES)
     prediction_oriented_ct_matrix = numpy.full(these_dim, numpy.nan)
@@ -424,81 +491,60 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True
     )
 
-    # Find prediction files.
+    # Read predictions and create contingency tables.
+    num_neigh_distances = len(neigh_distances_metres)
+    binary_ct_by_neigh = [None] * num_neigh_distances
+    prediction_oriented_ct_by_neigh = [None] * num_neigh_distances
+    actual_oriented_ct_by_neigh = [None] * num_neigh_distances
+
+    training_mask_matrix = None
     prediction_file_names = []
-    valid_times_unix_sec = []
 
     for this_time_unix_sec in all_times_unix_sec:
-        this_file_name = prediction_io.find_file(
+        this_prediction_file_name = prediction_io.find_file(
             directory_name=prediction_dir_name,
             first_time_unix_sec=this_time_unix_sec,
             last_time_unix_sec=this_time_unix_sec,
             raise_error_if_missing=False)
 
-        if not os.path.isfile(this_file_name):
+        if not os.path.isfile(this_prediction_file_name):
             continue
 
-        prediction_file_names.append(this_file_name)
-        valid_times_unix_sec.append(this_time_unix_sec)
+        prediction_file_names.append(this_prediction_file_name)
+        print(MINOR_SEPARATOR_STRING)
 
-    valid_times_unix_sec = numpy.array(valid_times_unix_sec, dtype=int)
-
-    # Read predictions.
-    num_times = len(valid_times_unix_sec)
-    predicted_label_matrix = None
-    actual_label_matrix = None
-    model_file_name = None
-
-    for i in range(num_times):
-        print('Reading data from: "{0:s}"...'.format(prediction_file_names[i]))
-        this_prediction_dict = prediction_io.read_file(
-            netcdf_file_name=prediction_file_names[i], read_deterministic=True
+        (
+            binary_ct_by_neigh, prediction_oriented_ct_by_neigh,
+            actual_oriented_ct_by_neigh, training_mask_matrix
+        ) = _handle_one_prediction_file(
+            prediction_file_name=this_prediction_file_name,
+            neigh_distances_metres=neigh_distances_metres,
+            binary_ct_by_neigh=binary_ct_by_neigh,
+            prediction_oriented_ct_by_neigh=prediction_oriented_ct_by_neigh,
+            actual_oriented_ct_by_neigh=actual_oriented_ct_by_neigh,
+            training_mask_matrix=training_mask_matrix
         )
 
-        this_predicted_label_matrix = this_prediction_dict[
-            prediction_io.PREDICTED_LABELS_KEY
-        ]
-        this_actual_label_matrix = this_prediction_dict[
-            prediction_io.TARGET_MATRIX_KEY
-        ]
-        model_file_name = this_prediction_dict[prediction_io.MODEL_FILE_KEY]
-
-        if predicted_label_matrix is None:
-            these_dim = (num_times,) + this_actual_label_matrix.shape[1:]
-            predicted_label_matrix = numpy.full(these_dim, -1, dtype=int)
-            actual_label_matrix = numpy.full(these_dim, -1, dtype=int)
-
-        predicted_label_matrix[i, ...] = this_predicted_label_matrix[0, ...]
-        actual_label_matrix[i, ...] = this_actual_label_matrix[0, ...]
-
-    # Read training mask.
-    model_metafile_name = cnn.find_metafile(model_file_name)
-
-    print(SEPARATOR_STRING)
-    print('Reading training mask from: "{0:s}"...'.format(model_metafile_name))
-
-    model_metadata_dict = cnn.read_metadata(model_metafile_name)
-    training_mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
-
     # Run neighbourhood evaluation.
-    for this_neigh_distance_metres in neigh_distances_metres:
+    for k in range(num_neigh_distances):
         print(SEPARATOR_STRING)
 
         this_output_file_name = (
             '{0:s}/evaluation_neigh-distance-metres={1:06d}.p'
         ).format(
-            output_dir_name, int(numpy.round(this_neigh_distance_metres))
+            output_dir_name, int(numpy.round(neigh_distances_metres[k]))
         )
 
         _do_eval_one_neigh_distance(
-            predicted_label_matrix=predicted_label_matrix,
-            actual_label_matrix=actual_label_matrix,
-            training_mask_matrix=training_mask_matrix,
-            neigh_distance_metres=this_neigh_distance_metres,
+            binary_ct_as_dict=binary_ct_by_neigh[k],
+            prediction_oriented_ct_matrix=prediction_oriented_ct_by_neigh[k],
+            actual_oriented_ct_matrix=actual_oriented_ct_by_neigh[k],
+            neigh_distance_metres=neigh_distances_metres[k],
             num_bootstrap_reps=num_bootstrap_reps,
             confidence_level=confidence_level,
             prediction_file_names=prediction_file_names,
-            output_file_name=this_output_file_name)
+            output_file_name=this_output_file_name
+        )
 
 
 if __name__ == '__main__':

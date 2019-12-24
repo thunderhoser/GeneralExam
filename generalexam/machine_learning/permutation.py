@@ -1,7 +1,7 @@
 """Methods to run permutation test for front-detection models."""
 
 import numpy
-from sklearn.metrics import roc_auc_score as sklearn_auc
+from gewittergefahr.gg_utils import model_evaluation as gg_evaluation
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import permutation_utils
 from generalexam.ge_utils import predictor_utils
@@ -12,6 +12,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 DEFAULT_NUM_BOOTSTRAP_REPS = 1
+NUM_THRESHOLDS_FOR_AUC = 1001
 
 PREDICTOR_NAME_TO_FANCY = {
     predictor_utils.TEMPERATURE_NAME: 'Temperature',
@@ -77,16 +78,30 @@ def negative_auc_function(observed_labels, class_probability_matrix):
         class_probability_matrix=class_probability_matrix,
         observed_labels=observed_labels)
 
-    num_classes = class_probability_matrix.shape[1]
-    auc_by_class = numpy.full(num_classes, numpy.nan)
+    prob_thresholds = gg_evaluation.get_binarization_thresholds(
+        threshold_arg=NUM_THRESHOLDS_FOR_AUC
+    )
 
-    for k in range(1, num_classes):
-        auc_by_class[k] = sklearn_auc(
-            y_true=(observed_labels == k).astype(int),
-            y_score=class_probability_matrix[:, k]
+    num_thresholds = len(prob_thresholds)
+    pod_values = numpy.full(num_thresholds, numpy.nan)
+    pofd_values = numpy.full(num_thresholds, numpy.nan)
+
+    for k in range(num_thresholds):
+        these_predicted_labels = pixelwise_eval.determinize_predictions(
+            class_probability_matrix=class_probability_matrix,
+            threshold=prob_thresholds[k]
         )
 
-    return -1 * numpy.mean(auc_by_class[1:])
+        this_contingency_matrix = pixelwise_eval.get_contingency_table(
+            predicted_labels=these_predicted_labels,
+            observed_labels=observed_labels)
+
+        pod_values[k] = pixelwise_eval.get_binary_pod(this_contingency_matrix)
+        pofd_values[k] = pixelwise_eval.get_binary_pofd(this_contingency_matrix)
+
+    return -1 * gg_evaluation.get_area_under_roc_curve(
+        pod_by_threshold=pod_values, pofd_by_threshold=pofd_values
+    )
 
 
 def get_nice_predictor_names(predictor_names, pressure_levels_mb):
