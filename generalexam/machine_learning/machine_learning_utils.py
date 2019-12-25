@@ -14,6 +14,7 @@ C = number of channels (predictor variables) in each image
 
 import copy
 import pickle
+import os.path
 import numpy
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -1344,6 +1345,21 @@ def read_narr_mask(pickle_file_name):
         does not contain this matrix, the return value will be None.
     :return: num_cold_fronts_matrix: Same.
     """
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/scratch/ralager', '/condo/swatwork/ralager'
+        )
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/condo/swatwork/ralager', '/glade/work/ryanlage'
+        )
+
+    if not os.path.isfile(pickle_file_name):
+        pickle_file_name = pickle_file_name.replace(
+            '/glade/work/ryanlage', '/glade/scratch/ryanlage'
+        )
 
     num_warm_fronts_matrix = None
     num_cold_fronts_matrix = None
