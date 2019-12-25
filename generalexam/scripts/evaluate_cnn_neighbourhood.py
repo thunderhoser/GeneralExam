@@ -155,8 +155,10 @@ def _handle_one_prediction_file(
 
         if binary_ct_by_neigh[k] is None:
             binary_ct_by_neigh[k] = copy.deepcopy(this_binary_ct)
-            prediction_oriented_ct_by_neigh = this_prediction_oriented_ct + 0.
-            actual_oriented_ct_by_neigh = this_actual_oriented_ct + 0.
+            prediction_oriented_ct_by_neigh[k] = (
+                this_prediction_oriented_ct + 0.
+            )
+            actual_oriented_ct_by_neigh[k] = this_actual_oriented_ct + 0.
 
     return (
         binary_ct_by_neigh, prediction_oriented_ct_by_neigh,
