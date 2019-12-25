@@ -315,11 +315,11 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
         actual_to_predicted_front_enums[these_indices]
     )
 
-    prediction_oriented_ct_matrix, actual_oriented_ct_matrix = (
-        neigh_evaluation.normalize_contingency_tables(
-            prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
-            actual_oriented_ct_matrix=actual_oriented_ct_matrix)
-    )
+    # prediction_oriented_ct_matrix, actual_oriented_ct_matrix = (
+    #     neigh_evaluation.normalize_contingency_tables(
+    #         prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
+    #         actual_oriented_ct_matrix=actual_oriented_ct_matrix)
+    # )
 
     print(binary_ct_as_dict)
     print('\n')
