@@ -1,5 +1,7 @@
 """Applies trained CNN to full grids."""
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K
@@ -17,7 +19,8 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+    allow_soft_placement=False
 )))
 
 METRES_TO_KM = 0.001
