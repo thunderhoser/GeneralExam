@@ -159,6 +159,12 @@ def _handle_one_prediction_file(
                 this_prediction_oriented_ct + 0.
             )
             actual_oriented_ct_by_neigh[k] = this_actual_oriented_ct + 0.
+        else:
+            for this_key in binary_ct_by_neigh[k]:
+                binary_ct_by_neigh[k][this_key] += this_binary_ct[this_key]
+
+            prediction_oriented_ct_by_neigh[k] += this_prediction_oriented_ct
+            actual_oriented_ct_by_neigh[k] += this_actual_oriented_ct
 
     return (
         binary_ct_by_neigh, prediction_oriented_ct_by_neigh,
