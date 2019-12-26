@@ -256,7 +256,6 @@ def read_file(netcdf_file_name, first_time_unix_sec, last_time_unix_sec,
         all_pressure_levels_mb = numpy.array(
             dataset_object.variables[NETCDF_PRESSURE_LEVELS_KEY][:], dtype=int
         )
-        print(all_pressure_levels_mb)
         pressure_level_index = numpy.where(
             all_pressure_levels_mb == pressure_level_mb
         )[0][0]
