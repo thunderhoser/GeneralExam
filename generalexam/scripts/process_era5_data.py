@@ -78,7 +78,7 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_RAW_FIELD_NAMES, help=RAW_FIELDS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + PRESSURE_LEVELS_ARG_NAME, type=int, required=False,
+    '--' + PRESSURE_LEVELS_ARG_NAME, type=int, nargs='+', required=False,
     default=[DUMMY_SURFACE_PRESSURE_MB], help=PRESSURE_LEVELS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
