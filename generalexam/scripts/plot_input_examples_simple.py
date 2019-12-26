@@ -568,9 +568,12 @@ def plot_real_example(
         if cbar_orientation_string == 'horizontal':
             cbar_padding = 0.05 if i == num_panel_rows - 1 else None
 
-        same_field_indices = numpy.where(
-            predictor_names == predictor_names[k]
-        )[0]
+        if predictor_names[k] == predictor_utils.HEIGHT_NAME:
+            same_field_indices = numpy.array([k], dtype=int)
+        else:
+            same_field_indices = numpy.where(
+                predictor_names == predictor_names[k]
+            )[0]
 
         if predictor_names[k] in WIND_NAMES:
             this_colour_map_object = wind_colour_map_object
@@ -784,9 +787,12 @@ def plot_composite_example(
         i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
         this_axes_object = axes_object_matrix[i, j]
 
-        same_field_indices = numpy.where(
-            predictor_names == predictor_names[k]
-        )[0]
+        if predictor_names[k] == predictor_utils.HEIGHT_NAME:
+            same_field_indices = numpy.array([k], dtype=int)
+        else:
+            same_field_indices = numpy.where(
+                predictor_names == predictor_names[k]
+            )[0]
 
         if predictor_names[k] in WIND_NAMES:
             this_colour_map_object = wind_colour_map_object
