@@ -274,6 +274,9 @@ def _subset_channels(example_dict, metadata_only, predictor_names,
     all_predictor_names = numpy.array(example_dict[PREDICTOR_NAMES_KEY])
     all_pressure_levels_mb = example_dict[PRESSURE_LEVELS_KEY]
 
+    print(all_predictor_names)
+    print(all_pressure_levels_mb)
+
     indices_to_keep = [
         numpy.where(numpy.logical_and(
             all_predictor_names == n, all_pressure_levels_mb == l
