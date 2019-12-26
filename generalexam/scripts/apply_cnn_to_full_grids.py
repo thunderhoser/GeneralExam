@@ -172,12 +172,24 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         time_interval_sec=TIME_INTERVAL_SECONDS, include_endpoint=True
     )
 
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, INPUT_TIME_FORMAT)
+        for t in valid_times_unix_sec
+    ]
+    print(valid_time_strings)
+
     if num_times > 0:
         num_times = min([num_times, len(valid_times_unix_sec)])
 
         numpy.random.seed(RANDOM_SEED)
         numpy.random.shuffle(valid_times_unix_sec)
         valid_times_unix_sec = valid_times_unix_sec[:num_times]
+
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, INPUT_TIME_FORMAT)
+        for t in valid_times_unix_sec
+    ]
+    print(valid_time_strings)
 
     print('Reading CNN from: "{0:s}"...'.format(model_file_name))
     model_object = cnn.read_model(model_file_name)
