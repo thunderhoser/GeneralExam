@@ -12,15 +12,15 @@ from generalexam.ge_io import prediction_io
 from generalexam.machine_learning import cnn
 from generalexam.ge_utils import neigh_evaluation
 
+# TODO(thunderhoser): Remove bootstrapping from this script and put it somewhere
+# else.
+
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-INPUT_TIME_FORMAT = '%Y%m%d%H'
-LOG_MESSAGE_TIME_FORMAT = '%Y-%m-%d-%H'
-
 NUM_CLASSES = 3
-METRES_TO_KM = 0.001
 TIME_INTERVAL_SECONDS = 10800
+INPUT_TIME_FORMAT = '%Y%m%d%H'
 
 FAR_WEIGHT_FOR_CSI = 0.5
 
@@ -61,7 +61,7 @@ CONFIDENCE_LEVEL_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Files will be written here by '
-    '`neigh_evaluation.write_results`.'
+    '`neigh_evaluation.write_nonspatial_results`.'
 )
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -105,16 +105,17 @@ def _handle_one_prediction_file(
     :param neigh_distances_metres: length-D numpy array of distances for
         neighbourhood evaluation.
     :param binary_ct_by_neigh: length-D list of binary contingency tables in
-        format produced by `neigh_evaluation.make_contingency_tables`.
+        format produced by
+        `neigh_evaluation.make_nonspatial_contingency_tables`.
     :param prediction_oriented_ct_by_neigh: length-D list of prediction-oriented
         contingency tables in format produced by
-        `neigh_evaluation.make_contingency_tables`.
+        `neigh_evaluation.make_nonspatial_contingency_tables`.
     :param actual_oriented_ct_by_neigh: length-D list of actual-oriented
         contingency tables in format produced by
-        `neigh_evaluation.make_contingency_tables`.
+        `neigh_evaluation.make_nonspatial_contingency_tables`.
     :param training_mask_matrix: See doc for
-        `neigh_evaluation.make_contingency_tables`.  If this is None, will be
-        read from CNN metadata on the fly.
+        `neigh_evaluation.make_nonspatial_contingency_tables`.  If this is None,
+        will be read from CNN metadata on the fly.
     :return: binary_ct_by_neigh: Same as input but with different values.
     :return: prediction_oriented_ct_by_neigh: Same as input but with different
         values.
@@ -145,7 +146,7 @@ def _handle_one_prediction_file(
 
     for k in range(num_neigh_distances):
         this_binary_ct, this_prediction_oriented_ct, this_actual_oriented_ct = (
-            neigh_evaluation.make_contingency_tables(
+            neigh_evaluation.make_nonspatial_contingency_tables(
                 predicted_label_matrix=predicted_label_matrix,
                 actual_label_matrix=actual_label_matrix,
                 neigh_distance_metres=neigh_distances_metres[k],
@@ -246,7 +247,7 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
     :param match_dict: Dictionary created by `_decompose_contingency_tables`.
     :param test_mode: Never mind.  Just leave this alone.
     :return: binary_ct_as_dict: See doc for
-        `neigh_evaluation.make_contingency_tables`.
+        `neigh_evaluation.make_nonspatial_contingency_tables`.
     :return: prediction_oriented_ct_matrix: Same.
     :return: actual_oriented_ct_matrix: Same.
     """
@@ -321,12 +322,6 @@ def _bootstrap_contingency_tables(match_dict, test_mode=False):
         actual_to_predicted_front_enums[these_indices]
     )
 
-    # prediction_oriented_ct_matrix, actual_oriented_ct_matrix = (
-    #     neigh_evaluation.normalize_contingency_tables(
-    #         prediction_oriented_ct_matrix=prediction_oriented_ct_matrix,
-    #         actual_oriented_ct_matrix=actual_oriented_ct_matrix)
-    # )
-
     print(binary_ct_as_dict)
     print('\n')
     print(prediction_oriented_ct_matrix)
@@ -344,18 +339,20 @@ def _do_eval_one_neigh_distance(
     """Does evaluation with one neighbourhood distance.
 
     :param binary_ct_as_dict: Binary contingency table in format produced
-        by `neigh_evaluation.make_contingency_tables`.
+        by `neigh_evaluation.make_nonspatial_contingency_tables`.
     :param prediction_oriented_ct_matrix: Prediction-oriented contingency table
-        in format produced by `neigh_evaluation.make_contingency_tables`.
+        in format produced by
+        `neigh_evaluation.make_nonspatial_contingency_tables`.
     :param actual_oriented_ct_matrix: Actual-oriented contingency table in
-        format produced by `neigh_evaluation.make_contingency_tables`.
+        format produced by
+        `neigh_evaluation.make_nonspatial_contingency_tables`.
     :param neigh_distance_metres: Neighbourhood distance.
     :param num_bootstrap_reps: See documentation at top of file.
     :param confidence_level: Same.
     :param prediction_file_names: 1-D list of paths to prediction files (will be
         saved as metadata in output file).
     :param output_file_name: Path to output file (will be written by
-       `neigh_evaluation.write_results`).
+       `neigh_evaluation.write_nonspatial_results`).
     """
 
     # Save non-bootstrapped versions of contingency tables.
@@ -455,7 +452,7 @@ def _do_eval_one_neigh_distance(
     ))
 
     print('Writing results to: "{0:s}"...'.format(output_file_name))
-    neigh_evaluation.write_results(
+    neigh_evaluation.write_nonspatial_results(
         pickle_file_name=output_file_name,
         prediction_file_names=prediction_file_names,
         neigh_distance_metres=neigh_distance_metres,

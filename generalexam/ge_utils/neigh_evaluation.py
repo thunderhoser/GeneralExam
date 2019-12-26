@@ -29,12 +29,17 @@ NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 
 PREDICTION_FILES_KEY = 'prediction_file_names'
 NEIGH_DISTANCE_KEY = 'neigh_distance_metres'
-BINARY_CONTINGENCY_TABLES_KEY = 'list_of_binary_ct_dicts'
+BINARY_TABLES_KEY = 'list_of_binary_ct_dicts'
+BINARY_CT_MATRIX_KEY = 'binary_ct_dict_matrix'
 PREDICTION_ORIENTED_CT_KEY = 'prediction_oriented_ct_matrix'
 ACTUAL_ORIENTED_CT_KEY = 'actual_oriented_ct_matrix'
 
-REQUIRED_KEYS = [
-    PREDICTION_FILES_KEY, NEIGH_DISTANCE_KEY, BINARY_CONTINGENCY_TABLES_KEY,
+REQUIRED_NONSPATIAL_KEYS = [
+    PREDICTION_FILES_KEY, NEIGH_DISTANCE_KEY, BINARY_TABLES_KEY,
+    PREDICTION_ORIENTED_CT_KEY, ACTUAL_ORIENTED_CT_KEY
+]
+REQUIRED_SPATIAL_KEYS = [
+    PREDICTION_FILES_KEY, NEIGH_DISTANCE_KEY, BINARY_CT_MATRIX_KEY,
     PREDICTION_ORIENTED_CT_KEY, ACTUAL_ORIENTED_CT_KEY
 ]
 
@@ -998,7 +1003,7 @@ def normalize_contingency_tables(prediction_oriented_ct_matrix,
 def get_pod(binary_ct_as_dict):
     """Computes POD (probability of detection).
 
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :param binary_ct_as_dict: See doc for `make_nonspatial_contingency_tables`.
     :return: pod: Probability of detection.
     """
 
@@ -1017,7 +1022,7 @@ def get_pod(binary_ct_as_dict):
 def get_far(binary_ct_as_dict):
     """Computes FAR (false-alarm ratio).
 
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :param binary_ct_as_dict: See doc for `make_nonspatial_contingency_tables`.
     :return: far: False-alarm ratio.
     """
 
@@ -1036,7 +1041,7 @@ def get_far(binary_ct_as_dict):
 def get_csi(binary_ct_as_dict, far_weight=1.):
     """Computes CSI (critical success index).
 
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :param binary_ct_as_dict: See doc for `make_nonspatial_contingency_tables`.
     :param far_weight: Weight for FAR.  Make this < 1 to penalize false alarms
         less.
     :return: CSI: Critical success index.
@@ -1056,7 +1061,7 @@ def get_csi(binary_ct_as_dict, far_weight=1.):
 def get_frequency_bias(binary_ct_as_dict):
     """Computes frequency bias.
 
-    :param binary_ct_as_dict: See doc for `make_contingency_tables`.
+    :param binary_ct_as_dict: See doc for `make_nonspatial_contingency_tables`.
     :return: frequency_bias: Frequency bias.
     """
 
@@ -1069,11 +1074,11 @@ def get_frequency_bias(binary_ct_as_dict):
         return numpy.nan
 
 
-def write_results(
+def write_nonspatial_results(
         pickle_file_name, prediction_file_names, neigh_distance_metres,
         list_of_binary_ct_dicts, prediction_oriented_ct_matrix,
         actual_oriented_ct_matrix):
-    """Writes results of neighbourhood evaluation to Pickle file.
+    """Writes results of non-spatial evaluation to Pickle file.
 
     B = number of bootstrap replicates
     K = number of classes = 3
@@ -1084,15 +1089,15 @@ def write_results(
     :param neigh_distance_metres: Neighbourhood distance for matching actual
         with predicted frontal grid points.
     :param list_of_binary_ct_dicts: length-B list of binary contingency tables,
-        each created by `make_contingency_tables`.
+        each created by `make_nonspatial_contingency_tables`.
     :param prediction_oriented_ct_matrix: B-by-3-by-3 numpy array, where
         prediction_oriented_ct_matrix[k, ...] is the unnormalized prediction-
         oriented contingency table for the [k]th bootstrap replicate, created by
-        `make_contingency_tables`.
+        `make_nonspatial_contingency_tables`.
     :param actual_oriented_ct_matrix: B-by-3-by-3 numpy array, where
         actual_oriented_ct_matrix[k, ...] is the unnormalized actual-oriented
         contingency table for the [k]th bootstrap replicate, created by
-        `make_contingency_tables`.
+        `make_nonspatial_contingency_tables`.
     """
 
     error_checking.assert_is_greater(neigh_distance_metres, 0.)
@@ -1124,7 +1129,7 @@ def write_results(
     evaluation_dict = {
         PREDICTION_FILES_KEY: prediction_file_names,
         NEIGH_DISTANCE_KEY: neigh_distance_metres,
-        BINARY_CONTINGENCY_TABLES_KEY: list_of_binary_ct_dicts,
+        BINARY_TABLES_KEY: list_of_binary_ct_dicts,
         PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,
         ACTUAL_ORIENTED_CT_KEY: actual_oriented_ct_matrix
     }
@@ -1136,12 +1141,13 @@ def write_results(
     pickle_file_handle.close()
 
 
-def read_results(pickle_file_name):
-    """Reads results of neighbourhood evaluation from Pickle file.
+def read_nonspatial_results(pickle_file_name):
+    """Reads results of non-spatial evaluation from Pickle file.
 
     :param pickle_file_name: Path to input file.
     :return: evaluation_dict: Dictionary with the following keys.
-    evaluation_dict["prediction_file_names"]: See doc for `write_results`.
+    evaluation_dict["prediction_file_names"]: See doc for
+        `write_nonspatial_results`.
     evaluation_dict["neigh_distance_metres"]: Same.
     evaluation_dict["list_of_binary_ct_dicts"]: Same.
     evaluation_dict["prediction_oriented_ct_matrix"]: Same.
@@ -1154,7 +1160,115 @@ def read_results(pickle_file_name):
     evaluation_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    missing_keys = list(set(REQUIRED_KEYS) - set(evaluation_dict.keys()))
+    missing_keys = list(
+        set(REQUIRED_NONSPATIAL_KEYS) - set(evaluation_dict.keys())
+    )
+    if len(missing_keys) == 0:
+        return evaluation_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
+
+
+def write_spatial_results(
+        pickle_file_name, prediction_file_names, neigh_distance_metres,
+        binary_ct_dict_matrix, prediction_oriented_ct_matrix,
+        actual_oriented_ct_matrix):
+    """Writes results of spatial evaluation to Pickle file.
+
+    :param pickle_file_name: Path to output file.
+    :param prediction_file_names: 1-D list of paths to input files (readable by
+        `prediction_io.read_file`).
+    :param neigh_distance_metres: Neighbourhood distance for matching actual
+        with predicted frontal grid points.
+    :param binary_ct_dict_matrix: Binary contingency tables (see output doc for
+        `make_spatial_contingency_tables`).
+    :param prediction_oriented_ct_matrix: Prediction-oriented contingency tables
+        (see output doc for `make_spatial_contingency_tables`).
+    :param actual_oriented_ct_matrix: Actual-oriented contingency tables (see
+        output doc for `make_spatial_contingency_tables`).
+    """
+
+    error_checking.assert_is_greater(neigh_distance_metres, 0.)
+    error_checking.assert_is_string_list(prediction_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(prediction_file_names), num_dimensions=1
+    )
+
+    error_checking.assert_is_numpy_array(
+        binary_ct_dict_matrix, num_dimensions=2
+    )
+
+    num_grid_rows = binary_ct_dict_matrix.shape[0]
+    num_grid_columns = binary_ct_dict_matrix.shape[1]
+    expected_dim = numpy.array(
+        [num_grid_rows, num_grid_columns, NUM_CLASSES, NUM_CLASSES], dtype=int
+    )
+
+    error_checking.assert_is_numpy_array(
+        prediction_oriented_ct_matrix, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_numpy_array(
+        actual_oriented_ct_matrix, exact_dimensions=expected_dim
+    )
+
+    for i in range(num_grid_rows):
+        for j in range(num_grid_columns):
+            this_prediction_oriented_ct = (
+                prediction_oriented_ct_matrix[i, j, ...]
+            )
+            this_actual_oriented_ct = actual_oriented_ct_matrix[i, j, ...]
+
+            if numpy.all(numpy.isnan(this_prediction_oriented_ct)):
+                assert numpy.all(numpy.isnan(this_actual_oriented_ct))
+                continue
+
+            _check_3class_contingency_tables(
+                prediction_oriented_ct_matrix=this_prediction_oriented_ct,
+                actual_oriented_ct_matrix=this_actual_oriented_ct,
+                expect_normalized=False)
+
+    evaluation_dict = {
+        PREDICTION_FILES_KEY: prediction_file_names,
+        NEIGH_DISTANCE_KEY: neigh_distance_metres,
+        BINARY_CT_MATRIX_KEY: binary_ct_dict_matrix,
+        PREDICTION_ORIENTED_CT_KEY: prediction_oriented_ct_matrix,
+        ACTUAL_ORIENTED_CT_KEY: actual_oriented_ct_matrix
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(evaluation_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_spatial_results(pickle_file_name):
+    """Reads results of spatial evaluation from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: evaluation_dict: Dictionary with the following keys.
+    evaluation_dict["prediction_file_names"]: See doc for
+        `write_spatial_results`.
+    evaluation_dict["neigh_distance_metres"]: Same.
+    evaluation_dict["binary_ct_dict_matrix"]: Same.
+    evaluation_dict["prediction_oriented_ct_matrix"]: Same.
+    evaluation_dict["actual_oriented_ct_matrix"]: Same.
+
+    :raises: ValueError: if any expected key is not found in dictionary.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    evaluation_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(
+        set(REQUIRED_SPATIAL_KEYS) - set(evaluation_dict.keys())
+    )
     if len(missing_keys) == 0:
         return evaluation_dict
 

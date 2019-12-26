@@ -9,28 +9,16 @@ TOLERANCE = 1e-6
 
 # The following constants are used to test `_decompose_contingency_tables` and
 # `_bootstrap_contingency_tables`.
-PREDICTION_ORIENTED_CT_MATRIX_DENORM = numpy.array([
+PREDICTION_ORIENTED_CT_MATRIX = numpy.array([
     [numpy.nan, numpy.nan, numpy.nan],
     [1, 4, 2],
     [5, 5, 10]
 ])
 
-ACTUAL_ORIENTED_CT_MATRIX_DENORM = numpy.array([
+ACTUAL_ORIENTED_CT_MATRIX = numpy.array([
     [numpy.nan, 2, 5],
     [numpy.nan, 5, 0],
     [numpy.nan, 10, 15]
-])
-
-PREDICTION_ORIENTED_CT_MATRIX_NORM = numpy.array([
-    [numpy.nan, numpy.nan, numpy.nan],
-    [1. / 7, 4. / 7, 2. / 7],
-    [0.25, 0.25, 0.5]
-])
-
-ACTUAL_ORIENTED_CT_MATRIX_NORM = numpy.array([
-    [numpy.nan, 2. / 17, 0.25],
-    [numpy.nan, 5. / 17, 0],
-    [numpy.nan, 10. / 17, 0.75]
 ])
 
 PREDICTED_FRONT_ENUMS = numpy.concatenate((
@@ -78,8 +66,8 @@ class EvaluateCnnNeighbourhoodTests(unittest.TestCase):
         """Ensures correct output from _decompose_contingency_tables."""
 
         this_match_dict = eval_cnn_neigh._decompose_contingency_tables(
-            prediction_oriented_ct_matrix=PREDICTION_ORIENTED_CT_MATRIX_DENORM,
-            actual_oriented_ct_matrix=ACTUAL_ORIENTED_CT_MATRIX_DENORM)
+            prediction_oriented_ct_matrix=PREDICTION_ORIENTED_CT_MATRIX,
+            actual_oriented_ct_matrix=ACTUAL_ORIENTED_CT_MATRIX)
 
         actual_keys = list(this_match_dict.keys())
         expected_keys = list(MATCH_DICT.keys())
@@ -100,11 +88,11 @@ class EvaluateCnnNeighbourhoodTests(unittest.TestCase):
 
         self.assertTrue(this_binary_ct_as_dict == BINARY_CT_AS_DICT)
         self.assertTrue(numpy.allclose(
-            this_prediction_oriented_matrix, PREDICTION_ORIENTED_CT_MATRIX_NORM,
+            this_prediction_oriented_matrix, PREDICTION_ORIENTED_CT_MATRIX,
             atol=TOLERANCE, equal_nan=True
         ))
         self.assertTrue(numpy.allclose(
-            this_actual_oriented_matrix, ACTUAL_ORIENTED_CT_MATRIX_NORM,
+            this_actual_oriented_matrix, ACTUAL_ORIENTED_CT_MATRIX,
             atol=TOLERANCE, equal_nan=True
         ))
 
