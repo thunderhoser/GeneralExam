@@ -251,7 +251,7 @@ FIFTH_LARGE_RGN_LABEL_MATRIX = numpy.array([
 
 # The following constants are used to test _match_actual_wf_one_time,
 # _match_actual_cf_one_time, _match_predicted_wf_one_time,
-# _match_predicted_cf_one_time, and make_contingency_tables.
+# _match_predicted_cf_one_time.
 ACTUAL_LABEL_MATRIX = numpy.array([
     [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [2, 2, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1],
@@ -281,62 +281,339 @@ PREDICTED_LABEL_MATRIX = numpy.array([
 SMALL_NEIGH_DISTANCE_METRES = 1.
 LARGE_NEIGH_DISTANCE_METRES = 50.
 
-ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH = numpy.array([11, 1, 3], dtype=int)
-ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH = numpy.array([13, 2, 0], dtype=int)
-PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH = numpy.array([11, 1, 2], dtype=int)
-PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH = numpy.array([17, 3, 0], dtype=int)
+ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH = numpy.array([
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 2, 1, 5, 5, 5, 5, 5, 0, 0],
+    [5, 5, 5, 5, 2, 0, 0, 5, 0, 0, 0, 5],
+    [5, 5, 5, 5, 5, 2, 0, 0, 0, 0, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+], dtype=int)
 
-ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH = numpy.array([3, 8, 4], dtype=int)
-ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH = numpy.array([5, 4, 6], dtype=int)
-PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH = numpy.array([0, 11, 3], dtype=int)
-PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH = numpy.array([11, 5, 4], dtype=int)
+ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH = numpy.array([
+    [1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [1, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+], dtype=int)
 
-BINARY_TABLE_SMALL_NEIGH = {
+PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH = numpy.array([
+    [2, 0, 0, 0, 0, 5, 5, 5, 5, 5, 0, 0],
+    [2, 5, 5, 5, 1, 0, 0, 0, 0, 0, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+], dtype=int)
+
+PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH = numpy.array([
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 0, 1, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 0, 1, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 0],
+    [5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5, 0],
+    [5, 5, 5, 0, 0, 5, 5, 5, 5, 5, 0, 0]
+], dtype=int)
+
+ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH = numpy.array([
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 2, 1, 5, 5, 5, 5, 5, 1, 1],
+    [5, 5, 5, 5, 2, 1, 1, 5, 1, 1, 1, 5],
+    [5, 5, 5, 5, 5, 2, 2, 0, 0, 0, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+], dtype=int)
+
+ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH = numpy.array([
+    [1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 1, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 2, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 0, 2, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+], dtype=int)
+
+PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH = numpy.array([
+    [2, 2, 1, 1, 1, 5, 5, 5, 5, 5, 1, 1],
+    [2, 5, 5, 5, 1, 1, 1, 1, 1, 1, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+], dtype=int)
+
+PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH = numpy.array([
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 1, 5, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 2, 1, 5, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 1, 1, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 2, 1, 5, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5],
+    [5, 5, 5, 5, 5, 0, 0, 5, 5, 5, 5, 0],
+    [5, 5, 5, 5, 2, 0, 5, 5, 5, 5, 5, 0],
+    [5, 5, 5, 2, 0, 5, 5, 5, 5, 5, 0, 0]
+], dtype=int)
+
+ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH[ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH == 5] = -1
+ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH[ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH == 5] = -1
+PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH[PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH == 5] = -1
+PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH[PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH == 5] = -1
+
+ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH[ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH == 5] = -1
+ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH[ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH == 5] = -1
+PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH[PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH == 5] = -1
+PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH[PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH == 5] = -1
+
+# The following constants are used to test make_nonspatial_contingency_tables.
+TRAINING_MASK_MATRIX = numpy.full(PREDICTED_LABEL_MATRIX.shape, 1, dtype=int)
+TRAINING_MASK_MATRIX[0, 0] = 0
+
+BINARY_CT_NONSPATIAL_SMALL = {
     neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY: 1,
-    neigh_evaluation.NUM_FALSE_NEGATIVES_KEY: 29,
+    neigh_evaluation.NUM_FALSE_NEGATIVES_KEY: 28,
     neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY: 1,
-    neigh_evaluation.NUM_FALSE_POSITIVES_KEY: 33
+    neigh_evaluation.NUM_FALSE_POSITIVES_KEY: 32
 }
 
-PREDICTION_ORIENTED_TABLE_SMALL_NEIGH = numpy.array([
+PREDICTION_ORIENTED_CT_NONSPATIAL_SMALL = numpy.array([
     [numpy.nan, numpy.nan, numpy.nan],
-    [11. / 14, 1. / 14, 2. / 14],
-    [17. / 20, 3. / 20, 0]
+    [11, 1, 1],
+    [17, 3, 0]
 ])
 
-ACTUAL_ORIENTED_TABLE_SMALL_NEIGH = numpy.array([
-    [numpy.nan, 11. / 15, 13. / 15],
-    [numpy.nan, 1. / 15, 2. / 15],
-    [numpy.nan, 3. / 15, 0]
+ACTUAL_ORIENTED_CT_NONSPATIAL_SMALL = numpy.array([
+    [numpy.nan, 11, 13],
+    [numpy.nan, 1, 1],
+    [numpy.nan, 3, 0]
 ])
 
-BINARY_TABLE_LARGE_NEIGH = {
+BINARY_CT_NONSPATIAL_LARGE = {
     neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY: 14,
-    neigh_evaluation.NUM_FALSE_NEGATIVES_KEY: 16,
+    neigh_evaluation.NUM_FALSE_NEGATIVES_KEY: 15,
     neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY: 15,
-    neigh_evaluation.NUM_FALSE_POSITIVES_KEY: 19
+    neigh_evaluation.NUM_FALSE_POSITIVES_KEY: 18
 }
 
-PREDICTION_ORIENTED_TABLE_LARGE_NEIGH = numpy.array([
+PREDICTION_ORIENTED_CT_NONSPATIAL_LARGE = numpy.array([
     [numpy.nan, numpy.nan, numpy.nan],
-    [0, 11. / 14, 3. / 14],
-    [11. / 20, 5. / 20, 4. / 20]
+    [0, 11, 2],
+    [11, 5, 4]
 ])
 
-ACTUAL_ORIENTED_TABLE_LARGE_NEIGH = numpy.array([
-    [numpy.nan, 3. / 15, 5. / 15],
-    [numpy.nan, 8. / 15, 4. / 15],
-    [numpy.nan, 4. / 15, 6. / 15]
+ACTUAL_ORIENTED_CT_NONSPATIAL_LARGE = numpy.array([
+    [numpy.nan, 3, 5],
+    [numpy.nan, 8, 3],
+    [numpy.nan, 4, 6]
 ])
 
 # The following constants are used to test evaluation scores.
 FAR_WEIGHT = 0.5
 
-POD_LARGE_NEIGH = 14. / 30
-FAR_LARGE_NEIGH = 19. / 34
-UNWEIGHTED_CSI_LARGE_NEIGH = (30. / 14 + 34. / 15 - 1) ** -1
-WEIGHTED_CSI_LARGE_NEIGH = (30. / 14 + 34. / 24.5 - 1) ** -1
-FREQUENCY_BIAS_LARGE_NEIGH = float(14 * 34) / (30 * 15)
+POD_LARGE_NEIGH = 14. / 29
+FAR_LARGE_NEIGH = 18. / 33
+UNWEIGHTED_CSI_LARGE_NEIGH = (29. / 14 + 33. / 15 - 1) ** -1
+WEIGHTED_CSI_LARGE_NEIGH = (29. / 14 + 33. / 24 - 1) ** -1
+FREQUENCY_BIAS_LARGE_NEIGH = float(14 * 33) / (29 * 15)
+
+# The following constants are used to test make_spatial_contingency_tables.
+NUM_GRID_ROWS = ACTUAL_LABEL_MATRIX.shape[0]
+NUM_GRID_COLUMNS = ACTUAL_LABEL_MATRIX.shape[1]
+THESE_DIM = (NUM_GRID_ROWS, NUM_GRID_COLUMNS, 3, 3)
+
+ACTUAL_ORIENTED_CT_SPATIAL_SMALL = numpy.full(THESE_DIM, 0.)
+PRED_ORIENTED_CT_SPATIAL_SMALL = numpy.full(THESE_DIM, 0.)
+ACTUAL_ORIENTED_CT_SPATIAL_LARGE = numpy.full(THESE_DIM, 0.)
+PRED_ORIENTED_CT_SPATIAL_LARGE = numpy.full(THESE_DIM, 0.)
+
+ACTUAL_ORIENTED_CT_SPATIAL_SMALL[..., 0] = numpy.nan
+PRED_ORIENTED_CT_SPATIAL_SMALL[..., 0, :] = numpy.nan
+ACTUAL_ORIENTED_CT_SPATIAL_LARGE[..., 0] = numpy.nan
+PRED_ORIENTED_CT_SPATIAL_LARGE[..., 0, :] = numpy.nan
+
+for k in range(3):
+    ACTUAL_ORIENTED_CT_SPATIAL_SMALL[..., k, 1] += (
+        ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH == k
+    )
+    ACTUAL_ORIENTED_CT_SPATIAL_SMALL[..., k, 2] += (
+        ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH == k
+    )
+
+    PRED_ORIENTED_CT_SPATIAL_SMALL[..., 1, k] += (
+        PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH == k
+    )
+    PRED_ORIENTED_CT_SPATIAL_SMALL[..., 2, k] += (
+        PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH == k
+    )
+
+    ACTUAL_ORIENTED_CT_SPATIAL_LARGE[..., k, 1] += (
+        ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH == k
+    )
+    ACTUAL_ORIENTED_CT_SPATIAL_LARGE[..., k, 2] += (
+        ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH == k
+    )
+
+    PRED_ORIENTED_CT_SPATIAL_LARGE[..., 1, k] += (
+        PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH == k
+    )
+    PRED_ORIENTED_CT_SPATIAL_LARGE[..., 2, k] += (
+        PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH == k
+    )
+
+ACTUAL_ORIENTED_CT_SPATIAL_SMALL[0, 0, ...] = numpy.nan
+PRED_ORIENTED_CT_SPATIAL_SMALL[0, 0, ...] = numpy.nan
+ACTUAL_ORIENTED_CT_SPATIAL_LARGE[0, 0, ...] = numpy.nan
+PRED_ORIENTED_CT_SPATIAL_LARGE[0, 0, ...] = numpy.nan
+
+BINARY_CT_MATRIX_SMALL = numpy.full(
+    (NUM_GRID_ROWS, NUM_GRID_COLUMNS), '', dtype=object
+)
+BINARY_CT_MATRIX_LARGE = numpy.full(
+    (NUM_GRID_ROWS, NUM_GRID_COLUMNS), '', dtype=object
+)
+
+for r in range(NUM_GRID_ROWS):
+    for c in range(NUM_GRID_COLUMNS):
+        if r == c == 0:
+            this_dict = {
+                neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY: numpy.nan,
+                neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY: numpy.nan,
+                neigh_evaluation.NUM_FALSE_POSITIVES_KEY: numpy.nan,
+                neigh_evaluation.NUM_FALSE_NEGATIVES_KEY: numpy.nan
+            }
+
+            BINARY_CT_MATRIX_SMALL[r, c] = this_dict
+            BINARY_CT_MATRIX_LARGE[r, c] = this_dict
+            continue
+
+        BINARY_CT_MATRIX_SMALL[r, c] = dict()
+        BINARY_CT_MATRIX_LARGE[r, c] = dict()
+
+        val = (
+            int(PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH[r, c] == 1) +
+            int(PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH[r, c] == 2)
+        )
+        BINARY_CT_MATRIX_SMALL[r, c][
+            neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY
+        ] = val
+
+        val = (
+            int(PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH[r, c] == 1) +
+            int(PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH[r, c] == 2)
+        )
+        BINARY_CT_MATRIX_LARGE[r, c][
+            neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY
+        ] = val
+
+        val = (
+            int(PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH[r, c] in [0, 2]) +
+            int(PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH[r, c] in [0, 1])
+        )
+        BINARY_CT_MATRIX_SMALL[r, c][
+            neigh_evaluation.NUM_FALSE_POSITIVES_KEY
+        ] = val
+
+        val = (
+            int(PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH[r, c] in [0, 2]) +
+            int(PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH[r, c] in [0, 1])
+        )
+        BINARY_CT_MATRIX_LARGE[r, c][
+            neigh_evaluation.NUM_FALSE_POSITIVES_KEY
+        ] = val
+
+        val = (
+            int(ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH[r, c] == 1) +
+            int(ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH[r, c] == 2)
+        )
+        BINARY_CT_MATRIX_SMALL[r, c][
+            neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY
+        ] = val
+
+        val = (
+            int(ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH[r, c] == 1) +
+            int(ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH[r, c] == 2)
+        )
+        BINARY_CT_MATRIX_LARGE[r, c][
+            neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY
+        ] = val
+
+        val = (
+            int(ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH[r, c] in [0, 2]) +
+            int(ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH[r, c] in [0, 1])
+        )
+        BINARY_CT_MATRIX_SMALL[r, c][
+            neigh_evaluation.NUM_FALSE_NEGATIVES_KEY
+        ] = val
+
+        val = (
+            int(ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH[r, c] in [0, 2]) +
+            int(ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH[r, c] in [0, 1])
+        )
+        BINARY_CT_MATRIX_LARGE[r, c][
+            neigh_evaluation.NUM_FALSE_NEGATIVES_KEY
+        ] = val
+
+
+def _compare_spatial_binary_tables(first_binary_ct_matrix,
+                                   second_binary_ct_matrix):
+    """Compares two sets of spatial binary contingency tables.
+
+    :param first_binary_ct_matrix: First set of tables (produced by
+        `neigh_evaluation.make_spatial_contingency_tables`).
+    :param second_binary_ct_matrix: Second set of tables.
+    :return: are_sets_equal: Boolean flag.
+    """
+
+    num_rows = first_binary_ct_matrix.shape[0]
+    num_columns = first_binary_ct_matrix.shape[1]
+    keys = list(first_binary_ct_matrix[0, 0].keys())
+
+    for i in range(num_rows):
+        for j in range(num_columns):
+            first_array = numpy.array([
+                first_binary_ct_matrix[i, j][k] for k in keys
+            ])
+
+            second_array = numpy.array([
+                second_binary_ct_matrix[i, j][k] for k in keys
+            ])
+
+            if not numpy.allclose(
+                    first_array, second_array, atol=TOLERANCE, equal_nan=True
+            ):
+                return False
+
+    return True
 
 
 class NeighEvaluationTests(unittest.TestCase):
@@ -553,14 +830,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be only 1 grid cell).
         """
 
-        these_num_predicted = neigh_evaluation._match_actual_wf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_predicted_label_matrix = (
+            neigh_evaluation._match_actual_wf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_predicted, ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH
+            this_predicted_label_matrix, ACTUAL_WF_TO_PREDICTED_SMALL_NEIGH
         ))
 
     def test_match_actual_wf_large_neigh(self):
@@ -570,14 +849,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be 9 grid cells).
         """
 
-        these_num_predicted = neigh_evaluation._match_actual_wf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_predicted_label_matrix = (
+            neigh_evaluation._match_actual_wf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_predicted, ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH
+            this_predicted_label_matrix, ACTUAL_WF_TO_PREDICTED_LARGE_NEIGH
         ))
 
     def test_match_actual_cf_small_neigh(self):
@@ -587,14 +868,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be only 1 grid cell).
         """
 
-        these_num_predicted = neigh_evaluation._match_actual_cf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_predicted_label_matrix = (
+            neigh_evaluation._match_actual_cf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_predicted, ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH
+            this_predicted_label_matrix, ACTUAL_CF_TO_PREDICTED_SMALL_NEIGH
         ))
 
     def test_match_actual_cf_large_neigh(self):
@@ -604,14 +887,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be 9 grid cells).
         """
 
-        these_num_predicted = neigh_evaluation._match_actual_cf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_predicted_label_matrix = (
+            neigh_evaluation._match_actual_cf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_predicted, ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH
+            this_predicted_label_matrix, ACTUAL_CF_TO_PREDICTED_LARGE_NEIGH
         ))
 
     def test_match_predicted_wf_small_neigh(self):
@@ -621,14 +906,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be only 1 grid cell).
         """
 
-        these_num_actual = neigh_evaluation._match_predicted_wf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_actual_label_matrix = (
+            neigh_evaluation._match_predicted_wf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_actual, PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH
+            this_actual_label_matrix, PREDICTED_WF_TO_ACTUAL_SMALL_NEIGH
         ))
 
     def test_match_predicted_wf_large_neigh(self):
@@ -638,14 +925,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be 9 grid cells).
         """
 
-        these_num_actual = neigh_evaluation._match_predicted_wf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_actual_label_matrix = (
+            neigh_evaluation._match_predicted_wf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_actual, PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH
+            this_actual_label_matrix, PREDICTED_WF_TO_ACTUAL_LARGE_NEIGH
         ))
 
     def test_match_predicted_cf_small_neigh(self):
@@ -655,14 +944,16 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be only 1 grid cell).
         """
 
-        these_num_actual = neigh_evaluation._match_predicted_cf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_actual_label_matrix = (
+            neigh_evaluation._match_predicted_cf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_actual, PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH
+            this_actual_label_matrix, PREDICTED_CF_TO_ACTUAL_SMALL_NEIGH
         ))
 
     def test_match_predicted_cf_large_neigh(self):
@@ -672,18 +963,20 @@ class NeighEvaluationTests(unittest.TestCase):
         neighbourhood to be 9 grid cells).
         """
 
-        these_num_actual = neigh_evaluation._match_predicted_cf_one_time(
-            predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
-            actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
-            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES)
+        this_actual_label_matrix = (
+            neigh_evaluation._match_predicted_cf_one_time(
+                predicted_label_matrix=PREDICTED_LABEL_MATRIX + 0,
+                actual_label_matrix=ACTUAL_LABEL_MATRIX + 0,
+                neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
+                grid_spacing_metres=GRID_SPACING_METRES)
+        )
 
         self.assertTrue(numpy.array_equal(
-            these_num_actual, PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH
+            this_actual_label_matrix, PREDICTED_CF_TO_ACTUAL_LARGE_NEIGH
         ))
 
-    def test_make_contingency_tables_small_neigh(self):
-        """Ensures correct output from make_contingency_tables.
+    def test_make_nonspatial_contingency_tables_small_neigh(self):
+        """Ensures correct output from make_nonspatial_contingency_tables.
 
         In this case the neighbourhood distance is small (forcing the
         neighbourhood to be only 1 grid cell).
@@ -696,30 +989,32 @@ class NeighEvaluationTests(unittest.TestCase):
             ACTUAL_LABEL_MATRIX, axis=0
         )
 
-        (this_binary_ct_as_dict, this_prediction_oriented_ct_matrix,
+        (this_binary_ct_dict, this_prediction_oriented_ct_matrix,
          this_actual_oriented_ct_matrix
-        ) = neigh_evaluation.make_contingency_tables(
+        ) = neigh_evaluation.make_nonspatial_contingency_tables(
             predicted_label_matrix=this_predicted_label_matrix,
             actual_label_matrix=this_actual_label_matrix,
             neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES, normalize=True)
+            grid_spacing_metres=GRID_SPACING_METRES, normalize=False,
+            training_mask_matrix=TRAINING_MASK_MATRIX + 0
+        )
 
-        self.assertTrue(this_binary_ct_as_dict == BINARY_TABLE_SMALL_NEIGH)
+        self.assertTrue(this_binary_ct_dict == BINARY_CT_NONSPATIAL_SMALL)
 
         self.assertTrue(numpy.allclose(
             this_prediction_oriented_ct_matrix,
-            PREDICTION_ORIENTED_TABLE_SMALL_NEIGH,
+            PREDICTION_ORIENTED_CT_NONSPATIAL_SMALL,
             atol=TOLERANCE, equal_nan=True
         ))
 
         self.assertTrue(numpy.allclose(
             this_actual_oriented_ct_matrix,
-            ACTUAL_ORIENTED_TABLE_SMALL_NEIGH,
+            ACTUAL_ORIENTED_CT_NONSPATIAL_SMALL,
             atol=TOLERANCE, equal_nan=True
         ))
 
-    def test_make_contingency_tables_large_neigh(self):
-        """Ensures correct output from make_contingency_tables.
+    def test_make_nonspatial_contingency_tables_large_neigh(self):
+        """Ensures correct output from make_nonspatial_contingency_tables.
 
         In this case the neighbourhood distance is large (allowing the
         neighbourhood to be 9 grid cells).
@@ -732,25 +1027,105 @@ class NeighEvaluationTests(unittest.TestCase):
             ACTUAL_LABEL_MATRIX, axis=0
         )
 
-        (this_binary_ct_as_dict, this_prediction_oriented_ct_matrix,
+        (this_binary_ct_dict, this_prediction_oriented_ct_matrix,
          this_actual_oriented_ct_matrix
-        ) = neigh_evaluation.make_contingency_tables(
+        ) = neigh_evaluation.make_nonspatial_contingency_tables(
             predicted_label_matrix=this_predicted_label_matrix,
             actual_label_matrix=this_actual_label_matrix,
             neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
-            grid_spacing_metres=GRID_SPACING_METRES, normalize=True)
+            grid_spacing_metres=GRID_SPACING_METRES, normalize=False,
+            training_mask_matrix=TRAINING_MASK_MATRIX + 0
+        )
 
-        self.assertTrue(this_binary_ct_as_dict == BINARY_TABLE_LARGE_NEIGH)
+        self.assertTrue(this_binary_ct_dict == BINARY_CT_NONSPATIAL_LARGE)
 
         self.assertTrue(numpy.allclose(
             this_prediction_oriented_ct_matrix,
-            PREDICTION_ORIENTED_TABLE_LARGE_NEIGH,
+            PREDICTION_ORIENTED_CT_NONSPATIAL_LARGE,
             atol=TOLERANCE, equal_nan=True
         ))
 
         self.assertTrue(numpy.allclose(
             this_actual_oriented_ct_matrix,
-            ACTUAL_ORIENTED_TABLE_LARGE_NEIGH,
+            ACTUAL_ORIENTED_CT_NONSPATIAL_LARGE,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_make_spatial_contingency_tables_small_neigh(self):
+        """Ensures correct output from make_spatial_contingency_tables.
+
+        In this case the neighbourhood distance is small (forcing the
+        neighbourhood to be only 1 grid cell).
+        """
+
+        this_predicted_label_matrix = numpy.expand_dims(
+            PREDICTED_LABEL_MATRIX, axis=0
+        )
+        this_actual_label_matrix = numpy.expand_dims(
+            ACTUAL_LABEL_MATRIX, axis=0
+        )
+
+        (this_binary_ct_matrix,
+         this_prediction_oriented_ct_matrix,
+         this_actual_oriented_ct_matrix
+        ) = neigh_evaluation.make_spatial_contingency_tables(
+            predicted_label_matrix=this_predicted_label_matrix,
+            actual_label_matrix=this_actual_label_matrix,
+            neigh_distance_metres=SMALL_NEIGH_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES,
+            training_mask_matrix=TRAINING_MASK_MATRIX + 0
+        )
+
+        _compare_spatial_binary_tables(
+            this_binary_ct_matrix, BINARY_CT_MATRIX_SMALL
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_prediction_oriented_ct_matrix, PRED_ORIENTED_CT_SPATIAL_SMALL,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+        self.assertTrue(numpy.allclose(
+            this_actual_oriented_ct_matrix, ACTUAL_ORIENTED_CT_SPATIAL_SMALL,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+    def test_make_spatial_contingency_tables_large_neigh(self):
+        """Ensures correct output from make_spatial_contingency_tables.
+
+        In this case the neighbourhood distance is large (allowing the
+        neighbourhood to be 9 grid cells).
+        """
+
+        this_predicted_label_matrix = numpy.expand_dims(
+            PREDICTED_LABEL_MATRIX, axis=0
+        )
+        this_actual_label_matrix = numpy.expand_dims(
+            ACTUAL_LABEL_MATRIX, axis=0
+        )
+
+        (this_binary_ct_matrix,
+         this_prediction_oriented_ct_matrix,
+         this_actual_oriented_ct_matrix
+        ) = neigh_evaluation.make_spatial_contingency_tables(
+            predicted_label_matrix=this_predicted_label_matrix,
+            actual_label_matrix=this_actual_label_matrix,
+            neigh_distance_metres=LARGE_NEIGH_DISTANCE_METRES,
+            grid_spacing_metres=GRID_SPACING_METRES,
+            training_mask_matrix=TRAINING_MASK_MATRIX + 0
+        )
+
+        _compare_spatial_binary_tables(
+            this_binary_ct_matrix, BINARY_CT_MATRIX_LARGE
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_prediction_oriented_ct_matrix, PRED_ORIENTED_CT_SPATIAL_LARGE,
+            atol=TOLERANCE, equal_nan=True
+        ))
+
+        self.assertTrue(numpy.allclose(
+            this_actual_oriented_ct_matrix, ACTUAL_ORIENTED_CT_SPATIAL_LARGE,
             atol=TOLERANCE, equal_nan=True
         ))
 
@@ -758,23 +1133,23 @@ class NeighEvaluationTests(unittest.TestCase):
         """Ensures correct output from get_pod."""
 
         self.assertTrue(numpy.isclose(
-            neigh_evaluation.get_pod(BINARY_TABLE_LARGE_NEIGH), POD_LARGE_NEIGH,
-            atol=TOLERANCE
+            neigh_evaluation.get_pod(BINARY_CT_NONSPATIAL_LARGE),
+            POD_LARGE_NEIGH, atol=TOLERANCE
         ))
 
     def test_get_far(self):
         """Ensures correct output from get_far."""
 
         self.assertTrue(numpy.isclose(
-            neigh_evaluation.get_far(BINARY_TABLE_LARGE_NEIGH), FAR_LARGE_NEIGH,
-            atol=TOLERANCE
+            neigh_evaluation.get_far(BINARY_CT_NONSPATIAL_LARGE),
+            FAR_LARGE_NEIGH, atol=TOLERANCE
         ))
 
     def test_get_unweighted_csi(self):
         """Ensures correct output from get_csi (unweighted in this case)."""
 
         this_csi = neigh_evaluation.get_csi(
-            binary_ct_as_dict=BINARY_TABLE_LARGE_NEIGH, far_weight=1.)
+            binary_ct_as_dict=BINARY_CT_NONSPATIAL_LARGE, far_weight=1.)
 
         self.assertTrue(numpy.isclose(
             this_csi, UNWEIGHTED_CSI_LARGE_NEIGH, atol=TOLERANCE
@@ -784,7 +1159,8 @@ class NeighEvaluationTests(unittest.TestCase):
         """Ensures correct output from get_csi (weighted in this case)."""
 
         this_csi = neigh_evaluation.get_csi(
-            binary_ct_as_dict=BINARY_TABLE_LARGE_NEIGH, far_weight=FAR_WEIGHT)
+            binary_ct_as_dict=BINARY_CT_NONSPATIAL_LARGE, far_weight=FAR_WEIGHT
+        )
 
         self.assertTrue(numpy.isclose(
             this_csi, WEIGHTED_CSI_LARGE_NEIGH, atol=TOLERANCE
@@ -794,7 +1170,7 @@ class NeighEvaluationTests(unittest.TestCase):
         """Ensures correct output from get_frequency_bias."""
 
         self.assertTrue(numpy.isclose(
-            neigh_evaluation.get_frequency_bias(BINARY_TABLE_LARGE_NEIGH),
+            neigh_evaluation.get_frequency_bias(BINARY_CT_NONSPATIAL_LARGE),
             FREQUENCY_BIAS_LARGE_NEIGH, atol=TOLERANCE
         ))
 

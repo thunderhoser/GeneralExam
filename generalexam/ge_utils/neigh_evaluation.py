@@ -53,10 +53,8 @@ def _match_actual_wf_one_time(
     :param neigh_distance_metres: Neighbourhood distance for matching.
     :param grid_spacing_metres: Grid spacing.  This method assumes that the grid
         is equidistant.
-    :return: num_predicted_by_class: length-3 numpy array.
-        num_predicted_by_class[i] is the number of matched grid points where the
-        predicted class is i.  Correspondence between i and the class (no front,
-        warm front, or cold front) is given by `FRONT_TYPE_ENUMS`.
+    :return: predicted_label_matrix: Same as input, except that all grid cells
+        not matched to an actual warm front have label = -1.
     """
 
     predicted_label_matrix = front_utils.dilate_ternary_label_matrix(
@@ -65,15 +63,11 @@ def _match_actual_wf_one_time(
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.WARM_FRONT_ENUM)
 
-    predicted_types_enum = predicted_label_matrix[
-        numpy.where(actual_label_matrix == front_utils.WARM_FRONT_ENUM)
-    ]
+    predicted_label_matrix[
+        actual_label_matrix != front_utils.WARM_FRONT_ENUM
+    ] = -1
 
-    num_predicted_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
-    for k in range(len(FRONT_TYPE_ENUMS)):
-        num_predicted_by_class[k] = numpy.sum(predicted_types_enum == k)
-
-    return num_predicted_by_class
+    return predicted_label_matrix
 
 
 def _match_actual_cf_one_time(
@@ -85,7 +79,8 @@ def _match_actual_cf_one_time(
     :param actual_label_matrix: Same.
     :param neigh_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :return: num_predicted_by_class: Same.
+    :return: predicted_label_matrix: Same as input, except that all grid cells
+        not matched to an actual cold front have label = -1.
     """
 
     predicted_label_matrix = front_utils.dilate_ternary_label_matrix(
@@ -94,15 +89,11 @@ def _match_actual_cf_one_time(
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.COLD_FRONT_ENUM)
 
-    predicted_types_enum = predicted_label_matrix[
-        numpy.where(actual_label_matrix == front_utils.COLD_FRONT_ENUM)
-    ]
+    predicted_label_matrix[
+        actual_label_matrix != front_utils.COLD_FRONT_ENUM
+    ] = -1
 
-    num_predicted_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
-    for k in range(len(FRONT_TYPE_ENUMS)):
-        num_predicted_by_class[k] = numpy.sum(predicted_types_enum == k)
-
-    return num_predicted_by_class
+    return predicted_label_matrix
 
 
 def _match_predicted_wf_one_time(
@@ -114,10 +105,8 @@ def _match_predicted_wf_one_time(
     :param actual_label_matrix: Same.
     :param neigh_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :return: num_actual_by_class: length-3 numpy array.  num_actual_by_class[i]
-        is the number of matched grid points where the actual class is j.
-        Correspondence between j and the class (no front, warm front, or cold
-        front) is given by `FRONT_TYPE_ENUMS`.
+    :return: actual_label_matrix: Same as input, except that all grid cells
+        not matched to a predicted warm front have label = -1.
     """
 
     actual_label_matrix = front_utils.dilate_ternary_label_matrix(
@@ -126,15 +115,11 @@ def _match_predicted_wf_one_time(
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.WARM_FRONT_ENUM)
 
-    actual_types_enum = actual_label_matrix[
-        numpy.where(predicted_label_matrix == front_utils.WARM_FRONT_ENUM)
-    ]
+    actual_label_matrix[
+        predicted_label_matrix != front_utils.WARM_FRONT_ENUM
+    ] = -1
 
-    num_actual_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
-    for k in range(len(FRONT_TYPE_ENUMS)):
-        num_actual_by_class[k] = numpy.sum(actual_types_enum == k)
-
-    return num_actual_by_class
+    return actual_label_matrix
 
 
 def _match_predicted_cf_one_time(
@@ -146,7 +131,8 @@ def _match_predicted_cf_one_time(
     :param actual_label_matrix: Same.
     :param neigh_distance_metres: Same.
     :param grid_spacing_metres: Same.
-    :return: num_actual_by_class: See doc for `_match_predicted_wf_one_time`.
+    :return: actual_label_matrix: Same as input, except that all grid cells
+        not matched to a predicted cold front have label = -1.
     """
 
     actual_label_matrix = front_utils.dilate_ternary_label_matrix(
@@ -155,15 +141,11 @@ def _match_predicted_cf_one_time(
         grid_spacing_metres=grid_spacing_metres,
         tiebreaker_enum=front_utils.COLD_FRONT_ENUM)
 
-    actual_types_enum = actual_label_matrix[
-        numpy.where(predicted_label_matrix == front_utils.COLD_FRONT_ENUM)
-    ]
+    actual_label_matrix[
+        predicted_label_matrix != front_utils.COLD_FRONT_ENUM
+    ] = -1
 
-    num_actual_by_class = numpy.full(len(FRONT_TYPE_ENUMS), 0, dtype=int)
-    for k in range(len(FRONT_TYPE_ENUMS)):
-        num_actual_by_class[k] = numpy.sum(actual_types_enum == k)
-
-    return num_actual_by_class
+    return actual_label_matrix
 
 
 def _check_3class_contingency_tables(
@@ -511,11 +493,11 @@ def remove_small_regions_one_time(
     return predicted_label_matrix
 
 
-def make_contingency_tables(
+def make_nonspatial_contingency_tables(
         predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
         normalize, grid_spacing_metres=NARR_GRID_SPACING_METRES,
         training_mask_matrix=None):
-    """Creates contingency tables.
+    """Creates spatially agnostic contingency tables.
 
     M = number of rows in grid
     N = number of columns in grid
@@ -612,12 +594,16 @@ def make_contingency_tables(
                 front_utils.NO_FRONT_ENUM
             )
 
-        these_num_predicted = _match_actual_wf_one_time(
+        this_predicted_label_matrix = _match_actual_wf_one_time(
             predicted_label_matrix=predicted_label_matrix[i, ...] + 0,
             actual_label_matrix=this_actual_label_matrix,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres
         )
+        these_num_predicted = numpy.array([
+            numpy.sum(this_predicted_label_matrix == k)
+            for k in range(NUM_CLASSES)
+        ], dtype=int)
 
         actual_oriented_ct_matrix[:, front_utils.WARM_FRONT_ENUM] = (
             actual_oriented_ct_matrix[:, front_utils.WARM_FRONT_ENUM] +
@@ -638,12 +624,16 @@ def make_contingency_tables(
             i + 1, num_times, neigh_distance_metres * METRES_TO_KM
         ))
 
-        these_num_predicted = _match_actual_cf_one_time(
+        this_predicted_label_matrix = _match_actual_cf_one_time(
             predicted_label_matrix=predicted_label_matrix[i, ...] + 0,
             actual_label_matrix=this_actual_label_matrix,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres
         )
+        these_num_predicted = numpy.array([
+            numpy.sum(this_predicted_label_matrix == k)
+            for k in range(NUM_CLASSES)
+        ], dtype=int)
 
         actual_oriented_ct_matrix[:, front_utils.COLD_FRONT_ENUM] = (
             actual_oriented_ct_matrix[:, front_utils.COLD_FRONT_ENUM] +
@@ -670,12 +660,15 @@ def make_contingency_tables(
                 front_utils.NO_FRONT_ENUM
             )
 
-        these_num_actual = _match_predicted_wf_one_time(
+        this_actual_label_matrix = _match_predicted_wf_one_time(
             predicted_label_matrix=this_predicted_label_matrix,
             actual_label_matrix=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres
         )
+        these_num_actual = numpy.array([
+            numpy.sum(this_actual_label_matrix == k) for k in range(NUM_CLASSES)
+        ], dtype=int)
 
         prediction_oriented_ct_matrix[front_utils.WARM_FRONT_ENUM, :] = (
             prediction_oriented_ct_matrix[front_utils.WARM_FRONT_ENUM, :] +
@@ -696,12 +689,15 @@ def make_contingency_tables(
             i + 1, num_times, neigh_distance_metres * METRES_TO_KM
         ))
 
-        these_num_actual = _match_predicted_cf_one_time(
+        this_actual_label_matrix = _match_predicted_cf_one_time(
             predicted_label_matrix=this_predicted_label_matrix,
             actual_label_matrix=actual_label_matrix[i, ...] + 0,
             neigh_distance_metres=neigh_distance_metres,
             grid_spacing_metres=grid_spacing_metres
         )
+        these_num_actual = numpy.array([
+            numpy.sum(this_actual_label_matrix == k) for k in range(NUM_CLASSES)
+        ], dtype=int)
 
         prediction_oriented_ct_matrix[front_utils.COLD_FRONT_ENUM, :] = (
             prediction_oriented_ct_matrix[front_utils.COLD_FRONT_ENUM, :] +
@@ -723,6 +719,242 @@ def make_contingency_tables(
         )
 
     return (binary_ct_as_dict, prediction_oriented_ct_matrix,
+            actual_oriented_ct_matrix)
+
+
+def make_spatial_contingency_tables(
+        predicted_label_matrix, actual_label_matrix, neigh_distance_metres,
+        grid_spacing_metres=NARR_GRID_SPACING_METRES,
+        training_mask_matrix=None):
+    """Creates spatial contingency tables (one per grid cell).
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param predicted_label_matrix: See doc for
+        `make_nonspatial_contingency_tables`.
+    :param actual_label_matrix: Same.
+    :param neigh_distance_metres: Same.
+    :param grid_spacing_metres: Same.
+    :param training_mask_matrix: Same.
+    :return: binary_ct_dict_matrix: M-by-N numpy array, where element [i, j] is
+        the binary contingency table for grid cell [i, j].  Each contingency
+        table is a dictionary, formatted like the output from
+        `make_nonspatial_contingency_tables`.
+    :return: prediction_oriented_ct_matrix: M-by-N-by-3-by-3 numpy array, where
+        prediction_oriented_ct_matrix[i, j, ...] is the prediction-oriented
+        contingency table for grid cell [i, j], explained in
+        `_check_3class_contingency_tables`.
+    :return: actual_oriented_ct_matrix: M-by-N-by-3-by-3 numpy array, where
+        actual_oriented_ct_matrix[i, j, ...] is the actual-oriented contingency
+        table for grid cell [i, j], explained in
+        `_check_3class_contingency_tables`.
+    """
+
+    check_gridded_predictions(
+        prediction_matrix=predicted_label_matrix, expect_probs=False
+    )
+    check_gridded_predictions(
+        prediction_matrix=actual_label_matrix, expect_probs=False
+    )
+    error_checking.assert_is_numpy_array(
+        actual_label_matrix,
+        exact_dimensions=numpy.array(predicted_label_matrix.shape, dtype=int)
+    )
+
+    error_checking.assert_is_greater(neigh_distance_metres, 0.)
+    error_checking.assert_is_greater(grid_spacing_metres, 0.)
+
+    if training_mask_matrix is None:
+        mask_matrix = None
+    else:
+        mask_matrix = erode_narr_mask(
+            narr_mask_matrix=training_mask_matrix + 0,
+            neigh_distance_metres=neigh_distance_metres
+        )
+
+        orig_num_unmasked_pts = numpy.sum(training_mask_matrix == 1)
+        num_unmasked_grid_pts = numpy.sum(mask_matrix == 1)
+
+        print((
+            'Number of unmasked grid points for training = {0:d} ... for '
+            'neighbourhood evaluation = {1:d}'
+        ).format(
+            orig_num_unmasked_pts, num_unmasked_grid_pts
+        ))
+
+    num_times = predicted_label_matrix.shape[0]
+    num_grid_rows = predicted_label_matrix.shape[1]
+    num_grid_columns = predicted_label_matrix.shape[2]
+
+    these_dim = (num_grid_rows, num_grid_columns)
+    num_actual_oriented_tp_matrix = numpy.full(these_dim, 0.)
+    num_prediction_oriented_tp_matrix = numpy.full(these_dim, 0.)
+    num_false_positives_matrix = numpy.full(these_dim, 0.)
+    num_false_negatives_matrix = numpy.full(these_dim, 0.)
+
+    if mask_matrix is not None:
+        num_actual_oriented_tp_matrix[mask_matrix == 0] = numpy.nan
+        num_prediction_oriented_tp_matrix[mask_matrix == 0] = numpy.nan
+        num_false_positives_matrix[mask_matrix == 0] = numpy.nan
+        num_false_negatives_matrix[mask_matrix == 0] = numpy.nan
+
+    these_dim = (num_grid_rows, num_grid_columns, NUM_CLASSES, NUM_CLASSES)
+    prediction_oriented_ct_matrix = numpy.full(these_dim, 0.)
+    actual_oriented_ct_matrix = numpy.full(these_dim, 0.)
+
+    if mask_matrix is not None:
+        for i in range(NUM_CLASSES):
+            for j in range(NUM_CLASSES):
+                prediction_oriented_ct_matrix[..., i, j][mask_matrix == 0] = (
+                    numpy.nan
+                )
+                actual_oriented_ct_matrix[..., i, j][mask_matrix == 0] = (
+                    numpy.nan
+                )
+
+    prediction_oriented_ct_matrix[..., 0, :] = numpy.nan
+    actual_oriented_ct_matrix[..., 0] = numpy.nan
+
+    for i in range(num_times):
+        print((
+            'Matching actual WF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
+
+        this_actual_label_matrix = actual_label_matrix[i, ...] + 0
+        if mask_matrix is not None:
+            this_actual_label_matrix[mask_matrix == 0] = (
+                front_utils.NO_FRONT_ENUM
+            )
+
+        this_predicted_label_matrix = _match_actual_wf_one_time(
+            predicted_label_matrix=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix=this_actual_label_matrix,
+            neigh_distance_metres=neigh_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        )
+
+        num_actual_oriented_tp_matrix += (
+            this_predicted_label_matrix == front_utils.WARM_FRONT_ENUM
+        )
+        num_false_negatives_matrix += numpy.logical_and(
+            this_predicted_label_matrix != front_utils.WARM_FRONT_ENUM,
+            this_predicted_label_matrix != -1
+        )
+        for k in range(NUM_CLASSES):
+            actual_oriented_ct_matrix[..., k, front_utils.WARM_FRONT_ENUM] += (
+                this_predicted_label_matrix == k
+            )
+
+        print((
+            'Matching actual CF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
+
+        this_predicted_label_matrix = _match_actual_cf_one_time(
+            predicted_label_matrix=predicted_label_matrix[i, ...] + 0,
+            actual_label_matrix=this_actual_label_matrix,
+            neigh_distance_metres=neigh_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        )
+
+        num_actual_oriented_tp_matrix += (
+            this_predicted_label_matrix == front_utils.COLD_FRONT_ENUM
+        )
+        num_false_negatives_matrix += numpy.logical_and(
+            this_predicted_label_matrix != front_utils.COLD_FRONT_ENUM,
+            this_predicted_label_matrix != -1
+        )
+        for k in range(NUM_CLASSES):
+            actual_oriented_ct_matrix[..., k, front_utils.COLD_FRONT_ENUM] += (
+                this_predicted_label_matrix == k
+            )
+
+        print((
+            'Matching predicted WF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
+
+        this_predicted_label_matrix = predicted_label_matrix[i, ...] + 0
+        if mask_matrix is not None:
+            this_predicted_label_matrix[mask_matrix == 0] = (
+                front_utils.NO_FRONT_ENUM
+            )
+
+        this_actual_label_matrix = _match_predicted_wf_one_time(
+            predicted_label_matrix=this_predicted_label_matrix,
+            actual_label_matrix=actual_label_matrix[i, ...] + 0,
+            neigh_distance_metres=neigh_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        )
+
+        num_prediction_oriented_tp_matrix += (
+            this_actual_label_matrix == front_utils.WARM_FRONT_ENUM
+        )
+        num_false_positives_matrix += numpy.logical_and(
+            this_actual_label_matrix != front_utils.WARM_FRONT_ENUM,
+            this_actual_label_matrix != -1
+        )
+        for k in range(NUM_CLASSES):
+            prediction_oriented_ct_matrix[
+                ..., front_utils.WARM_FRONT_ENUM, k
+            ] += this_actual_label_matrix == k
+
+        print((
+            'Matching predicted CF grid points at {0:d}th of {1:d} times, with '
+            '{2:.1f}-km neigh distance...'
+        ).format(
+            i + 1, num_times, neigh_distance_metres * METRES_TO_KM
+        ))
+
+        this_actual_label_matrix = _match_predicted_cf_one_time(
+            predicted_label_matrix=this_predicted_label_matrix,
+            actual_label_matrix=actual_label_matrix[i, ...] + 0,
+            neigh_distance_metres=neigh_distance_metres,
+            grid_spacing_metres=grid_spacing_metres
+        )
+
+        num_prediction_oriented_tp_matrix += (
+            this_actual_label_matrix == front_utils.COLD_FRONT_ENUM
+        )
+        num_false_positives_matrix += numpy.logical_and(
+            this_actual_label_matrix != front_utils.COLD_FRONT_ENUM,
+            this_actual_label_matrix != -1
+        )
+        for k in range(NUM_CLASSES):
+            prediction_oriented_ct_matrix[
+                ..., front_utils.COLD_FRONT_ENUM, k
+            ] += this_actual_label_matrix == k
+
+    this_dict = {
+        NUM_ACTUAL_ORIENTED_TP_KEY: 0,
+        NUM_PREDICTION_ORIENTED_TP_KEY: 0,
+        NUM_FALSE_POSITIVES_KEY: 0,
+        NUM_FALSE_NEGATIVES_KEY: 0
+    }
+
+    binary_ct_dict_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), this_dict, dtype=object
+    )
+
+    for i in range(num_grid_rows):
+        for j in range(num_grid_columns):
+            binary_ct_dict_matrix[i, j] = {
+                NUM_ACTUAL_ORIENTED_TP_KEY: num_actual_oriented_tp_matrix[i, j],
+                NUM_PREDICTION_ORIENTED_TP_KEY:
+                    num_prediction_oriented_tp_matrix[i, j],
+                NUM_FALSE_POSITIVES_KEY: num_false_positives_matrix[i, j],
+                NUM_FALSE_NEGATIVES_KEY: num_false_negatives_matrix[i, j]
+            }
+
+    return (binary_ct_dict_matrix, prediction_oriented_ct_matrix,
             actual_oriented_ct_matrix)
 
 
