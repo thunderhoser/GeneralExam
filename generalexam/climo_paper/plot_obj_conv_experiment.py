@@ -154,7 +154,7 @@ def _plot_one_score_one_neigh(
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             orientation_string='vertical', extend_min=False, extend_max=True,
-            font_size=DEFAULT_FONT_SIZE)
+            fraction_of_axis_length=0.8, font_size=DEFAULT_FONT_SIZE)
 
         tick_values = colour_bar_object.get_ticks()
         tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
@@ -167,7 +167,7 @@ def _plot_one_score_one_neigh(
             colour_map_object=colour_map_object,
             min_value=min_colour_value, max_value=max_colour_value,
             orientation_string='vertical', extend_min=True, extend_max=True,
-            font_size=DEFAULT_FONT_SIZE)
+            fraction_of_axis_length=0.8, font_size=DEFAULT_FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(

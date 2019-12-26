@@ -1,9 +1,9 @@
-"""Unit tests for evaluate_cnn_neighbourhood.py."""
+"""Unit tests for bootstrap_neigh_evaluation.py."""
 
 import unittest
 import numpy
 from generalexam.ge_utils import neigh_evaluation
-from generalexam.scripts import evaluate_cnn_neighbourhood as eval_cnn_neigh
+from generalexam.scripts import bootstrap_neigh_evaluation as bootstrap_eval
 
 TOLERANCE = 1e-6
 
@@ -42,11 +42,11 @@ ACTUAL_TO_PREDICTED_FRONT_ENUMS = numpy.concatenate((
 ))
 
 MATCH_DICT = {
-    eval_cnn_neigh.PREDICTED_LABELS_KEY: PREDICTED_FRONT_ENUMS,
-    eval_cnn_neigh.PREDICTED_TO_ACTUAL_FRONTS_KEY:
+    bootstrap_eval.PREDICTED_LABELS_KEY: PREDICTED_FRONT_ENUMS,
+    bootstrap_eval.PREDICTED_TO_ACTUAL_FRONTS_KEY:
         PREDICTED_TO_ACTUAL_FRONT_ENUMS,
-    eval_cnn_neigh.ACTUAL_LABELS_KEY: ACTUAL_FRONT_ENUMS,
-    eval_cnn_neigh.ACTUAL_TO_PREDICTED_FRONTS_KEY:
+    bootstrap_eval.ACTUAL_LABELS_KEY: ACTUAL_FRONT_ENUMS,
+    bootstrap_eval.ACTUAL_TO_PREDICTED_FRONTS_KEY:
         ACTUAL_TO_PREDICTED_FRONT_ENUMS
 }
 
@@ -59,13 +59,13 @@ BINARY_CT_AS_DICT = {
 }
 
 
-class EvaluateCnnNeighbourhoodTests(unittest.TestCase):
-    """Each method is a unit test for evaluate_cnn_neighbourhood.py."""
+class BootstrapNeighEvaluationTests(unittest.TestCase):
+    """Each method is a unit test for bootstrap_neigh_evaluation.py."""
 
     def test_decompose_contingency_tables(self):
         """Ensures correct output from _decompose_contingency_tables."""
 
-        this_match_dict = eval_cnn_neigh._decompose_contingency_tables(
+        this_match_dict = bootstrap_eval._decompose_contingency_tables(
             prediction_oriented_ct_matrix=PREDICTION_ORIENTED_CT_MATRIX,
             actual_oriented_ct_matrix=ACTUAL_ORIENTED_CT_MATRIX)
 
@@ -81,10 +81,13 @@ class EvaluateCnnNeighbourhoodTests(unittest.TestCase):
     def test_bootstrap_contingency_tables(self):
         """Ensures correct output from _bootstrap_contingency_tables."""
 
-        (this_binary_ct_as_dict, this_prediction_oriented_matrix,
-         this_actual_oriented_matrix
-        ) = eval_cnn_neigh._bootstrap_contingency_tables(
-            match_dict=MATCH_DICT, test_mode=True)
+        (
+            this_binary_ct_as_dict,
+            this_prediction_oriented_matrix,
+            this_actual_oriented_matrix
+        ) = bootstrap_eval._bootstrap_contingency_tables(
+            match_dict=MATCH_DICT, test_mode=True
+        )
 
         self.assertTrue(this_binary_ct_as_dict == BINARY_CT_AS_DICT)
         self.assertTrue(numpy.allclose(
