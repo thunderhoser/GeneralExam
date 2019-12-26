@@ -263,6 +263,15 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     print(SEPARATOR_STRING)
 
     for i in range(num_times):
+        this_output_file_name = prediction_io.find_file(
+            directory_name=output_dir_name,
+            first_time_unix_sec=valid_times_unix_sec[i],
+            last_time_unix_sec=valid_times_unix_sec[i],
+            raise_error_if_missing=False)
+
+        if os.path.isfile(this_output_file_name):
+            continue
+
         this_prob_matrix, this_target_matrix = cnn.apply_model_to_full_grid(
             model_object=model_object,
             top_predictor_dir_name=top_predictor_dir_name,
