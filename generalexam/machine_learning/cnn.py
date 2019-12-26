@@ -287,6 +287,29 @@ def read_metadata(pickle_file_name):
     if NORMALIZATION_FILE_KEY not in metadata_dict:
         metadata_dict[NORMALIZATION_FILE_KEY] = None
 
+    predictor_names = metadata_dict[PREDICTOR_NAMES_KEY]
+    pressure_levels_mb = metadata_dict[PRESSURE_LEVELS_KEY]
+
+    orography_flags = numpy.logical_and(
+        numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
+        pressure_levels_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+    )
+
+    if numpy.any(orography_flags):
+        these_indices = numpy.where(numpy.invert(orography_flags))[0]
+        predictor_names = [predictor_names[k] for k in these_indices]
+        pressure_levels_mb = pressure_levels_mb[these_indices]
+
+        dummy_pressures_mb = numpy.array(
+            [predictor_utils.DUMMY_SURFACE_PRESSURE_MB], dtype=int
+        )
+        metadata_dict[PREDICTOR_NAMES_KEY] = (
+            predictor_names + [predictor_utils.HEIGHT_NAME]
+        )
+        metadata_dict[PRESSURE_LEVELS_KEY] = numpy.concatenate((
+            pressure_levels_mb, dummy_pressures_mb
+        ))
+
     missing_keys = list(set(METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys) == 0:
         return metadata_dict
