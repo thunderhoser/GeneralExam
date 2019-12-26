@@ -222,7 +222,7 @@ def _run(top_input_dir_name, extended_grid, raw_field_names, pressure_levels_mb,
     raw_field_names = _fix_wrong_level_fields(
         raw_field_names=raw_field_names, pressure_levels_mb=pressure_levels_mb
     )
-    raw_field_names = _add_required_fields(
+    raw_field_names, pressure_levels_mb = _add_required_fields(
         raw_field_names=raw_field_names, pressure_levels_mb=pressure_levels_mb
     )
 
