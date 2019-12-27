@@ -117,8 +117,6 @@ def _handle_one_prediction_file(
         training_mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
 
     num_neigh_distances = len(neigh_distances_metres)
-    num_grid_rows = None
-    num_grid_columns = None
 
     for k in range(num_neigh_distances):
         this_binary_ct, this_prediction_oriented_ct, this_actual_oriented_ct = (
@@ -130,10 +128,10 @@ def _handle_one_prediction_file(
             )
         )
 
-        if binary_ct_by_neigh[k] is None:
-            num_grid_rows = this_binary_ct.shape[0]
-            num_grid_columns = this_binary_ct.shape[1]
+        num_grid_rows = this_binary_ct.shape[0]
+        num_grid_columns = this_binary_ct.shape[1]
 
+        if binary_ct_by_neigh[k] is None:
             binary_ct_by_neigh[k] = copy.deepcopy(this_binary_ct)
             prediction_oriented_ct_by_neigh[k] = (
                 this_prediction_oriented_ct + 0.
@@ -217,6 +215,16 @@ def _run(prediction_dir_name, first_time_string, last_time_string,
         )
 
     print(SEPARATOR_STRING)
+
+    # good_rows, good_cols = numpy.where(
+    #     prediction_oriented_ct_by_neigh[0][..., 1, 1] > 0
+    # )
+    # good_row = good_rows[0]
+    # good_col = good_cols[0]
+    #
+    # print(binary_ct_by_neigh[0][good_row, good_col])
+    # print(prediction_oriented_ct_by_neigh[0][good_row, good_col])
+    # print(actual_oriented_ct_by_neigh[0][good_row, good_col])
 
     # Write results.
     for k in range(num_neigh_distances):
