@@ -101,6 +101,11 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
             model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name)
     )
 
+    matrix_to_plot = score_matrix[
+        full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
+        full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
+    ]
+
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
         model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
         first_row_in_full_grid=full_grid_row_limits[0],
@@ -132,7 +137,7 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
 
     if is_frequency_bias:
         this_offset = numpy.nanpercentile(
-            numpy.absolute(score_matrix - 1.), MAX_COLOUR_PERCENTILE
+            numpy.absolute(matrix_to_plot - 1.), MAX_COLOUR_PERCENTILE
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
@@ -145,14 +150,14 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
         colour_norm_object = None
 
         min_colour_value = numpy.nanpercentile(
-            score_matrix, 100. - MAX_COLOUR_PERCENTILE
+            matrix_to_plot, 100. - MAX_COLOUR_PERCENTILE
         )
         max_colour_value = numpy.nanpercentile(
-            score_matrix, MAX_COLOUR_PERCENTILE
+            matrix_to_plot, MAX_COLOUR_PERCENTILE
         )
 
     nwp_plotting.plot_subgrid(
-        field_matrix=score_matrix,
+        field_matrix=matrix_to_plot,
         model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
         axes_object=axes_object, basemap_object=basemap_object,
         colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
@@ -163,7 +168,7 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
 
     if is_frequency_bias:
         colour_bar_object = plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=score_matrix,
+            axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             colour_norm_object=colour_norm_object,
             padding=0.05, orientation_string='horizontal',
@@ -177,7 +182,7 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
         colour_bar_object.set_ticklabels(tick_strings)
     else:
         plotting_utils.plot_linear_colour_bar(
-            axes_object_or_matrix=axes_object, data_matrix=score_matrix,
+            axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             min_value=min_colour_value, max_value=max_colour_value,
             padding=0.05, orientation_string='horizontal',
