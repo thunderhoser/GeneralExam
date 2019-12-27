@@ -141,6 +141,7 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
+        print(max_colour_value)
 
         colour_map_object, colour_norm_object = _get_bias_colour_scheme(
             max_colour_value
@@ -183,11 +184,11 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
             extend_min=True, extend_max=True
         )
 
-        tick_values = colour_bar_object.get_ticks()
-        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
 
-        colour_bar_object.set_ticks(tick_values)
-        colour_bar_object.set_ticklabels(tick_strings)
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(
