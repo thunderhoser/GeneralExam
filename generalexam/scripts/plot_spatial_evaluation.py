@@ -174,20 +174,20 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
             padding=0.05, orientation_string='horizontal',
             extend_min=False, extend_max=True
         )
-
-        tick_values = colour_bar_object.get_ticks()
-        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
-
-        colour_bar_object.set_ticks(tick_values)
-        colour_bar_object.set_ticklabels(tick_strings)
     else:
-        plotting_utils.plot_linear_colour_bar(
+        colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             min_value=min_colour_value, max_value=max_colour_value,
             padding=0.05, orientation_string='horizontal',
             extend_min=True, extend_max=True
         )
+
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+
+        colour_bar_object.set_ticks(tick_values)
+        colour_bar_object.set_ticklabels(tick_strings)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(
