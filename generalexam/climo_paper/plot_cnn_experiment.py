@@ -55,9 +55,17 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 
 MARKER_COLOUR = numpy.full(3, 0.)
+MARKER_SIZE = 96
+MARKER_EDGE_WIDTH = 0
+
 BEST_MODEL_MARKER_TYPE = '*'
-BEST_MODEL_MARKER_SIZE = 48
-BEST_MODEL_MARKER_WIDTH = 0
+SELECTED_MODEL_MARKER_TYPE = 'o'
+
+THESE_DIM = (
+    len(CONV_BLOCK_COUNTS), len(PRESSURE_COMBO_ABBREVS),
+    len(FIELD_COMBO_ABBREVS), len(CONV_LAYER_COUNTS)
+)
+SELECTED_INDEX = numpy.ravel_multi_index((1, 5, 4, 2), THESE_DIM)
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -79,6 +87,9 @@ def _plot_one_score(score_matrix, score_abbrev, best_index):
 
     best_i, best_j, best_k, best_m = numpy.unravel_index(
         best_index, score_matrix.shape
+    )
+    selected_i, selected_j, selected_k, selected_m = numpy.unravel_index(
+        SELECTED_INDEX, score_matrix.shape
     )
 
     min_colour_value = numpy.percentile(score_matrix, 1.)
@@ -117,8 +128,18 @@ def _plot_one_score(score_matrix, score_abbrev, best_index):
                     marker=BEST_MODEL_MARKER_TYPE,
                     markerfacecolor=MARKER_COLOUR,
                     markeredgecolor=MARKER_COLOUR,
-                    markersize=BEST_MODEL_MARKER_SIZE,
-                    markeredgewidth=BEST_MODEL_MARKER_WIDTH
+                    markersize=MARKER_SIZE,
+                    markeredgewidth=MARKER_EDGE_WIDTH
+                )
+
+            if i == selected_i and m == selected_m:
+                this_axes_object.plot(
+                    selected_k, selected_j, linestyle='None',
+                    marker=SELECTED_MODEL_MARKER_TYPE,
+                    markerfacecolor=MARKER_COLOUR,
+                    markeredgecolor=MARKER_COLOUR,
+                    markersize=MARKER_SIZE,
+                    markeredgewidth=MARKER_EDGE_WIDTH
                 )
 
             this_title_string = (
