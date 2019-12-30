@@ -55,7 +55,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 
 MARKER_COLOUR = numpy.full(3, 0.)
-MARKER_SIZE = 96
+MARKER_SIZE = 72
 MARKER_EDGE_WIDTH = 0
 
 BEST_MODEL_MARKER_TYPE = '*'
