@@ -169,19 +169,19 @@ def _plot_roc_curve(result_table_xarray, output_file_name,
         best_threshold, best_y_coord, best_x_coord
     ))
 
-    marker_colour = model_eval_plotting.ROC_CURVE_COLOUR
-    axes_object.plot(
-        best_x_coord, best_y_coord, linestyle='None', marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-        markerfacecolor=marker_colour, markeredgecolor=marker_colour
+    # marker_colour = model_eval_plotting.ROC_CURVE_COLOUR
+    # axes_object.plot(
+    #     best_x_coord, best_y_coord, linestyle='None', marker=MARKER_TYPE,
+    #     markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+    #     markerfacecolor=marker_colour, markeredgecolor=marker_colour
+    # )
+
+    axes_object.text(
+        0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='right', verticalalignment='bottom',
+        transform=axes_object.transAxes
     )
 
-    # axes_object.text(
-    #     0.98, 0.02, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
-    #     horizontalalignment='right', verticalalignment='bottom',
-    #     transform=axes_object.transAxes
-    # )
-    #
     # axes_object.set_title('ROC curve')
     # plotting_utils.label_axes(
     #     axes_object=axes_object, label_string='(a)', y_coord_normalized=1.025
@@ -300,19 +300,19 @@ def _plot_performance_diagram(result_table_xarray, output_file_name,
         best_threshold, best_y_coord, best_x_coord
     ))
 
-    marker_colour = model_eval_plotting.PERF_DIAGRAM_COLOUR
-    axes_object.plot(
-        best_x_coord, best_y_coord, linestyle='None', marker=MARKER_TYPE,
-        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
-        markerfacecolor=marker_colour, markeredgecolor=marker_colour
+    # marker_colour = model_eval_plotting.PERF_DIAGRAM_COLOUR
+    # axes_object.plot(
+    #     best_x_coord, best_y_coord, linestyle='None', marker=MARKER_TYPE,
+    #     markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+    #     markerfacecolor=marker_colour, markeredgecolor=marker_colour
+    # )
+
+    axes_object.text(
+        0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
+        horizontalalignment='right', verticalalignment='top',
+        transform=axes_object.transAxes
     )
 
-    # axes_object.text(
-    #     0.98, 0.98, annotation_string, bbox=BOUNDING_BOX_DICT, color='k',
-    #     horizontalalignment='right', verticalalignment='top',
-    #     transform=axes_object.transAxes
-    # )
-    #
     # axes_object.set_title('Performance diagram')
     # plotting_utils.label_axes(
     #     axes_object=axes_object, label_string='(b)', y_coord_normalized=1.025
