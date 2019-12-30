@@ -164,6 +164,21 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
         os.path.split(model_file_name)[0]
     )
 
+    if not os.path.isfile(metafile_name):
+        metafile_name = metafile_name.replace(
+            '/scratch/ralager', '/condo/swatwork/ralager'
+        )
+
+    if not os.path.isfile(metafile_name):
+        metafile_name = metafile_name.replace(
+            '/condo/swatwork/ralager', '/glade/work/ryanlage'
+        )
+
+    if not os.path.isfile(metafile_name):
+        metafile_name = metafile_name.replace(
+            '/glade/work/ryanlage', '/glade/scratch/ryanlage'
+        )
+
     if not os.path.isfile(metafile_name) and raise_error_if_missing:
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
             metafile_name)
