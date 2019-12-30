@@ -16,7 +16,7 @@ NEIGH_DISTANCES_METRES = numpy.linspace(50000, 200000, num=4, dtype=int)
 
 FONT_SIZE = 24
 MARKER_TYPE = 'o'
-MARKER_SIZE = 12
+MARKER_SIZE = 8
 MARKER_EDGE_WIDTH = 0
 MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
