@@ -41,6 +41,14 @@ TITLE_FONT_SIZE = 20
 TICK_LABEL_FONT_SIZE = 20
 DEFAULT_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 
+MARKER_COLOUR = numpy.full(3, 0.)
+MARKER_SIZE = 32
+MARKER_EDGE_WIDTH = 0
+
+SELECTED_MODEL_MARKER_TYPE = 'o'
+SELECTED_WF_INDEX = 18
+SELECTED_CF_INDEX = 18
+
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
@@ -168,6 +176,15 @@ def _plot_one_score_one_neigh(
             min_value=min_colour_value, max_value=max_colour_value,
             orientation_string='vertical', extend_min=True, extend_max=True,
             fraction_of_axis_length=0.8, font_size=DEFAULT_FONT_SIZE)
+
+    axes_object.plot(
+        SELECTED_CF_INDEX, SELECTED_WF_INDEX, linestyle='None',
+        marker=SELECTED_MODEL_MARKER_TYPE,
+        markerfacecolor=MARKER_COLOUR,
+        markeredgecolor=MARKER_COLOUR,
+        markersize=MARKER_SIZE,
+        markeredgewidth=MARKER_EDGE_WIDTH
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(
