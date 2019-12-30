@@ -9,7 +9,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import model_eval_plotting
-from generalexam.machine_learning import neigh_evaluation
+from generalexam.ge_utils import neigh_evaluation
 
 METRES_TO_KM = 0.001
 NEIGH_DISTANCES_METRES = numpy.linspace(50000, 200000, num=4, dtype=int)
@@ -29,24 +29,24 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of directory with evaluation files.  Will be read by '
-    '`neigh_evaluation.read_results`')
-
+    '`neigh_evaluation.read_nonspatial_results`'
+)
 CONFIDENCE_LEVEL_HELP_STRING = 'Confidence level for error bars.'
-
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING)
-
+    help=INPUT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING)
-
+    help=CONFIDENCE_LEVEL_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _plot_one_neigh_distance(evaluation_dict, confidence_level,
@@ -54,7 +54,7 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     """Plots marker on performance diagram for one neighbourhood distance.
 
     :param evaluation_dict: Dictionary returned by
-        `neigh_evaluation.read_results`.
+        `neigh_evaluation.read_nonspatial_results`.
     :param confidence_level: See documentation at top of file.
     :param neigh_distance_metres: Neighbourhood distance.
     :param axes_object: Will plot on these axes (instance of
@@ -62,8 +62,8 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     """
 
     pod_values = numpy.array([
-        neigh_evaluation.get_binary_pod(d) for d in
-        evaluation_dict[neigh_evaluation.BINARY_CONTINGENCY_TABLES_KEY]
+        neigh_evaluation.get_pod(d) for d in
+        evaluation_dict[neigh_evaluation.BINARY_TABLES_KEY]
     ])
 
     mean_pod = numpy.mean(pod_values)
@@ -71,8 +71,8 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     max_pod = numpy.percentile(pod_values, 50. * (1 + confidence_level))
 
     success_ratios = numpy.array([
-        neigh_evaluation.get_binary_success_ratio(d) for d in
-        evaluation_dict[neigh_evaluation.BINARY_CONTINGENCY_TABLES_KEY]
+        1. - neigh_evaluation.get_far(d) for d in
+        evaluation_dict[neigh_evaluation.BINARY_TABLES_KEY]
     ])
 
     mean_success_ratio = numpy.mean(success_ratios)
@@ -105,7 +105,8 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
         mean_success_ratio, mean_pod,
         xerr=success_ratio_errors, yerr=pod_errors,
         ecolor=ERROR_BAR_COLOUR, elinewidth=ERROR_BAR_LINE_WIDTH,
-        capsize=ERROR_BAR_CAP_SIZE, capthick=ERROR_BAR_LINE_WIDTH, zorder=1e6)
+        capsize=ERROR_BAR_CAP_SIZE, capthick=ERROR_BAR_LINE_WIDTH, zorder=1e6
+    )
 
     label_string = '{0:d} km'.format(
         int(numpy.round(neigh_distance_metres * METRES_TO_KM))
@@ -114,7 +115,8 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     axes_object.text(
         mean_success_ratio + 0.01, mean_pod - 0.01, label_string,
         fontsize=FONT_SIZE, fontweight='bold', color=ERROR_BAR_COLOUR,
-        horizontalalignment='left', verticalalignment='top', zorder=1e6)
+        horizontalalignment='left', verticalalignment='top', zorder=1e6
+    )
 
 
 def _run(input_dir_name, confidence_level, output_file_name):
@@ -147,19 +149,24 @@ def _run(input_dir_name, confidence_level, output_file_name):
         ).format(input_dir_name, NEIGH_DISTANCES_METRES[i])
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_evaluation_dict = neigh_evaluation.read_results(this_file_name)
+        this_evaluation_dict = neigh_evaluation.read_nonspatial_results(
+            this_file_name
+        )
 
         _plot_one_neigh_distance(
             evaluation_dict=this_evaluation_dict,
             confidence_level=confidence_level,
             neigh_distance_metres=NEIGH_DISTANCES_METRES[i],
-            axes_object=axes_object)
+            axes_object=axes_object
+        )
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-                   bbox_inches='tight')
+    pyplot.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
     pyplot.close()
 
 

@@ -226,7 +226,7 @@ def _run(input_eval_file_name, num_replicates, confidence_level,
     :raises: ValueError: if input file already contains bootstrapped results.
     """
 
-    error_checking.assert_is_geq(num_replicates, 100)
+    error_checking.assert_is_geq(num_replicates, 2)
     error_checking.assert_is_geq(confidence_level, 0.9)
     error_checking.assert_is_less_than(confidence_level, 1.)
 
