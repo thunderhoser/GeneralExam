@@ -16,7 +16,7 @@ NEIGH_DISTANCES_METRES = numpy.linspace(50000, 200000, num=4, dtype=int)
 
 FONT_SIZE = 24
 MARKER_TYPE = 'o'
-MARKER_SIZE = 24
+MARKER_SIZE = 12
 MARKER_EDGE_WIDTH = 0
 MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
 
@@ -102,8 +102,8 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     )
     pod_errors = numpy.reshape(pod_errors, (pod_errors.size, 1))
 
-    # success_ratio_errors = numpy.maximum(success_ratio_errors, 0.01)
-    # pod_errors = numpy.maximum(pod_errors, 0.01)
+    success_ratio_errors = numpy.maximum(success_ratio_errors, 0.01)
+    pod_errors = numpy.maximum(pod_errors, 0.01)
 
     axes_object.plot(
         mean_success_ratio, mean_pod, linestyle='None',
