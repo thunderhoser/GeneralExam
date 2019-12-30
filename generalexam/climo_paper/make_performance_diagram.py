@@ -15,9 +15,13 @@ METRES_TO_KM = 0.001
 NEIGH_DISTANCES_METRES = numpy.linspace(50000, 200000, num=4, dtype=int)
 
 FONT_SIZE = 24
-ERROR_BAR_CAP_SIZE = 2
-ERROR_BAR_LINE_WIDTH = 2
-ERROR_BAR_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+MARKER_TYPE = 'o'
+MARKER_SIZE = 24
+MARKER_EDGE_WIDTH = 0
+MARKER_COLOUR = numpy.array([228, 26, 28], dtype=float) / 255
+
+ERROR_BAR_CAP_SIZE = 8
+ERROR_BAR_LINE_WIDTH = 4
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -101,10 +105,17 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
     # success_ratio_errors = numpy.maximum(success_ratio_errors, 0.01)
     # pod_errors = numpy.maximum(pod_errors, 0.01)
 
+    axes_object.plot(
+        mean_success_ratio, mean_pod, linestyle='None',
+        marker=MARKER_TYPE, markersize=MARKER_SIZE,
+        markeredgewidth=MARKER_EDGE_WIDTH,
+        markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR
+    )
+
     axes_object.errorbar(
         mean_success_ratio, mean_pod,
         xerr=success_ratio_errors, yerr=pod_errors,
-        ecolor=ERROR_BAR_COLOUR, elinewidth=ERROR_BAR_LINE_WIDTH,
+        ecolor=MARKER_COLOUR, elinewidth=ERROR_BAR_LINE_WIDTH,
         capsize=ERROR_BAR_CAP_SIZE, capthick=ERROR_BAR_LINE_WIDTH, zorder=1e6
     )
 
@@ -114,7 +125,7 @@ def _plot_one_neigh_distance(evaluation_dict, confidence_level,
 
     axes_object.text(
         mean_success_ratio + 0.01, mean_pod - 0.01, label_string,
-        fontsize=FONT_SIZE, fontweight='bold', color=ERROR_BAR_COLOUR,
+        fontsize=FONT_SIZE, fontweight='bold', color=MARKER_COLOUR,
         horizontalalignment='left', verticalalignment='top', zorder=1e6
     )
 
