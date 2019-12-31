@@ -7,6 +7,7 @@ false alarms, high-probability examples (regardless of true label), and
 low-probability examples (regardless of true label).
 """
 
+import os
 import pickle
 import argparse
 import numpy
@@ -37,7 +38,7 @@ SCALAR_FIELD_NAMES = [
 ]
 
 MAIN_FONT_SIZE = 25
-TITLE_FONT_SIZE = 25
+AXES_TITLE_FONT_SIZE = 25
 COLOUR_BAR_FONT_SIZE = 25
 COLOUR_BAR_LENGTH = 1.
 WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
@@ -45,6 +46,10 @@ NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
+
+CONVERT_EXE_NAME = '/usr/bin/convert'
+FIGURE_TITLE_FONT_SIZE = 150
+FIGURE_TITLE_FONT_TYPE = 'DejaVu-Sans-Bold'
 
 INPUT_FILES_ARG_NAME = 'input_composite_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
@@ -106,6 +111,35 @@ def _read_composite(pickle_file_name):
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
 
     return mean_predictor_matrix, cnn_metadata_dict
+
+
+def _overlay_text(
+        image_file_name, x_offset_from_center_px, y_offset_from_top_px,
+        text_string):
+    """Overlays text on image.
+
+    :param image_file_name: Path to image file.
+    :param x_offset_from_center_px: Center-relative x-coordinate (pixels).
+    :param y_offset_from_top_px: Top-relative y-coordinate (pixels).
+    :param text_string: String to overlay.
+    :raises: ValueError: if ImageMagick command (which is ultimately a Unix
+        command) fails.
+    """
+
+    command_string = (
+        '"{0:s}" "{1:s}" -gravity north -pointsize {2:d} -font "{3:s}" '
+        '-fill "rgb(0, 0, 0)" -annotate {4:+d}{5:+d} "{6:s}" "{1:s}"'
+    ).format(
+        CONVERT_EXE_NAME, image_file_name,
+        FIGURE_TITLE_FONT_SIZE, FIGURE_TITLE_FONT_TYPE,
+        x_offset_from_center_px, y_offset_from_top_px, text_string
+    )
+
+    exit_code = os.system(command_string)
+    if exit_code == 0:
+        return
+
+    raise ValueError(imagemagick_utils.ERROR_STRING)
 
 
 def _plot_composite(
@@ -203,7 +237,7 @@ def _plot_composite(
             num_panel_rows=len(scalar_field_indices), add_titles=True,
             colour_bar_length=this_colour_bar_length,
             main_font_size=MAIN_FONT_SIZE,
-            title_font_size=TITLE_FONT_SIZE,
+            title_font_size=AXES_TITLE_FONT_SIZE,
             colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
             wind_barb_colour=WIND_BARB_COLOUR
         )
@@ -234,11 +268,26 @@ def _plot_composite(
         num_panel_rows=1, num_panel_columns=len(panel_file_names),
         border_width_pixels=50
     )
-
     imagemagick_utils.resize_image(
         input_file_name=figure_file_name,
         output_file_name=figure_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name,
+        output_file_name=figure_file_name,
+        border_width_pixels=FIGURE_TITLE_FONT_SIZE + 25
+    )
+    _overlay_text(
+        image_file_name=figure_file_name,
+        x_offset_from_center_px=0, y_offset_from_top_px=0,
+        text_string=composite_name_verbose
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name,
+        output_file_name=figure_file_name,
+        border_width_pixels=10
+    )
 
     return figure_file_name
 
@@ -268,8 +317,10 @@ def _run(composite_file_names, composite_names, output_dir_name):
     ]
     composite_names_verbose = [n.replace('_', ' ') for n in composite_names]
 
+    panel_file_names = [None] * num_composites
+
     for i in range(num_composites):
-        _plot_composite(
+        panel_file_names[i] = _plot_composite(
             composite_file_name=composite_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
@@ -277,6 +328,21 @@ def _run(composite_file_names, composite_names, output_dir_name):
         )
 
         print('\n')
+
+    figure_file_name = '{0:s}/extreme_examples_concat.jpg'.format(
+        output_dir_name
+    )
+    print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names, output_file_name=figure_file_name,
+        num_panel_rows=num_composites, num_panel_columns=1,
+        border_width_pixels=100
+    )
+    imagemagick_utils.trim_whitespace(
+        input_file_name=figure_file_name, output_file_name=figure_file_name,
+        border_width_pixels=10
+    )
 
 
 if __name__ == '__main__':
