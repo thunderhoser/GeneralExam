@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import imagemagick_utils
 from generalexam.ge_utils import neigh_evaluation
 
 FAR_WEIGHT_FOR_CSI = 0.5
@@ -25,13 +26,19 @@ MAX_COLOUR_PERCENTILE = 99.
 DEFAULT_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 
 FIGURE_RESOLUTION_DPI = 300
+CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_FILE_ARG_NAME = 'input_eval_file_name'
+CONCAT_ARG_NAME = 'concat_figures'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by '
     '`neigh_evaluation.read_spatial_results`.'
+)
+CONCAT_HELP_STRING = (
+    'Boolean flag.  If 1, will concatenate all figures into one, using '
+    'ImageMagick.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
@@ -41,6 +48,10 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
     help=INPUT_FILE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + CONCAT_ARG_NAME, type=int, required=False, default=1,
+    help=CONCAT_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -77,12 +88,19 @@ def _get_bias_colour_scheme(max_value):
     return colour_map_object, colour_norm_object
 
 
-def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
+def _plot_one_score(score_matrix, is_frequency_bias, output_file_name,
+                    title_string=None, panel_letter=None):
     """Plots one score as grid with basemap.
 
     :param score_matrix: 2-D numpy array of scores.
     :param is_frequency_bias: Boolean flag.
     :param output_file_name: Path to output file (figure will be saved here).
+    :param title_string: Title (will be added above figure).  If you do not want
+        a title, make this None.
+    :param panel_letter: Panel letter.  For example, if the letter is "a", will
+        add "(a)" at top-left of figure, assuming that it will eventually be a
+        panel in a larger figure.  If you do not want a panel letter, make this
+        None.
     """
 
     num_grid_rows = score_matrix.shape[0]
@@ -193,6 +211,15 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
+    if title_string is not None:
+        axes_object.set_title(title_string)
+
+    if panel_letter is not None:
+        plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(panel_letter)
+        )
+
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     pyplot.savefig(
         output_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -201,12 +228,13 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
     pyplot.close()
 
 
-def _run(evaluation_file_name, output_dir_name):
+def _run(evaluation_file_name, concat_figures, output_dir_name):
     """Plots results of neighbourhood evaluation at each grid point.
 
     This is effectively the main method.
 
     :param evaluation_file_name: See documentation at top of file.
+    :param concat_figures: Same.
     :param output_dir_name: Same.
     """
 
@@ -253,25 +281,77 @@ def _run(evaluation_file_name, output_dir_name):
                 neigh_evaluation.get_frequency_bias(this_binary_ct_dict)
             )
 
+    pod_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
+    far_file_name = '{0:s}/far.jpg'.format(output_dir_name)
+    frequency_bias_file_name = '{0:s}/frequency_bias.jpg'.format(
+        output_dir_name
+    )
+    csi_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
+    weighted_csi_file_name = '{0:s}/weighted_csi.jpg'.format(output_dir_name)
+
+    this_title_string = (
+        'Probability of detection (POD)' if concat_figures else None
+    )
+    this_panel_letter = 'a' if concat_figures else None
     _plot_one_score(
         score_matrix=pod_matrix, is_frequency_bias=False,
-        output_file_name='{0:s}/pod.jpg'.format(output_dir_name)
+        output_file_name=pod_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
     )
+
+    this_title_string = (
+        'False-alarm ratio (FAR)' if concat_figures else None
+    )
+    this_panel_letter = 'b' if concat_figures else None
     _plot_one_score(
         score_matrix=far_matrix, is_frequency_bias=False,
-        output_file_name='{0:s}/far.jpg'.format(output_dir_name)
+        output_file_name=far_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
     )
-    _plot_one_score(
-        score_matrix=csi_matrix, is_frequency_bias=False,
-        output_file_name='{0:s}/csi.jpg'.format(output_dir_name)
-    )
-    _plot_one_score(
-        score_matrix=weighted_csi_matrix, is_frequency_bias=False,
-        output_file_name='{0:s}/weighted_csi.jpg'.format(output_dir_name)
-    )
+
+    this_title_string = 'Frequency bias' if concat_figures else None
+    this_panel_letter = 'c' if concat_figures else None
     _plot_one_score(
         score_matrix=frequency_bias_matrix, is_frequency_bias=True,
-        output_file_name='{0:s}/frequency_bias.jpg'.format(output_dir_name)
+        output_file_name=frequency_bias_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
+    )
+
+    this_title_string = (
+        'Critical success index (CSI)' if concat_figures else None
+    )
+    this_panel_letter = 'd' if concat_figures else None
+    _plot_one_score(
+        score_matrix=csi_matrix, is_frequency_bias=False,
+        output_file_name=csi_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
+    )
+
+    this_title_string = 'Weighted CSI' if concat_figures else None
+    this_panel_letter = 'e' if concat_figures else None
+    _plot_one_score(
+        score_matrix=weighted_csi_matrix, is_frequency_bias=False,
+        output_file_name=weighted_csi_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
+    )
+
+    if not concat_figures:
+        return
+
+    panel_file_names = [
+        pod_file_name, far_file_name, frequency_bias_file_name, csi_file_name,
+        weighted_csi_file_name
+    ]
+    concat_file_name = '{0:s}/spatial_evaluation.jpg'.format(output_dir_name)
+    print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
+
+    imagemagick_utils.concatenate_images(
+        input_file_names=panel_file_names, output_file_name=concat_file_name,
+        num_panel_rows=3, num_panel_columns=2
+    )
+    imagemagick_utils.resize_image(
+        input_file_name=concat_file_name, output_file_name=concat_file_name,
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
 
 
@@ -280,5 +360,6 @@ if __name__ == '__main__':
 
     _run(
         evaluation_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
+        concat_figures=bool(getattr(INPUT_ARG_OBJECT, CONCAT_ARG_NAME)),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
