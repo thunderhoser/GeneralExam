@@ -120,7 +120,7 @@ def _plot_one_distribution(count_matrix, output_file_name, title_string=None,
         full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
         full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
     ]
-    matrix_to_plot = matrix_to_plot.astype(matrix_to_plot)
+    matrix_to_plot = matrix_to_plot.astype(float)
     matrix_to_plot[matrix_to_plot == 0] = numpy.nan
 
     _, axes_object, basemap_object = nwp_plotting.init_basemap(
