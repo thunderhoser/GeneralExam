@@ -367,7 +367,7 @@ def _run(example_metafile_names, subset_names, output_dir_name):
     num_panel_rows = int(numpy.ceil(
         numpy.sqrt(num_subsets)
     ))
-    num_panel_columns = int(numpy.floor(
+    num_panel_columns = int(numpy.ceil(
         float(num_subsets) / num_panel_rows
     ))
 
