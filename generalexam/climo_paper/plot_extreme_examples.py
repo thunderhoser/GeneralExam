@@ -53,6 +53,7 @@ FIGURE_TITLE_FONT_TYPE = 'DejaVu-Sans-Bold'
 
 INPUT_FILES_ARG_NAME = 'input_composite_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
+ADD_FIGURE_TITLES_ARG_NAME = 'add_figure_titles'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
@@ -66,6 +67,10 @@ COMPOSITE_NAMES_HELP_STRING = (
     'space-separated.  In each list item, underscores will be replaced with '
     'spaces.'
 )
+ADD_FIGURE_TITLES_HELP_STRING = (
+    'Boolean flag.  If 1, will add large title above the figure for each '
+    'composite, using ImageMagick.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).'
 )
@@ -78,6 +83,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPOSITE_NAMES_ARG_NAME, type=str, nargs='+', required=True,
     help=COMPOSITE_NAMES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + ADD_FIGURE_TITLES_ARG_NAME, type=int, required=False, default=1,
+    help=ADD_FIGURE_TITLES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -144,7 +153,7 @@ def _overlay_text(
 
 def _plot_composite(
         composite_file_name, composite_name_abbrev, composite_name_verbose,
-        output_dir_name):
+        add_figure_title, output_dir_name):
     """Plot one composite.
 
     :param composite_file_name: Path to input file.  Will be read by
@@ -153,6 +162,7 @@ def _plot_composite(
         in names of output files.
     :param composite_name_verbose: Verbose name for composite.  Will be used as
         figure title.
+    :param add_figure_title: See documentation at top of file.
     :param output_dir_name: Path to output directory.  Figures will be saved
         here.
     :return: figure_file_name: Path to image file created by this method.
@@ -273,6 +283,10 @@ def _plot_composite(
         output_file_name=figure_file_name,
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
+
+    if not add_figure_title:
+        return figure_file_name
+
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name,
         output_file_name=figure_file_name,
@@ -292,13 +306,15 @@ def _plot_composite(
     return figure_file_name
 
 
-def _run(composite_file_names, composite_names, output_dir_name):
+def _run(composite_file_names, composite_names, add_figure_titles,
+         output_dir_name):
     """Makes figure with PMM composite of extreme examples.
 
     This is effectively the main method.
 
     :param composite_file_names: See documentation at top of file.
     :param composite_names: Same.
+    :param add_figure_titles: Same.
     :param output_dir_name: Same.
     """
 
@@ -324,7 +340,7 @@ def _run(composite_file_names, composite_names, output_dir_name):
             composite_file_name=composite_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
-            output_dir_name=output_dir_name
+            add_figure_title=add_figure_titles, output_dir_name=output_dir_name
         )
 
         print('\n')
@@ -351,5 +367,8 @@ if __name__ == '__main__':
     _run(
         composite_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
+        add_figure_titles=bool(
+            getattr(INPUT_ARG_OBJECT, ADD_FIGURE_TITLES_ARG_NAME)
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
