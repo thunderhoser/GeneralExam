@@ -62,7 +62,7 @@ CELSIUS_NAMES = [
 ]
 
 MAX_COLOUR_PERCENTILE = 99.
-WIND_BARB_LENGTH = 32
+WIND_BARB_LENGTH = 100
 EMPTY_WIND_BARB_RADIUS = 0.4
 
 NUM_PARALLELS = 8
@@ -223,10 +223,21 @@ def _convert_units(example_dict, example_index):
     """
 
     predictor_names = example_dict[examples_io.PREDICTOR_NAMES_KEY]
+    pressure_levels_mb = example_dict[examples_io.PRESSURE_LEVELS_KEY]
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][
         example_index, ...]
 
     for k in range(len(predictor_names)):
+        is_geopotential = (
+            predictor_names[k] == predictor_utils.HEIGHT_NAME and
+            pressure_levels_mb[k] != predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+        )
+
+        # TODO(thunderhoser): HACK.
+        if is_geopotential:
+            predictor_matrix[..., k] = predictor_matrix[..., k] / 9.80665
+            continue
+
         this_conv_factor = PREDICTOR_NAME_TO_CONV_FACTOR[predictor_names[k]]
 
         if this_conv_factor < 0:
