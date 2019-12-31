@@ -62,8 +62,8 @@ CELSIUS_NAMES = [
 ]
 
 MAX_COLOUR_PERCENTILE = 99.
-WIND_BARB_LENGTH = 100
-EMPTY_WIND_BARB_RADIUS = 0.4
+WIND_BARB_LENGTH = 16
+EMPTY_WIND_BARB_RADIUS = 0.2
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -671,7 +671,7 @@ def plot_real_example(
             first_column_in_full_grid=first_narr_column,
             plot_every_k_rows=2, plot_every_k_columns=2,
             barb_length=WIND_BARB_LENGTH,
-            empty_barb_radius=EMPTY_WIND_BARB_RADIUS, fill_empty_barb=False,
+            empty_barb_radius=EMPTY_WIND_BARB_RADIUS, fill_empty_barb=True,
             colour_map=wind_barb_cmap_object,
             colour_minimum_kt=-1., colour_maximum_kt=0.)
 
@@ -886,7 +886,9 @@ def plot_composite_example(
             u_wind_matrix_m_s01=predictor_matrix[..., this_u_wind_index],
             v_wind_matrix_m_s01=predictor_matrix[..., this_v_wind_index],
             axes_object=this_axes_object, plot_every=2,
-            barb_colour=wind_barb_colour)
+            barb_colour=wind_barb_colour, barb_length=WIND_BARB_LENGTH,
+            empty_barb_radius=EMPTY_WIND_BARB_RADIUS, fill_empty_barb=True
+        )
 
     while panel_index_linear < num_panels - 1:
         panel_index_linear += 1
