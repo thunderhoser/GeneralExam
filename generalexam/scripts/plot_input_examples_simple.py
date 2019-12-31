@@ -30,11 +30,11 @@ NARR_COSINES_KEY = 'narr_cosine_matrix'
 NARR_SINES_KEY = 'narr_sine_matrix'
 
 PREDICTOR_NAME_TO_FANCY = {
-    predictor_utils.TEMPERATURE_NAME: r'Temp ($^{\circ}$C)',
+    predictor_utils.TEMPERATURE_NAME: r'Temperature ($^{\circ}$C)',
     predictor_utils.HEIGHT_NAME: 'Height (m)',
     predictor_utils.PRESSURE_NAME: 'Pressure (mb)',
     predictor_utils.DEWPOINT_NAME: r'Dewpoint ($^{\circ}$C)',
-    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Humidity (g kg$^{-1}$)',
+    predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Specific humidity (g kg$^{-1}$)',
     predictor_utils.U_WIND_GRID_RELATIVE_NAME: r'$u$-wind (m s$^{-1}$)',
     predictor_utils.V_WIND_GRID_RELATIVE_NAME: r'$v$-wind (m s$^{-1}$)',
     predictor_utils.WET_BULB_THETA_NAME: r'$\theta_w$ ($^{\circ}$C)'
@@ -62,8 +62,8 @@ CELSIUS_NAMES = [
 ]
 
 MAX_COLOUR_PERCENTILE = 99.
-WIND_BARB_LENGTH = 8
-EMPTY_WIND_BARB_RADIUS = 0.1
+WIND_BARB_LENGTH = 12
+EMPTY_WIND_BARB_RADIUS = 0.15
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -629,6 +629,9 @@ def plot_real_example(
         this_title_string += ' {0:s}{1:s}'.format(
             this_fancy_name[0].lower(), this_fancy_name[1:]
         )
+        this_title_string = this_title_string.replace(
+            'Surface height', 'Orographic height'
+        )
 
         if add_titles:
             this_axes_object.set_title(this_title_string,
@@ -829,7 +832,7 @@ def plot_composite_example(
             data_matrix=predictor_matrix[..., k],
             colour_map_object=this_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string=cbar_orientation_string,
+            orientation_string=cbar_orientation_string, padding=0.01,
             font_size=colour_bar_font_size, extend_min=True, extend_max=True,
             fraction_of_axis_length=colour_bar_length)
 
@@ -846,6 +849,9 @@ def plot_composite_example(
         this_fancy_name = PREDICTOR_NAME_TO_FANCY[predictor_names[k]]
         this_title_string += ' {0:s}{1:s}'.format(
             this_fancy_name[0].lower(), this_fancy_name[1:]
+        )
+        this_title_string = this_title_string.replace(
+            'Surface height', 'Orographic height'
         )
 
         if add_titles:
