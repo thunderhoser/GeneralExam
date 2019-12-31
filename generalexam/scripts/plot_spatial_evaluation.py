@@ -141,7 +141,6 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
         )
         min_colour_value = 0.
         max_colour_value = 1. + this_offset
-        print(max_colour_value)
 
         colour_map_object, colour_norm_object = _get_bias_colour_scheme(
             max_colour_value
@@ -161,7 +160,8 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
         field_matrix=matrix_to_plot,
         model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=full_grid_name,
         axes_object=axes_object, basemap_object=basemap_object,
-        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT,
+        colour_map_object=colour_map_object,
+        colour_norm_object=colour_norm_object,
         min_colour_value=min_colour_value, max_colour_value=max_colour_value,
         first_row_in_full_grid=full_grid_row_limits[0],
         first_column_in_full_grid=full_grid_column_limits[0]
