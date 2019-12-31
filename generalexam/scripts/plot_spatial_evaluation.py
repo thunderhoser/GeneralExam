@@ -175,6 +175,9 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
             padding=0.05, orientation_string='horizontal',
             extend_min=False, extend_max=True
         )
+
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
     else:
         colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
@@ -184,8 +187,8 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name):
             extend_min=True, extend_max=True
         )
 
-    tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
