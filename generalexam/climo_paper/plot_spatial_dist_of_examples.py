@@ -22,9 +22,13 @@ MIN_LATITUDE_DEG = 20.
 MIN_LONGITUDE_DEG = 220.
 MAX_LATITUDE_DEG = 80.
 MAX_LONGITUDE_DEG = 290.
-BORDER_COLOUR = numpy.full(3, 0.)
 
-MAX_COLOUR_PERCENTILE = 99.
+MARKER_TYPE = 'o'
+MARKER_SIZE = 12
+MARKER_EDGE_WIDTH = 0
+MARKER_COLOUR = numpy.array([217, 95, 2], dtype=float) / 255
+
+BORDER_COLOUR = numpy.full(3, 0.)
 COLOUR_MAP_OBJECT = pyplot.get_cmap('viridis')
 
 FIGURE_RESOLUTION_DPI = 300
@@ -61,7 +65,7 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _compute_one_distribution(example_metafile_name):
+def _compute_one_distribution_old(example_metafile_name):
     """Computes distribution for one subset of examples.
 
     M = number of rows in grid
@@ -93,8 +97,8 @@ def _compute_one_distribution(example_metafile_name):
     return count_matrix
 
 
-def _plot_one_distribution(count_matrix, output_file_name, title_string=None,
-                           panel_letter=None):
+def _plot_one_distribution_old(
+        count_matrix, output_file_name, title_string=None, panel_letter=None):
     """Plots distribution for one subset of examples.
 
     :param count_matrix: See doc for `_compute_one_distribution`.
@@ -152,15 +156,8 @@ def _plot_one_distribution(count_matrix, output_file_name, title_string=None,
         num_meridians=NUM_MERIDIANS
     )
 
-    min_colour_value = numpy.nanpercentile(
-        matrix_to_plot, 100. - MAX_COLOUR_PERCENTILE
-    )
-    max_colour_value = numpy.nanpercentile(
-        matrix_to_plot, MAX_COLOUR_PERCENTILE
-    )
-
-    print(max_colour_value)
-    print(numpy.nanmax(matrix_to_plot))
+    min_colour_value = 0.
+    max_colour_value = numpy.nanmax(matrix_to_plot)
 
     nwp_plotting.plot_subgrid(
         field_matrix=matrix_to_plot, model_name=MODEL_NAME, grid_id=GRID_NAME,
@@ -184,6 +181,116 @@ def _plot_one_distribution(count_matrix, output_file_name, title_string=None,
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
+
+    if title_string is not None:
+        axes_object.set_title(title_string)
+
+    if panel_letter is not None:
+        plotting_utils.label_axes(
+            axes_object=axes_object,
+            label_string='({0:s})'.format(panel_letter)
+        )
+
+    print('Saving figure to: "{0:s}"...'.format(output_file_name))
+    pyplot.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close()
+
+
+def _read_one_distribution(example_metafile_name):
+    """Reads distribution for one subset of examples.
+
+    E = number of examples
+
+    :param example_metafile_name: Path to input file.  Will be read by
+        `learning_examples_io.read_example_ids`.
+    :return: latitudes_deg: length-E numpy array of latitudes (deg N).
+    :return: longitudes_deg: length-E numpy array of longitudes (deg E).
+    """
+
+    print('Reading example IDs from: "{0:s}"...'.format(example_metafile_name))
+    example_id_strings = examples_io.read_example_ids(example_metafile_name)
+    _, row_indices, column_indices = examples_io.example_ids_to_metadata(
+        example_id_strings
+    )
+
+    grid_lat_matrix_deg, grid_lng_matrix_deg = (
+        nwp_model_utils.get_latlng_grid_point_matrices(
+            model_name=MODEL_NAME, grid_name=GRID_NAME)
+    )
+
+    latitudes_deg = grid_lat_matrix_deg[row_indices, column_indices]
+    longitudes_deg = grid_lng_matrix_deg[row_indices, column_indices]
+
+    return latitudes_deg, longitudes_deg
+
+
+def _plot_one_distribution(
+        example_latitudes_deg, example_longitudes_deg, output_file_name,
+        title_string=None, panel_letter=None):
+    """Plots distribution for one subset of examples.
+
+    :param example_latitudes_deg: See doc for `_read_one_distribution`.
+    :param example_longitudes_deg: Same.
+    :param output_file_name: Path to output file (figure will be saved here).
+    :param title_string: Title (will be added above figure).  If you do not want
+        a title, make this None.
+    :param panel_letter: Panel letter.  For example, if the letter is "a", will
+        add "(a)" at top-left of figure, assuming that it will eventually be a
+        panel in a larger figure.  If you do not want a panel letter, make this
+        None.
+    """
+
+    full_grid_row_limits, full_grid_column_limits = (
+        nwp_plotting.latlng_limits_to_rowcol_limits(
+            min_latitude_deg=MIN_LATITUDE_DEG,
+            max_latitude_deg=MAX_LATITUDE_DEG,
+            min_longitude_deg=MIN_LONGITUDE_DEG,
+            max_longitude_deg=MAX_LONGITUDE_DEG,
+            model_name=MODEL_NAME, grid_id=GRID_NAME)
+    )
+
+    _, axes_object, basemap_object = nwp_plotting.init_basemap(
+        model_name=MODEL_NAME, grid_id=GRID_NAME,
+        first_row_in_full_grid=full_grid_row_limits[0],
+        last_row_in_full_grid=full_grid_row_limits[1],
+        first_column_in_full_grid=full_grid_column_limits[0],
+        last_column_in_full_grid=full_grid_column_limits[1]
+    )
+
+    plotting_utils.plot_coastlines(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR
+    )
+    plotting_utils.plot_countries(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR
+    )
+    plotting_utils.plot_states_and_provinces(
+        basemap_object=basemap_object, axes_object=axes_object,
+        line_colour=BORDER_COLOUR
+    )
+    plotting_utils.plot_parallels(
+        basemap_object=basemap_object, axes_object=axes_object,
+        num_parallels=NUM_PARALLELS
+    )
+    plotting_utils.plot_meridians(
+        basemap_object=basemap_object, axes_object=axes_object,
+        num_meridians=NUM_MERIDIANS
+    )
+
+    example_x_coords_metres, example_y_coords_metres = basemap_object(
+        example_longitudes_deg, example_latitudes_deg
+    )
+
+    axes_object.plot(
+        example_x_coords_metres, example_y_coords_metres,
+        linestyle='None', marker=MARKER_TYPE,
+        markersize=MARKER_SIZE, markeredgewidth=MARKER_EDGE_WIDTH,
+        markerfacecolor=MARKER_COLOUR, markeredgecolor=MARKER_COLOUR
+    )
 
     if title_string is not None:
         axes_object.set_title(title_string)
@@ -234,7 +341,9 @@ def _run(example_metafile_names, subset_names, output_dir_name):
     panel_letter = None
 
     for i in range(num_subsets):
-        this_count_matrix = _compute_one_distribution(example_metafile_names[i])
+        these_latitudes_deg, these_longitudes_deg = (
+            _read_one_distribution(example_metafile_names[i])
+        )
 
         if panel_letter is None:
             panel_letter = 'a'
@@ -242,7 +351,8 @@ def _run(example_metafile_names, subset_names, output_dir_name):
             panel_letter = chr(ord(panel_letter) + 1)
 
         _plot_one_distribution(
-            count_matrix=this_count_matrix,
+            example_latitudes_deg=these_latitudes_deg,
+            example_longitudes_deg=these_longitudes_deg,
             output_file_name=panel_file_names[i],
             title_string=subset_names_verbose[i],
             panel_letter=panel_letter
