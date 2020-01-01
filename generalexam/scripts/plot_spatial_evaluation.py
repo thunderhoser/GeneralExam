@@ -202,7 +202,8 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name,
             colour_map_object=colour_map_object,
             min_value=min_colour_value, max_value=max_colour_value,
             padding=0.05, orientation_string='horizontal',
-            extend_min=True, extend_max=True
+            extend_min=min_colour_value > 1e-6,
+            extend_max=max_colour_value < 1. - 1e-6
         )
 
         tick_values = colour_bar_object.get_ticks()
