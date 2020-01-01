@@ -1,7 +1,8 @@
 """Plots validation scores for object-conversion experiment."""
 
-import os.path
 import pickle
+import os.path
+import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -21,14 +22,6 @@ FAR_WEIGHT_FOR_CSI = 0.5
 NEIGH_DISTANCES_METRES = numpy.array([50000, 100000, 150000, 200000], dtype=int)
 WF_PROB_THRESHOLDS = numpy.linspace(0.2, 0.8, num=25)
 CF_PROB_THRESHOLDS = numpy.linspace(0.2, 0.8, num=25)
-
-TOP_EXPERIMENT_DIR_NAME = (
-    '/condo/swatwork/ralager/era5_experiment_with_orography/'
-    'h-u-v-T-q-thetaw-Z_sfc-900_num-blocks=3_num-layers-per-block=2/'
-    'validation/gridded_predictions'
-)
-
-OUTPUT_DIR_NAME = '{0:s}/evaluation'.format(TOP_EXPERIMENT_DIR_NAME)
 
 POD_MATRIX_KEY = 'pod_matrix'
 FAR_MATRIX_KEY = 'far_matrix'
@@ -51,6 +44,14 @@ SELECTED_CF_INDEX = 18
 
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
+
+EXPERIMENT_DIR_ARG_NAME = 'experiment_dir_name'
+EXPERIMENT_DIR_HELP_STRING = 'Name of top-level directory for experiment.'
+
+INPUT_ARG_PARSER = argparse.ArgumentParser()
+INPUT_ARG_PARSER.add_argument(
+    '--' + EXPERIMENT_DIR_ARG_NAME, type=str, required=True,
+    help=EXPERIMENT_DIR_HELP_STRING)
 
 
 def _get_bias_colour_scheme(max_value):
@@ -194,20 +195,23 @@ def _plot_one_score_one_neigh(
     pyplot.close()
 
 
-def _run():
+def _run(top_experiment_dir_name):
     """Plots validation scores for determinization experiment with ERA5 data.
 
     This is effectively the main method.
+
+    :param top_experiment_dir_name: See documentation at top of file.
     """
 
+    output_dir_name = '{0:s}/evaluation'.format(top_experiment_dir_name)
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=OUTPUT_DIR_NAME
+        directory_name=output_dir_name
     )
 
     num_neigh_distances = len(NEIGH_DISTANCES_METRES)
     num_wf_thresholds = len(WF_PROB_THRESHOLDS)
     num_cf_thresholds = len(CF_PROB_THRESHOLDS)
-    summary_file_name = '{0:s}/evaluation.p'.format(OUTPUT_DIR_NAME)
+    summary_file_name = '{0:s}/evaluation.p'.format(output_dir_name)
 
     if os.path.isfile(summary_file_name):
         print('Reading data from: "{0:s}"...'.format(summary_file_name))
@@ -238,7 +242,7 @@ def _run():
                         'cf-threshold={2:.3f}/evaluation/'
                         'evaluation_neigh-distance-metres={3:06d}.p'
                     ).format(
-                        TOP_EXPERIMENT_DIR_NAME, WF_PROB_THRESHOLDS[j],
+                        top_experiment_dir_name, WF_PROB_THRESHOLDS[j],
                         CF_PROB_THRESHOLDS[k], NEIGH_DISTANCES_METRES[i]
                     )
 
@@ -331,7 +335,7 @@ def _run():
             ))
 
         this_file_name = '{0:s}/pod_neigh-distance-metres={1:06d}.jpg'.format(
-            OUTPUT_DIR_NAME, NEIGH_DISTANCES_METRES[i]
+            output_dir_name, NEIGH_DISTANCES_METRES[i]
         )
         pod_file_names.append(this_file_name)
 
@@ -344,7 +348,7 @@ def _run():
         )
 
         this_file_name = '{0:s}/far_neigh-distance-metres={1:06d}.jpg'.format(
-            OUTPUT_DIR_NAME, NEIGH_DISTANCES_METRES[i]
+            output_dir_name, NEIGH_DISTANCES_METRES[i]
         )
         far_file_names.append(this_file_name)
 
@@ -357,7 +361,7 @@ def _run():
         )
 
         this_file_name = '{0:s}/csi_neigh-distance-metres={1:06d}.jpg'.format(
-            OUTPUT_DIR_NAME, NEIGH_DISTANCES_METRES[i]
+            output_dir_name, NEIGH_DISTANCES_METRES[i]
         )
         csi_file_names.append(this_file_name)
 
@@ -372,7 +376,7 @@ def _run():
         this_file_name = (
             '{0:s}/weighted_csi_neigh-distance-metres={1:06d}.jpg'
         ).format(
-            OUTPUT_DIR_NAME, NEIGH_DISTANCES_METRES[i]
+            output_dir_name, NEIGH_DISTANCES_METRES[i]
         )
         weighted_csi_file_names.append(this_file_name)
 
@@ -387,7 +391,7 @@ def _run():
         this_file_name = (
             '{0:s}/frequency_bias_neigh-distance-metres={1:06d}.jpg'
         ).format(
-            OUTPUT_DIR_NAME, NEIGH_DISTANCES_METRES[i]
+            output_dir_name, NEIGH_DISTANCES_METRES[i]
         )
         frequency_bias_file_names.append(this_file_name)
 
@@ -401,7 +405,7 @@ def _run():
 
         print(SEPARATOR_STRING)
 
-    main_pod_file_name = '{0:s}/pod.jpg'.format(OUTPUT_DIR_NAME)
+    main_pod_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(main_pod_file_name))
 
     imagemagick_utils.concatenate_images(
@@ -414,7 +418,7 @@ def _run():
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
 
-    main_far_file_name = '{0:s}/far.jpg'.format(OUTPUT_DIR_NAME)
+    main_far_file_name = '{0:s}/far.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(main_far_file_name))
 
     imagemagick_utils.concatenate_images(
@@ -427,7 +431,7 @@ def _run():
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
 
-    main_csi_file_name = '{0:s}/csi.jpg'.format(OUTPUT_DIR_NAME)
+    main_csi_file_name = '{0:s}/csi.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(main_csi_file_name))
 
     imagemagick_utils.concatenate_images(
@@ -441,7 +445,7 @@ def _run():
     )
 
     main_weighted_csi_file_name = '{0:s}/weighted_csi.jpg'.format(
-        OUTPUT_DIR_NAME
+        output_dir_name
     )
     print('Concatenating panels to: "{0:s}"...'.format(
         main_weighted_csi_file_name
@@ -458,7 +462,7 @@ def _run():
         output_size_pixels=CONCAT_FIGURE_SIZE_PX
     )
 
-    main_bias_file_name = '{0:s}/frequency_bias.jpg'.format(OUTPUT_DIR_NAME)
+    main_bias_file_name = '{0:s}/frequency_bias.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(main_bias_file_name))
 
     imagemagick_utils.concatenate_images(
@@ -474,4 +478,10 @@ def _run():
 
 
 if __name__ == '__main__':
-    _run()
+    INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
+
+    _run(
+        top_experiment_dir_name=getattr(
+            INPUT_ARG_OBJECT, EXPERIMENT_DIR_ARG_NAME
+        )
+    )
