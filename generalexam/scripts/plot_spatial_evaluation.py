@@ -23,7 +23,8 @@ MAX_LONGITUDE_DEG = 290.
 BORDER_COLOUR = numpy.full(3, 0.)
 
 MAX_COLOUR_PERCENTILE = 99.
-DEFAULT_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
+SCORE_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
+COUNT_COLOUR_MAP_OBJECT = pyplot.get_cmap('viridis')
 
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
@@ -88,12 +89,13 @@ def _get_bias_colour_scheme(max_value):
     return colour_map_object, colour_norm_object
 
 
-def _plot_one_score(score_matrix, is_frequency_bias, output_file_name,
+def _plot_one_score(score_matrix, is_frequency_bias, is_count, output_file_name,
                     title_string=None, panel_letter=None):
     """Plots one score as grid with basemap.
 
     :param score_matrix: 2-D numpy array of scores.
     :param is_frequency_bias: Boolean flag.
+    :param is_count: Boolean flag.
     :param output_file_name: Path to output file (figure will be saved here).
     :param title_string: Title (will be added above figure).  If you do not want
         a title, make this None.
@@ -164,12 +166,16 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name,
             max_colour_value
         )
     else:
-        colour_map_object = DEFAULT_COLOUR_MAP_OBJECT
-        colour_norm_object = None
+        if is_count:
+            colour_map_object = COUNT_COLOUR_MAP_OBJECT
+            min_colour_value = 0.
+        else:
+            colour_map_object = SCORE_COLOUR_MAP_OBJECT
+            min_colour_value = numpy.nanpercentile(
+                matrix_to_plot, 100. - MAX_COLOUR_PERCENTILE
+            )
 
-        min_colour_value = numpy.nanpercentile(
-            matrix_to_plot, 100. - MAX_COLOUR_PERCENTILE
-        )
+        colour_norm_object = None
         max_colour_value = numpy.nanpercentile(
             matrix_to_plot, MAX_COLOUR_PERCENTILE
         )
@@ -207,7 +213,13 @@ def _plot_one_score(score_matrix, is_frequency_bias, output_file_name,
         )
 
         tick_values = colour_bar_object.get_ticks()
-        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
+
+        if is_count:
+            tick_strings = [
+                '{0:d}'.format(int(numpy.round(v))) for v in tick_values
+            ]
+        else:
+            tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
@@ -255,6 +267,8 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     num_grid_columns = binary_ct_dict_matrix.shape[1]
     these_dim = (num_grid_rows, num_grid_columns)
 
+    num_actual_matrix = numpy.full(these_dim, numpy.nan)
+    num_predicted_matrix = numpy.full(these_dim, numpy.nan)
     pod_matrix = numpy.full(these_dim, numpy.nan)
     far_matrix = numpy.full(these_dim, numpy.nan)
     csi_matrix = numpy.full(these_dim, numpy.nan)
@@ -269,6 +283,18 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
             if numpy.isnan(val):
                 continue
 
+            num_actual_matrix[i, j] = (
+                this_binary_ct_dict[neigh_evaluation.NUM_ACTUAL_ORIENTED_TP_KEY]
+                + this_binary_ct_dict[neigh_evaluation.NUM_FALSE_NEGATIVES_KEY]
+            )
+
+            num_predicted_matrix[i, j] = (
+                this_binary_ct_dict[
+                    neigh_evaluation.NUM_PREDICTION_ORIENTED_TP_KEY
+                ]
+                + this_binary_ct_dict[neigh_evaluation.NUM_FALSE_POSITIVES_KEY]
+            )
+
             pod_matrix[i, j] = neigh_evaluation.get_pod(this_binary_ct_dict)
             far_matrix[i, j] = neigh_evaluation.get_far(this_binary_ct_dict)
             csi_matrix[i, j] = neigh_evaluation.get_csi(
@@ -282,6 +308,8 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
                 neigh_evaluation.get_frequency_bias(this_binary_ct_dict)
             )
 
+    num_actual_file_name = '{0:s}/num_actual.jpg'.format(output_dir_name)
+    num_predicted_file_name = '{0:s}/num_predicted.jpg'.format(output_dir_name)
     pod_file_name = '{0:s}/pod.jpg'.format(output_dir_name)
     far_file_name = '{0:s}/far.jpg'.format(output_dir_name)
     frequency_bias_file_name = '{0:s}/frequency_bias.jpg'.format(
@@ -291,11 +319,31 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     weighted_csi_file_name = '{0:s}/weighted_csi.jpg'.format(output_dir_name)
 
     this_title_string = (
-        'Probability of detection (POD)' if concat_figures else None
+        'Number of actual fronts' if concat_figures else None
     )
     this_panel_letter = 'a' if concat_figures else None
     _plot_one_score(
-        score_matrix=pod_matrix, is_frequency_bias=False,
+        score_matrix=num_actual_matrix, is_frequency_bias=False, is_count=True,
+        output_file_name=num_actual_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
+    )
+
+    this_title_string = (
+        'Number of predicted fronts' if concat_figures else None
+    )
+    this_panel_letter = 'b' if concat_figures else None
+    _plot_one_score(
+        score_matrix=num_predicted_matrix, is_frequency_bias=False,
+        is_count=True, output_file_name=num_predicted_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
+    )
+
+    this_title_string = (
+        'Probability of detection (POD)' if concat_figures else None
+    )
+    this_panel_letter = 'c' if concat_figures else None
+    _plot_one_score(
+        score_matrix=pod_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=pod_file_name,
         title_string=this_title_string, panel_letter=this_panel_letter
     )
@@ -303,36 +351,36 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     this_title_string = (
         'False-alarm ratio (FAR)' if concat_figures else None
     )
-    this_panel_letter = 'b' if concat_figures else None
+    this_panel_letter = 'd' if concat_figures else None
     _plot_one_score(
-        score_matrix=far_matrix, is_frequency_bias=False,
+        score_matrix=far_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=far_file_name,
         title_string=this_title_string, panel_letter=this_panel_letter
     )
 
     this_title_string = 'Frequency bias' if concat_figures else None
-    this_panel_letter = 'c' if concat_figures else None
+    this_panel_letter = 'e' if concat_figures else None
     _plot_one_score(
         score_matrix=frequency_bias_matrix, is_frequency_bias=True,
-        output_file_name=frequency_bias_file_name,
+        is_count=False, output_file_name=frequency_bias_file_name,
         title_string=this_title_string, panel_letter=this_panel_letter
     )
 
     this_title_string = (
         'Critical success index (CSI)' if concat_figures else None
     )
-    this_panel_letter = 'd' if concat_figures else None
+    this_panel_letter = 'f' if concat_figures else None
     _plot_one_score(
-        score_matrix=csi_matrix, is_frequency_bias=False,
+        score_matrix=csi_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=csi_file_name,
         title_string=this_title_string, panel_letter=this_panel_letter
     )
 
     this_title_string = 'Weighted CSI' if concat_figures else None
-    this_panel_letter = 'e' if concat_figures else None
+    this_panel_letter = 'g' if concat_figures else None
     _plot_one_score(
         score_matrix=weighted_csi_matrix, is_frequency_bias=False,
-        output_file_name=weighted_csi_file_name,
+        is_count=False, output_file_name=weighted_csi_file_name,
         title_string=this_title_string, panel_letter=this_panel_letter
     )
 
@@ -340,7 +388,8 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
         return
 
     panel_file_names = [
-        pod_file_name, far_file_name, frequency_bias_file_name, csi_file_name,
+        num_actual_file_name, num_predicted_file_name, pod_file_name,
+        far_file_name, frequency_bias_file_name, csi_file_name,
         weighted_csi_file_name
     ]
     concat_file_name = '{0:s}/spatial_evaluation.jpg'.format(output_dir_name)
@@ -348,7 +397,7 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=3, num_panel_columns=2
+        num_panel_rows=4, num_panel_columns=2
     )
     imagemagick_utils.resize_image(
         input_file_name=concat_file_name, output_file_name=concat_file_name,
