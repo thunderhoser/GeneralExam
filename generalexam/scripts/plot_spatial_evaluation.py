@@ -209,7 +209,7 @@ def _plot_one_score(score_matrix, is_frequency_bias, is_count, output_file_name,
             min_value=min_colour_value, max_value=max_colour_value,
             padding=0.05, orientation_string='horizontal',
             extend_min=min_colour_value > 1e-6,
-            extend_max=max_colour_value < 1. - 1e-6
+            extend_max=is_count or max_colour_value < 1. - 1e-6
         )
 
         tick_values = colour_bar_object.get_ticks()
@@ -307,6 +307,9 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
             frequency_bias_matrix[i, j] = (
                 neigh_evaluation.get_frequency_bias(this_binary_ct_dict)
             )
+
+    num_actual_matrix[num_actual_matrix == 0] = numpy.nan
+    num_predicted_matrix[num_predicted_matrix == 0] = numpy.nan
 
     num_actual_file_name = '{0:s}/num_actual.jpg'.format(output_dir_name)
     num_predicted_file_name = '{0:s}/num_predicted.jpg'.format(output_dir_name)
