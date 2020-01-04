@@ -288,8 +288,12 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
         example_index, ...]
 
     num_half_rows = int(numpy.round(
-        (predictor_matrix.shape[0] - 1) / 2
+        (predictor_matrix.shape[1] - 1) / 2
     ))
+    print('Number of rows in half of predictor grid = {0:d}'.format(
+        num_half_rows
+    ))
+
     first_narr_row = (
         example_dict[examples_io.ROW_INDICES_KEY][example_index] - num_half_rows
     )
@@ -298,8 +302,12 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
     )
 
     num_half_columns = int(numpy.round(
-        (predictor_matrix.shape[1] - 1) / 2
+        (predictor_matrix.shape[2] - 1) / 2
     ))
+    print('Number of columns in half of predictor grid = {0:d}'.format(
+        num_half_columns
+    ))
+
     first_narr_column = (
         example_dict[examples_io.COLUMN_INDICES_KEY][example_index] -
         num_half_columns
