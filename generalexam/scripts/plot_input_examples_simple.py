@@ -287,6 +287,7 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][
         example_index, ...]
 
+    print(predictor_matrix.shape)
     num_half_rows = int(numpy.round(
         (predictor_matrix.shape[1] - 1) / 2
     ))
