@@ -302,11 +302,11 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             num_half_columns_to_keep=num_half_columns,
             normalization_file_name=normalization_file_name)
 
-        example_id_strings = examples_io.create_example_ids(
-            valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
-            row_indices=example_dict[examples_io.ROW_INDICES_KEY],
-            column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
-        )
+    example_id_strings = examples_io.create_example_ids(
+        valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
+        row_indices=example_dict[examples_io.ROW_INDICES_KEY],
+        column_indices=example_dict[examples_io.COLUMN_INDICES_KEY]
+    )
 
     print('Denormalizing predictors...')
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY] + 0.

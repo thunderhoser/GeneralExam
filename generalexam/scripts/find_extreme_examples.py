@@ -251,7 +251,7 @@ def _run(top_prediction_dir_name, first_time_string, last_time_string,
     for k in range(num_classes):
         these_indices = example_index_matrix[k, ...]
         these_indices = these_indices[these_indices >= 0]
-        these_id_strings = [example_id_strings[k] for k in these_indices]
+        these_id_strings = [example_id_strings[i] for i in these_indices]
 
         print((
             'Mean of {0:d} highest probabilities for class {1:d} = {2:.3f}'
