@@ -181,7 +181,12 @@ def find_metafile(model_file_name, raise_error_if_missing=True):
 
     if not os.path.isfile(metafile_name):
         metafile_name = metafile_name.replace(
-            '/glade/scratch/ryanlage', '/condo/swatwork/ralager'
+            '/glade/scratch/ryanlage', '/glade/p/univ/uokl0026'
+        )
+
+    if not os.path.isfile(metafile_name):
+        metafile_name = metafile_name.replace(
+            '/glade/p/univ/uokl0026', '/condo/swatwork/ralager'
         )
 
     if not os.path.isfile(metafile_name) and raise_error_if_missing:
