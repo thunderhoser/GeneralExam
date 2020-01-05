@@ -226,6 +226,24 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
 
     if use_mask:
         mask_matrix = model_metadata_dict[cnn.MASK_MATRIX_KEY]
+
+        print('Dilating mask with {0:.1f}-km buffer...'.format(
+            neigh_eval_distance_metres * METRES_TO_KM
+        ))
+
+        orig_num_unmasked_pts = numpy.sum(mask_matrix == 1)
+        mask_matrix = neigh_evaluation.dilate_narr_mask(
+            narr_mask_matrix=mask_matrix,
+            neigh_distance_metres=neigh_eval_distance_metres
+        )
+        num_unmasked_grid_pts = numpy.sum(mask_matrix == 1)
+
+        print((
+            'Number of unmasked grid points for training = {0:d} ... for '
+            'gridded inference = {1:d}'
+        ).format(
+            orig_num_unmasked_pts, num_unmasked_grid_pts
+        ))
     else:
         first_predictor_file_name = predictor_io.find_file(
             top_directory_name=top_predictor_dir_name,
@@ -240,24 +258,6 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
         ][0, ..., 0]
 
         mask_matrix = numpy.invert(numpy.isnan(this_matrix)).astype(int)
-
-    print('Dilating mask with {0:.1f}-km buffer...'.format(
-        neigh_eval_distance_metres * METRES_TO_KM
-    ))
-
-    orig_num_unmasked_pts = numpy.sum(mask_matrix == 1)
-    mask_matrix = neigh_evaluation.dilate_narr_mask(
-        narr_mask_matrix=mask_matrix,
-        neigh_distance_metres=neigh_eval_distance_metres
-    )
-    num_unmasked_grid_pts = numpy.sum(mask_matrix == 1)
-
-    print((
-        'Number of unmasked grid points for training = {0:d} ... for gridded '
-        'inference = {1:d}'
-    ).format(
-        orig_num_unmasked_pts, num_unmasked_grid_pts
-    ))
 
     num_times = len(valid_times_unix_sec)
     print(SEPARATOR_STRING)

@@ -182,6 +182,12 @@ def _run(prediction_file_name, top_example_dir_name, diff_colour_map_name,
     )
     print(SEPARATOR_STRING)
 
+    example_id_strings = examples_io.create_example_ids(
+        valid_times_unix_sec=actual_example_dict[examples_io.VALID_TIMES_KEY],
+        row_indices=actual_example_dict[examples_io.ROW_INDICES_KEY],
+        column_indices=actual_example_dict[examples_io.COLUMN_INDICES_KEY]
+    )
+
     print('Denormalizing predictors...')
 
     actual_example_dict = examples_io.denormalize_examples(actual_example_dict)
