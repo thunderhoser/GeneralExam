@@ -126,17 +126,37 @@ def get_nice_predictor_names(predictor_names, pressure_levels_mb):
     error_checking.assert_is_numpy_array(pressure_levels_mb)
     pressure_levels_mb = numpy.round(pressure_levels_mb).astype(int)
     error_checking.assert_is_numpy_array(
-        pressure_levels_mb, exact_dimensions=expected_dim)
+        pressure_levels_mb, exact_dimensions=expected_dim
+    )
 
-    return [
-        '{0:s} {1:s}{2:s}'.format(
-            'Surface' if l == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
-            else '{0:d}-mb'.format(l),
-            PREDICTOR_NAME_TO_FANCY[n][0].lower(),
-            PREDICTOR_NAME_TO_FANCY[n][1:]
+    num_channels = len(predictor_names)
+    nice_predictor_names = [None] * num_channels
+
+    for k in range(num_channels):
+        is_orography = (
+            pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB
+            and predictor_names[k] == predictor_utils.HEIGHT_NAME
         )
-        for n, l in zip(predictor_names, pressure_levels_mb)
-    ]
+
+        if is_orography:
+            nice_predictor_names[k] = 'Orographic height'
+            continue
+
+        this_fancy_name = PREDICTOR_NAME_TO_FANCY[predictor_names[k]]
+        nice_predictor_names[k] = '{0:s}{1:s}'.format(
+            this_fancy_name[0].lower(), this_fancy_name[1:]
+        )
+
+        if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
+            nice_predictor_names[k] = 'Surface {0:s}'.format(
+                nice_predictor_names[k]
+            )
+        else:
+            nice_predictor_names[k] = '{0:d}-mb {1:s}'.format(
+                pressure_levels_mb[k], nice_predictor_names[k]
+            )
+
+    return nice_predictor_names
 
 
 def run_forward_test(
