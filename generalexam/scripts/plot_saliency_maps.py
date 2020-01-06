@@ -165,6 +165,9 @@ def _plot_saliency_one_example(
     figure_width_inches = this_array[0]
     figure_height_inches = this_array[1]
 
+    if max_saliency is None:
+        max_saliency = numpy.percentile(numpy.absolute(saliency_matrix), 99)
+
     saliency_plotting.plot_many_2d_grids_with_contours(
         saliency_matrix_3d=saliency_matrix,
         axes_object_matrix=axes_object_matrix,
@@ -206,7 +209,7 @@ def _plot_saliency_one_example(
     colour_bar_object.set_label('Saliency', fontsize=colour_bar_font_size)
 
     tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
@@ -314,7 +317,9 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
     wind_colour_map_object = pyplot.cm.get_cmap(wind_colour_map_name)
     non_wind_colour_map_object = pyplot.cm.get_cmap(non_wind_colour_map_name)
 
-    error_checking.assert_is_greater(max_saliency, 0.)
+    if max_saliency <= 0:
+        max_saliency = None
+
     error_checking.assert_is_geq(half_num_contours, 5)
 
     print('Reading data from: "{0:s}"...'.format(input_file_name))

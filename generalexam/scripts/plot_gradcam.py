@@ -194,6 +194,11 @@ def _plot_gradcam_one_example(
     max_unguided_value_log10 = None
 
     if class_activn_matrix is None:
+        if max_guided_value is None:
+            max_guided_value = numpy.percentile(
+                numpy.absolute(guided_class_activn_matrix), 99
+            )
+
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=guided_class_activn_matrix,
             axes_object_matrix=axes_object_matrix,
@@ -202,13 +207,18 @@ def _plot_gradcam_one_example(
             contour_interval=max_guided_value / half_num_guided_contours,
             row_major=True)
     else:
-        num_channels = guided_class_activn_matrix.shape[-1]
+        if max_guided_value is None:
+            max_unguided_value = numpy.percentile(
+                numpy.absolute(class_activn_matrix), 99
+            )
 
         class_activn_matrix_log10 = numpy.log10(
             numpy.expand_dims(class_activn_matrix, axis=-1)
         )
+        num_channels = guided_class_activn_matrix.shape[-1]
         class_activn_matrix_log10 = numpy.repeat(
-            class_activn_matrix_log10, repeats=num_channels, axis=-1)
+            class_activn_matrix_log10, repeats=num_channels, axis=-1
+        )
 
         max_unguided_value_log10 = numpy.log10(max_unguided_value)
         contour_interval_log10 = (
@@ -273,7 +283,7 @@ def _plot_gradcam_one_example(
                                     fontsize=colour_bar_font_size)
 
     tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
@@ -400,8 +410,11 @@ def _run(input_file_name, gradcam_colour_map_name, max_unguided_value,
     wind_colour_map_object = pyplot.cm.get_cmap(wind_colour_map_name)
     non_wind_colour_map_object = pyplot.cm.get_cmap(non_wind_colour_map_name)
 
-    error_checking.assert_is_greater(max_unguided_value, 0.)
-    error_checking.assert_is_greater(max_guided_value, 0.)
+    if max_unguided_value < 0:
+        max_unguided_value = None
+    if max_guided_value < 0:
+        max_guided_value = None
+
     error_checking.assert_is_geq(num_unguided_contours, 10)
     error_checking.assert_is_geq(half_num_guided_contours, 5)
 
