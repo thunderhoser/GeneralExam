@@ -261,7 +261,8 @@ def _run(input_prediction_dir_name, first_time_string, last_time_string,
             directory_name=input_prediction_dir_name,
             first_time_unix_sec=valid_times_unix_sec[i],
             last_time_unix_sec=valid_times_unix_sec[i],
-            raise_error_if_missing=False)
+            raise_error_if_missing=True
+        )
 
         if not os.path.isfile(this_input_file_name):
             continue
