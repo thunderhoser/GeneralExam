@@ -16,6 +16,7 @@ import copy
 import pickle
 import os.path
 import numpy
+from scipy.interpolate import RectBivariateSpline
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -194,7 +195,7 @@ def _check_downsizing_args(
     error_checking.assert_is_boolean(test_mode)
 
     num_rows_orig = predictor_matrix.shape[1]
-    num_columns_orig = predictor_matrix.shape[2]
+    num_source_columns = predictor_matrix.shape[2]
 
     error_checking.assert_is_integer(num_rows_in_half_window)
     error_checking.assert_is_greater(num_rows_in_half_window, 0)
@@ -209,7 +210,7 @@ def _check_downsizing_args(
 
     if not test_mode:
         error_checking.assert_is_less_than(
-            num_columns_in_subgrid, num_columns_orig)
+            num_columns_in_subgrid, num_source_columns)
 
     return num_rows_in_subgrid, num_columns_in_subgrid
 
@@ -250,7 +251,7 @@ def _downsize_predictor_images(
     """
 
     num_rows_orig = predictor_matrix.shape[1]
-    num_columns_orig = predictor_matrix.shape[2]
+    num_source_columns = predictor_matrix.shape[2]
 
     first_row = center_row - num_rows_in_half_window
     last_row = center_row + num_rows_in_half_window
@@ -275,10 +276,10 @@ def _downsize_predictor_images(
     else:
         num_padding_columns_at_left = 0
 
-    if last_column > num_columns_orig - 1:
+    if last_column > num_source_columns - 1:
         num_padding_columns_at_right = last_column - (
-            num_columns_orig - 1)
-        last_column = num_columns_orig - 1
+            num_source_columns - 1)
+        last_column = num_source_columns - 1
     else:
         num_padding_columns_at_right = 0
 
@@ -1298,6 +1299,71 @@ def downsize_grids_around_selected_points(
 
     return (new_predictor_matrix, target_values, example_indices,
             center_grid_rows, center_grid_columns)
+
+
+def resample_predictors_spatially(predictor_matrix, num_target_rows,
+                                  num_target_columns):
+    """Resamples predictors spatially.
+
+    E = number of examples
+    M = original number of rows in grid
+    N = original number of columns in grid
+    C = number of channels (predictors)
+    m = new number of rows
+    n = new number of columns
+
+    :param predictor_matrix: E-by-M-by-N-by-C numpy array of predictor values.
+    :param num_target_rows: m in above discussion.
+    :param num_target_columns: n in above discussion.
+    :return: predictor_matrix: Same as input but interpolated to dimensions
+        E x m x n x C.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
+    error_checking.assert_is_numpy_array(predictor_matrix, num_dimensions=4)
+
+    error_checking.assert_is_integer(num_target_rows)
+    error_checking.assert_is_greater(num_target_rows, 1)
+    error_checking.assert_is_integer(num_target_columns)
+    error_checking.assert_is_greater(num_target_columns, 1)
+
+    orig_predictor_matrix = predictor_matrix + 0.
+    num_source_rows = orig_predictor_matrix.shape[1]
+    num_source_columns = orig_predictor_matrix.shape[2]
+
+    target_row_indices = numpy.linspace(
+        1, num_source_rows, num=num_target_rows, dtype=float
+    )
+    source_row_indices = numpy.linspace(
+        1, num_source_rows, num=num_source_rows, dtype=float
+    )
+
+    target_column_indices = numpy.linspace(
+        1, num_source_columns, num=num_target_columns, dtype=float
+    )
+    source_column_indices = numpy.linspace(
+        1, num_source_columns, num=num_source_columns, dtype=float
+    )
+
+    num_examples = orig_predictor_matrix.shape[0]
+    num_heights = orig_predictor_matrix.shape[3]
+    new_predictor_matrix = numpy.full(
+        (num_examples, num_target_rows, num_target_columns, num_heights),
+        numpy.nan
+    )
+
+    for i in range(num_examples):
+        for k in range(num_heights):
+            this_interp_object = RectBivariateSpline(
+                x=source_row_indices, y=source_column_indices,
+                z=orig_predictor_matrix[i, ..., k], kx=3, ky=3, s=0
+            )
+
+            new_predictor_matrix[i, ..., k] = this_interp_object(
+                x=target_row_indices, y=target_column_indices, grid=True
+            )
+
+    return new_predictor_matrix
 
 
 def write_narr_mask(mask_matrix, num_warm_fronts_matrix, num_cold_fronts_matrix,

@@ -37,21 +37,23 @@ USE_MASK_ARG_NAME = 'use_mask'
 NEIGH_DISTANCE_ARG_NAME = 'neigh_eval_distance_metres'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
 USE_ISOTONIC_ARG_NAME = 'use_isotonic_regression'
+RESAMPLING_FACTOR_ARG_NAME = 'resampling_factor'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
-    'Path to trained CNN.  Will be read by `cnn.read_model`.')
-
+    'Path to trained CNN.  Will be read by `cnn.read_model`.'
+)
 PREDICTOR_DIR_HELP_STRING = (
     'Name of top-level directory with predictors.  Input files therein '
     'will be found by `predictor_io.find_file` and read by '
-    '`predictor_io.read_file`.')
-
+    '`predictor_io.read_file`.'
+)
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with gridded front labels.  Files therein will'
     ' be found by `fronts_io.find_gridded_file` and read by '
     '`fronts_io.read_grid_from_file`.  If you do not want to read true labels, '
-    'make this empty ("").')
+    'make this empty ("").'
+)
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  This script will apply the CNN to `{0:s}` '
@@ -65,81 +67,85 @@ NUM_TIMES_HELP_STRING = (
 
 USE_MASK_HELP_STRING = (
     'Boolean flag.  If 1, the CNN will not be applied to grid cells that were '
-    'masked during training.  If 0, will be applied to all grid cells.')
-
+    'masked during training.  If 0, will be applied to all grid cells.'
+)
 NEIGH_DISTANCE_HELP_STRING = (
     'Neighbourhood distance for eventual neighbourhood evaluation.  If you plan'
     ' to use multiple neighbourhood distances, make this the largest of them '
-    'all.')
-
+    'all.'
+)
 DILATION_DISTANCE_HELP_STRING = (
     'Dilation distance for target variable.  To use the same dilation distance '
-    'used for training the model, leave this argument alone.')
-
+    'used for training the model, leave this argument alone.'
+)
 USE_ISOTONIC_HELP_STRING = (
     'Boolean flag.  If 1, will use isotonic regression to calibrate CNN '
-    'probabilities.  If 0, will use raw CNN probabilities with no calibration.')
+    'probabilities.  If 0, will use raw CNN probabilities with no calibration.'
+)
+RESAMPLING_FACTOR_HELP_STRING = (
+    'Will resample predictors to R * original grid spacing, where R = `{0:s}`.'
+    '  If you do not want to resample, leave this alone.'
+).format(RESAMPLING_FACTOR_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Results will be written here by '
     '`prediction_io.write_probabilities`, to exact locations determined by '
-    '`prediction_io.find_file`.')
-
-# TOP_PREDICTOR_DIR_NAME_DEFAULT = (
-#     '/condo/swatwork/ralager/era5_data/processed/with_theta_w'
-# )
-# TOP_FRONT_DIR_NAME_DEFAULT = (
-#     '/condo/swatwork/ralager/fronts_netcdf/narr_grids_no_dilation'
-# )
+    '`prediction_io.find_file`.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + MODEL_FILE_ARG_NAME, type=str, required=True,
-    help=MODEL_FILE_HELP_STRING)
-
+    help=MODEL_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + PREDICTOR_DIR_ARG_NAME, type=str, required=True,
-    help=PREDICTOR_DIR_HELP_STRING)
-
+    help=PREDICTOR_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + FRONT_DIR_ARG_NAME, type=str, required=True,
-    help=FRONT_DIR_HELP_STRING)
-
+    help=FRONT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
-
+    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
-
+    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_TIMES_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_TIMES_HELP_STRING)
-
+    help=NUM_TIMES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + USE_MASK_ARG_NAME, type=int, required=True,
-    help=USE_MASK_HELP_STRING)
-
+    help=USE_MASK_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NEIGH_DISTANCE_ARG_NAME, type=float, required=True,
-    help=NEIGH_DISTANCE_HELP_STRING)
-
+    help=NEIGH_DISTANCE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=False, default=-1,
-    help=DILATION_DISTANCE_HELP_STRING)
-
+    help=DILATION_DISTANCE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + USE_ISOTONIC_ARG_NAME, type=int, required=False, default=0,
-    help=USE_ISOTONIC_HELP_STRING)
-
+    help=USE_ISOTONIC_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + RESAMPLING_FACTOR_ARG_NAME, type=float, required=False, default=-1,
+    help=RESAMPLING_FACTOR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
          first_time_string, last_time_string, num_times, use_mask,
          neigh_eval_distance_metres, dilation_distance_metres,
-         use_isotonic_regression, output_dir_name):
+         use_isotonic_regression, resampling_factor, output_dir_name):
     """Applies trained CNN to full grids.
 
     This is effectively the main method.
@@ -154,9 +160,12 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
     :param neigh_eval_distance_metres: Same.
     :param dilation_distance_metres: Same.
     :param use_isotonic_regression: Same.
+    :param resampling_factor: Same.
     :param output_dir_name: Same.
     """
 
+    if resampling_factor < 0:
+        resampling_factor = None
     if top_gridded_front_dir_name in ['', None]:
         top_gridded_front_dir_name = None
 
@@ -276,6 +285,7 @@ def _run(model_file_name, top_predictor_dir_name, top_gridded_front_dir_name,
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY
             ],
+            resampling_factor=resampling_factor,
             dilation_distance_metres=dilation_distance_metres,
             isotonic_model_object_by_class=isotonic_model_object_by_class,
             mask_matrix=mask_matrix
@@ -333,5 +343,6 @@ if __name__ == '__main__':
         use_isotonic_regression=bool(getattr(
             INPUT_ARG_OBJECT, USE_ISOTONIC_ARG_NAME
         )),
+        resampling_factor=getattr(INPUT_ARG_OBJECT, RESAMPLING_FACTOR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

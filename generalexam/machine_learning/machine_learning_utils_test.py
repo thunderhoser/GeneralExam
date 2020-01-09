@@ -618,6 +618,76 @@ EXAMPLE_INDICES_AT_SELECTED_POINTS = numpy.array([0, 0, 0, 0], dtype=int)
 CENTER_ROWS_AT_SELECTED_POINTS = numpy.array([0, 0, 1, 1], dtype=int)
 CENTER_COLUMNS_AT_SELECTED_POINTS = numpy.array([2, 1, 3, 0], dtype=int)
 
+# The following constants are used to test resample_predictors_spatially.
+THIS_MATRIX_EXAMPLE1_CHANNEL1 = numpy.array([
+    [0, 1, 2, 3, 4, 5],
+    [0, 1, 2, 3, 4, 5],
+    [0, 1, 2, 3, 4, 5],
+    [0, 1, 2, 3, 4, 5]
+])
+
+THIS_MATRIX_EXAMPLE1_CHANNEL2 = numpy.array([
+    [0, 1, 2, 3, 4, 5],
+    [6, 7, 8, 9, 10, 11],
+    [12, 13, 14, 15, 16, 17],
+    [18, 19, 20, 21, 22, 23]
+])
+
+THIS_MATRIX_EXAMPLE1_CHANNEL3 = numpy.array([
+    [0, 0, 0, 0, 0, 0],
+    [10, 10, 10, 10, 10, 10],
+    [20, 20, 20, 20, 20, 20],
+    [30, 30, 30, 30, 30, 30]
+])
+
+THIS_MATRIX_EXAMPLE1 = numpy.stack((
+    THIS_MATRIX_EXAMPLE1_CHANNEL1, THIS_MATRIX_EXAMPLE1_CHANNEL2,
+    THIS_MATRIX_EXAMPLE1_CHANNEL3
+), axis=-1)
+
+PREDICTOR_MATRIX_LOW_RES = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1, THIS_MATRIX_EXAMPLE1 * 2), axis=0
+).astype(float)
+
+THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array([
+    [0, 5, 10, 15, 20, 25, 30, 35, 40],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40],
+    [0, 5, 10, 15, 20, 25, 30, 35, 40],
+], dtype=float) / 8
+
+THIS_OTHER_MATRIX = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6],
+    [7.2, 7.2, 7.2, 7.2, 7.2, 7.2, 7.2, 7.2, 7.2],
+    [10.8, 10.8, 10.8, 10.8, 10.8, 10.8, 10.8, 10.8, 10.8],
+    [14.4, 14.4, 14.4, 14.4, 14.4, 14.4, 14.4, 14.4, 14.4],
+    [18, 18, 18, 18, 18, 18, 18, 18, 18]
+])
+
+THIS_MATRIX_EXAMPLE1_HEIGHT2 = THIS_MATRIX_EXAMPLE1_HEIGHT1 + THIS_OTHER_MATRIX
+
+THIS_MATRIX_EXAMPLE1_HEIGHT3 = numpy.array([
+    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [6, 6, 6, 6, 6, 6, 6, 6, 6],
+    [12, 12, 12, 12, 12, 12, 12, 12, 12],
+    [18, 18, 18, 18, 18, 18, 18, 18, 18],
+    [24, 24, 24, 24, 24, 24, 24, 24, 24],
+    [30, 30, 30, 30, 30, 30, 30, 30, 30]
+])
+
+THIS_MATRIX_EXAMPLE1 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT1, THIS_MATRIX_EXAMPLE1_HEIGHT2,
+     THIS_MATRIX_EXAMPLE1_HEIGHT3),
+    axis=-1
+)
+
+PREDICTOR_MATRIX_HIGH_RES = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1, THIS_MATRIX_EXAMPLE1 * 2), axis=0
+).astype(float)
+
 
 def _compare_target_point_dicts(
         first_target_point_dict, second_target_point_dict):
@@ -1485,6 +1555,38 @@ class MachineLearningUtilsTests(unittest.TestCase):
         ))
         self.assertTrue(numpy.array_equal(
             these_center_columns, CENTER_COLUMNS_AT_SELECTED_POINTS
+        ))
+
+    def test_resample_predictors_to_high_res(self):
+        """Ensures correct output from resample_predictors_spatially.
+
+        In this case, resampling to high resolution.
+        """
+
+        this_predictor_matrix = ml_utils.resample_predictors_spatially(
+            predictor_matrix=PREDICTOR_MATRIX_LOW_RES + 0.,
+            num_target_rows=PREDICTOR_MATRIX_HIGH_RES.shape[1],
+            num_target_columns=PREDICTOR_MATRIX_HIGH_RES.shape[2]
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_HIGH_RES, atol=TOLERANCE
+        ))
+
+    def test_resample_predictors_to_low_res(self):
+        """Ensures correct output from resample_predictors_spatially.
+
+        In this case, resampling to low resolution.
+        """
+
+        this_predictor_matrix = ml_utils.resample_predictors_spatially(
+            predictor_matrix=PREDICTOR_MATRIX_HIGH_RES + 0.,
+            num_target_rows=PREDICTOR_MATRIX_LOW_RES.shape[1],
+            num_target_columns=PREDICTOR_MATRIX_LOW_RES.shape[2]
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_LOW_RES, atol=TOLERANCE
         ))
 
 

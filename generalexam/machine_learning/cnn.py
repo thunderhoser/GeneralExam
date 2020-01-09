@@ -535,7 +535,7 @@ def apply_model_to_full_grid(
         pressure_levels_mb, predictor_names, normalization_file_name=None,
         normalization_type_string=None, top_gridded_front_dir_name=None,
         dilation_distance_metres=None, isotonic_model_object_by_class=None,
-        mask_matrix=None):
+        mask_matrix=None, resampling_factor=None):
     """Applies CNN independently to each grid cell in a full grid.
 
     M = number of rows in full grid
@@ -572,6 +572,9 @@ def apply_model_to_full_grid(
         These will be used to calibrate raw CNN probabilities.  If
         `isotonic_model_object_by_class is None`, there will be no calibration.
     :param mask_matrix: See doc for `write_metadata`.
+    :param resampling_factor: Will resample predictors to R * original grid
+        spacing, where R = `resampling_factor`.  If None, will not resample.
+
     :return: class_probability_matrix: 1-by-M-by-N-by-K numpy array of predicted
         probabilities.  If grid cell [i, j] is masked out,
         class_probability_matrix[0, i, j, :] = NaN.
@@ -646,8 +649,10 @@ def apply_model_to_full_grid(
                     predictor_names=predictor_names,
                     normalization_file_name=normalization_file_name,
                     normalization_type_string=normalization_type_string,
+                    resampling_factor=resampling_factor,
                     dilation_distance_metres=dilation_distance_metres,
-                    num_classes=num_classes)
+                    num_classes=num_classes
+                )
             else:
                 this_dict = testing_io.create_downsized_examples_no_targets(
                     center_row_indices=these_row_indices,
@@ -659,7 +664,9 @@ def apply_model_to_full_grid(
                     pressure_levels_mb=pressure_levels_mb,
                     predictor_names=predictor_names,
                     normalization_file_name=normalization_file_name,
-                    normalization_type_string=normalization_type_string)
+                    normalization_type_string=normalization_type_string,
+                    resampling_factor=resampling_factor
+                )
 
             full_size_predictor_matrix = this_dict[
                 testing_io.FULL_PREDICTOR_MATRIX_KEY]

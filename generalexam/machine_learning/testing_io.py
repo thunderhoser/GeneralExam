@@ -33,7 +33,8 @@ def create_downsized_examples_no_targets(
         num_half_columns, full_size_predictor_matrix=None,
         top_predictor_dir_name=None, valid_time_unix_sec=None,
         pressure_levels_mb=None, predictor_names=None,
-        normalization_file_name=None, normalization_type_string=None):
+        normalization_file_name=None, normalization_type_string=None,
+        resampling_factor=None):
     """Created downsized examples without target values.
 
     If `full_size_predictor_matrix` is defined, this method will not use the
@@ -62,6 +63,9 @@ def create_downsized_examples_no_targets(
         [used only if `normalization_file_name is None`]
         Normalization method (see doc for
         `machine_learning_utils.normalize_predictors_nonglobal`).
+    :param resampling_factor: Will resample predictors to R * original grid
+        spacing, where R = `resampling_factor`.  If None, will not resample.
+
     :return: result_dict: Dictionary with the following keys.
     result_dict['predictor_matrix']: E-by-m-by-n-by-C numpy array of predictor
         values.
@@ -108,6 +112,37 @@ def create_downsized_examples_no_targets(
                     param_file_name=normalization_file_name)
             )
 
+        if resampling_factor is not None:
+            error_checking.assert_is_greater(resampling_factor, 1.)
+
+            num_rows_fine = full_size_predictor_matrix.shape[1]
+            num_columns_fine = full_size_predictor_matrix.shape[2]
+            num_rows_coarse = int(numpy.round(
+                float(num_rows_fine) / resampling_factor
+            ))
+            num_columns_coarse = int(numpy.round(
+                float(num_columns_fine) / resampling_factor
+            ))
+
+            print((
+                'Resampling predictors from {0:d} x {1:d} to {2:d} x {3:d}...'
+            ).format(
+                num_rows_fine, num_columns_fine,
+                num_rows_coarse, num_columns_coarse
+            ))
+
+            full_size_predictor_matrix = ml_utils.resample_predictors_spatially(
+                predictor_matrix=full_size_predictor_matrix,
+                num_target_rows=num_rows_coarse,
+                num_target_columns=num_columns_coarse
+            )
+
+            full_size_predictor_matrix = ml_utils.resample_predictors_spatially(
+                predictor_matrix=full_size_predictor_matrix,
+                num_target_rows=num_rows_fine,
+                num_target_columns=num_columns_fine
+            )
+
     error_checking.assert_is_integer_numpy_array(center_row_indices)
     error_checking.assert_is_numpy_array(center_row_indices, num_dimensions=1)
 
@@ -152,7 +187,8 @@ def create_downsized_examples_with_targets(
         top_gridded_front_dir_name=None, valid_time_unix_sec=None,
         pressure_levels_mb=None, predictor_names=None,
         dilation_distance_metres=None, num_classes=3,
-        normalization_file_name=None, normalization_type_string=None):
+        normalization_file_name=None, normalization_type_string=None,
+        resampling_factor=None):
     """Created downsized examples with target values.
 
     If `full_size_predictor_matrix` is defined, this method will not use input
@@ -178,7 +214,6 @@ def create_downsized_examples_with_targets(
         `create_downsized_examples_no_targets`.
     :param pressure_levels_mb: Same.
     :param predictor_names: Same.
-    :param dilation_distance_metres:
     :param dilation_distance_metres: Dilation distance for gridded warm-front
         and cold-front labels.
     :param num_classes: Number of classes.  If `num_classes == 3`, the problem
@@ -186,8 +221,10 @@ def create_downsized_examples_with_targets(
         `num_classes == 2`, the problem will be simplified to binary (front or
         no front).
 
-    :param normalization_file_name: Same.
+    :param normalization_file_name: See doc for
+        `create_downsized_examples_no_targets`.
     :param normalization_type_string: Same.
+    :param resampling_factor: Same.
 
     :return: result_dict: Dictionary with the following keys.
     result_dict['predictor_matrix']: E-by-m-by-n-by-C numpy array of predictor
@@ -240,6 +277,37 @@ def create_downsized_examples_with_targets(
                 ],
                 param_file_name=normalization_file_name
             )[0]
+
+        if resampling_factor is not None:
+            error_checking.assert_is_greater(resampling_factor, 1.)
+
+            num_rows_fine = full_size_predictor_matrix.shape[1]
+            num_columns_fine = full_size_predictor_matrix.shape[2]
+            num_rows_coarse = int(numpy.round(
+                float(num_rows_fine) / resampling_factor
+            ))
+            num_columns_coarse = int(numpy.round(
+                float(num_columns_fine) / resampling_factor
+            ))
+
+            print((
+                'Resampling predictors from {0:d} x {1:d} to {2:d} x {3:d}...'
+            ).format(
+                num_rows_fine, num_columns_fine,
+                num_rows_coarse, num_columns_coarse
+            ))
+
+            full_size_predictor_matrix = ml_utils.resample_predictors_spatially(
+                predictor_matrix=full_size_predictor_matrix,
+                num_target_rows=num_rows_coarse,
+                num_target_columns=num_columns_coarse
+            )
+
+            full_size_predictor_matrix = ml_utils.resample_predictors_spatially(
+                predictor_matrix=full_size_predictor_matrix,
+                num_target_rows=num_rows_fine,
+                num_target_columns=num_columns_fine
+            )
 
         gridded_front_file_name = fronts_io.find_gridded_file(
             top_directory_name=top_gridded_front_dir_name,
