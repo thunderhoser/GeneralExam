@@ -104,10 +104,10 @@ def _run(top_input_dir_name, first_time_strings, last_time_strings, hours,
     if len(months) == 1 and months[0] < 1:
         months = None
 
-    num_wf_labels_matrix = []
-    num_unique_wf_matrix = []
-    num_cf_labels_matrix = []
-    num_unique_cf_matrix = []
+    num_wf_labels_matrix = None
+    num_unique_wf_matrix = None
+    num_cf_labels_matrix = None
+    num_unique_cf_matrix = None
     prediction_file_names = []
 
     for i in range(num_files):
