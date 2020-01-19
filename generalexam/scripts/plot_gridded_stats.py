@@ -275,6 +275,14 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
         NUM_ROWS_IN_CNN_PATCH:-NUM_ROWS_IN_CNN_PATCH,
         NUM_COLUMNS_IN_CNN_PATCH:-NUM_COLUMNS_IN_CNN_PATCH
     ]
+    latitude_matrix_deg = latitude_matrix_deg[
+        NUM_ROWS_IN_CNN_PATCH:-NUM_ROWS_IN_CNN_PATCH,
+        NUM_COLUMNS_IN_CNN_PATCH:-NUM_COLUMNS_IN_CNN_PATCH
+    ]
+    longitude_matrix_deg = longitude_matrix_deg[
+        NUM_ROWS_IN_CNN_PATCH:-NUM_ROWS_IN_CNN_PATCH,
+        NUM_COLUMNS_IN_CNN_PATCH:-NUM_COLUMNS_IN_CNN_PATCH
+    ]
 
     return {
         FIGURE_OBJECT_KEY: figure_object,
