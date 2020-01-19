@@ -181,12 +181,6 @@ def _plot_one_front_type(
                 model_name=nwp_model_utils.NARR_MODEL_NAME, grid_name=grid_name)
         )
 
-        x_matrix_metres, y_matrix_metres = nwp_model_utils.project_latlng_to_xy(
-            latitudes_deg=latitude_matrix_deg,
-            longitudes_deg=longitude_matrix_deg,
-            model_name=nwp_model_utils.NARR_MODEL_NAME, grid_name=grid_name
-        )
-
         matrix_to_plot = numpy.ma.masked_where(
             numpy.isnan(count_or_frequency_matrix), count_or_frequency_matrix
         )
@@ -225,6 +219,9 @@ def _plot_one_front_type(
             num_meridians=NUM_MERIDIANS, line_colour=BORDER_COLOUR
         )
 
+        x_matrix_metres, y_matrix_metres = basemap_object(
+            longitude_matrix_deg, latitude_matrix_deg
+        )
         basemap_object.pcolormesh(
             x_matrix_metres, y_matrix_metres, matrix_to_plot,
             cmap=colour_map_object, norm=colour_norm_object,
