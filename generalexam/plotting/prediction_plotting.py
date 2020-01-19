@@ -3,6 +3,7 @@
 import numpy
 import matplotlib.colors
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import front_utils
@@ -145,11 +146,80 @@ def get_warm_front_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds
 
 
-def plot_gridded_probs(
+def plot_probs_on_general_grid(
+        probability_matrix, latitude_matrix_deg, longitude_matrix_deg,
+        front_string_id, axes_object, basemap_object,
+        opacity=DEFAULT_GRID_OPACITY):
+    """Plots front probabilities on general grid.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param probability_matrix: M-by-N numpy array of predicted front
+        probabilities.
+    :param latitude_matrix_deg: M-by-N numpy array of latitudes (deg N).
+    :param longitude_matrix_deg: M-by-N numpy array of longitudes (deg E).
+    :param front_string_id: Type of fronts predicted in `probability_matrix`.
+        Must be accepted by `_check_front_type`.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Will be used to convert between lat-long and x-y
+        (projection) coordinates (instance of `mpl_toolkits.basemap.Basemap`).
+    :param opacity: Opacity for colour map (in range 0...1).
+    """
+
+    error_checking.assert_is_numpy_array(probability_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(
+        probability_matrix, 0., allow_nan=False
+    )
+    error_checking.assert_is_leq_numpy_array(
+        probability_matrix, 1., allow_nan=False
+    )
+
+    expected_dim = numpy.array(probability_matrix.shape, dtype=int)
+    error_checking.assert_is_numpy_array(
+        latitude_matrix_deg, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_valid_lat_numpy_array(
+        latitudes_deg=latitude_matrix_deg, allow_nan=False
+    )
+
+    error_checking.assert_is_numpy_array(
+        longitude_matrix_deg, exact_dimensions=expected_dim
+    )
+    longitude_matrix_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg=longitude_matrix_deg, allow_nan=False
+    )
+
+    _check_front_type(front_string_id)
+
+    if front_string_id == ANY_FRONT_STRING:
+        colour_map_object, _, colour_bounds = get_any_front_colour_map()
+    elif front_string_id == front_utils.WARM_FRONT_STRING:
+        colour_map_object, _, colour_bounds = get_warm_front_colour_map()
+    else:
+        colour_map_object, _, colour_bounds = get_cold_front_colour_map()
+
+    matrix_to_plot = numpy.ma.masked_where(
+        numpy.isnan(probability_matrix), probability_matrix
+    )
+
+    x_matrix_metres, y_matrix_metres = basemap_object(
+        longitude_matrix_deg, latitude_matrix_deg
+    )
+    basemap_object.pcolormesh(
+        x_matrix_metres, y_matrix_metres, matrix_to_plot,
+        cmap=colour_map_object, vmin=colour_bounds[1], vmax=colour_bounds[-2],
+        shading='flat', edgecolors='None',
+        ax=axes_object, zorder=-1e12, alpha=opacity
+    )
+
+
+def plot_probs_on_model_grid(
         probability_matrix, front_string_id, axes_object, basemap_object,
         full_grid_name, first_row_in_full_grid=0, first_column_in_full_grid=0,
         opacity=DEFAULT_GRID_OPACITY):
-    """Plots gridded front probabilities.
+    """Plots front probabilities on model grid.
 
     M = number of rows in grid
     N = number of columns in grid
@@ -196,11 +266,71 @@ def plot_gridded_probs(
         first_column_in_full_grid=first_column_in_full_grid, opacity=opacity)
 
 
-def plot_gridded_counts(
+def plot_counts_on_general_grid(
+        count_or_frequency_matrix, latitude_matrix_deg, longitude_matrix_deg,
+        axes_object, basemap_object, colour_map_object, colour_norm_object):
+    """Plots front counts on general grid.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param count_or_frequency_matrix: M-by-N numpy array with raw counts or
+        frequencies.
+    :param latitude_matrix_deg: M-by-N numpy array of latitudes (deg N).
+    :param longitude_matrix_deg: M-by-N numpy array of longitudes (deg E).
+    :param axes_object: See doc for `plot_probs_on_model_grid`.
+    :param basemap_object: Same.
+    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+    :param colour_norm_object: Colour-normalizer (instance of
+        `matplotlib.colors.Normalize`).  Used to convert data values to colours.
+    """
+
+    error_checking.assert_is_numpy_array(
+        count_or_frequency_matrix, num_dimensions=2
+    )
+
+    expected_dim = numpy.array(count_or_frequency_matrix.shape, dtype=int)
+    error_checking.assert_is_numpy_array(
+        latitude_matrix_deg, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_valid_lat_numpy_array(
+        latitudes_deg=latitude_matrix_deg, allow_nan=False
+    )
+
+    error_checking.assert_is_numpy_array(
+        longitude_matrix_deg, exact_dimensions=expected_dim
+    )
+    longitude_matrix_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg=longitude_matrix_deg, allow_nan=False
+    )
+
+    if hasattr(colour_norm_object, 'boundaries'):
+        min_colour_value = colour_norm_object.boundaries[0]
+        max_colour_value = colour_norm_object.boundaries[-1]
+    else:
+        min_colour_value = colour_norm_object.vmin
+        max_colour_value = colour_norm_object.vmax
+
+    matrix_to_plot = numpy.ma.masked_where(
+        numpy.isnan(count_or_frequency_matrix), count_or_frequency_matrix
+    )
+
+    x_matrix_metres, y_matrix_metres = basemap_object(
+        longitude_matrix_deg, latitude_matrix_deg
+    )
+    basemap_object.pcolormesh(
+        x_matrix_metres, y_matrix_metres, matrix_to_plot,
+        cmap=colour_map_object, norm=colour_norm_object,
+        vmin=min_colour_value, vmax=max_colour_value, shading='flat',
+        edgecolors='None', ax=axes_object, zorder=-1e12, alpha=1.
+    )
+
+
+def plot_counts_on_model_grid(
         count_or_frequency_matrix, axes_object, basemap_object,
         colour_map_object, full_grid_name, colour_norm_object=None,
         first_row_in_full_grid=0, first_column_in_full_grid=0):
-    """Plots gridded front counts.
+    """Plots front counts on model grid.
 
     M = number of rows in grid
     N = number of columns in grid
