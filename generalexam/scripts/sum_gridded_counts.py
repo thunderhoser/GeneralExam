@@ -86,7 +86,7 @@ def _run(top_input_dir_name, first_time_strings, last_time_strings, hours,
     num_files = len(first_time_strings)
     expected_dim = numpy.array([num_files], dtype=int)
     error_checking.assert_is_numpy_array(
-        last_time_strings, exact_dimensions=expected_dim
+        numpy.array(last_time_strings), exact_dimensions=expected_dim
     )
 
     first_times_unix_sec = numpy.array([
