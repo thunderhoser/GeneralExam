@@ -191,18 +191,39 @@ def _plot_one_front_type(
             numpy.isnan(count_or_frequency_matrix), count_or_frequency_matrix
         )
 
-        _, axes_object, basemap_object = (
-            plotting_utils.create_equidist_cylindrical_map(
-                min_latitude_deg=3., max_latitude_deg=82.,
-                min_longitude_deg=178., max_longitude_deg=322.)
-        )
-
         if max_colour_percentile is not None:
             max_colour_value = numpy.nanpercentile(
                 count_or_frequency_matrix, max_colour_percentile
             )
 
         colour_norm_object = pyplot.Normalize(vmin=0, vmax=max_colour_value)
+
+        _, axes_object, basemap_object = (
+            plotting_utils.create_equidist_cylindrical_map(
+                min_latitude_deg=3., max_latitude_deg=82.,
+                min_longitude_deg=178., max_longitude_deg=322.)
+        )
+
+        plotting_utils.plot_coastlines(
+            basemap_object=basemap_object, axes_object=axes_object,
+            line_colour=BORDER_COLOUR
+        )
+        plotting_utils.plot_countries(
+            basemap_object=basemap_object, axes_object=axes_object,
+            line_colour=BORDER_COLOUR
+        )
+        plotting_utils.plot_states_and_provinces(
+            basemap_object=basemap_object, axes_object=axes_object,
+            line_colour=BORDER_COLOUR
+        )
+        plotting_utils.plot_parallels(
+            basemap_object=basemap_object, axes_object=axes_object,
+            num_parallels=NUM_PARALLELS, line_colour=BORDER_COLOUR
+        )
+        plotting_utils.plot_meridians(
+            basemap_object=basemap_object, axes_object=axes_object,
+            num_meridians=NUM_MERIDIANS, line_colour=BORDER_COLOUR
+        )
 
         basemap_object.pcolormesh(
             x_matrix_metres, y_matrix_metres, matrix_to_plot,
