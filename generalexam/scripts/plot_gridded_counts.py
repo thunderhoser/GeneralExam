@@ -186,18 +186,19 @@ def _plot_one_front_type(
         data_matrix=this_matrix,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object,
-        orientation_string='horizontal', extend_min=False, extend_max=True,
-        fraction_of_axis_length=0.9)
+        orientation_string='horizontal', padding=0.05,
+        extend_min=False, extend_max=True, fraction_of_axis_length=0.9
+    )
 
     tick_values = colour_bar_object.ax.get_xticks()
     colour_bar_object.ax.set_xticks(tick_values)
 
     if plot_frequency:
-        colour_bar_object.ax.set_xticklabels(tick_values)
+        tick_strings = ['{0:.2f}'.format(x) for x in tick_values]
     else:
         tick_strings = ['{0:.1f}'.format(x) for x in tick_values]
-        colour_bar_object.ax.set_xticklabels(tick_strings)
 
+    colour_bar_object.ax.set_xticklabels(tick_values)
     pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
