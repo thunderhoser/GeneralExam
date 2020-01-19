@@ -158,7 +158,7 @@ def _run(top_input_dir_name, first_time_strings, last_time_strings, hours,
         file_type_string=climo_utils.FRONT_COUNTS_STRING,
         first_time_unix_sec=numpy.min(first_times_unix_sec),
         last_time_unix_sec=numpy.max(last_times_unix_sec),
-        hours=hours, months=months
+        hours=hours, months=months, raise_error_if_missing=False
     )
 
     print('Writing summed counts to: "{0:s}"...'.format(output_file_name))
