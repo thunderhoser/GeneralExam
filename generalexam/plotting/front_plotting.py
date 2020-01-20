@@ -171,11 +171,71 @@ def plot_polyline(
         linestyle=line_style, linewidth=line_width)
 
 
-def plot_gridded_labels(
+def plot_labels_on_general_grid(
+        label_matrix, latitude_matrix_deg, longitude_matrix_deg,
+        axes_object, basemap_object, opacity=DEFAULT_GRID_OPACITY):
+    """Plots front labels on general grid.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param label_matrix: M-by-N numpy array of labels (integers accepted by
+        `front_utils.check_front_type_enum`).
+    :param latitude_matrix_deg: M-by-N numpy array of latitudes (deg N).
+    :param longitude_matrix_deg: M-by-N numpy array of longitudes (deg E).
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param basemap_object: Will be used to convert between lat-long and x-y
+        (projection) coordinates (instance of `mpl_toolkits.basemap.Basemap`).
+    :param opacity: Opacity for colour map (in range 0...1).
+    """
+
+    error_checking.assert_is_integer_numpy_array(label_matrix)
+    error_checking.assert_is_numpy_array(label_matrix, num_dimensions=2)
+    error_checking.assert_is_geq_numpy_array(
+        label_matrix, numpy.min(front_utils.VALID_FRONT_TYPE_ENUMS)
+    )
+    error_checking.assert_is_leq_numpy_array(
+        label_matrix, numpy.max(front_utils.VALID_FRONT_TYPE_ENUMS)
+    )
+
+    expected_dim = numpy.array(label_matrix.shape, dtype=int)
+    error_checking.assert_is_numpy_array(
+        latitude_matrix_deg, exact_dimensions=expected_dim
+    )
+    error_checking.assert_is_valid_lat_numpy_array(
+        latitudes_deg=latitude_matrix_deg, allow_nan=False
+    )
+
+    error_checking.assert_is_numpy_array(
+        longitude_matrix_deg, exact_dimensions=expected_dim
+    )
+    longitude_matrix_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg=longitude_matrix_deg, allow_nan=False
+    )
+
+    colour_map_object, _, colour_bounds = get_colour_map_for_grid()
+
+    matrix_to_plot = numpy.ma.masked_where(
+        label_matrix == front_utils.NO_FRONT_ENUM, label_matrix
+    )
+
+    x_matrix_metres, y_matrix_metres = basemap_object(
+        longitude_matrix_deg, latitude_matrix_deg
+    )
+    basemap_object.pcolormesh(
+        x_matrix_metres, y_matrix_metres, matrix_to_plot,
+        cmap=colour_map_object, vmin=colour_bounds[1], vmax=colour_bounds[-2],
+        shading='flat', edgecolors='None',
+        ax=axes_object, zorder=-1e12, alpha=opacity
+    )
+
+
+def plot_labels_on_model_grid(
         gridded_front_matrix, axes_object, basemap_object, full_grid_name,
         first_row_in_full_grid=0, first_column_in_full_grid=0,
         opacity=DEFAULT_GRID_OPACITY):
-    """Plots gridded front labels.
+    """Plots front labels on model grid.
 
     :param gridded_front_matrix: See doc for
         `front_utils.gridded_labels_to_points`.
@@ -206,7 +266,8 @@ def plot_gridded_labels(
 
     gridded_front_matrix = numpy.ma.masked_where(
         gridded_front_matrix == front_utils.NO_FRONT_ENUM,
-        gridded_front_matrix)
+        gridded_front_matrix
+    )
 
     nwp_plotting.plot_subgrid(
         field_matrix=gridded_front_matrix,
@@ -214,4 +275,5 @@ def plot_gridded_labels(
         basemap_object=basemap_object, colour_map_object=colour_map_object,
         min_colour_value=colour_bounds[1], max_colour_value=colour_bounds[-2],
         grid_id=full_grid_name, first_row_in_full_grid=first_row_in_full_grid,
-        first_column_in_full_grid=first_column_in_full_grid, opacity=opacity)
+        first_column_in_full_grid=first_column_in_full_grid, opacity=opacity
+    )
