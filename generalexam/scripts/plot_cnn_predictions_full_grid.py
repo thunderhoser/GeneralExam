@@ -186,7 +186,7 @@ def _plot_one_time(
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation_string='horizontal',
-                padding=-0.04 if plot_cf_colour_bar else 0.06,
+                padding=-0.06 if plot_cf_colour_bar else 0.06,
                 extend_min=True, extend_max=False, fraction_of_axis_length=1.
             )
 
