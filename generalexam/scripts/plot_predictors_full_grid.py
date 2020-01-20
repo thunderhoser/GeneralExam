@@ -293,10 +293,10 @@ def _read_one_file(
         predictor_matrix[..., 0] *= KG_TO_GRAMS
 
     if rotation_cosine_matrix is not None:
-        predictor_matrix[..., 1], predictor_matrix[..., 2] = (
+        predictor_matrix[0, ..., 1], predictor_matrix[0, ..., 2] = (
             nwp_model_utils.rotate_winds_to_earth_relative(
-                u_winds_grid_relative_m_s01=predictor_matrix[..., 1],
-                v_winds_grid_relative_m_s01=predictor_matrix[..., 2],
+                u_winds_grid_relative_m_s01=predictor_matrix[0, ..., 1],
+                v_winds_grid_relative_m_s01=predictor_matrix[0, ..., 2],
                 rotation_angle_cosines=rotation_cosine_matrix,
                 rotation_angle_sines=rotation_sine_matrix)
         )
