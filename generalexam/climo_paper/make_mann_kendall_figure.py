@@ -18,6 +18,9 @@ NUM_YEARS = 40
 METRES_TO_KM = 0.001
 MASK_IF_NUM_LABELS_BELOW = 100
 
+NUM_ROWS_IN_CNN_PATCH = plot_gridded_stats.NUM_ROWS_IN_CNN_PATCH
+NUM_COLUMNS_IN_CNN_PATCH = plot_gridded_stats.NUM_COLUMNS_IN_CNN_PATCH
+
 FIRST_TIME_UNIX_SEC = time_conversion.first_and_last_times_in_year(1979)[0]
 LAST_TIME_UNIX_SEC = (
     time_conversion.first_and_last_times_in_year(2018)[1] - 10799
@@ -53,26 +56,27 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
     '`climatology_utils.find_mann_kendall_file` and read by '
-    '`climatology_utils.read_mann_kendall_test`.')
-
+    '`climatology_utils.read_mann_kendall_test`.'
+)
 PLOT_FREQUENCY_HELP_STRING = (
     'Boolean flag.  If 1, will plot trends for WF and CF frequency.  If 0, will'
-    ' plot trends for WF and CF length.')
-
+    ' plot trends for WF and CF length.'
+)
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING)
-
+    help=INPUT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_FREQUENCY_ARG_NAME, type=int, required=True,
-    help=PLOT_FREQUENCY_HELP_STRING)
-
+    help=PLOT_FREQUENCY_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _plot_one_trend(
@@ -100,51 +104,50 @@ def _plot_one_trend(
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
-    basemap_dict = plot_gridded_stats._plot_basemap(
-        trend_matrix_year01, border_colour=BORDER_COLOUR)
+    basemap_dict = plot_gridded_stats.plot_basemap(
+        data_matrix=trend_matrix_year01, border_colour=BORDER_COLOUR
+    )
 
+    figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
     axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
     basemap_object = basemap_dict[plot_gridded_stats.BASEMAP_OBJECT_KEY]
-    full_grid_name = basemap_dict[plot_gridded_stats.FULL_GRID_NAME_KEY]
-    full_grid_row_limits = basemap_dict[plot_gridded_stats.FULL_GRID_ROWS_KEY]
-    full_grid_column_limits = basemap_dict[
-        plot_gridded_stats.FULL_GRID_COLUMNS_KEY]
+    latitude_matrix_deg = basemap_dict[plot_gridded_stats.LATITUDES_KEY]
+    longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
 
-    matrix_to_plot = NUM_YEARS * trend_matrix_year01[
-        full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
-        full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
+    trend_matrix_to_plot = trend_matrix_year01[
+        NUM_ROWS_IN_CNN_PATCH:-NUM_ROWS_IN_CNN_PATCH,
+        NUM_COLUMNS_IN_CNN_PATCH:-NUM_COLUMNS_IN_CNN_PATCH
     ]
-
     sig_matrix_to_plot = significance_matrix[
-        full_grid_row_limits[0]:(full_grid_row_limits[1] + 1),
-        full_grid_column_limits[0]:(full_grid_column_limits[1] + 1)
+        NUM_ROWS_IN_CNN_PATCH:-NUM_ROWS_IN_CNN_PATCH,
+        NUM_COLUMNS_IN_CNN_PATCH:-NUM_COLUMNS_IN_CNN_PATCH
     ]
 
     colour_norm_object = pyplot.Normalize(
-        vmin=-max_colour_value, vmax=max_colour_value)
+        vmin=-max_colour_value, vmax=max_colour_value
+    )
 
-    prediction_plotting.plot_gridded_counts(
-        count_or_frequency_matrix=matrix_to_plot,
+    prediction_plotting.plot_counts_on_general_grid(
+        count_or_frequency_matrix=trend_matrix_to_plot,
+        latitude_matrix_deg=latitude_matrix_deg,
+        longitude_matrix_deg=longitude_matrix_deg,
         axes_object=axes_object, basemap_object=basemap_object,
         colour_map_object=COLOUR_MAP_OBJECT,
-        colour_norm_object=colour_norm_object, full_grid_name=full_grid_name,
-        first_row_in_full_grid=full_grid_row_limits[0],
-        first_column_in_full_grid=full_grid_column_limits[0]
+        colour_norm_object=colour_norm_object
     )
 
-    significant_rows, significant_columns = numpy.where(sig_matrix_to_plot)
-    significant_y_coords = (
-        (significant_rows + 0.5) / sig_matrix_to_plot.shape[0]
-    )
-    significant_x_coords = (
-        (significant_columns + 0.5) / sig_matrix_to_plot.shape[1]
+    sig_latitudes_deg = latitude_matrix_deg[sig_matrix_to_plot == True]
+    sig_longitudes_deg = longitude_matrix_deg[sig_matrix_to_plot == True]
+    sig_x_coords_metres, sig_y_coords_metres = basemap_object(
+        sig_longitudes_deg, sig_latitudes_deg
     )
 
     axes_object.plot(
-        significant_x_coords, significant_y_coords, linestyle='None',
-        marker=SIG_MARKER_TYPE, markersize=SIG_MARKER_SIZE,
+        sig_x_coords_metres, sig_y_coords_metres,
+        linestyle='None', marker=SIG_MARKER_TYPE,
         markerfacecolor=SIG_MARKER_COLOUR, markeredgecolor=SIG_MARKER_COLOUR,
-        markeredgewidth=SIG_MARKER_EDGE_WIDTH, transform=axes_object.transAxes)
+        markersize=SIG_MARKER_SIZE, markeredgewidth=SIG_MARKER_EDGE_WIDTH
+    )
 
     if not plot_latitudes:
         axes_object.set_yticklabels([])
@@ -153,12 +156,12 @@ def _plot_one_trend(
 
     if plot_colour_bar:
         colour_bar_object = plotting_utils.plot_colour_bar(
-            axes_object_or_matrix=axes_object,
-            data_matrix=matrix_to_plot,
+            axes_object_or_matrix=axes_object, data_matrix=trend_matrix_to_plot,
             colour_map_object=COLOUR_MAP_OBJECT,
             colour_norm_object=colour_norm_object,
-            orientation_string='horizontal', extend_min=True, extend_max=True,
-            fraction_of_axis_length=0.9)
+            orientation_string='horizontal', padding=0.05,
+            extend_min=True, extend_max=True, fraction_of_axis_length=1.
+        )
 
         tick_values = colour_bar_object.ax.get_xticks()
         colour_bar_object.ax.set_xticks(tick_values)
@@ -172,16 +175,18 @@ def _plot_one_trend(
 
         colour_bar_object.ax.set_xticklabels(tick_strings)
 
-    pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
+    axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
     plotting_utils.label_axes(
         axes_object=axes_object,
         label_string='({0:s})'.format(letter_label)
     )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI, pad_inches=0,
-                   bbox_inches='tight')
-    pyplot.close()
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _run(top_input_dir_name, plot_frequency, output_file_name):
@@ -231,24 +236,27 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
             this_input_dir_name = '{0:s}/{1:s}'.format(
                 top_input_dir_name, season_strings_verbose[i]
             )
-
             this_file_name = climo_utils.find_mann_kendall_file(
                 directory_name=this_input_dir_name,
                 property_name=property_names[j],
-                raise_error_if_missing=True)
+                raise_error_if_missing=True
+            )
 
             print('Reading data from file: "{0:s}"...'.format(this_file_name))
             this_mann_kendall_dict = climo_utils.read_mann_kendall_test(
-                this_file_name)
+                this_file_name
+            )
 
-            this_num_labels_matrix = this_mann_kendall_dict[
-                climo_utils.NUM_LABELS_MATRIX_KEY]
+            this_num_labels_matrix = (
+                this_mann_kendall_dict[climo_utils.NUM_LABELS_MATRIX_KEY]
+            )
             this_trend_matrix_year01 = (
                 conversion_ratio *
                 this_mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
             )
-            this_significance_matrix = this_mann_kendall_dict[
-                climo_utils.SIGNIFICANCE_MATRIX_KEY]
+            this_significance_matrix = (
+                this_mann_kendall_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+            )
 
             this_trend_matrix_year01[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
@@ -307,11 +315,12 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
     print('Concatenating panels to: "{0:s}"...'.format(output_file_name))
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=output_file_name,
-        num_panel_rows=num_seasons, num_panel_columns=num_properties)
-
+        num_panel_rows=num_seasons, num_panel_columns=num_properties
+    )
     imagemagick_utils.resize_image(
         input_file_name=output_file_name, output_file_name=output_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PX)
+        output_size_pixels=CONCAT_FIGURE_SIZE_PX
+    )
 
     for this_file_name in panel_file_names:
         print('Removing temporary file "{0:s}"...'.format(this_file_name))
