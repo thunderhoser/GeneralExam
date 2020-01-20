@@ -185,8 +185,8 @@ def _plot_one_time(
                 data_matrix=wf_prob_matrix_to_plot,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='horizontal', padding=0.05,
-                extend_min=True, extend_max=False, fraction_of_axis_length=0.65
+                orientation_string='vertical',
+                extend_min=True, extend_max=False, fraction_of_axis_length=0.6
             )
 
         if plot_cf_colour_bar:
@@ -194,18 +194,13 @@ def _plot_one_time(
                 prediction_plotting.get_cold_front_colour_map()[:2]
             )
 
-            if plot_wf_colour_bar:
-                orientation_string = 'vertical'
-            else:
-                orientation_string = 'horizontal'
-
             plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object,
                 data_matrix=cf_prob_matrix_to_plot,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string=orientation_string,
-                extend_min=True, extend_max=False, fraction_of_axis_length=0.65
+                orientation_string='vertical',
+                extend_min=True, extend_max=False, fraction_of_axis_length=0.6
             )
 
     # axes_object.set_title(title_string)
