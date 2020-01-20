@@ -185,7 +185,7 @@ def _plot_one_time(
                 data_matrix=wf_prob_matrix_to_plot,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='vertical',
+                orientation_string='horizontal',
                 extend_min=True, extend_max=False, fraction_of_axis_length=0.6
             )
 
@@ -199,7 +199,7 @@ def _plot_one_time(
                 data_matrix=cf_prob_matrix_to_plot,
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation_string='vertical',
+                orientation_string='horizontal',
                 extend_min=True, extend_max=False, fraction_of_axis_length=0.6
             )
 
