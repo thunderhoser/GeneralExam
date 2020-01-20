@@ -1,4 +1,4 @@
-"""Makes 4-panel figure with WF or CF frequency in all seasons."""
+"""Makes 4-panel figure with mean WF or CF length in each season."""
 
 import os
 import argparse
@@ -15,7 +15,9 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 from generalexam.scripts import plot_gridded_stats
 
-NUM_YEARS = 40
+METRES_TO_KM = 0.001
+MASK_IF_NUM_LABELS_BELOW = 100
+
 FIRST_TIME_UNIX_SEC = time_conversion.first_and_last_times_in_year(1979)[0]
 LAST_TIME_UNIX_SEC = (
     time_conversion.first_and_last_times_in_year(2018)[1] - 10799
@@ -28,23 +30,23 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
     climo_utils.FALL_STRING: 'fall'
 }
 
-MAX_WF_FREQUENCY = 0.08
-MAX_CF_FREQUENCY = 0.14
-WF_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
-CF_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlGnBu')
+MAX_WF_LENGTH_KM = 1500
+MAX_CF_LENGTH_KM = 3000
+# COLOUR_MAP_OBJECT = pyplot.get_cmap('PuBuGn')
+COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 
 TITLE_FONT_SIZE = 30
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_DIR_ARG_NAME = 'input_frequency_dir_name'
+INPUT_DIR_ARG_NAME = 'input_statistic_dir_name'
 FRONT_TYPE_ARG_NAME = 'front_type_string'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein will be found by '
     '`climatology_utils.find_aggregated_file` and read by '
-    '`climatology_utils.read_gridded_counts`.'
+    '`climatology_utils.read_gridded_stats`.'
 )
 
 FRONT_TYPE_HELP_STRING = (
@@ -70,15 +72,13 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _plot_one_front_type(
-        count_or_frequency_matrix, colour_map_object, plot_latitudes,
-        plot_longitudes, plot_colour_bar, title_string, letter_label,
-        output_file_name, max_colour_percentile=None, max_colour_value=None):
-    """Plots gridded counts or frequencies for one front type.
+def _plot_one_statistic(
+        statistic_matrix, max_colour_value, plot_latitudes, plot_longitudes,
+        plot_colour_bar, title_string, letter_label, output_file_name):
+    """Plots one statistic for one season.
 
-    :param count_or_frequency_matrix: 2-D numpy array with number or frequency
-        of fronts at each grid cell.
-    :param colour_map_object: Colour map (instance of `matplotlib.pyplot.cm`).
+    :param statistic_matrix: 2-D numpy array with value at each grid cell.
+    :param max_colour_value: Max value in colour scheme.
     :param plot_latitudes: Boolean flag.  Determines whether or not numbers will
         be plotted on y-axis.
     :param plot_longitudes: Boolean flag.  Determines whether or not numbers
@@ -88,17 +88,9 @@ def _plot_one_front_type(
     :param title_string: Title.
     :param letter_label: Letter label (will appear at top-left of panel).
     :param output_file_name: Path to output file.  Figure will be saved here.
-    :param max_colour_percentile: [may be None]
-        Max percentile in colour scheme.  The max value will be the [q]th
-        percentile of all values in `count_or_frequency_matrix`, where q =
-        `max_colour_percentile`.
-    :param max_colour_value: [used only if `max_colour_percentile is None`]
-        Max value in colour scheme.
     """
 
-    basemap_dict = plot_gridded_stats.plot_basemap(
-        data_matrix=count_or_frequency_matrix
-    )
+    basemap_dict = plot_gridded_stats.plot_basemap(data_matrix=statistic_matrix)
 
     figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
     axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
@@ -107,11 +99,6 @@ def _plot_one_front_type(
     latitude_matrix_deg = basemap_dict[plot_gridded_stats.LATITUDES_KEY]
     longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
 
-    if max_colour_percentile is not None:
-        max_colour_value = numpy.nanpercentile(
-            matrix_to_plot, max_colour_percentile
-        )
-
     colour_norm_object = pyplot.Normalize(vmin=0, vmax=max_colour_value)
 
     prediction_plotting.plot_counts_on_general_grid(
@@ -119,7 +106,7 @@ def _plot_one_front_type(
         latitude_matrix_deg=latitude_matrix_deg,
         longitude_matrix_deg=longitude_matrix_deg,
         axes_object=axes_object, basemap_object=basemap_object,
-        colour_map_object=colour_map_object,
+        colour_map_object=COLOUR_MAP_OBJECT,
         colour_norm_object=colour_norm_object
     )
 
@@ -131,7 +118,7 @@ def _plot_one_front_type(
     if plot_colour_bar:
         colour_bar_object = plotting_utils.plot_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
-            colour_map_object=colour_map_object,
+            colour_map_object=COLOUR_MAP_OBJECT,
             colour_norm_object=colour_norm_object,
             orientation_string='horizontal', padding=0.05,
             extend_min=False, extend_max=True, fraction_of_axis_length=1.
@@ -155,12 +142,12 @@ def _plot_one_front_type(
     pyplot.close(figure_object)
 
 
-def _run(frequency_dir_name, front_type_string, output_file_name):
-    """Makes 8-panel front-occurrence figure.
+def _run(statistic_dir_name, front_type_string, output_file_name):
+    """Makes 8-panel figure with gridded front statistics.
 
     This is effectively the main method.
 
-    :param frequency_dir_name: See documentation at top of file.
+    :param statistic_dir_name: See documentation at top of file.
     :param front_type_string: Same.
     :param output_file_name: Same.
     """
@@ -184,8 +171,8 @@ def _run(frequency_dir_name, front_type_string, output_file_name):
 
     for i in range(num_seasons):
         this_file_name = climo_utils.find_aggregated_file(
-            directory_name=frequency_dir_name,
-            file_type_string=climo_utils.FRONT_COUNTS_STRING,
+            directory_name=statistic_dir_name,
+            file_type_string=climo_utils.FRONT_STATS_STRING,
             first_time_unix_sec=FIRST_TIME_UNIX_SEC,
             last_time_unix_sec=LAST_TIME_UNIX_SEC,
             months=climo_utils.season_to_months(season_strings_abbrev[i]),
@@ -193,35 +180,41 @@ def _run(frequency_dir_name, front_type_string, output_file_name):
         )
 
         print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_frequency_dict = climo_utils.read_gridded_counts(this_file_name)
-        this_num_times = len(
-            this_frequency_dict[climo_utils.PREDICTION_FILES_KEY]
-        )
+        this_statistic_dict = climo_utils.read_gridded_stats(this_file_name)
 
         if front_type_string == front_utils.WARM_FRONT_STRING:
-            this_frequency_matrix = (
-                this_frequency_dict[climo_utils.NUM_WF_LABELS_KEY] /
-                this_num_times
-            )
+            front_type_abbrev = 'wf'
+            max_colour_value = MAX_WF_LENGTH_KM
 
-            this_max_colour_value = MAX_WF_FREQUENCY
-            this_colour_map_object = WF_COLOUR_MAP_OBJECT
-            this_title_string = 'WF'
+            this_num_labels_matrix = (
+                this_statistic_dict[climo_utils.NUM_WF_LABELS_KEY]
+            )
+            this_length_matrix_km = (
+                this_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY] *
+                METRES_TO_KM
+            )
         else:
-            this_frequency_matrix = (
-                this_frequency_dict[climo_utils.NUM_CF_LABELS_KEY] /
-                this_num_times
+            front_type_abbrev = 'cf'
+            max_colour_value = MAX_CF_LENGTH_KM
+
+            this_num_labels_matrix = (
+                this_statistic_dict[climo_utils.NUM_CF_LABELS_KEY]
+            )
+            this_length_matrix_km = (
+                this_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY] *
+                METRES_TO_KM
             )
 
-            this_max_colour_value = MAX_CF_FREQUENCY
-            this_colour_map_object = CF_COLOUR_MAP_OBJECT
-            this_title_string = 'CF'
+        this_length_matrix_km[
+            this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+        ] = numpy.nan
 
-        this_title_string += ' frequency in {0:s}'.format(
-            season_strings_verbose[i]
+        this_title_string = 'Mean {0:s} length (km) in {1:s}'.format(
+            front_type_abbrev.upper(), season_strings_verbose[i]
         )
-        this_output_file_name = '{0:s}_frequency_{1:s}.jpg'.format(
-            extensionless_output_file_name, season_strings_abbrev[i]
+        this_output_file_name = '{0:s}_{1:s}_{2:s}.jpg'.format(
+            extensionless_output_file_name, front_type_abbrev,
+            season_strings_abbrev[i]
         )
         panel_file_names.append(this_output_file_name)
 
@@ -230,14 +223,13 @@ def _run(frequency_dir_name, front_type_string, output_file_name):
         else:
             letter_label = chr(ord(letter_label) + 1)
 
-        _plot_one_front_type(
-            count_or_frequency_matrix=this_frequency_matrix,
-            colour_map_object=this_colour_map_object,
+        _plot_one_statistic(
+            statistic_matrix=this_length_matrix_km,
+            max_colour_value=max_colour_value,
             plot_latitudes=True, plot_longitudes=i == num_seasons - 1,
             plot_colour_bar=i >= num_seasons - 2,
             title_string=this_title_string, letter_label=letter_label,
-            output_file_name=panel_file_names[-1],
-            max_colour_value=this_max_colour_value
+            output_file_name=panel_file_names[-1]
         )
 
     print('Concatenating panels to: "{0:s}"...'.format(output_file_name))
@@ -251,7 +243,7 @@ def _run(frequency_dir_name, front_type_string, output_file_name):
     )
 
     for this_file_name in panel_file_names:
-        print('Removing temporary file: "{0:s}"...'.format(this_file_name))
+        print('Removing temporary file "{0:s}"...'.format(this_file_name))
         os.remove(this_file_name)
 
 
@@ -259,7 +251,7 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        frequency_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        statistic_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         front_type_string=getattr(INPUT_ARG_OBJECT, FRONT_TYPE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
