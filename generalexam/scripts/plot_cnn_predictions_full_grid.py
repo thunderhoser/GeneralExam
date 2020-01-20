@@ -186,7 +186,7 @@ def _plot_one_time(
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation_string='horizontal', padding=0.05,
-                extend_min=True, extend_max=False, fraction_of_axis_length=0.9
+                extend_min=True, extend_max=False, fraction_of_axis_length=0.65
             )
 
         if plot_cf_colour_bar:
@@ -205,7 +205,7 @@ def _plot_one_time(
                 colour_map_object=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation_string=orientation_string,
-                extend_min=True, extend_max=False, fraction_of_axis_length=0.9
+                extend_min=True, extend_max=False, fraction_of_axis_length=0.65
             )
 
     # axes_object.set_title(title_string)
