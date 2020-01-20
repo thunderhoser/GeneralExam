@@ -114,7 +114,7 @@ def _plot_one_trend(
     latitude_matrix_deg = basemap_dict[plot_gridded_stats.LATITUDES_KEY]
     longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
 
-    trend_matrix_to_plot = trend_matrix_year01[
+    trend_matrix_to_plot = NUM_YEARS * trend_matrix_year01[
         NUM_ROWS_IN_CNN_PATCH:-NUM_ROWS_IN_CNN_PATCH,
         NUM_COLUMNS_IN_CNN_PATCH:-NUM_COLUMNS_IN_CNN_PATCH
     ]
