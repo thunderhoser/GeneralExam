@@ -180,7 +180,7 @@ def _plot_one_time(
                 prediction_plotting.get_warm_front_colour_map()[:2]
             )
 
-            this_colour_bar_object = plotting_utils.plot_colour_bar(
+            plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object,
                 data_matrix=wf_prob_matrix_to_plot,
                 colour_map_object=this_colour_map_object,
@@ -189,14 +189,12 @@ def _plot_one_time(
                 extend_min=True, extend_max=False, fraction_of_axis_length=1.
             )
 
-            this_colour_bar_object.set_ticks([])
-
         if plot_cf_colour_bar:
             this_colour_map_object, this_colour_norm_object = (
                 prediction_plotting.get_cold_front_colour_map()[:2]
             )
 
-            plotting_utils.plot_colour_bar(
+            this_colour_bar_object = plotting_utils.plot_colour_bar(
                 axes_object_or_matrix=axes_object,
                 data_matrix=cf_prob_matrix_to_plot,
                 colour_map_object=this_colour_map_object,
@@ -204,6 +202,9 @@ def _plot_one_time(
                 orientation_string='horizontal', padding=0.06,
                 extend_min=True, extend_max=False, fraction_of_axis_length=1.
             )
+
+            if plot_wf_colour_bar:
+                this_colour_bar_object.set_ticks([])
 
     # axes_object.set_title(title_string)
 
