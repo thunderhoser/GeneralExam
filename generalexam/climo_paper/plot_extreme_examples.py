@@ -31,15 +31,15 @@ WIND_FIELD_NAMES = [
     predictor_utils.U_WIND_GRID_RELATIVE_NAME,
     predictor_utils.V_WIND_GRID_RELATIVE_NAME
 ]
-# SCALAR_FIELD_NAMES = [
-#     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
-#     predictor_utils.WET_BULB_THETA_NAME,
-#     predictor_utils.PRESSURE_NAME, predictor_utils.HEIGHT_NAME
-# ]
 SCALAR_FIELD_NAMES = [
     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
-    predictor_utils.WET_BULB_THETA_NAME
+    predictor_utils.WET_BULB_THETA_NAME,
+    predictor_utils.PRESSURE_NAME, predictor_utils.HEIGHT_NAME
 ]
+# SCALAR_FIELD_NAMES = [
+#     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
+#     predictor_utils.WET_BULB_THETA_NAME
+# ]
 
 MAIN_FONT_SIZE = 25
 AXES_TITLE_FONT_SIZE = 25

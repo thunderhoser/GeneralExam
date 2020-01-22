@@ -50,8 +50,9 @@ FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 OUTPUT_RESOLUTION_DPI = 600
 OUTPUT_FILE_NAME = (
-    '/localdata/ryan.lagerquist/general_exam/journal_paper/figure_workspace/'
-    'tfp_schematic/tfp_schematic.jpg')
+    '/home/ryan.lagerquist/Downloads/ams2020_talks/front_detection/'
+    'tfp_schematic.jpg'
+)
 
 
 def _create_temperature_grid():
@@ -150,13 +151,14 @@ def _plot_temperature_grid(temperature_matrix_kelvins):
         vmax=numpy.max(temperature_matrix_kelvins), shading='flat',
         edgecolors='None', axes=axes_object)
 
-    colour_bar_object = plotting_utils.add_linear_colour_bar(
-        axes_object_or_list=axes_object,
-        values_to_colour=temperature_matrix_kelvins,
-        colour_map=_create_colour_scheme(temperature_matrix_kelvins),
-        colour_min=numpy.min(temperature_matrix_kelvins),
-        colour_max=numpy.max(temperature_matrix_kelvins),
-        orientation='vertical', extend_min=False, extend_max=False)
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object,
+        data_matrix=temperature_matrix_kelvins,
+        colour_map_object=_create_colour_scheme(temperature_matrix_kelvins),
+        min_value=numpy.min(temperature_matrix_kelvins),
+        max_value=numpy.max(temperature_matrix_kelvins),
+        orientation_string='vertical', extend_min=False, extend_max=False
+    )
 
     colour_bar_object.set_ticks([])
     colour_bar_object.set_label(r'Thermal variable ($\tau$)')
