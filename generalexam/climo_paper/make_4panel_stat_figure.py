@@ -34,6 +34,7 @@ MAX_WF_LENGTH_KM = 1500
 MAX_CF_LENGTH_KM = 3000
 # COLOUR_MAP_OBJECT = pyplot.get_cmap('PuBuGn')
 COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
+BORDER_COLOUR = numpy.full(3, 152. / 255)
 
 TITLE_FONT_SIZE = 30
 FIGURE_RESOLUTION_DPI = 300
@@ -90,7 +91,9 @@ def _plot_one_statistic(
     :param output_file_name: Path to output file.  Figure will be saved here.
     """
 
-    basemap_dict = plot_gridded_stats.plot_basemap(data_matrix=statistic_matrix)
+    basemap_dict = plot_gridded_stats.plot_basemap(
+        data_matrix=statistic_matrix, border_colour=BORDER_COLOUR
+    )
 
     figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
     axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]

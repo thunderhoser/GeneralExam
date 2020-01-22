@@ -189,7 +189,10 @@ def _plot_one_front_type(
     colour_bar_object.ax.set_xticks(tick_values)
 
     if plot_frequency:
-        tick_strings = ['{0:.2f}'.format(x) for x in tick_values]
+        if tick_values[-1] < 0.1:
+            tick_strings = ['{0:.3f}'.format(x) for x in tick_values]
+        else:
+            tick_strings = ['{0:.2f}'.format(x) for x in tick_values]
     else:
         tick_strings = ['{0:.1f}'.format(x) for x in tick_values]
 
