@@ -403,10 +403,17 @@ def _plot_one_time(
         ::PLOT_EVERY_KTH_WIND_BARB
     ]
 
+    nan_flags = numpy.logical_or(
+        numpy.isnan(u_winds_m_s01), numpy.isnan(v_winds_m_s01)
+    )
+    real_indices = numpy.where(numpy.invert(nan_flags))[0]
+
     wind_plotting.plot_wind_barbs(
         basemap_object=basemap_object, axes_object=axes_object,
-        latitudes_deg=wind_latitudes_deg, longitudes_deg=wind_longitudes_deg,
-        u_winds_m_s01=u_winds_m_s01, v_winds_m_s01=v_winds_m_s01,
+        latitudes_deg=wind_latitudes_deg[real_indices],
+        longitudes_deg=wind_longitudes_deg[real_indices],
+        u_winds_m_s01=u_winds_m_s01[real_indices],
+        v_winds_m_s01=v_winds_m_s01[real_indices],
         barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
         fill_empty_barb=False, colour_map=WIND_COLOUR_MAP_OBJECT,
         colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
