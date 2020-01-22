@@ -4,6 +4,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.colors
+from geopy.distance import vincenty
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
@@ -19,7 +20,7 @@ DEFAULT_GRID_OPACITY = 0.5
 
 DEFAULT_WF_MARKER_TYPE = 'o'
 DEFAULT_CF_MARKER_TYPE = '>'
-DEFAULT_MARKER_SPACING_METRES = 50000.
+DEFAULT_MARKER_SPACING_METRES = 100000.
 DEFAULT_MARKER_SIZE = 12
 DEFAULT_MARKER_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 
@@ -102,32 +103,33 @@ def plot_front_with_markers(
         else:
             marker_type = DEFAULT_CF_MARKER_TYPE
 
-    x_coords_metres, y_coords_metres = basemap_object(
-        line_longitudes_deg, line_latitudes_deg)
-
-    print(x_coords_metres)
-    print(y_coords_metres)
+    basemap_x_coords, basemap_y_coords = basemap_object(
+        line_longitudes_deg, line_latitudes_deg
+    )
 
     for i in range(num_points - 1):
-        this_x_diff_metres = x_coords_metres[i + 1] - x_coords_metres[i]
-        this_y_diff_metres = y_coords_metres[i + 1] - y_coords_metres[i]
-        this_distance_metres = numpy.sqrt(
-            this_x_diff_metres ** 2 + this_y_diff_metres ** 2)
+        this_distance_metres = vincenty(
+            (line_latitudes_deg[i], line_longitudes_deg[i]),
+            (line_latitudes_deg[i + 1], line_longitudes_deg[i + 1])
+        ).meters
 
         this_num_points = 1 + int(numpy.ceil(
             this_distance_metres / marker_spacing_metres
         ))
 
-        these_x_coords_metres = numpy.linspace(
-            x_coords_metres[i], x_coords_metres[i + 1], num=this_num_points)
-        these_y_coords_metres = numpy.linspace(
-            y_coords_metres[i], y_coords_metres[i + 1], num=this_num_points)
+        these_x_coords = numpy.linspace(
+            basemap_x_coords[i], basemap_x_coords[i + 1], num=this_num_points
+        )
+        these_y_coords = numpy.linspace(
+            basemap_y_coords[i], basemap_y_coords[i + 1], num=this_num_points
+        )
 
         axes_object.plot(
-            these_x_coords_metres, these_y_coords_metres,
-            linestyle='None', marker=marker_type, markerfacecolor=marker_colour,
+            these_x_coords, these_y_coords, linestyle='None',
+            marker=marker_type, markerfacecolor=marker_colour,
             markeredgecolor=marker_colour, markersize=marker_size,
-            markeredgewidth=0.1)
+            markeredgewidth=0.1
+        )
 
 
 def plot_polyline(
