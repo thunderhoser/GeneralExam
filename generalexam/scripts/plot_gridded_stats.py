@@ -24,6 +24,7 @@ METRES2_TO_THOUSAND_KM2 = 1e-9
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
 DEFAULT_BORDER_COLOUR = numpy.full(3, 0.)
+MONTE_CARLO_BORDER_COLOUR = numpy.full(3, 152. / 255)
 
 MIN_ERA5_LATITUDE_DEG = 3.
 MIN_ERA5_LONGITUDE_DEG = 178.
@@ -325,7 +326,9 @@ def plot_monte_carlo_diff(
         Max value in colour scheme.  Minimum value will be -1 * max value.
     """
 
-    basemap_dict = plot_basemap(data_matrix=difference_matrix)
+    basemap_dict = plot_basemap(
+        data_matrix=difference_matrix, border_colour=MONTE_CARLO_BORDER_COLOUR
+    )
 
     figure_object = basemap_dict[FIGURE_OBJECT_KEY]
     axes_object = basemap_dict[AXES_OBJECT_KEY]
