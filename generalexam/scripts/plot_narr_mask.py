@@ -160,6 +160,7 @@ def _make_one_plot(
         longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
 
         matrix_to_plot = matrix_to_plot.astype(float)
+        matrix_to_plot[matrix_to_plot == 0] = numpy.nan
         max_colour_value = numpy.nanpercentile(
             matrix_to_plot, max_percentile_for_colours
         )
