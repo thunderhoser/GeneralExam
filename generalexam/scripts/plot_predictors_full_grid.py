@@ -390,18 +390,23 @@ def _plot_one_time(
         predictor_utils.V_WIND_GRID_RELATIVE_NAME
     )
 
-    u_winds_m_s01 = numpy.ravel(matrix_to_plot[..., u_wind_index])[
-        ::PLOT_EVERY_KTH_WIND_BARB
+    u_wind_matrix_m_s01 = matrix_to_plot[..., u_wind_index][
+        ::PLOT_EVERY_KTH_WIND_BARB, ::PLOT_EVERY_KTH_WIND_BARB
     ]
-    v_winds_m_s01 = numpy.ravel(matrix_to_plot[..., v_wind_index])[
-        ::PLOT_EVERY_KTH_WIND_BARB
+    v_wind_matrix_m_s01 = matrix_to_plot[..., v_wind_index][
+        ::PLOT_EVERY_KTH_WIND_BARB, ::PLOT_EVERY_KTH_WIND_BARB
     ]
-    wind_latitudes_deg = numpy.ravel(latitude_matrix_deg)[
-        ::PLOT_EVERY_KTH_WIND_BARB
+    latitude_matrix_deg = latitude_matrix_deg[
+        ::PLOT_EVERY_KTH_WIND_BARB, ::PLOT_EVERY_KTH_WIND_BARB
     ]
-    wind_longitudes_deg = numpy.ravel(longitude_matrix_deg)[
-        ::PLOT_EVERY_KTH_WIND_BARB
+    longitude_matrix_deg = longitude_matrix_deg[
+        ::PLOT_EVERY_KTH_WIND_BARB, ::PLOT_EVERY_KTH_WIND_BARB
     ]
+
+    u_winds_m_s01 = numpy.ravel(u_wind_matrix_m_s01)
+    v_winds_m_s01 = numpy.ravel(v_wind_matrix_m_s01)
+    wind_latitudes_deg = numpy.ravel(latitude_matrix_deg)
+    wind_longitudes_deg = numpy.ravel(longitude_matrix_deg)
 
     nan_flags = numpy.logical_or(
         numpy.isnan(u_winds_m_s01), numpy.isnan(v_winds_m_s01)
