@@ -358,7 +358,7 @@ def _plot_one_time(
         )
 
         prediction_plotting.plot_counts_on_general_grid(
-            count_or_frequency_matrix=matrix_to_plot,
+            count_or_frequency_matrix=matrix_to_plot[..., j],
             latitude_matrix_deg=latitude_matrix_deg,
             longitude_matrix_deg=longitude_matrix_deg,
             axes_object=axes_object, basemap_object=basemap_object,
