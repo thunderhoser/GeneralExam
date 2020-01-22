@@ -30,8 +30,8 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
 
 MAX_WF_FREQUENCY = 0.08
 MAX_CF_FREQUENCY = 0.14
-WF_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
-CF_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlGnBu')
+WF_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
+CF_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
 BORDER_COLOUR = numpy.full(3, 152. / 255)
 
 TITLE_FONT_SIZE = 30
