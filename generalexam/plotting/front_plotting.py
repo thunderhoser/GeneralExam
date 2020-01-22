@@ -105,6 +105,9 @@ def plot_front_with_markers(
     x_coords_metres, y_coords_metres = basemap_object(
         line_longitudes_deg, line_latitudes_deg)
 
+    print(x_coords_metres)
+    print(y_coords_metres)
+
     for i in range(num_points - 1):
         this_x_diff_metres = x_coords_metres[i + 1] - x_coords_metres[i]
         this_y_diff_metres = y_coords_metres[i + 1] - y_coords_metres[i]
