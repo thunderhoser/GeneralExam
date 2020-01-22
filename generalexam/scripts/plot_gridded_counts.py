@@ -93,11 +93,11 @@ INPUT_ARG_PARSER.add_argument(
     help=MONTE_CARLO_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + WF_COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlOrRd',
+    '--' + WF_COLOUR_MAP_ARG_NAME, type=str, required=False, default='plasma',
     help=WF_COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + CF_COLOUR_MAP_ARG_NAME, type=str, required=False, default='YlGnBu',
+    '--' + CF_COLOUR_MAP_ARG_NAME, type=str, required=False, default='plasma',
     help=CF_COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(

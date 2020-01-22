@@ -117,11 +117,11 @@ INPUT_ARG_PARSER.add_argument(
     help=MONTE_CARLO_FILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + LENGTH_CMAP_ARG_NAME, type=str, required=False, default='PuBuGn',
+    '--' + LENGTH_CMAP_ARG_NAME, type=str, required=False, default='plasma',
     help=LENGTH_CMAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + AREA_CMAP_ARG_NAME, type=str, required=False, default='PuBuGn',
+    '--' + AREA_CMAP_ARG_NAME, type=str, required=False, default='plasma',
     help=AREA_CMAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
