@@ -8,12 +8,12 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.plotting import plotting_utils
-from gewittergefahr.plotting import nwp_plotting
 from gewittergefahr.plotting import imagemagick_utils
 from generalexam.machine_learning import machine_learning_utils as ml_utils
+from generalexam.plotting import prediction_plotting
+from generalexam.scripts import plot_gridded_stats
 
 NUM_PARALLELS = 8
 NUM_MERIDIANS = 6
@@ -31,15 +31,16 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
     'Path to input file, containing NARR mask.  Will be read by '
-    '`machine_learning_utils.read_narr_mask`.')
-
+    '`machine_learning_utils.read_narr_mask`.'
+)
 WF_COLOUR_MAP_HELP_STRING = (
     'Name of colour map for number of warm fronts.  This name must be accepted '
     'by pyplot, since the command `pyplot.cm.get_cmap` will be used to convert '
-    'it from a name to an object.')
-
+    'it from a name to an object.'
+)
 CF_COLOUR_MAP_HELP_STRING = 'Same as `{0:s}` but for cold fronts.'.format(
-    WF_COLOUR_MAP_ARG_NAME)
+    WF_COLOUR_MAP_ARG_NAME
+)
 
 MASK_COLOUR_MAP_HELP_STRING = (
     'Same as `{0:s}` but for the mask itself.  Masked grid cells will be in '
@@ -54,37 +55,39 @@ MAX_PERCENTILE_HELP_STRING = (
 ).format(MAX_PERCENTILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory (figures will be saved here).')
+    'Name of output directory (figures will be saved here).'
+)
 
-WF_COLOUR_MAP_NAME_DEFAULT = 'YlOrRd'
-CF_COLOUR_MAP_NAME_DEFAULT = 'YlGnBu'
+WF_COLOUR_MAP_NAME_DEFAULT = 'plasma'
+CF_COLOUR_MAP_NAME_DEFAULT = 'plasma'
 MASK_COLOUR_MAP_NAME_DEFAULT = 'winter'
 MAX_PERCENTILE_DEFAULT = 99.
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
-    help=INPUT_FILE_HELP_STRING)
-
+    help=INPUT_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + WF_COLOUR_MAP_ARG_NAME, type=str, required=False,
-    default=WF_COLOUR_MAP_NAME_DEFAULT, help=WF_COLOUR_MAP_HELP_STRING)
-
+    default=WF_COLOUR_MAP_NAME_DEFAULT, help=WF_COLOUR_MAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CF_COLOUR_MAP_ARG_NAME, type=str, required=False,
-    default=CF_COLOUR_MAP_NAME_DEFAULT, help=CF_COLOUR_MAP_HELP_STRING)
-
+    default=CF_COLOUR_MAP_NAME_DEFAULT, help=CF_COLOUR_MAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MASK_COLOUR_MAP_ARG_NAME, type=str, required=False,
-    default=MASK_COLOUR_MAP_NAME_DEFAULT, help=MASK_COLOUR_MAP_HELP_STRING)
-
+    default=MASK_COLOUR_MAP_NAME_DEFAULT, help=MASK_COLOUR_MAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
-    default=MAX_PERCENTILE_DEFAULT, help=MAX_PERCENTILE_HELP_STRING)
-
+    default=MAX_PERCENTILE_DEFAULT, help=MAX_PERCENTILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _make_one_plot(
@@ -120,80 +123,76 @@ def _make_one_plot(
         masked.
     """
 
-    _, axes_object, basemap_object = nwp_plotting.init_basemap(
-        model_name=nwp_model_utils.NARR_MODEL_NAME,
-        grid_id=nwp_model_utils.NAME_OF_221GRID)
-
-    parallel_spacing_deg = numpy.round(
-        (basemap_object.urcrnrlat - basemap_object.llcrnrlat) /
-        (NUM_PARALLELS - 1)
-    )
-    meridian_spacing_deg = numpy.round(
-        (basemap_object.urcrnrlon - basemap_object.llcrnrlon) /
-        (NUM_MERIDIANS - 1)
-    )
-
-    parallel_spacing_deg = max([parallel_spacing_deg, 1.])
-    meridian_spacing_deg = max([meridian_spacing_deg, 1.])
-
-    plotting_utils.plot_coastlines(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-    plotting_utils.plot_countries(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-    plotting_utils.plot_states_and_provinces(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-    plotting_utils.plot_parallels(
-        basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lat_deg=-90., upper_right_lat_deg=90.,
-        parallel_spacing_deg=parallel_spacing_deg)
-    plotting_utils.plot_meridians(
-        basemap_object=basemap_object, axes_object=axes_object,
-        bottom_left_lng_deg=0., upper_right_lng_deg=360.,
-        meridian_spacing_deg=meridian_spacing_deg)
-
     if num_fronts_matrix is None:
-        matrix_to_plot = (mask_matrix + 0).astype(float)
+        basemap_dict = plot_gridded_stats.plot_basemap(
+            data_matrix=mask_matrix, border_colour=BORDER_COLOUR
+        )
+
+        figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
+        axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
+        basemap_object = basemap_dict[plot_gridded_stats.BASEMAP_OBJECT_KEY]
+        matrix_to_plot = basemap_dict[plot_gridded_stats.MATRIX_TO_PLOT_KEY]
+        latitude_matrix_deg = basemap_dict[plot_gridded_stats.LATITUDES_KEY]
+        longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
+
+        matrix_to_plot = (matrix_to_plot + 0).astype(float)
         matrix_to_plot[matrix_to_plot == 0] = numpy.nan
+        colour_norm_object = pyplot.Normalize(vmin=0., vmax=1.)
 
-        nwp_plotting.plot_subgrid(
-            field_matrix=matrix_to_plot,
-            model_name=nwp_model_utils.NARR_MODEL_NAME,
+        prediction_plotting.plot_counts_on_general_grid(
+            count_or_frequency_matrix=matrix_to_plot,
+            latitude_matrix_deg=latitude_matrix_deg,
+            longitude_matrix_deg=longitude_matrix_deg,
             axes_object=axes_object, basemap_object=basemap_object,
-            colour_map=colour_map_object,
-            min_value_in_colour_map=0., max_value_in_colour_map=1.,
-            grid_id=nwp_model_utils.NAME_OF_221GRID)
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object
+        )
     else:
-        num_fronts_matrix = num_fronts_matrix.astype(float)
-        max_value_for_colours = numpy.percentile(
-            num_fronts_matrix, max_percentile_for_colours)
+        basemap_dict = plot_gridded_stats.plot_basemap(
+            data_matrix=num_fronts_matrix, border_colour=BORDER_COLOUR
+        )
 
-        nwp_plotting.plot_subgrid(
-            field_matrix=num_fronts_matrix,
-            model_name=nwp_model_utils.NARR_MODEL_NAME,
+        figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
+        axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
+        basemap_object = basemap_dict[plot_gridded_stats.BASEMAP_OBJECT_KEY]
+        matrix_to_plot = basemap_dict[plot_gridded_stats.MATRIX_TO_PLOT_KEY]
+        latitude_matrix_deg = basemap_dict[plot_gridded_stats.LATITUDES_KEY]
+        longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
+
+        matrix_to_plot = matrix_to_plot.astype(float)
+        max_colour_value = numpy.nanpercentile(
+            matrix_to_plot, max_percentile_for_colours
+        )
+        colour_norm_object = pyplot.Normalize(vmin=0., vmax=max_colour_value)
+
+        prediction_plotting.plot_counts_on_general_grid(
+            count_or_frequency_matrix=matrix_to_plot,
+            latitude_matrix_deg=latitude_matrix_deg,
+            longitude_matrix_deg=longitude_matrix_deg,
             axes_object=axes_object, basemap_object=basemap_object,
-            colour_map=colour_map_object, min_value_in_colour_map=0.,
-            max_value_in_colour_map=max_value_for_colours,
-            grid_id=nwp_model_utils.NAME_OF_221GRID)
+            colour_map_object=colour_map_object,
+            colour_norm_object=colour_norm_object
+        )
 
-        plotting_utils.add_linear_colour_bar(
-            axes_object_or_list=axes_object, values_to_colour=num_fronts_matrix,
-            colour_map=colour_map_object, colour_min=0.,
-            colour_max=max_value_for_colours, orientation='horizontal',
-            extend_min=False, extend_max=True)
+        plotting_utils.plot_linear_colour_bar(
+            axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
+            colour_map_object=colour_map_object,
+            min_value=0., max_value=max_colour_value,
+            orientation_string='horizontal', padding=0.05,
+            extend_min=False, extend_max=True, fraction_of_axis_length=1.
+        )
 
-    pyplot.title(title_string)
-    plotting_utils.annotate_axes(
-        axes_object=axes_object, annotation_string=label_string)
+    axes_object.set_title(title_string)
+    plotting_utils.label_axes(
+        axes_object=axes_object, label_string=label_string
+    )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
-    pyplot.savefig(output_file_name, dpi=FIGURE_RESOLUTION_DPI)
-    pyplot.close()
-
-    imagemagick_utils.trim_whitespace(
-        input_file_name=output_file_name, output_file_name=output_file_name)
+    figure_object.savefig(
+        output_file_name, dpi=FIGURE_RESOLUTION_DPI,
+        pad_inches=0, bbox_inches='tight'
+    )
+    pyplot.close(figure_object)
 
 
 def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
@@ -224,7 +223,8 @@ def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
         title_string='Number of warm fronts', label_string='(a)',
         output_file_name=warm_front_file_name,
         num_fronts_matrix=num_warm_fronts_matrix,
-        max_percentile_for_colours=max_percentile_for_colours)
+        max_percentile_for_colours=max_percentile_for_colours
+    )
 
     cold_front_file_name = '{0:s}/num_cold_fronts.jpg'.format(output_dir_name)
     _make_one_plot(
@@ -232,13 +232,15 @@ def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
         title_string='Number of cold fronts', label_string='(b)',
         output_file_name=cold_front_file_name,
         num_fronts_matrix=num_cold_fronts_matrix,
-        max_percentile_for_colours=max_percentile_for_colours)
+        max_percentile_for_colours=max_percentile_for_colours
+    )
 
     mask_file_name = '{0:s}/narr_mask.jpg'.format(output_dir_name)
     _make_one_plot(
         colour_map_object=pyplot.cm.get_cmap(mask_colour_map_name),
         title_string='Mask', label_string='(c)',
-        output_file_name=mask_file_name, mask_matrix=mask_matrix)
+        output_file_name=mask_file_name, mask_matrix=mask_matrix
+    )
 
     concat_file_name = '{0:s}/narr_mask_3panel.jpg'.format(output_dir_name)
     panel_file_names = [
@@ -249,11 +251,12 @@ def _run(input_mask_file_name, wf_colour_map_name, cf_colour_map_name,
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=2, num_panel_columns=2)
-
+        num_panel_rows=2, num_panel_columns=2
+    )
     imagemagick_utils.resize_image(
         input_file_name=concat_file_name, output_file_name=concat_file_name,
-        output_size_pixels=CONCAT_FIGURE_SIZE_PIXELS)
+        output_size_pixels=CONCAT_FIGURE_SIZE_PIXELS
+    )
 
 
 if __name__ == '__main__':
