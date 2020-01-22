@@ -25,10 +25,15 @@ NUM_PARALLELS = 8
 NUM_MERIDIANS = 8
 DEFAULT_BORDER_COLOUR = numpy.full(3, 0.)
 
-MIN_LATITUDE_DEG = 3.
-MIN_LONGITUDE_DEG = 178.
-MAX_LATITUDE_DEG = 82.
-MAX_LONGITUDE_DEG = 322.
+MIN_ERA5_LATITUDE_DEG = 3.
+MIN_ERA5_LONGITUDE_DEG = 178.
+MAX_ERA5_LATITUDE_DEG = 82.
+MAX_ERA5_LONGITUDE_DEG = 322.
+
+MIN_NARR_LATITUDE_DEG = 15.
+MIN_NARR_LONGITUDE_DEG = 178.
+MAX_NARR_LATITUDE_DEG = 82.
+MAX_NARR_LONGITUDE_DEG = 322.
 
 SIG_MARKER_TYPE = '.'
 SIG_MARKER_SIZE = 0.6
@@ -244,10 +249,10 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
 
     figure_object, axes_object, basemap_object = (
         plotting_utils.create_equidist_cylindrical_map(
-            min_latitude_deg=MIN_LATITUDE_DEG,
-            max_latitude_deg=MAX_LATITUDE_DEG,
-            min_longitude_deg=MIN_LONGITUDE_DEG,
-            max_longitude_deg=MAX_LONGITUDE_DEG)
+            min_latitude_deg=MIN_ERA5_LATITUDE_DEG,
+            max_latitude_deg=MAX_ERA5_LATITUDE_DEG,
+            min_longitude_deg=MIN_ERA5_LONGITUDE_DEG,
+            max_longitude_deg=MAX_ERA5_LONGITUDE_DEG)
     )
 
     plotting_utils.plot_coastlines(

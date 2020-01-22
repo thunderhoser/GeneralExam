@@ -174,13 +174,20 @@ def _make_one_plot(
             colour_norm_object=colour_norm_object
         )
 
-        plotting_utils.plot_linear_colour_bar(
+        colour_bar_object = plotting_utils.plot_linear_colour_bar(
             axes_object_or_matrix=axes_object, data_matrix=matrix_to_plot,
             colour_map_object=colour_map_object,
             min_value=0., max_value=max_colour_value,
             orientation_string='horizontal', padding=0.05,
             extend_min=False, extend_max=True, fraction_of_axis_length=1.
         )
+
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = [
+            '{0:d}'.format(int(numpy.round(v))) for v in tick_values
+        ]
+        colour_bar_object.set_ticks(tick_values)
+        colour_bar_object.set_ticklabels(tick_strings)
 
     axes_object.set_title(title_string)
     plotting_utils.label_axes(
