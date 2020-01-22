@@ -34,7 +34,7 @@ MAX_WF_LENGTH_KM = 1500
 MAX_CF_LENGTH_KM = 3000
 # COLOUR_MAP_OBJECT = pyplot.get_cmap('PuBuGn')
 COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
-BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.full(3, 0.)
 
 TITLE_FONT_SIZE = 30
 FIGURE_RESOLUTION_DPI = 300
