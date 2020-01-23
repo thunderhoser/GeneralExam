@@ -73,14 +73,14 @@ def _run(input_dir_name, property_name, output_dir_name):
         first_column_by_file[i] = this_monte_carlo_dict[
             climo_utils.FIRST_GRID_COLUMN_KEY]
 
-        this_sig_matrix = this_monte_carlo_dict[
-            climo_utils.SIGNIFICANCE_MATRIX_KEY]
+        this_p_value_matrix = this_monte_carlo_dict[
+            climo_utils.P_VALUE_MATRIX_KEY]
 
         last_row_by_file[i] = (
-            first_row_by_file[i] + this_sig_matrix.shape[0] - 1
+            first_row_by_file[i] + this_p_value_matrix.shape[0] - 1
         )
         last_column_by_file[i] = (
-            first_column_by_file[i] + this_sig_matrix.shape[1] - 1
+            first_column_by_file[i] + this_p_value_matrix.shape[1] - 1
         )
 
     print(SEPARATOR_STRING)
@@ -119,7 +119,7 @@ def _run(input_dir_name, property_name, output_dir_name):
 
     baseline_mean_matrix = numpy.full(dimensions, numpy.nan)
     trial_mean_matrix = numpy.full(dimensions, numpy.nan)
-    significance_matrix = numpy.full(dimensions, False, dtype=bool)
+    p_value_matrix = numpy.full(dimensions, numpy.nan)
     num_labels_matrix = numpy.full(dimensions, -1, dtype=int)
 
     baseline_input_file_names = []
@@ -174,10 +174,10 @@ def _run(input_dir_name, property_name, output_dir_name):
                 first_grid_columns[k]:(this_last_column + 1)
             ] = this_monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
 
-            significance_matrix[
+            p_value_matrix[
                 first_grid_rows[j]:(this_last_row + 1),
                 first_grid_columns[k]:(this_last_column + 1)
-            ] = this_monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+            ] = this_monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
 
             num_labels_matrix[
                 first_grid_rows[j]:(this_last_row + 1),
@@ -202,7 +202,7 @@ def _run(input_dir_name, property_name, output_dir_name):
         netcdf_file_name=output_file_name,
         baseline_mean_matrix=baseline_mean_matrix,
         trial_mean_matrix=trial_mean_matrix,
-        significance_matrix=significance_matrix,
+        p_value_matrix=p_value_matrix,
         num_labels_matrix=num_labels_matrix, property_name=property_name,
         baseline_input_file_names=baseline_input_file_names,
         trial_input_file_names=trial_input_file_names,

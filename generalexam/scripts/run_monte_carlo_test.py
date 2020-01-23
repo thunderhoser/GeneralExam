@@ -2,9 +2,12 @@
 
 import argparse
 import numpy
+from scipy.stats import percentileofscore
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import climatology_utils as climo_utils
+
+# TODO(thunderhoser): Remove confidence level from script.
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -389,8 +392,7 @@ def _mc_test_frequency(
         steps in each month.
     :param num_iterations: See documentation at top of file.
     :param confidence_level: Same.
-    :return: significance_matrix: M-by-N numpy array of Boolean flags,
-        indicating where difference between frequencies is significant.
+    :return: p_value_matrix: M-by-N numpy array of p-values.
     :return: baseline_freq_matrix: M-by-N numpy array with overall frequencies
         for baseline composite.
     :return: trial_freq_matrix: Same but for trial composite.
@@ -458,27 +460,20 @@ def _mc_test_frequency(
     )
 
     actual_difference_matrix = trial_freq_matrix - baseline_freq_matrix
+    p_value_matrix = numpy.full((num_grid_rows, num_grid_columns), numpy.nan)
 
-    min_frequency_diff_matrix = numpy.percentile(
-        a=mc_difference_matrix, q=50. * (1 - confidence_level), axis=0
-    )
-    max_frequency_diff_matrix = numpy.percentile(
-        a=mc_difference_matrix, q=50. * (1 + confidence_level), axis=0
-    )
+    for i in range(num_grid_rows):
+        print('Computing p-values for {0:d} of {1:d} rows in grid...'.format(
+            i + 1, num_grid_rows
+        ))
 
-    significance_matrix = numpy.logical_or(
-        actual_difference_matrix < min_frequency_diff_matrix,
-        actual_difference_matrix > max_frequency_diff_matrix
-    )
+        for j in range(num_grid_columns):
+            p_value_matrix[i, j] = percentileofscore(
+                a=mc_difference_matrix[:, i, j],
+                score=actual_difference_matrix[i, j], kind='mean'
+            ) / 100
 
-    print((
-        'Difference between frequencies is significant at {0:d} of {1:d} grid '
-        'cells!'
-    ).format(
-        numpy.sum(significance_matrix.astype(int)), significance_matrix.size
-    ))
-
-    return significance_matrix, baseline_freq_matrix, trial_freq_matrix
+    return p_value_matrix, baseline_freq_matrix, trial_freq_matrix
 
 
 def _mc_test_one_statistic(
@@ -502,8 +497,7 @@ def _mc_test_one_statistic(
     :param trial_stat_matrix: T-by-M-by-N numpy array with statistic itself.
     :param num_iterations: See documentation at top of file.
     :param confidence_level: Same.
-    :return: significance_matrix: M-by-N numpy array of Boolean flags,
-        indicating where difference between means is significant.
+    :return: p_value_matrix: M-by-N numpy array of p-values.
     :return: baseline_mean_matrix: M-by-N numpy array with mean values for
         baseline composite.
     :return: trial_mean_matrix: Same but for trial composite.
@@ -563,28 +557,28 @@ def _mc_test_one_statistic(
         statistic_matrix=trial_stat_matrix)
 
     actual_difference_matrix = trial_mean_matrix - baseline_mean_matrix
+    p_value_matrix = numpy.full((num_grid_rows, num_grid_columns), numpy.nan)
 
-    # TODO(thunderhoser): nanpercentile method ignores NaN's completely.  Is
-    # this what I want?
-    min_difference_matrix = numpy.nanpercentile(
-        a=mc_difference_matrix, q=50. * (1 - confidence_level), axis=0
-    )
-    max_difference_matrix = numpy.nanpercentile(
-        a=mc_difference_matrix, q=50. * (1 + confidence_level), axis=0
-    )
+    for i in range(num_grid_rows):
+        print('Computing p-values for {0:d} of {1:d} rows in grid...'.format(
+            i + 1, num_grid_rows
+        ))
 
-    significance_matrix = numpy.logical_or(
-        actual_difference_matrix < min_difference_matrix,
-        actual_difference_matrix > max_difference_matrix
-    )
+        for j in range(num_grid_columns):
+            if numpy.isnan(actual_difference_matrix[i, j]):
+                continue
 
-    print((
-        'Difference between means is significant at {0:d} of {1:d} grid cells!'
-    ).format(
-        numpy.sum(significance_matrix.astype(int)), significance_matrix.size
-    ))
+            these_monte_carlo_diffs = mc_difference_matrix[:, i, j]
+            these_monte_carlo_diffs = these_monte_carlo_diffs[
+                numpy.invert(numpy.isnan(these_monte_carlo_diffs))
+            ]
 
-    return significance_matrix, baseline_mean_matrix, trial_mean_matrix
+            p_value_matrix[i, j] = percentileofscore(
+                a=these_monte_carlo_diffs,
+                score=actual_difference_matrix[i, j], kind='mean'
+            ) / 100
+
+    return p_value_matrix, baseline_mean_matrix, trial_mean_matrix
 
 
 def _run(input_dir_name, file_type_string, baseline_month_strings,
@@ -654,18 +648,19 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             last_grid_column=last_grid_column)
         print(SEPARATOR_STRING)
 
-        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
-            _mc_test_one_statistic(
-                baseline_num_labels_matrix=baseline_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                baseline_stat_matrix=baseline_statistic_dict[
-                    climo_utils.MEAN_WF_LENGTHS_KEY],
-                trial_num_labels_matrix=trial_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                trial_stat_matrix=trial_statistic_dict[
-                    climo_utils.MEAN_WF_LENGTHS_KEY],
-                num_iterations=num_iterations,
-                confidence_level=confidence_level)
+        (
+            this_p_value_matrix, this_baseline_mean_matrix,
+            this_trial_mean_matrix
+        ) = _mc_test_one_statistic(
+            baseline_num_labels_matrix=baseline_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            baseline_stat_matrix=baseline_statistic_dict[
+                climo_utils.MEAN_WF_LENGTHS_KEY],
+            trial_num_labels_matrix=trial_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            trial_stat_matrix=trial_statistic_dict[
+                climo_utils.MEAN_WF_LENGTHS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level
         )
         print(SEPARATOR_STRING)
 
@@ -691,7 +686,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_sig_matrix,
+            p_value_matrix=this_p_value_matrix,
             num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
@@ -700,18 +695,19 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
-            _mc_test_one_statistic(
-                baseline_num_labels_matrix=baseline_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                baseline_stat_matrix=baseline_statistic_dict[
-                    climo_utils.MEAN_WF_AREAS_KEY],
-                trial_num_labels_matrix=trial_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                trial_stat_matrix=trial_statistic_dict[
-                    climo_utils.MEAN_WF_AREAS_KEY],
-                num_iterations=num_iterations,
-                confidence_level=confidence_level)
+        (
+            this_p_value_matrix, this_baseline_mean_matrix,
+            this_trial_mean_matrix
+        ) = _mc_test_one_statistic(
+            baseline_num_labels_matrix=baseline_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            baseline_stat_matrix=baseline_statistic_dict[
+                climo_utils.MEAN_WF_AREAS_KEY],
+            trial_num_labels_matrix=trial_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            trial_stat_matrix=trial_statistic_dict[
+                climo_utils.MEAN_WF_AREAS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level
         )
         print(SEPARATOR_STRING)
 
@@ -727,7 +723,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_sig_matrix,
+            p_value_matrix=this_p_value_matrix,
             num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.WF_AREA_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
@@ -736,18 +732,19 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
-            _mc_test_one_statistic(
-                baseline_num_labels_matrix=baseline_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                baseline_stat_matrix=baseline_statistic_dict[
-                    climo_utils.MEAN_CF_LENGTHS_KEY],
-                trial_num_labels_matrix=trial_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                trial_stat_matrix=trial_statistic_dict[
-                    climo_utils.MEAN_CF_LENGTHS_KEY],
-                num_iterations=num_iterations,
-                confidence_level=confidence_level)
+        (
+            this_p_value_matrix, this_baseline_mean_matrix,
+            this_trial_mean_matrix
+        ) = _mc_test_one_statistic(
+            baseline_num_labels_matrix=baseline_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            baseline_stat_matrix=baseline_statistic_dict[
+                climo_utils.MEAN_CF_LENGTHS_KEY],
+            trial_num_labels_matrix=trial_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            trial_stat_matrix=trial_statistic_dict[
+                climo_utils.MEAN_CF_LENGTHS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level
         )
         print(SEPARATOR_STRING)
 
@@ -773,7 +770,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_sig_matrix,
+            p_value_matrix=this_p_value_matrix,
             num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
@@ -782,18 +779,19 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             first_grid_row=first_grid_row, first_grid_column=first_grid_column)
         print(SEPARATOR_STRING)
 
-        this_sig_matrix, this_baseline_mean_matrix, this_trial_mean_matrix = (
-            _mc_test_one_statistic(
-                baseline_num_labels_matrix=baseline_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                baseline_stat_matrix=baseline_statistic_dict[
-                    climo_utils.MEAN_CF_AREAS_KEY],
-                trial_num_labels_matrix=trial_statistic_dict[
-                    climo_utils.NUM_WF_LABELS_KEY],
-                trial_stat_matrix=trial_statistic_dict[
-                    climo_utils.MEAN_CF_AREAS_KEY],
-                num_iterations=num_iterations,
-                confidence_level=confidence_level)
+        (
+            this_p_value_matrix, this_baseline_mean_matrix,
+            this_trial_mean_matrix
+        ) = _mc_test_one_statistic(
+            baseline_num_labels_matrix=baseline_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            baseline_stat_matrix=baseline_statistic_dict[
+                climo_utils.MEAN_CF_AREAS_KEY],
+            trial_num_labels_matrix=trial_statistic_dict[
+                climo_utils.NUM_WF_LABELS_KEY],
+            trial_stat_matrix=trial_statistic_dict[
+                climo_utils.MEAN_CF_AREAS_KEY],
+            num_iterations=num_iterations, confidence_level=confidence_level
         )
         print(SEPARATOR_STRING)
 
@@ -809,7 +807,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
             netcdf_file_name=this_output_file_name,
             baseline_mean_matrix=this_baseline_mean_matrix,
             trial_mean_matrix=this_trial_mean_matrix,
-            significance_matrix=this_sig_matrix,
+            p_value_matrix=this_p_value_matrix,
             num_labels_matrix=this_num_labels_matrix,
             property_name=climo_utils.CF_AREA_PROPERTY_NAME,
             baseline_input_file_names=baseline_input_file_names,
@@ -831,7 +829,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         first_grid_column=first_grid_column, last_grid_column=last_grid_column)
     print(SEPARATOR_STRING)
 
-    this_sig_matrix, this_baseline_freq_matrix, this_trial_freq_matrix = (
+    this_p_value_matrix, this_baseline_freq_matrix, this_trial_freq_matrix = (
         _mc_test_frequency(
             baseline_num_labels_matrix=baseline_count_dict[
                 climo_utils.NUM_WF_LABELS_KEY],
@@ -862,7 +860,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         netcdf_file_name=this_output_file_name,
         baseline_mean_matrix=this_baseline_freq_matrix,
         trial_mean_matrix=this_trial_freq_matrix,
-        significance_matrix=this_sig_matrix,
+        p_value_matrix=this_p_value_matrix,
         num_labels_matrix=this_num_labels_matrix,
         property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
         baseline_input_file_names=baseline_input_file_names,
@@ -870,7 +868,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         num_iterations=num_iterations, confidence_level=confidence_level,
         first_grid_row=first_grid_row, first_grid_column=first_grid_column)
 
-    this_sig_matrix, this_baseline_freq_matrix, this_trial_freq_matrix = (
+    this_p_value_matrix, this_baseline_freq_matrix, this_trial_freq_matrix = (
         _mc_test_frequency(
             baseline_num_labels_matrix=baseline_count_dict[
                 climo_utils.NUM_CF_LABELS_KEY],
@@ -901,7 +899,7 @@ def _run(input_dir_name, file_type_string, baseline_month_strings,
         netcdf_file_name=this_output_file_name,
         baseline_mean_matrix=this_baseline_freq_matrix,
         trial_mean_matrix=this_trial_freq_matrix,
-        significance_matrix=this_sig_matrix,
+        p_value_matrix=this_p_value_matrix,
         num_labels_matrix=this_num_labels_matrix,
         property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
         baseline_input_file_names=baseline_input_file_names,

@@ -86,6 +86,7 @@ INPUT_FILE_CHAR_DIM_KEY = 'input_file_char'
 BASELINE_MATRIX_KEY = 'baseline_mean_matrix'
 TRIAL_MATRIX_KEY = 'trial_mean_matrix'
 SIGNIFICANCE_MATRIX_KEY = 'significance_matrix'
+P_VALUE_MATRIX_KEY = 'p_value_matrix'
 NUM_LABELS_MATRIX_KEY = 'num_labels_matrix'
 BASELINE_INPUT_FILES_KEY = 'baseline_input_file_names'
 TRIAL_INPUT_FILES_KEY = 'trial_input_file_names'
@@ -1138,7 +1139,7 @@ def find_many_monte_carlo_files(
 
 def write_monte_carlo_test(
         netcdf_file_name, baseline_mean_matrix, trial_mean_matrix,
-        significance_matrix, num_labels_matrix, property_name,
+        p_value_matrix, num_labels_matrix, property_name,
         baseline_input_file_names, trial_input_file_names, num_iterations,
         confidence_level, first_grid_row, first_grid_column):
     """Writes results of Monte Carlo test to NetCDF file.
@@ -1150,7 +1151,7 @@ def write_monte_carlo_test(
     :param baseline_mean_matrix: M-by-N numpy array with mean values in baseline
         set.
     :param trial_mean_matrix: M-by-N numpy array with mean values in trial set.
-    :param significance_matrix: M-by-N numpy array of Boolean flags,
+    :param p_value_matrix: M-by-N numpy array of p-values.
         indicating where difference between means is significant.
     :param num_labels_matrix: M-by-N numpy array with number of front labels
         used to conduct test at each grid cell.
@@ -1173,9 +1174,11 @@ def write_monte_carlo_test(
     error_checking.assert_is_numpy_array(
         trial_mean_matrix, exact_dimensions=expected_dim)
 
-    error_checking.assert_is_boolean_numpy_array(significance_matrix)
+    error_checking.assert_is_geq(p_value_matrix, 0., allow_nan=True)
+    error_checking.assert_is_leq(p_value_matrix, 1., allow_nan=True)
     error_checking.assert_is_numpy_array(
-        significance_matrix, exact_dimensions=expected_dim)
+        p_value_matrix, exact_dimensions=expected_dim
+    )
 
     error_checking.assert_is_integer_numpy_array(num_labels_matrix)
     error_checking.assert_is_geq_numpy_array(num_labels_matrix, 0)
@@ -1248,12 +1251,10 @@ def write_monte_carlo_test(
     dataset_object.variables[TRIAL_MATRIX_KEY][:] = trial_mean_matrix
 
     dataset_object.createVariable(
-        SIGNIFICANCE_MATRIX_KEY, datatype=numpy.int32,
+        P_VALUE_MATRIX_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:] = (
-        significance_matrix.astype(int)
-    )
+    dataset_object.variables[P_VALUE_MATRIX_KEY][:] = p_value_matrix
 
     dataset_object.createVariable(
         NUM_LABELS_MATRIX_KEY, datatype=numpy.int32,
@@ -1295,7 +1296,7 @@ def read_monte_carlo_test(netcdf_file_name):
     monte_carlo_dict["baseline_mean_matrix"]: See doc for
         `write_monte_carlo_test`.
     monte_carlo_dict["trial_mean_matrix"]: Same.
-    monte_carlo_dict["significance_matrix"]: Same.
+    monte_carlo_dict["p_value_matrix"]: Same.
     monte_carlo_dict["num_labels_matrix"]: Same.
     monte_carlo_dict["property_name"]: Same.
     monte_carlo_dict["baseline_input_file_names"]: Same.
@@ -1321,8 +1322,8 @@ def read_monte_carlo_test(netcdf_file_name):
         TRIAL_MATRIX_KEY: numpy.array(
             dataset_object.variables[TRIAL_MATRIX_KEY][:], dtype=float
         ),
-        SIGNIFICANCE_MATRIX_KEY: numpy.array(
-            dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:], dtype=bool
+        P_VALUE_MATRIX_KEY: numpy.array(
+            dataset_object.variables[P_VALUE_MATRIX_KEY][:], dtype=float
         ),
         NUM_LABELS_MATRIX_KEY: numpy.array(
             dataset_object.variables[NUM_LABELS_MATRIX_KEY][:], dtype=int
