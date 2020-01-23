@@ -378,21 +378,21 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
     p_value_matrix = monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
     # p_value_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = numpy.nan
 
-    p_values_flattened = numpy.ravel(p_value_matrix)
-    p_values_flattened = p_values_flattened[
-        numpy.invert(numpy.isnan(p_values_flattened))
+    p_values_sorted = numpy.ravel(p_value_matrix)
+    p_values_sorted = p_values_sorted[
+        numpy.invert(numpy.isnan(p_values_sorted))
     ]
-    p_values_flattened = numpy.sort(p_values_flattened)
+    p_values_sorted = numpy.sort(p_values_sorted)
 
-    num_p_values = len(p_values_flattened)
+    num_p_values = len(p_values_sorted)
     these_indices = numpy.linspace(1, num_p_values, num_p_values, dtype=float)
-    these_flags = p_values_flattened <= (these_indices / num_p_values) * 0.05
+    these_flags = p_values_sorted <= (these_indices / num_p_values) * 0.2
     these_indices = numpy.where(these_flags)[0]
 
     if len(these_indices) == 0:
         p_value_threshold = 0.
     else:
-        p_value_threshold = p_values_flattened[these_indices[-1]]
+        p_value_threshold = p_values_sorted[these_indices[-1]]
 
     print('p-value threshold for Wilks test = {0:.4f}'.format(
         p_value_threshold
