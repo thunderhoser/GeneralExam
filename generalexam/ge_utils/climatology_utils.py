@@ -9,6 +9,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
+SENTINEL_VALUE = -9999.
+
 FRONT_LABELS_STRING = 'front_labels'
 FRONT_PROPERTIES_STRING = 'front_properties'
 FRONT_COUNTS_STRING = 'front_counts'
@@ -85,7 +87,6 @@ INPUT_FILE_CHAR_DIM_KEY = 'input_file_char'
 
 BASELINE_MATRIX_KEY = 'baseline_mean_matrix'
 TRIAL_MATRIX_KEY = 'trial_mean_matrix'
-SIGNIFICANCE_MATRIX_KEY = 'significance_matrix'
 P_VALUE_MATRIX_KEY = 'p_value_matrix'
 NUM_LABELS_MATRIX_KEY = 'num_labels_matrix'
 BASELINE_INPUT_FILES_KEY = 'baseline_input_file_names'
@@ -1179,6 +1180,7 @@ def write_monte_carlo_test(
     error_checking.assert_is_numpy_array(
         p_value_matrix, exact_dimensions=expected_dim
     )
+    p_value_matrix[numpy.isnan(p_value_matrix)] = SENTINEL_VALUE
 
     error_checking.assert_is_integer_numpy_array(num_labels_matrix)
     error_checking.assert_is_geq_numpy_array(num_labels_matrix, 0)
@@ -1309,6 +1311,11 @@ def read_monte_carlo_test(netcdf_file_name):
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
+    p_value_matrix = numpy.array(
+        dataset_object.variables[P_VALUE_MATRIX_KEY][:], dtype=float
+    )
+    p_value_matrix[p_value_matrix <= SENTINEL_VALUE] = numpy.nan
+
     monte_carlo_dict = {
         PROPERTY_NAME_KEY: str(getattr(dataset_object, PROPERTY_NAME_KEY)),
         NUM_ITERATIONS_KEY: int(getattr(dataset_object, NUM_ITERATIONS_KEY)),
@@ -1322,9 +1329,7 @@ def read_monte_carlo_test(netcdf_file_name):
         TRIAL_MATRIX_KEY: numpy.array(
             dataset_object.variables[TRIAL_MATRIX_KEY][:], dtype=float
         ),
-        P_VALUE_MATRIX_KEY: numpy.array(
-            dataset_object.variables[P_VALUE_MATRIX_KEY][:], dtype=float
-        ),
+        P_VALUE_MATRIX_KEY: p_value_matrix,
         NUM_LABELS_MATRIX_KEY: numpy.array(
             dataset_object.variables[NUM_LABELS_MATRIX_KEY][:], dtype=int
         ),
@@ -1344,6 +1349,59 @@ def read_monte_carlo_test(netcdf_file_name):
 
     dataset_object.close()
     return monte_carlo_dict
+
+
+def find_sig_grid_points(p_value_matrix, max_false_discovery_rate):
+    """Finds grid points with statistically significant values.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    This method implements Equation 3 of Wilks et al. (2016), which you can find
+    here:
+
+    https://journals.ametsoc.org/doi/full/10.1175/BAMS-D-15-00267.1
+
+    :param p_value_matrix: M-by-N numpy array of p-values.
+    :param max_false_discovery_rate: Max false-discovery rate.
+    :return: significance_matrix: M-by-N numpy array of Boolean flags.
+    """
+
+    error_checking.assert_is_numpy_array(p_value_matrix, num_dimensions=2)
+    error_checking.assert_is_greater(max_false_discovery_rate, 0.)
+    error_checking.assert_is_less_than(max_false_discovery_rate, 1.)
+
+    p_values_sorted = numpy.ravel(p_value_matrix)
+    p_values_sorted = p_values_sorted[
+        numpy.invert(numpy.isnan(p_values_sorted))
+    ]
+    p_values_sorted = numpy.sort(p_values_sorted)
+
+    num_grid_cells = len(p_values_sorted)
+    grid_cell_indices = numpy.linspace(
+        1, num_grid_cells, num_grid_cells, dtype=float
+    )
+
+    significant_flags = (
+        p_values_sorted <=
+        (grid_cell_indices / num_grid_cells) * max_false_discovery_rate
+    )
+    significant_indices = numpy.where(significant_flags)[0]
+
+    if len(significant_indices) == 0:
+        max_p_value = 0.
+    else:
+        max_p_value = p_values_sorted[significant_indices[-1]]
+
+    print('Max p-value for Wilks test = {0:.2e}'.format(max_p_value))
+
+    significance_matrix = p_value_matrix <= max_p_value
+    print('Number of significant grid points = {0:d}/{1:d}'.format(
+        numpy.sum(significance_matrix),
+        numpy.sum(numpy.invert(numpy.isnan(p_value_matrix)))
+    ))
+
+    return significance_matrix
 
 
 def find_mann_kendall_file(directory_name, property_name,
@@ -1377,7 +1435,7 @@ def find_mann_kendall_file(directory_name, property_name,
 
 
 def write_mann_kendall_test(
-        netcdf_file_name, trend_matrix_year01, significance_matrix,
+        netcdf_file_name, trend_matrix_year01, p_value_matrix,
         num_labels_matrix, property_name, input_file_names, confidence_level):
     """Writes results of Mann-Kendall test to NetCDF file.
 
@@ -1387,8 +1445,7 @@ def write_mann_kendall_test(
     :param netcdf_file_name: Path to output file.
     :param trend_matrix_year01: M-by-N numpy array with annual trend at each
         grid cell.
-    :param significance_matrix: M-by-N numpy array of Boolean flags,
-        indicating where difference between means is significant.
+    :param p_value_matrix: M-by-N numpy array of p-values.
     :param num_labels_matrix: M-by-N numpy array with number of front labels
         used to conduct test at each grid cell.
     :param property_name: Name of property.  Must be accepted by
@@ -1402,9 +1459,12 @@ def write_mann_kendall_test(
     error_checking.assert_is_numpy_array(trend_matrix_year01, num_dimensions=2)
     expected_dim = numpy.array(trend_matrix_year01.shape, dtype=int)
 
-    error_checking.assert_is_boolean_numpy_array(significance_matrix)
+    error_checking.assert_is_geq_numpy_array(p_value_matrix, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(p_value_matrix, 1., allow_nan=True)
     error_checking.assert_is_numpy_array(
-        significance_matrix, exact_dimensions=expected_dim)
+        p_value_matrix, exact_dimensions=expected_dim
+    )
+    p_value_matrix[numpy.isnan(p_value_matrix)] = SENTINEL_VALUE
 
     error_checking.assert_is_integer_numpy_array(num_labels_matrix)
     error_checking.assert_is_geq_numpy_array(num_labels_matrix, 0)
@@ -1452,12 +1512,10 @@ def write_mann_kendall_test(
     dataset_object.variables[TREND_MATRIX_KEY][:] = trend_matrix_year01
 
     dataset_object.createVariable(
-        SIGNIFICANCE_MATRIX_KEY, datatype=numpy.int32,
+        P_VALUE_MATRIX_KEY, datatype=numpy.float32,
         dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
     )
-    dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:] = (
-        significance_matrix.astype(int)
-    )
+    dataset_object.variables[P_VALUE_MATRIX_KEY][:] = p_value_matrix
 
     dataset_object.createVariable(
         NUM_LABELS_MATRIX_KEY, datatype=numpy.int32,
@@ -1486,7 +1544,7 @@ def read_mann_kendall_test(netcdf_file_name):
     :return: mann_kendall_dict: Dictionary with the following keys.
     mann_kendall_dict["trend_matrix_year01"]: See doc for
         `write_mann_kendall_test`.
-    mann_kendall_dict["significance_matrix"]: Same.
+    mann_kendall_dict["p_value_matrix"]: Same.
     mann_kendall_dict["num_labels_matrix"]: Same.
     mann_kendall_dict["property_name"]: Same.
     mann_kendall_dict["input_file_names"]: Same.
@@ -1495,15 +1553,18 @@ def read_mann_kendall_test(netcdf_file_name):
 
     dataset_object = netCDF4.Dataset(netcdf_file_name)
 
+    p_value_matrix = numpy.array(
+        dataset_object.variables[P_VALUE_MATRIX_KEY][:], dtype=float
+    )
+    p_value_matrix[p_value_matrix <= SENTINEL_VALUE] = numpy.nan
+
     mann_kendall_dict = {
         PROPERTY_NAME_KEY: str(getattr(dataset_object, PROPERTY_NAME_KEY)),
         CONFIDENCE_LEVEL_KEY: getattr(dataset_object, CONFIDENCE_LEVEL_KEY),
         TREND_MATRIX_KEY: numpy.array(
             dataset_object.variables[TREND_MATRIX_KEY][:], dtype=float
         ),
-        SIGNIFICANCE_MATRIX_KEY: numpy.array(
-            dataset_object.variables[SIGNIFICANCE_MATRIX_KEY][:], dtype=bool
-        ),
+        P_VALUE_MATRIX_KEY: p_value_matrix,
         NUM_LABELS_MATRIX_KEY: numpy.array(
             dataset_object.variables[NUM_LABELS_MATRIX_KEY][:], dtype=int
         ),

@@ -51,6 +51,7 @@ CONCAT_FIGURE_SIZE_PX = int(1e7)
 
 INPUT_DIR_ARG_NAME = 'input_dir_name'
 PLOT_FREQUENCY_ARG_NAME = 'plot_frequency'
+MAX_FDR_ARG_NAME = 'monte_carlo_max_fdr'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -62,6 +63,11 @@ PLOT_FREQUENCY_HELP_STRING = (
     'Boolean flag.  If 1, will plot trends for WF and CF frequency.  If 0, will'
     ' plot trends for WF and CF length.'
 )
+MAX_FDR_HELP_STRING = (
+    'Max FDR (false-discovery rate) for field-based version of significance '
+    'test.  If you do not want to use field-based version, leave this argument '
+    'alone.'
+)
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -72,6 +78,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_FREQUENCY_ARG_NAME, type=int, required=True,
     help=PLOT_FREQUENCY_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_FDR_ARG_NAME, type=float, required=False, default=-1.,
+    help=MAX_FDR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -189,17 +199,21 @@ def _plot_one_trend(
     pyplot.close(figure_object)
 
 
-def _run(top_input_dir_name, plot_frequency, output_file_name):
+def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
+         output_file_name):
     """Makes 8-panel figure with Mann-Kendall results for either freq or length.
 
     This is effectively the main method.
 
     :param top_input_dir_name: See documentation at top of file.
     :param plot_frequency: Same.
+    :param monte_carlo_max_fdr: Same.
     :param output_file_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    if monte_carlo_max_fdr <= 0:
+        monte_carlo_max_fdr = None
 
     season_strings_abbrev = climo_utils.VALID_SEASON_STRINGS
     season_strings_verbose = [
@@ -254,9 +268,17 @@ def _run(top_input_dir_name, plot_frequency, output_file_name):
                 conversion_ratio *
                 this_mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
             )
-            this_significance_matrix = (
-                this_mann_kendall_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+            this_p_value_matrix = (
+                this_mann_kendall_dict[climo_utils.P_VALUE_MATRIX_KEY]
             )
+
+            if monte_carlo_max_fdr is None:
+                this_significance_matrix = this_p_value_matrix <= 0.05
+            else:
+                this_significance_matrix = climo_utils.find_sig_grid_points(
+                    p_value_matrix=this_p_value_matrix,
+                    max_false_discovery_rate=monte_carlo_max_fdr
+                )
 
             this_trend_matrix_year01[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
@@ -333,5 +355,6 @@ if __name__ == '__main__':
     _run(
         top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
         plot_frequency=bool(getattr(INPUT_ARG_OBJECT, PLOT_FREQUENCY_ARG_NAME)),
+        monte_carlo_max_fdr=getattr(INPUT_ARG_OBJECT, MAX_FDR_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

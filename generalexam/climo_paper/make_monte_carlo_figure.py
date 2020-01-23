@@ -72,6 +72,7 @@ INPUT_DIR_ARG_NAME = 'input_dir_name'
 PROPERTY_ARG_NAME = 'main_property_name'
 COMPOSITE_ARG_NAME = 'composite_name'
 SEASONS_ARG_NAME = 'season_names'
+MAX_FDR_ARG_NAME = 'monte_carlo_max_fdr'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -93,6 +94,11 @@ SEASONS_HELP_STRING = (
     'List of seasons to plot.  Each must be in the following list:\n{0:s}'
 ).format(str(VALID_SEASON_NAMES))
 
+MAX_FDR_HELP_STRING = (
+    'Max FDR (false-discovery rate) for field-based version of Monte Carlo '
+    'significance test.  If you do not want to use field-based version, leave '
+    'this argument alone.'
+)
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -111,6 +117,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + SEASONS_ARG_NAME, type=str, nargs='+', required=False,
     default=VALID_SEASON_NAMES, help=SEASONS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_FDR_ARG_NAME, type=float, required=False, default=-1.,
+    help=MAX_FDR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -229,7 +239,7 @@ def _plot_one_difference(
 
 
 def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
-         season_names, output_file_name):
+         season_names, monte_carlo_max_fdr, output_file_name):
     """Makes 8-panel figure with Monte Carlo results for either freq or length.
 
     This is effectively the main method.
@@ -238,10 +248,13 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
     :param main_property_name: Same.
     :param composite_name_abbrev: Same.
     :param season_names: Same.
+    :param monte_carlo_max_fdr: Same.
     :param output_file_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    if monte_carlo_max_fdr <= 0:
+        monte_carlo_max_fdr = None
 
     conversion_ratio = None
     property_names = None
@@ -305,9 +318,17 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
                 this_monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] -
                 this_monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
             )
-            this_significance_matrix = (
-                this_monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+            this_p_value_matrix = (
+                this_monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
             )
+
+            if monte_carlo_max_fdr is None:
+                this_significance_matrix = this_p_value_matrix <= 0.05
+            else:
+                this_significance_matrix = climo_utils.find_sig_grid_points(
+                    p_value_matrix=this_p_value_matrix,
+                    max_false_discovery_rate=monte_carlo_max_fdr
+                )
 
             this_difference_matrix[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
@@ -367,5 +388,6 @@ if __name__ == '__main__':
         main_property_name=getattr(INPUT_ARG_OBJECT, PROPERTY_ARG_NAME),
         composite_name_abbrev=getattr(INPUT_ARG_OBJECT, COMPOSITE_ARG_NAME),
         season_names=getattr(INPUT_ARG_OBJECT, SEASONS_ARG_NAME),
+        monte_carlo_max_fdr=getattr(INPUT_ARG_OBJECT, MAX_FDR_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

@@ -30,6 +30,7 @@ METRES2_TO_THOUSAND_KM2 = 1e-9
 INPUT_FILE_ARG_NAME = 'input_file_name'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
+MAX_FDR_ARG_NAME = 'monte_carlo_max_fdr'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
@@ -45,6 +46,11 @@ MAX_PERCENTILE_HELP_STRING = (
     'over all grid cells, where q = `{0:s}`.'
 ).format(MAX_PERCENTILE_ARG_NAME)
 
+MAX_FDR_HELP_STRING = (
+    'Max FDR (false-discovery rate) for field-based version of significance '
+    'test.  If you do not want to use field-based version, leave this argument '
+    'alone.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
 )
@@ -61,6 +67,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False, default=99.,
     help=MAX_PERCENTILE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_FDR_ARG_NAME, type=float, required=False, default=-1.,
+    help=MAX_FDR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -175,7 +185,7 @@ def _plot_trend(
 
 
 def _run(input_file_name, colour_map_name, max_colour_percentile,
-         output_dir_name):
+         monte_carlo_max_fdr, output_dir_name):
     """Plots results of Mann-Kendall test.
 
     This is effectively the main method.
@@ -183,8 +193,12 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
     :param input_file_name: See documentation at top of file.
     :param colour_map_name: Same.
     :param max_colour_percentile: Same.
+    :param monte_carlo_max_fdr: Same.
     :param output_dir_name: Same.
     """
+
+    if monte_carlo_max_fdr <= 0:
+        monte_carlo_max_fdr = None
 
     error_checking.assert_is_greater(max_colour_percentile, 50.)
     error_checking.assert_is_leq(max_colour_percentile, 100.)
@@ -199,8 +213,16 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
     property_name = mann_kendall_dict[climo_utils.PROPERTY_NAME_KEY]
     trend_matrix_year01 = mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
-    significance_matrix = mann_kendall_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
     num_labels_matrix = mann_kendall_dict[climo_utils.NUM_LABELS_MATRIX_KEY]
+    p_value_matrix = mann_kendall_dict[climo_utils.P_VALUE_MATRIX_KEY]
+
+    if monte_carlo_max_fdr is None:
+        significance_matrix = p_value_matrix <= 0.05
+    else:
+        significance_matrix = climo_utils.find_sig_grid_points(
+            p_value_matrix=p_value_matrix,
+            max_false_discovery_rate=monte_carlo_max_fdr
+        )
 
     significance_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = False
     trend_matrix_year01[
@@ -244,9 +266,7 @@ def _run(input_file_name, colour_map_name, max_colour_percentile,
 
     _plot_trend(
         trend_matrix_year01=trend_matrix_year01,
-        significance_matrix=mann_kendall_dict[
-            climo_utils.SIGNIFICANCE_MATRIX_KEY
-        ],
+        significance_matrix=significance_matrix,
         colour_map_object=colour_map_object, title_string=title_string,
         output_file_name=output_file_name,
         max_colour_percentile=max_colour_percentile
@@ -260,6 +280,8 @@ if __name__ == '__main__':
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile=getattr(
-            INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
+            INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME
+        ),
+        monte_carlo_max_fdr=getattr(INPUT_ARG_OBJECT, MAX_FDR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

@@ -26,7 +26,8 @@ INPUT_DIR_HELP_STRING = (
     'Name of input directory.  Files therein (one per year) will be found by '
     '`climatology_utils.find_aggregated_file` and read by '
     '`climatology_utils.read_gridded_counts` or '
-    '`climatology_utils.read_gridded_stats`.')
+    '`climatology_utils.read_gridded_stats`.'
+)
 
 FILE_TYPE_HELP_STRING = (
     'File type (determines whether this script will test front frequencies or '
@@ -46,39 +47,41 @@ SEASON_HELP_STRING = (
 CONFIDENCE_LEVEL_HELP_STRING = (
     'Confidence level for two-tailed Mann-Kendall test.  At each grid cell, '
     'positive or negative linear trend will be deemed statistically significant'
-    ' iff it reaches or exceeds this confidence level.')
-
+    ' iff it reaches or exceeds this confidence level.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Files will be written here by '
     '`climatology_utils.write_mann_kendall_test`, to exact locations determined '
-    'by `climatology_utils.find_mann_kendall_file`.')
+    'by `climatology_utils.find_mann_kendall_file`.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
-    help=INPUT_DIR_HELP_STRING)
-
+    help=INPUT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + FILE_TYPE_ARG_NAME, type=str, required=True,
-    help=FILE_TYPE_HELP_STRING)
-
+    help=FILE_TYPE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_YEAR_ARG_NAME, type=int, required=True, help=YEAR_HELP_STRING)
-
+    '--' + FIRST_YEAR_ARG_NAME, type=int, required=True, help=YEAR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_YEAR_ARG_NAME, type=int, required=True, help=YEAR_HELP_STRING)
-
+    '--' + LAST_YEAR_ARG_NAME, type=int, required=True, help=YEAR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SEASON_ARG_NAME, type=str, required=False, default='',
-    help=SEASON_HELP_STRING)
-
+    help=SEASON_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CONFIDENCE_LEVEL_ARG_NAME, type=float, required=False, default=0.95,
-    help=CONFIDENCE_LEVEL_HELP_STRING)
-
+    help=CONFIDENCE_LEVEL_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _find_input_files(input_dir_name, file_type_string, first_year, last_year,
@@ -360,8 +363,7 @@ def _mk_test_frequency(frequency_matrix, confidence_level):
     :param confidence_level: See documentation at top of file.
     :return: trend_matrix_year01: M-by-N numpy array of Theil-Sen slopes.  Units
         are years^-1.
-    :return: significance_matrix: M-by-N numpy array of Boolean flags,
-        indicating where linear trend is significant.
+    :return: p_value_matrix: M-by-N numpy array of p-values.
     """
 
     num_grid_rows = frequency_matrix.shape[1]
@@ -370,8 +372,8 @@ def _mk_test_frequency(frequency_matrix, confidence_level):
     trend_matrix_year01 = numpy.full(
         (num_grid_rows, num_grid_columns), numpy.nan
     )
-    significance_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), False, dtype=bool
+    p_value_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), numpy.nan
     )
 
     for i in range(num_grid_rows):
@@ -394,13 +396,13 @@ def _mk_test_frequency(frequency_matrix, confidence_level):
                 x=these_frequencies, alpha=1. - confidence_level)
 
             trend_matrix_year01[i, j] = this_result_tuple.slope
-            significance_matrix[i, j] = this_result_tuple.h
+            p_value_matrix[i, j] = this_result_tuple.p
 
     print('Have run Mann-Kendall test for all {0:d} grid cells!'.format(
         num_grid_rows * num_grid_columns
     ))
 
-    return trend_matrix_year01, significance_matrix
+    return trend_matrix_year01, p_value_matrix
 
 
 def _fill_nans_in_series(data_series):
@@ -443,7 +445,7 @@ def _mk_test_one_statistic(statistic_matrix, confidence_level):
         `_read_statistics`.
     :param confidence_level: See documentation at top of file.
     :return: trend_matrix_year01: See doc for `_mk_test_frequency`.
-    :return: significance_matrix: Same.
+    :return: p_value_matrix: Same.
     """
 
     num_grid_rows = statistic_matrix.shape[1]
@@ -452,8 +454,8 @@ def _mk_test_one_statistic(statistic_matrix, confidence_level):
     trend_matrix_year01 = numpy.full(
         (num_grid_rows, num_grid_columns), numpy.nan
     )
-    significance_matrix = numpy.full(
-        (num_grid_rows, num_grid_columns), False, dtype=bool
+    p_value_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), numpy.nan
     )
 
     for i in range(num_grid_rows):
@@ -477,13 +479,13 @@ def _mk_test_one_statistic(statistic_matrix, confidence_level):
                 x=these_values, alpha=1. - confidence_level)
 
             trend_matrix_year01[i, j] = this_result_tuple.slope
-            significance_matrix[i, j] = this_result_tuple.h
+            p_value_matrix[i, j] = this_result_tuple.p
 
     print('Have run Mann-Kendall test for all {0:d} grid cells!'.format(
         num_grid_rows * num_grid_columns
     ))
 
-    return trend_matrix_year01, significance_matrix
+    return trend_matrix_year01, p_value_matrix
 
 
 def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
@@ -514,7 +516,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         front_count_dict = _read_frequencies(input_file_name_matrix)
         print(SEPARATOR_STRING)
 
-        wf_trend_matrix_year01, wf_significance_matrix = _mk_test_frequency(
+        wf_trend_matrix_year01, wf_p_value_matrix = _mk_test_frequency(
             frequency_matrix=front_count_dict[WF_FREQUENCY_KEY],
             confidence_level=confidence_level)
         print(SEPARATOR_STRING)
@@ -529,13 +531,13 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         climo_utils.write_mann_kendall_test(
             netcdf_file_name=this_output_file_name,
             trend_matrix_year01=wf_trend_matrix_year01,
-            significance_matrix=wf_significance_matrix,
+            p_value_matrix=wf_p_value_matrix,
             num_labels_matrix=front_count_dict[climo_utils.NUM_WF_LABELS_KEY],
             property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
             input_file_names=input_file_name_list,
             confidence_level=confidence_level)
 
-        cf_trend_matrix_year01, cf_significance_matrix = _mk_test_frequency(
+        cf_trend_matrix_year01, cf_p_value_matrix = _mk_test_frequency(
             frequency_matrix=front_count_dict[CF_FREQUENCY_KEY],
             confidence_level=confidence_level)
         print(SEPARATOR_STRING)
@@ -550,7 +552,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
         climo_utils.write_mann_kendall_test(
             netcdf_file_name=this_output_file_name,
             trend_matrix_year01=cf_trend_matrix_year01,
-            significance_matrix=cf_significance_matrix,
+            p_value_matrix=cf_p_value_matrix,
             num_labels_matrix=front_count_dict[climo_utils.NUM_CF_LABELS_KEY],
             property_name=climo_utils.CF_FREQ_PROPERTY_NAME,
             input_file_names=input_file_name_list,
@@ -561,7 +563,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
     front_statistic_dict = _read_statistics(input_file_name_matrix)
     print(SEPARATOR_STRING)
 
-    wf_length_matrix_m_y01, wf_length_sig_matrix = _mk_test_one_statistic(
+    wf_length_matrix_m_y01, wf_length_p_value_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_WF_LENGTHS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
@@ -576,13 +578,13 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
     climo_utils.write_mann_kendall_test(
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=wf_length_matrix_m_y01,
-        significance_matrix=wf_length_sig_matrix,
+        p_value_matrix=wf_length_p_value_matrix,
         num_labels_matrix=front_statistic_dict[climo_utils.NUM_WF_LABELS_KEY],
         property_name=climo_utils.WF_LENGTH_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
 
-    wf_area_matrix_m2_y01, wf_area_sig_matrix = _mk_test_one_statistic(
+    wf_area_matrix_m2_y01, wf_area_p_value_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_WF_AREAS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
@@ -597,13 +599,13 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
     climo_utils.write_mann_kendall_test(
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=wf_area_matrix_m2_y01,
-        significance_matrix=wf_area_sig_matrix,
+        p_value_matrix=wf_area_p_value_matrix,
         num_labels_matrix=front_statistic_dict[climo_utils.NUM_WF_LABELS_KEY],
         property_name=climo_utils.WF_AREA_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
 
-    cf_length_matrix_m_y01, cf_length_sig_matrix = _mk_test_one_statistic(
+    cf_length_matrix_m_y01, cf_length_p_value_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_CF_LENGTHS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
@@ -618,13 +620,13 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
     climo_utils.write_mann_kendall_test(
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=cf_length_matrix_m_y01,
-        significance_matrix=cf_length_sig_matrix,
+        p_value_matrix=cf_length_p_value_matrix,
         num_labels_matrix=front_statistic_dict[climo_utils.NUM_CF_LABELS_KEY],
         property_name=climo_utils.CF_LENGTH_PROPERTY_NAME,
         input_file_names=input_file_name_list,
         confidence_level=confidence_level)
 
-    cf_area_matrix_m2_y01, cf_area_sig_matrix = _mk_test_one_statistic(
+    cf_area_matrix_m2_y01, cf_area_p_value_matrix = _mk_test_one_statistic(
         statistic_matrix=front_statistic_dict[climo_utils.MEAN_CF_AREAS_KEY],
         confidence_level=confidence_level)
     print(SEPARATOR_STRING)
@@ -639,7 +641,7 @@ def _run(input_dir_name, file_type_string, first_year, last_year, season_string,
     climo_utils.write_mann_kendall_test(
         netcdf_file_name=this_output_file_name,
         trend_matrix_year01=cf_area_matrix_m2_y01,
-        significance_matrix=cf_area_sig_matrix,
+        p_value_matrix=cf_area_p_value_matrix,
         num_labels_matrix=front_statistic_dict[climo_utils.NUM_CF_LABELS_KEY],
         property_name=climo_utils.CF_AREA_PROPERTY_NAME,
         input_file_names=input_file_name_list,

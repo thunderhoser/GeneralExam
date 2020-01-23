@@ -61,6 +61,7 @@ MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
 WF_COLOUR_MAXIMA_ARG_NAME = 'wf_colour_maxima'
 CF_COLOUR_MAXIMA_ARG_NAME = 'cf_colour_maxima'
 MC_COLOUR_MAXIMA_ARG_NAME = 'monte_carlo_colour_maxima'
+MAX_FDR_ARG_NAME = 'monte_carlo_max_fdr'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 STATISTIC_FILE_HELP_STRING = (
@@ -104,6 +105,11 @@ MC_COLOUR_MAXIMA_HELP_STRING = (
     '[used only if `{0:s}` is negative] List of max values for the two types of'
     ' Monte Carlo maps.  This list should have 2 elements [means, differences].'
 )
+MAX_FDR_HELP_STRING = (
+    'Max FDR (false-discovery rate) for field-based version of Monte Carlo '
+    'significance test.  If you do not want to use field-based version, leave '
+    'this argument alone.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.'
 )
@@ -144,6 +150,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + MC_COLOUR_MAXIMA_ARG_NAME, type=float, nargs=2, required=False,
     default=numpy.full(2, 0.), help=MC_COLOUR_MAXIMA_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MAX_FDR_ARG_NAME, type=float, required=False, default=-1.,
+    help=MAX_FDR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -405,7 +415,7 @@ def plot_monte_carlo_diff(
 def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
          area_colour_map_name, diff_colour_map_name, max_colour_percentile,
          wf_colour_maxima, cf_colour_maxima, monte_carlo_colour_maxima,
-         output_dir_name):
+         monte_carlo_max_fdr, output_dir_name):
     """Plots statistics for gridded front properties.
 
     This is effectively the main method.
@@ -419,6 +429,7 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
     :param wf_colour_maxima: Same.
     :param cf_colour_maxima: Same.
     :param monte_carlo_colour_maxima: Same.
+    :param monte_carlo_max_fdr: Same.
     :param output_dir_name: Same.
     """
 
@@ -432,6 +443,8 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
         statistic_file_name = None
     if monte_carlo_file_name in ['', 'None']:
         monte_carlo_file_name = None
+    if monte_carlo_max_fdr <= 0:
+        monte_carlo_max_fdr = None
 
     length_colour_map_object = pyplot.get_cmap(length_colour_map_name)
     area_colour_map_object = pyplot.get_cmap(area_colour_map_name)
@@ -625,7 +638,16 @@ def _run(statistic_file_name, monte_carlo_file_name, length_colour_map_name,
     )
     trial_mean_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = numpy.nan
 
-    significance_matrix = monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+    p_value_matrix = monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
+
+    if monte_carlo_max_fdr is None:
+        significance_matrix = p_value_matrix <= 0.05
+    else:
+        significance_matrix = climo_utils.find_sig_grid_points(
+            p_value_matrix=p_value_matrix,
+            max_false_discovery_rate=monte_carlo_max_fdr
+        )
+
     significance_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = False
 
     if max_colour_percentile is None:
@@ -695,5 +717,6 @@ if __name__ == '__main__':
         monte_carlo_colour_maxima=numpy.array(
             getattr(INPUT_ARG_OBJECT, MC_COLOUR_MAXIMA_ARG_NAME), dtype=float
         ),
+        monte_carlo_max_fdr=getattr(INPUT_ARG_OBJECT, MAX_FDR_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
