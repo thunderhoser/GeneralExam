@@ -129,9 +129,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_difference(
-        difference_matrix, significance_matrix, max_colour_value,
-        plot_latitudes, plot_longitudes, plot_colour_bar, title_string,
-        letter_label, output_file_name):
+        difference_matrix, significance_matrix, sig_marker_size,
+        max_colour_value, plot_latitudes, plot_longitudes, plot_colour_bar,
+        title_string, letter_label, output_file_name):
     """Plots difference for one composite in one season.
 
     M = number of rows in grid
@@ -141,6 +141,7 @@ def _plot_one_difference(
         minus baseline period).
     :param significance_matrix: M-by-N numpy array of Boolean flags, indicating
         where difference is significant.
+    :param sig_marker_size: Marker size for stippling.
     :param max_colour_value: Max value in colour scheme.
     :param plot_latitudes: Boolean flag.  Determines whether or not numbers will
         be plotted on y-axis.
@@ -195,7 +196,7 @@ def _plot_one_difference(
         sig_x_coords_metres, sig_y_coords_metres,
         linestyle='None', marker=SIG_MARKER_TYPE,
         markerfacecolor=SIG_MARKER_COLOUR, markeredgecolor=SIG_MARKER_COLOUR,
-        markersize=SIG_MARKER_SIZE, markeredgewidth=SIG_MARKER_EDGE_WIDTH
+        markersize=sig_marker_size, markeredgewidth=SIG_MARKER_EDGE_WIDTH
     )
 
     if not plot_latitudes:
@@ -289,6 +290,10 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
     panel_file_names = []
     letter_label = None
 
+    sig_marker_size = SIG_MARKER_SIZE * (
+        1 + int(monte_carlo_max_fdr is not None)
+    )
+
     for j in range(num_seasons):
         for i in range(num_properties):
             this_max_colour_value = PROPERTY_TO_MAX_COLOUR_VALUE_DICT[
@@ -358,6 +363,7 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
             _plot_one_difference(
                 difference_matrix=this_difference_matrix,
                 significance_matrix=this_significance_matrix,
+                sig_marker_size=sig_marker_size,
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=i == 0, plot_longitudes=j == num_seasons - 1,
                 plot_colour_bar=j == num_seasons - 1,

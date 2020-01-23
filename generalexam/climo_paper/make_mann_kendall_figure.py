@@ -35,7 +35,7 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
 
 SIG_MARKER_TYPE = plot_gridded_stats.SIG_MARKER_TYPE
 SIG_MARKER_COLOUR = plot_gridded_stats.SIG_MARKER_COLOUR
-SIG_MARKER_SIZE = 1.
+SIG_MARKER_SIZE = plot_gridded_stats.SIG_MARKER_SIZE
 SIG_MARKER_EDGE_WIDTH = plot_gridded_stats.SIG_MARKER_EDGE_WIDTH
 
 MAX_WF_FREQUENCY_CHANGE = 0.024
@@ -90,9 +90,9 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_trend(
-        trend_matrix_year01, significance_matrix, max_colour_value,
-        plot_latitudes, plot_longitudes, plot_colour_bar, title_string,
-        letter_label, output_file_name):
+        trend_matrix_year01, significance_matrix, sig_marker_size,
+        max_colour_value, plot_latitudes, plot_longitudes, plot_colour_bar,
+        title_string, letter_label, output_file_name):
     """Plots trend for one front type in one season.
 
     M = number of rows in grid
@@ -102,6 +102,7 @@ def _plot_one_trend(
         at each grid cell.
     :param significance_matrix: M-by-N numpy array of Boolean flags, indicating
         where trend is significant.
+    :param sig_marker_size: Marker size for stippling.
     :param max_colour_value: Max value in colour scheme.
     :param plot_latitudes: Boolean flag.  Determines whether or not numbers will
         be plotted on y-axis.
@@ -156,7 +157,7 @@ def _plot_one_trend(
         sig_x_coords_metres, sig_y_coords_metres,
         linestyle='None', marker=SIG_MARKER_TYPE,
         markerfacecolor=SIG_MARKER_COLOUR, markeredgecolor=SIG_MARKER_COLOUR,
-        markersize=SIG_MARKER_SIZE, markeredgewidth=SIG_MARKER_EDGE_WIDTH
+        markersize=sig_marker_size, markeredgewidth=SIG_MARKER_EDGE_WIDTH
     )
 
     if not plot_latitudes:
@@ -245,6 +246,10 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
     panel_file_names = []
     letter_label = None
 
+    sig_marker_size = SIG_MARKER_SIZE * (
+        1 + int(monte_carlo_max_fdr is not None)
+    )
+
     for i in range(num_seasons):
         for j in range(num_properties):
             this_input_dir_name = '{0:s}/{1:s}'.format(
@@ -327,6 +332,7 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
             _plot_one_trend(
                 trend_matrix_year01=this_trend_matrix_year01,
                 significance_matrix=this_significance_matrix,
+                sig_marker_size=sig_marker_size,
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=j == 0, plot_longitudes=i == num_seasons - 1,
                 plot_colour_bar=i == num_seasons - 1,
