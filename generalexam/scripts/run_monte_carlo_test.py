@@ -473,6 +473,7 @@ def _mc_test_frequency(
                 score=actual_difference_matrix[i, j], kind='mean'
             ) / 100
 
+    p_value_matrix = 2 * numpy.minimum(p_value_matrix, 1. - p_value_matrix)
     return p_value_matrix, baseline_freq_matrix, trial_freq_matrix
 
 
@@ -578,6 +579,7 @@ def _mc_test_one_statistic(
                 score=actual_difference_matrix[i, j], kind='mean'
             ) / 100
 
+    p_value_matrix = 2 * numpy.minimum(p_value_matrix, 1. - p_value_matrix)
     return p_value_matrix, baseline_mean_matrix, trial_mean_matrix
 
 

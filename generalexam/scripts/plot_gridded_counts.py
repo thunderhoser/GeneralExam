@@ -375,7 +375,32 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
     trial_freq_matrix = monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY]
     trial_freq_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = numpy.nan
 
-    significance_matrix = monte_carlo_dict[climo_utils.SIGNIFICANCE_MATRIX_KEY]
+    p_value_matrix = monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
+    # p_value_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = numpy.nan
+
+    p_values_flattened = numpy.ravel(p_value_matrix)
+    p_values_flattened = p_values_flattened[
+        numpy.invert(numpy.isnan(p_values_flattened))
+    ]
+
+    num_p_values = len(p_values_flattened)
+    these_indices = numpy.linspace(1, num_p_values, num_p_values, dtype=float)
+    these_flags = p_values_flattened <= (these_indices / num_p_values) * 0.05
+    these_indices = numpy.where(these_flags)[0]
+
+    if len(these_indices) == 0:
+        p_value_threshold = 0.
+    else:
+        p_value_threshold = p_values_flattened[these_indices[-1]]
+
+    print('p-value threshold for Wilks test = {0:.4f}'.format(
+        p_value_threshold
+    ))
+
+    significance_matrix = p_value_matrix <= p_value_threshold
+    print('Number of significant grid points = {0:d}'.format(
+        numpy.sum(significance_matrix)
+    ))
     significance_matrix[num_labels_matrix < MASK_IF_NUM_LABELS_BELOW] = False
 
     if max_colour_percentile is None:
