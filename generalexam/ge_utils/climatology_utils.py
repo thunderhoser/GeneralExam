@@ -1174,8 +1174,8 @@ def write_monte_carlo_test(
     error_checking.assert_is_numpy_array(
         trial_mean_matrix, exact_dimensions=expected_dim)
 
-    error_checking.assert_is_geq(p_value_matrix, 0., allow_nan=True)
-    error_checking.assert_is_leq(p_value_matrix, 1., allow_nan=True)
+    error_checking.assert_is_geq_numpy_array(p_value_matrix, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(p_value_matrix, 1., allow_nan=True)
     error_checking.assert_is_numpy_array(
         p_value_matrix, exact_dimensions=expected_dim
     )
