@@ -382,6 +382,7 @@ def _run(count_file_name, monte_carlo_file_name, wf_colour_map_name,
     p_values_flattened = p_values_flattened[
         numpy.invert(numpy.isnan(p_values_flattened))
     ]
+    p_values_flattened = numpy.sort(p_values_flattened)
 
     num_p_values = len(p_values_flattened)
     these_indices = numpy.linspace(1, num_p_values, num_p_values, dtype=float)
