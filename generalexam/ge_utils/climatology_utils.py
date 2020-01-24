@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import front_utils
 
+MONTH_YEAR_FORMAT = '%Y%m'
 SENTINEL_VALUE = -9999.
 
 FRONT_LABELS_STRING = 'front_labels'
@@ -95,6 +96,7 @@ TRIAL_INPUT_FILES_KEY = 'trial_input_file_names'
 TREND_MATRIX_KEY = 'trend_matrix_year01'
 INPUT_FILES_KEY = 'input_file_names'
 INPUT_FILE_DIM_KEY = 'input_file'
+EXP_VARIANCE_MATRIX_KEY = 'explained_variance_matrix'
 
 
 def _check_season(season_string):
@@ -2009,3 +2011,146 @@ def read_gridded_stats(netcdf_file_name):
 
     dataset_object.close()
     return front_property_dict
+
+
+def find_explained_variance_file(
+        directory_name, property_name, enso_flag, raise_error_if_missing=True):
+    """Finds NetCDF file with explained variances.
+
+    :param directory_name: Name of directory.
+    :param property_name: Name of property.  Must be accepted by
+        `_check_property`.
+    :param enso_flag: Boolean flag.  If True, file should contain explained
+        variances with respect to ENSO.  If False, should contain explained
+        variances with respect to long-term change.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: netcdf_file_name: Path to file with explained variances.  If file
+        is missing and `raise_error_if_missing = False`, this is the *expected*
+        path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    _check_property(property_name)
+    error_checking.assert_is_boolean(enso_flag)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    netcdf_file_name = (
+        '{0:s}/explained-variances_enso={1:d}_{2:s}.nc'
+    ).format(
+        directory_name, enso_flag, property_name.replace('_', '-'),
+    )
+
+    if raise_error_if_missing and not os.path.isfile(netcdf_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            netcdf_file_name
+        )
+        raise ValueError(error_string)
+
+    return netcdf_file_name
+
+
+def write_explained_variances(
+        netcdf_file_name, explained_variance_matrix, property_name,
+        first_month_string, last_month_string, enso_flag):
+    """Writes explained variances to NetCDF file.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param netcdf_file_name: Path to output file.
+    :param explained_variance_matrix: M-by-N numpy array of explained variances
+        (in range 0...1).
+    :param property_name: Name of property.  Must be accepted by
+        `_check_property`.
+    :param first_month_string: First month in period (format "yyyymm").
+    :param last_month_string: Last month in period (format "yyyymm").
+    :param enso_flag: Boolean flag.  If True, `explained_variance_matrix` should
+        contain explained variances with respect to ENSO.  If False, should
+        contain explained variances with respect to long-term change.
+    """
+
+    error_checking.assert_is_numpy_array(
+        explained_variance_matrix, num_dimensions=2
+    )
+    error_checking.assert_is_geq_numpy_array(
+        explained_variance_matrix, 0., allow_nan=True
+    )
+    error_checking.assert_is_leq_numpy_array(
+        explained_variance_matrix, 1., allow_nan=True
+    )
+
+    explained_variance_matrix[
+        numpy.isnan(explained_variance_matrix)
+    ] = SENTINEL_VALUE
+
+    _check_property(property_name)
+    error_checking.assert_is_boolean(enso_flag)
+
+    first_time_unix_sec = time_conversion.string_to_unix_sec(
+        first_month_string, MONTH_YEAR_FORMAT
+    )
+    last_time_unix_sec = time_conversion.string_to_unix_sec(
+        last_month_string, MONTH_YEAR_FORMAT
+    )
+    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+
+    # Open file.
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    dataset_object = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET'
+    )
+
+    # Set global attributes and dimensions.
+    dataset_object.setncattr(PROPERTY_NAME_KEY, str(property_name))
+
+    dataset_object.createDimension(
+        ROW_DIMENSION_KEY, explained_variance_matrix.shape[0]
+    )
+    dataset_object.createDimension(
+        COLUMN_DIMENSION_KEY, explained_variance_matrix.shape[1]
+    )
+
+    dataset_object.createVariable(
+        EXP_VARIANCE_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    dataset_object.variables[EXP_VARIANCE_MATRIX_KEY][:] = (
+        explained_variance_matrix
+    )
+
+    dataset_object.close()
+
+
+def read_explained_variances(netcdf_file_name):
+    """Reads explained variances from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: explained_variance_dict: Dictionary with the following keys.
+    explained_variance_dict["explained_variance_matrix"]: See doc for
+        `write_explained_variances`.
+    explained_variance_dict["property_name"]: Same.
+    explained_variance_dict["first_month_string"]: Same.
+    explained_variance_dict["last_month_string"]: Same.
+    explained_variance_dict["enso_flag"]: Same.
+    """
+
+    # TODO(thunderhoser): Work other dictionary keys into file.
+
+    dataset_object = netCDF4.Dataset(netcdf_file_name)
+
+    explained_variance_matrix = numpy.array(
+        dataset_object.variables[EXP_VARIANCE_MATRIX_KEY][:], dtype=float
+    )
+    explained_variance_matrix[
+        explained_variance_matrix <= SENTINEL_VALUE
+        ] = numpy.nan
+
+    explained_variance_dict = {
+        PROPERTY_NAME_KEY: str(getattr(dataset_object, PROPERTY_NAME_KEY)),
+        EXP_VARIANCE_MATRIX_KEY: explained_variance_matrix
+    }
+
+    dataset_object.close()
+    return explained_variance_dict
