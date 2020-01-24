@@ -3,6 +3,8 @@
 import argparse
 import numpy
 import pandas
+import sklearn.linear_model
+import sklearn.metrics
 from gewittergefahr.gg_utils import time_conversion
 from generalexam.ge_utils import climatology_utils as climo_utils
 
@@ -64,6 +66,29 @@ INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING
 )
+
+
+def _get_explained_variance(x_values, y_values):
+    """Computes explained variance for two data series.
+
+    P = number of points
+
+    :param x_values: length-P numpy array of x-values.
+    :param y_values: length-P numpy array of y-values.
+    :return:
+    """
+
+    linear_model_object = sklearn.linear_model.LinearRegression(
+        fit_intercept=True, normalize=False
+    )
+
+    x_matrix = numpy.reshape(x_values, (len(x_values), 1))
+    linear_model_object.fit(x_matrix, y_values)
+    y_hat_values = linear_model_object.predict(x_matrix)
+
+    return sklearn.metrics.explained_variance_score(
+        y_true=y_values, y_pred=y_hat_values
+    )
 
 
 def _months_to_start_end_times(month_strings):
@@ -249,22 +274,32 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
         ))
 
         for j in range(num_grid_columns):
-            this_covar_matrix = numpy.cov(
-                nino_3point4_indices, wf_frequency_matrix[:, i, j],
-                bias=False, ddof=1
-            )
-            wf_explained_variance_matrix[i, j] = (
-                this_covar_matrix[0, 1] ** 2 /
-                (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
+            # this_covar_matrix = numpy.cov(
+            #     nino_3point4_indices, wf_frequency_matrix[:, i, j],
+            #     bias=False, ddof=1
+            # )
+            # wf_explained_variance_matrix[i, j] = (
+            #     this_covar_matrix[0, 1] ** 2 /
+            #     (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
+            # )
+
+            wf_explained_variance_matrix[i, j] = _get_explained_variance(
+                x_values=nino_3point4_indices,
+                y_values=wf_frequency_matrix[:, i, j]
             )
 
-            this_covar_matrix = numpy.cov(
-                nino_3point4_indices, cf_frequency_matrix[:, i, j],
-                bias=False, ddof=1
-            )
-            cf_explained_variance_matrix[i, j] = (
-                this_covar_matrix[0, 1] ** 2 /
-                (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
+            # this_covar_matrix = numpy.cov(
+            #     nino_3point4_indices, cf_frequency_matrix[:, i, j],
+            #     bias=False, ddof=1
+            # )
+            # cf_explained_variance_matrix[i, j] = (
+            #     this_covar_matrix[0, 1] ** 2 /
+            #     (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
+            # )
+
+            cf_explained_variance_matrix[i, j] = _get_explained_variance(
+                x_values=nino_3point4_indices,
+                y_values=cf_frequency_matrix[:, i, j]
             )
 
     print(SEPARATOR_STRING)
