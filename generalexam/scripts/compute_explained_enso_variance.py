@@ -134,6 +134,10 @@ def _read_frequencies_one_composite(count_file_names):
         this_wf_frequency_matrix = (
             this_count_dict[climo_utils.NUM_WF_LABELS_KEY] / this_num_times
         )
+
+        this_cf_frequency_matrix = (
+            this_count_dict[climo_utils.NUM_CF_LABELS_KEY]
+        )
         print(numpy.nanmax(this_cf_frequency_matrix))
         this_cf_frequency_matrix = (
             this_count_dict[climo_utils.NUM_CF_LABELS_KEY] / this_num_times
