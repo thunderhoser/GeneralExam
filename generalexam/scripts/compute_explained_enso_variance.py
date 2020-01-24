@@ -245,29 +245,22 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
         ))
 
         for j in range(num_grid_columns):
-            this_wf_freq_variance = numpy.var(
-                wf_frequency_matrix[:, i, j], ddof=1
-            )
-            this_covariance_matrix = numpy.cov(
+            this_covar_matrix = numpy.cov(
                 nino_3point4_indices, wf_frequency_matrix[:, i, j],
                 bias=False, ddof=1
             )
-            print(this_covariance_matrix)
             wf_explained_variance_matrix[i, j] = (
-                this_covariance_matrix[0, 1] ** 2 /
-                (nino_3point4_variance * this_wf_freq_variance)
+                this_covar_matrix[0, 1] ** 2 /
+                (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
             )
 
-            this_cf_freq_variance = numpy.var(
-                cf_frequency_matrix[:, i, j], ddof=1
-            )
-            this_covariance = numpy.cov(
+            this_covar_matrix = numpy.cov(
                 nino_3point4_indices, cf_frequency_matrix[:, i, j],
                 bias=False, ddof=1
-            )[0, 1]
+            )
             cf_explained_variance_matrix[i, j] = (
-                this_covariance ** 2 /
-                (nino_3point4_variance * this_cf_freq_variance)
+                this_covar_matrix[0, 1] ** 2 /
+                (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
             )
 
     print(SEPARATOR_STRING)
