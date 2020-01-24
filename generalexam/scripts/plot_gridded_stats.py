@@ -379,7 +379,7 @@ def plot_monte_carlo_diff(
     axes_object.plot(
         sig_x_coords_metres, sig_y_coords_metres, linestyle='None',
         marker=SIG_MARKER_TYPE, markerfacecolor=SIG_MARKER_COLOUR,
-        markeredgecolor=SIG_MARKER_COLOUR, markersize=SIG_MARKER_SIZE,
+        markeredgecolor=SIG_MARKER_COLOUR, markersize=SIG_MARKER_SIZE * 2,
         markeredgewidth=SIG_MARKER_EDGE_WIDTH
     )
 
