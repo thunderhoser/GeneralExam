@@ -75,8 +75,11 @@ def _get_explained_variance(x_values, y_values):
 
     :param x_values: length-P numpy array of x-values.
     :param y_values: length-P numpy array of y-values.
-    :return:
+    :return: explained_variance: Explained variance (fraction from 0...1).
     """
+
+    if numpy.any(numpy.isnan(y_values)):
+        return numpy.nan
 
     linear_model_object = sklearn.linear_model.LinearRegression(
         fit_intercept=True, normalize=False
@@ -235,11 +238,11 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
                 enso_table[NINO_3POINT4_COLUMN].values[this_row]
             )
 
-    num_times = len(month_strings)
-    for i in range(num_times):
-        print('Month = {0:s} ... Nino 3.4 index = {1:.3f}'.format(
-            month_strings[i], nino_3point4_indices[i]
-        ))
+    # num_times = len(month_strings)
+    # for i in range(num_times):
+    #     print('Month = {0:s} ... Nino 3.4 index = {1:.3f}'.format(
+    #         month_strings[i], nino_3point4_indices[i]
+    #     ))
 
     nino_3point4_indices = numpy.array(nino_3point4_indices)
     start_times_unix_sec, end_times_unix_sec = (
