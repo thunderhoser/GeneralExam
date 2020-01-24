@@ -323,6 +323,10 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
                 this_monte_carlo_dict[climo_utils.TRIAL_MATRIX_KEY] -
                 this_monte_carlo_dict[climo_utils.BASELINE_MATRIX_KEY]
             )
+            this_difference_matrix[
+                this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+            ] = numpy.nan
+
             this_p_value_matrix = (
                 this_monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
             )
@@ -339,9 +343,6 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
                     max_false_discovery_rate=monte_carlo_max_fdr
                 )
 
-            this_difference_matrix[
-                this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
-            ] = numpy.nan
             this_significance_matrix[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
             ] = False

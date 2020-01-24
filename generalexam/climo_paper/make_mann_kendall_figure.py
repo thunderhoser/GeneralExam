@@ -273,6 +273,10 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
                 conversion_ratio *
                 this_mann_kendall_dict[climo_utils.TREND_MATRIX_KEY]
             )
+            this_trend_matrix_year01[
+                this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
+            ] = numpy.nan
+
             this_p_value_matrix = (
                 this_mann_kendall_dict[climo_utils.P_VALUE_MATRIX_KEY]
             )
@@ -301,9 +305,6 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
                     max_false_discovery_rate=monte_carlo_max_fdr
                 )
 
-            this_trend_matrix_year01[
-                this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
-            ] = numpy.nan
             this_significance_matrix[
                 this_num_labels_matrix < MASK_IF_NUM_LABELS_BELOW
             ] = False
