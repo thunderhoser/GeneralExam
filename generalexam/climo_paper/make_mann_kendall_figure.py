@@ -292,6 +292,9 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
                 else:
                     this_max_colour_value = MAX_CF_LENGTH_CHANGE_KM
 
+            print(numpy.nanmax(numpy.absolute(this_trend_matrix_year01)))
+            print(this_max_colour_value)
+
             this_p_value_matrix[
                 numpy.isnan(this_trend_matrix_year01)
             ] = numpy.nan
