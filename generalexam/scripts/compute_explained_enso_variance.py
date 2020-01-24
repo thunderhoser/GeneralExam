@@ -80,17 +80,19 @@ def _get_explained_variance(x_values, y_values):
 
     if numpy.any(numpy.isnan(y_values)):
         return numpy.nan
+    if numpy.sum(y_values) == 0:
+        return numpy.nan
 
     linear_model_object = sklearn.linear_model.LinearRegression(
-        fit_intercept=True, normalize=False
+        fit_intercept=True, normalize=True
     )
 
     x_matrix = numpy.reshape(x_values, (len(x_values), 1))
     linear_model_object.fit(x_matrix, y_values)
-    y_hat_values = linear_model_object.predict(x_matrix)
+    predicted_y_values = linear_model_object.predict(x_matrix)
 
     return sklearn.metrics.explained_variance_score(
-        y_true=y_values, y_pred=y_hat_values
+        y_true=y_values, y_pred=predicted_y_values
     )
 
 
@@ -237,12 +239,6 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
             nino_3point4_indices.append(
                 enso_table[NINO_3POINT4_COLUMN].values[this_row]
             )
-
-    # num_times = len(month_strings)
-    # for i in range(num_times):
-    #     print('Month = {0:s} ... Nino 3.4 index = {1:.3f}'.format(
-    #         month_strings[i], nino_3point4_indices[i]
-    #     ))
 
     nino_3point4_indices = numpy.array(nino_3point4_indices)
     start_times_unix_sec, end_times_unix_sec = (
