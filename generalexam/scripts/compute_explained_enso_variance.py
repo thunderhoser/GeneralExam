@@ -134,9 +134,11 @@ def _read_frequencies_one_composite(count_file_names):
         this_wf_frequency_matrix = (
             this_count_dict[climo_utils.NUM_WF_LABELS_KEY] / this_num_times
         )
+        print(numpy.nanmax(this_cf_frequency_matrix))
         this_cf_frequency_matrix = (
             this_count_dict[climo_utils.NUM_CF_LABELS_KEY] / this_num_times
         )
+        print(numpy.nanmax(this_cf_frequency_matrix))
 
         if wf_frequency_matrix is None:
             num_grid_rows = this_wf_frequency_matrix.shape[0]
@@ -251,8 +253,6 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
                 this_covar_matrix[0, 1] ** 2 /
                 (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
             )
-
-            print(numpy.mean(cf_frequency_matrix[:, i, j]))
 
             this_covar_matrix = numpy.cov(
                 nino_3point4_indices, cf_frequency_matrix[:, i, j],
