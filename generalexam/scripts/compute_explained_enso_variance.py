@@ -134,15 +134,9 @@ def _read_frequencies_one_composite(count_file_names):
         this_wf_frequency_matrix = (
             this_count_dict[climo_utils.NUM_WF_LABELS_KEY] / this_num_times
         )
-
-        this_cf_frequency_matrix = (
-            this_count_dict[climo_utils.NUM_CF_LABELS_KEY]
-        )
-        print(numpy.nanmax(this_cf_frequency_matrix))
         this_cf_frequency_matrix = (
             this_count_dict[climo_utils.NUM_CF_LABELS_KEY] / this_num_times
         )
-        print(numpy.nanmax(this_cf_frequency_matrix))
 
         if wf_frequency_matrix is None:
             num_grid_rows = this_wf_frequency_matrix.shape[0]
@@ -215,6 +209,12 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
             nino_3point4_indices.append(
                 enso_table[NINO_3POINT4_COLUMN].values[this_row]
             )
+
+    num_times = len(month_strings)
+    for i in range(num_times):
+        print('Month = {0:s} ... Nino 3.4 index = {1:.3f}'.format(
+            month_strings[i], nino_3point4_indices[i]
+        ))
 
     nino_3point4_indices = numpy.array(nino_3point4_indices)
     start_times_unix_sec, end_times_unix_sec = (
