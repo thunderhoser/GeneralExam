@@ -235,8 +235,6 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
     wf_explained_variance_matrix = numpy.full(dimensions, numpy.nan)
     cf_explained_variance_matrix = numpy.full(dimensions, numpy.nan)
 
-    nino_3point4_variance = numpy.var(nino_3point4_indices, ddof=1)
-
     for i in range(num_grid_rows):
         print((
             'Computing explained variances for {0:d}th of {1:d} rows in grid...'
@@ -253,6 +251,8 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
                 this_covar_matrix[0, 1] ** 2 /
                 (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
             )
+
+            print(numpy.mean(cf_frequency_matrix[:, i, j]))
 
             this_covar_matrix = numpy.cov(
                 nino_3point4_indices, cf_frequency_matrix[:, i, j],
