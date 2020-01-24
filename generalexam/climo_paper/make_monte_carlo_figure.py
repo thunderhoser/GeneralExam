@@ -326,6 +326,10 @@ def _run(top_input_dir_name, main_property_name, composite_name_abbrev,
             this_p_value_matrix = (
                 this_monte_carlo_dict[climo_utils.P_VALUE_MATRIX_KEY]
             )
+            this_p_value_matrix[
+                numpy.absolute(this_difference_matrix)
+                < this_max_colour_value / 2
+            ] = numpy.nan
 
             if monte_carlo_max_fdr is None:
                 this_significance_matrix = this_p_value_matrix <= 0.05

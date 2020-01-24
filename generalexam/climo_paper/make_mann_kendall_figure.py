@@ -277,6 +277,22 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
                 this_mann_kendall_dict[climo_utils.P_VALUE_MATRIX_KEY]
             )
 
+            if plot_frequency:
+                if front_type_abbrevs[j] == 'wf':
+                    this_max_colour_value = MAX_WF_FREQUENCY_CHANGE
+                else:
+                    this_max_colour_value = MAX_CF_FREQUENCY_CHANGE
+            else:
+                if front_type_abbrevs[j] == 'wf':
+                    this_max_colour_value = MAX_WF_LENGTH_CHANGE_KM
+                else:
+                    this_max_colour_value = MAX_CF_LENGTH_CHANGE_KM
+
+            this_p_value_matrix[
+                numpy.absolute(this_trend_matrix_year01)
+                < this_max_colour_value / 2
+            ] = numpy.nan
+
             if monte_carlo_max_fdr is None:
                 this_significance_matrix = this_p_value_matrix <= 0.05
             else:
@@ -312,17 +328,6 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
                 season_strings_abbrev[i]
             )
             panel_file_names.append(this_output_file_name)
-
-            if plot_frequency:
-                if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_FREQUENCY_CHANGE
-                else:
-                    this_max_colour_value = MAX_CF_FREQUENCY_CHANGE
-            else:
-                if front_type_abbrevs[j] == 'wf':
-                    this_max_colour_value = MAX_WF_LENGTH_CHANGE_KM
-                else:
-                    this_max_colour_value = MAX_CF_LENGTH_CHANGE_KM
 
             if letter_label is None:
                 letter_label = 'a'
