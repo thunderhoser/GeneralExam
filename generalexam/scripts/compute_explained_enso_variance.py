@@ -248,12 +248,13 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
             this_wf_freq_variance = numpy.var(
                 wf_frequency_matrix[:, i, j], ddof=1
             )
-            this_covariance = numpy.cov(
+            this_covariance_matrix = numpy.cov(
                 nino_3point4_indices, wf_frequency_matrix[:, i, j],
                 bias=False, ddof=1
-            )[0, 1]
+            )
+            print(this_covariance_matrix)
             wf_explained_variance_matrix[i, j] = (
-                this_covariance ** 2 /
+                this_covariance_matrix[0, 1] ** 2 /
                 (nino_3point4_variance * this_wf_freq_variance)
             )
 
