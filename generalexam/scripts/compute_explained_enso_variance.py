@@ -229,8 +229,8 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
     cf_frequency_matrix = count_dict[CF_FREQ_MATRIX_KEY]
     print(SEPARATOR_STRING)
 
-    num_grid_rows = wf_frequency_matrix.shape[0]
-    num_grid_columns = wf_frequency_matrix.shape[1]
+    num_grid_rows = wf_frequency_matrix.shape[1]
+    num_grid_columns = wf_frequency_matrix.shape[2]
     dimensions = (num_grid_rows, num_grid_columns)
     wf_explained_variance_matrix = numpy.full(dimensions, numpy.nan)
     cf_explained_variance_matrix = numpy.full(dimensions, numpy.nan)
