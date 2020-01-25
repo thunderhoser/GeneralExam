@@ -264,6 +264,9 @@ def _run(count_dir_name, first_month_string, last_month_string,
         enso_flag=False, raise_error_if_missing=False
     )
 
+    print(numpy.nanmin(wf_explained_variance_matrix))
+    print(numpy.nanmax(wf_explained_variance_matrix))
+
     print('Writing results to: "{0:s}"...'.format(wf_output_file_name))
     climo_utils.write_explained_variances(
         netcdf_file_name=wf_output_file_name,
