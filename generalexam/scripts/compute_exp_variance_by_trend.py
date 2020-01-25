@@ -195,9 +195,8 @@ def _run(count_dir_name, first_month_string, last_month_string,
         for m in range(this_first_month, this_last_month + 1):
             month_strings.append('{0:04d}{1:02d}'.format(y, m))
     
-    print(month_strings)
     num_months = len(month_strings)
-    month_indices = numpy.linspace(1, num_months, len=num_months, dtype=float)
+    month_indices = numpy.linspace(1, num_months, num=num_months, dtype=float)
 
     start_times_unix_sec, end_times_unix_sec = (
         _months_to_start_end_times(month_strings)
