@@ -43,7 +43,7 @@ MONTH_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Files will be written here by '
-    '`climatology_utils.write_explained_enso_variance`, to exact locations '
+    '`climatology_utils.write_explained_variances`, to exact locations '
     'determined by `climatology_utils.find_explained_variance_file`.'
 )
 
@@ -126,18 +126,17 @@ def _months_to_start_end_times(month_strings):
     return start_times_unix_sec, end_times_unix_sec
 
 
-def _read_frequencies_one_composite(count_file_names):
-    """Reads gridded front frequencies for one composite.
+def _read_frequencies(count_file_names):
+    """Reads gridded front frequencies.
 
     T = number of months
-    M = number of rows in subgrid
-    N = number of columns in subgrid
+    M = number of rows in grid
+    N = number of columns in grid
 
     :param count_file_names: 1-D list of paths to input files.
-    :return: front_count_dict: Dictionary with the following keys.
-    front_count_dict["wf_frequency_matrix"]: T-by-M-by-N numpy array with
-        monthly warm-front frequencies.
-    front_count_dict["cf_frequency_matrix"]: Same but for cold fronts.
+    :return: wf_frequency_matrix: T-by-M-by-N numpy array of monthly warm-front
+        frequencies.
+    :return: cf_frequency_matrix: Same but for cold fronts.
     """
 
     wf_frequency_matrix = None
@@ -179,10 +178,7 @@ def _read_frequencies_one_composite(count_file_names):
         wf_frequency_matrix[i, ...] = this_wf_frequency_matrix
         cf_frequency_matrix[i, ...] = this_cf_frequency_matrix
 
-    return {
-        WF_FREQ_MATRIX_KEY: wf_frequency_matrix,
-        CF_FREQ_MATRIX_KEY: cf_frequency_matrix
-    }
+    return wf_frequency_matrix, cf_frequency_matrix
 
 
 def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
@@ -254,9 +250,9 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
         for f, l in zip(start_times_unix_sec, end_times_unix_sec)
     ]
 
-    count_dict = _read_frequencies_one_composite(count_file_names)
-    wf_frequency_matrix = count_dict[WF_FREQ_MATRIX_KEY]
-    cf_frequency_matrix = count_dict[CF_FREQ_MATRIX_KEY]
+    wf_frequency_matrix, cf_frequency_matrix = (
+        _read_frequencies(count_file_names)
+    )
     print(SEPARATOR_STRING)
 
     num_grid_rows = wf_frequency_matrix.shape[1]

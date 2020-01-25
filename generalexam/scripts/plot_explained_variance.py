@@ -111,7 +111,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
     )
 
     tick_values = colour_bar_object.get_ticks()
-    tick_strings = ['{0:.2f}'.format(x) for x in tick_values]
+    tick_strings = ['{0:.3f}'.format(x) for x in tick_values]
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
