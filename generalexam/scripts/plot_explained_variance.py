@@ -18,6 +18,7 @@ FIGURE_RESOLUTION_DPI = 300
 INPUT_FILE_ARG_NAME = 'input_file_name'
 MAX_VALUE_ARG_NAME = 'max_colour_value'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
+TITLE_ARG_NAME = 'title_string'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 INPUT_FILE_HELP_STRING = (
@@ -34,6 +35,7 @@ MAX_PERCENTILE_HELP_STRING = (
     ' ([q]th percentile of all values in grid, where q = `{1:s}`).'
 ).format(MAX_VALUE_ARG_NAME, MAX_PERCENTILE_ARG_NAME)
 
+TITLE_HELP_STRING = 'Title (will be printed above figure).'
 OUTPUT_FILE_HELP_STRING = 'Path to output file.  Figure will be saved here.'
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
@@ -50,13 +52,17 @@ INPUT_ARG_PARSER.add_argument(
     help=MAX_PERCENTILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + TITLE_ARG_NAME, type=str, required=False, default='',
+    help=TITLE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING
 )
 
 
 def _run(input_file_name, max_colour_value, max_colour_percentile,
-         output_file_name):
+         title_string, output_file_name):
     """Plots explained variance in WF or CF frequency at each grid point.
 
     This is effectively the main method.
@@ -64,6 +70,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
     :param input_file_name: See documentation at top of file.
     :param max_colour_value: Same.
     :param max_colour_percentile: Same.
+    :param title_string: Same.
     :param output_file_name: Same.
     """
 
@@ -115,6 +122,8 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
+    axes_object.set_title(title_string)
+
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
     figure_object.savefig(
         output_file_name, dpi=FIGURE_RESOLUTION_DPI,
@@ -132,5 +141,6 @@ if __name__ == '__main__':
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME
         ),
+        title_string=getattr(INPUT_ARG_OBJECT, TITLE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

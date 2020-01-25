@@ -14,6 +14,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 COUNT_DIR_ARG_NAME = 'input_count_dir_name'
 FIRST_MONTH_ARG_NAME = 'first_month_string'
 LAST_MONTH_ARG_NAME = 'last_month_string'
+MONTHS_IN_SEASON_ARG_NAME = 'months_in_season'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 COUNT_DIR_HELP_STRING = (
@@ -26,6 +27,10 @@ MONTH_HELP_STRING = (
     'point over the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_MONTH_ARG_NAME, LAST_MONTH_ARG_NAME)
 
+MONTHS_IN_SEASON_HELP_STRING = (
+    'List of months in season (integers from 1...12).  To use all months in '
+    'year, leave this argument alone.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Files will be written here by '
     '`climatology_utils.write_explained_variances`, to exact locations '
@@ -42,6 +47,10 @@ INPUT_ARG_PARSER.add_argument(
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_MONTH_ARG_NAME, type=str, required=True, help=MONTH_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MONTHS_IN_SEASON_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=MONTHS_IN_SEASON_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -163,7 +172,7 @@ def _read_frequencies(count_file_names):
 
 
 def _run(count_dir_name, first_month_string, last_month_string,
-         output_dir_name):
+         months_in_season, output_dir_name):
     """Computes explained variance in WF and CF frequency by long-term trend.
 
     This is effectively the main method.
@@ -171,8 +180,12 @@ def _run(count_dir_name, first_month_string, last_month_string,
     :param count_dir_name: See documentation at top of file.
     :param first_month_string: Same.
     :param last_month_string: Same.
+    :param months_in_season: Same.
     :param output_dir_name: Same.
     """
+
+    if len(months_in_season) == 1 and months_in_season[0] <= 0:
+        months_in_season = numpy.linspace(1, 12, num=12, dtype=int)
 
     first_year = int(first_month_string[:4])
     first_month = int(first_month_string[4:])
@@ -193,6 +206,9 @@ def _run(count_dir_name, first_month_string, last_month_string,
             this_last_month = 12
 
         for m in range(this_first_month, this_last_month + 1):
+            if m not in months_in_season:
+                continue
+
             month_strings.append('{0:04d}{1:02d}'.format(y, m))
 
     num_months = len(month_strings)
@@ -280,5 +296,8 @@ if __name__ == '__main__':
         count_dir_name=getattr(INPUT_ARG_OBJECT, COUNT_DIR_ARG_NAME),
         first_month_string=getattr(INPUT_ARG_OBJECT, FIRST_MONTH_ARG_NAME),
         last_month_string=getattr(INPUT_ARG_OBJECT, LAST_MONTH_ARG_NAME),
+        months_in_season=numpy.array(
+            getattr(INPUT_ARG_OBJECT, MONTHS_IN_SEASON_ARG_NAME), dtype=int
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

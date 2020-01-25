@@ -6,6 +6,7 @@ import pandas
 import sklearn.linear_model
 import sklearn.metrics
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import error_checking
 from generalexam.ge_utils import climatology_utils as climo_utils
 
 YEAR_MONTH_FORMAT = '%Y%m'
@@ -19,12 +20,11 @@ ENSO_YEAR_COLUMN = 0
 ENSO_MONTH_COLUMN = 1
 NINO_3POINT4_COLUMN = 9
 
-RELEVANT_MONTHS = numpy.array([1, 2, 12], dtype=int)
-
 COUNT_DIR_ARG_NAME = 'input_count_dir_name'
 ENSO_FILE_ARG_NAME = 'input_enso_file_name'
 FIRST_MONTH_ARG_NAME = 'first_month_string'
 LAST_MONTH_ARG_NAME = 'last_month_string'
+MONTHS_IN_SEASON_ARG_NAME = 'months_in_season'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 COUNT_DIR_HELP_STRING = (
@@ -43,6 +43,10 @@ MONTH_HELP_STRING = (
     'point over the period `{0:s}`...`{1:s}`.'
 ).format(FIRST_MONTH_ARG_NAME, LAST_MONTH_ARG_NAME)
 
+MONTHS_IN_SEASON_HELP_STRING = (
+    'List of months in season (integers from 1...12).  To use all months in '
+    'year, leave this argument alone.'
+)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Files will be written here by '
     '`climatology_utils.write_explained_variances`, to exact locations '
@@ -63,6 +67,10 @@ INPUT_ARG_PARSER.add_argument(
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_MONTH_ARG_NAME, type=str, required=True, help=MONTH_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MONTHS_IN_SEASON_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=MONTHS_IN_SEASON_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -184,7 +192,7 @@ def _read_frequencies(count_file_names):
 
 
 def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
-         output_dir_name):
+         months_in_season, output_dir_name):
     """Computes percent variance in CF and WF frequency explained by ENSO phase.
 
     This is effectively the main method.
@@ -193,8 +201,15 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
     :param enso_file_name: Same.
     :param first_month_string: Same.
     :param last_month_string: Same.
+    :param months_in_season: Same.
     :param output_dir_name: Same.
     """
+
+    if len(months_in_season) == 1 and months_in_season[0] <= 0:
+        months_in_season = numpy.linspace(1, 12, num=12, dtype=int)
+
+    error_checking.assert_is_geq_numpy_array(months_in_season, 1)
+    error_checking.assert_is_leq_numpy_array(months_in_season, 12)
 
     first_year = int(first_month_string[:4])
     first_month = int(first_month_string[4:])
@@ -228,7 +243,7 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
             this_last_month = 12
 
         for m in range(this_first_month, this_last_month + 1):
-            if m not in RELEVANT_MONTHS:
+            if m not in months_in_season:
                 continue
 
             month_strings.append('{0:04d}{1:02d}'.format(y, m))
@@ -288,15 +303,6 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
                 y_values=wf_frequency_matrix[:, i, j]
             )
 
-            # this_covar_matrix = numpy.cov(
-            #     nino_3point4_indices, cf_frequency_matrix[:, i, j],
-            #     bias=False, ddof=1
-            # )
-            # cf_explained_variance_matrix[i, j] = (
-            #     this_covar_matrix[0, 1] ** 2 /
-            #     (this_covar_matrix[0, 0] * this_covar_matrix[1, 1])
-            # )
-
             cf_explained_variance_matrix[i, j] = _get_explained_variance(
                 x_values=nino_3point4_indices,
                 y_values=cf_frequency_matrix[:, i, j]
@@ -343,5 +349,8 @@ if __name__ == '__main__':
         enso_file_name=getattr(INPUT_ARG_OBJECT, ENSO_FILE_ARG_NAME),
         first_month_string=getattr(INPUT_ARG_OBJECT, FIRST_MONTH_ARG_NAME),
         last_month_string=getattr(INPUT_ARG_OBJECT, LAST_MONTH_ARG_NAME),
+        months_in_season=numpy.array(
+            getattr(INPUT_ARG_OBJECT, MONTHS_IN_SEASON_ARG_NAME), dtype=int
+        ),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
