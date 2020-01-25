@@ -81,9 +81,10 @@ def _get_explained_variance(x_values, y_values):
     linear_model_object.fit(x_matrix, y_values)
     predicted_y_values = linear_model_object.predict(x_matrix)
 
-    return sklearn.metrics.explained_variance_score(
+    explained_variance = sklearn.metrics.explained_variance_score(
         y_true=y_values, y_pred=predicted_y_values
     )
+    return numpy.maximum(explained_variance, 0.)
 
 
 def _months_to_start_end_times(month_strings):
@@ -263,9 +264,6 @@ def _run(count_dir_name, first_month_string, last_month_string,
         property_name=climo_utils.WF_FREQ_PROPERTY_NAME,
         enso_flag=False, raise_error_if_missing=False
     )
-
-    print(numpy.nanmin(wf_explained_variance_matrix))
-    print(numpy.nanmax(wf_explained_variance_matrix))
 
     print('Writing results to: "{0:s}"...'.format(wf_output_file_name))
     climo_utils.write_explained_variances(

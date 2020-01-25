@@ -101,9 +101,10 @@ def _get_explained_variance(x_values, y_values):
     linear_model_object.fit(x_matrix, y_values)
     predicted_y_values = linear_model_object.predict(x_matrix)
 
-    return sklearn.metrics.explained_variance_score(
+    explained_variance = sklearn.metrics.explained_variance_score(
         y_true=y_values, y_pred=predicted_y_values
     )
+    return numpy.maximum(explained_variance, 0.)
 
 
 def _months_to_start_end_times(month_strings):
