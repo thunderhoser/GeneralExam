@@ -19,6 +19,8 @@ ENSO_YEAR_COLUMN = 0
 ENSO_MONTH_COLUMN = 1
 NINO_3POINT4_COLUMN = 9
 
+RELEVANT_MONTHS = numpy.array([1, 2, 12], dtype=int)
+
 COUNT_DIR_ARG_NAME = 'input_count_dir_name'
 ENSO_FILE_ARG_NAME = 'input_enso_file_name'
 FIRST_MONTH_ARG_NAME = 'first_month_string'
@@ -226,6 +228,9 @@ def _run(count_dir_name, enso_file_name, first_month_string, last_month_string,
             this_last_month = 12
 
         for m in range(this_first_month, this_last_month + 1):
+            if m not in RELEVANT_MONTHS:
+                continue
+
             month_strings.append('{0:04d}{1:02d}'.format(y, m))
 
             this_row = numpy.where(
