@@ -369,7 +369,8 @@ def _rotate_winds(example_dict, example_index, narr_cosine_matrix,
 def plot_real_example(
         example_dict, example_index, plot_wind_as_barbs,
         non_wind_colour_map_object, plot_diffs=False, num_panel_rows=None,
-        add_titles=True, colour_bar_length=DEFAULT_CBAR_LENGTH,
+        add_titles=True, one_cbar_per_panel=True,
+        colour_bar_length=DEFAULT_CBAR_LENGTH,
         main_font_size=DEFAULT_MAIN_FONT_SIZE,
         title_font_size=DEFAULT_TITLE_FONT_SIZE,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
@@ -394,6 +395,8 @@ def plot_real_example(
         be auto determined.
     :param add_titles: Boolean flag.  If True, will plot title at top of each
         figure.
+    :param one_cbar_per_panel: Boolean flag.  If True, will plot one colour bar
+        for each panel.  If False, one colour bar for the whole figure.
     :param colour_bar_length: Length of colour bars (as fraction of axis
         length).
     :param main_font_size: Font size for everything except titles and colour
@@ -421,6 +424,7 @@ def plot_real_example(
     error_checking.assert_is_boolean(plot_wind_as_barbs)
     error_checking.assert_is_boolean(plot_diffs)
     error_checking.assert_is_boolean(add_titles)
+    error_checking.assert_is_boolean(one_cbar_per_panel)
     error_checking.assert_is_greater(main_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
     error_checking.assert_is_greater(colour_bar_font_size, 0.)
@@ -446,7 +450,8 @@ def plot_real_example(
 
     num_narr_rows, num_narr_columns = nwp_model_utils.get_grid_dimensions(
         model_name=nwp_model_utils.NARR_MODEL_NAME,
-        grid_name=nwp_model_utils.NAME_OF_221GRID)
+        grid_name=nwp_model_utils.NAME_OF_221GRID
+    )
 
     these_expected_dim = numpy.array(
         [num_narr_rows, num_narr_columns], dtype=int
@@ -455,21 +460,24 @@ def plot_real_example(
     error_checking.assert_is_geq_numpy_array(narr_cosine_matrix, -1.)
     error_checking.assert_is_leq_numpy_array(narr_cosine_matrix, 1.)
     error_checking.assert_is_numpy_array(
-        narr_cosine_matrix, exact_dimensions=these_expected_dim)
+        narr_cosine_matrix, exact_dimensions=these_expected_dim
+    )
 
     error_checking.assert_is_geq_numpy_array(narr_sine_matrix, -1.)
     error_checking.assert_is_leq_numpy_array(narr_sine_matrix, 1.)
     error_checking.assert_is_numpy_array(
-        narr_sine_matrix, exact_dimensions=these_expected_dim)
+        narr_sine_matrix, exact_dimensions=these_expected_dim
+    )
 
     # Do housekeeping.
-    example_dict = _convert_units(example_dict=example_dict,
-                                  example_index=example_index)
-
+    example_dict = _convert_units(
+        example_dict=example_dict, example_index=example_index
+    )
     example_dict, metadata_dict = _rotate_winds(
         example_dict=example_dict, example_index=example_index,
         narr_cosine_matrix=narr_cosine_matrix,
-        narr_sine_matrix=narr_sine_matrix)
+        narr_sine_matrix=narr_sine_matrix
+    )
 
     first_narr_row = metadata_dict[FIRST_NARR_ROW_KEY]
     last_narr_row = metadata_dict[LAST_NARR_ROW_KEY]
@@ -483,7 +491,8 @@ def plot_real_example(
         last_row_in_full_grid=last_narr_row,
         first_column_in_full_grid=first_narr_column,
         last_column_in_full_grid=last_narr_column,
-        resolution_string='i')
+        resolution_string='i'
+    )
 
     pyplot.close(temp_figure_object)
     plot_wind = metadata_dict[PLOT_WIND_KEY]
@@ -522,12 +531,6 @@ def plot_real_example(
         float(num_panels_desired) / num_panel_rows
     ))
     num_panels = num_panel_rows * num_panel_columns
-
-    if num_panel_rows >= num_panel_columns:
-        cbar_orientation_string = 'vertical'
-        cbar_padding = None
-    else:
-        cbar_orientation_string = 'horizontal'
 
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
@@ -576,9 +579,6 @@ def plot_real_example(
                 basemap_object=basemap_object, axes_object=this_axes_object,
                 num_meridians=NUM_MERIDIANS, font_size=main_font_size)
 
-        if cbar_orientation_string == 'horizontal':
-            cbar_padding = 0.05 if i == num_panel_rows - 1 else None
-
         if predictor_names[k] == predictor_utils.HEIGHT_NAME:
             same_field_indices = numpy.array([k], dtype=int)
         else:
@@ -617,19 +617,27 @@ def plot_real_example(
             first_row_in_full_grid=first_narr_row,
             first_column_in_full_grid=first_narr_column)
 
-        this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
-            axes_object_or_matrix=this_axes_object,
-            data_matrix=predictor_matrix[..., k],
-            colour_map_object=this_colour_map_object,
-            min_value=this_min_value, max_value=this_max_value,
-            orientation_string=cbar_orientation_string, padding=cbar_padding,
-            font_size=colour_bar_font_size, extend_min=True, extend_max=True,
-            fraction_of_axis_length=colour_bar_length)
+        if one_cbar_per_panel:
+            this_padding = 0.05 if i == num_panel_rows - 1 else None
 
-        these_tick_values = this_colour_bar_object.get_ticks()
-        these_tick_strings = ['{0:.1f}'.format(v) for v in these_tick_values]
-        this_colour_bar_object.set_ticks(these_tick_values)
-        this_colour_bar_object.set_ticklabels(these_tick_strings)
+            this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
+                axes_object_or_matrix=this_axes_object,
+                data_matrix=predictor_matrix[..., k],
+                colour_map_object=this_colour_map_object,
+                min_value=this_min_value, max_value=this_max_value,
+                orientation_string='horizontal', padding=this_padding,
+                font_size=colour_bar_font_size,
+                extend_min=True, extend_max=True,
+                fraction_of_axis_length=colour_bar_length
+            )
+
+            these_tick_values = this_colour_bar_object.get_ticks()
+            these_tick_strings = [
+                '{0:.1f}'.format(v) for v in these_tick_values
+            ]
+
+            this_colour_bar_object.set_ticks(these_tick_values)
+            this_colour_bar_object.set_ticklabels(these_tick_strings)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -645,8 +653,9 @@ def plot_real_example(
         )
 
         if add_titles:
-            this_axes_object.set_title(this_title_string,
-                                       fontsize=title_font_size)
+            this_axes_object.set_title(
+                this_title_string, fontsize=title_font_size
+            )
 
         if not plot_wind_as_barbs:
             continue
@@ -680,6 +689,47 @@ def plot_real_example(
         i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
         axes_object_matrix[i, j].axis('off')
 
+    if one_cbar_per_panel:
+        return {
+            FIGURE_OBJECT_KEY: figure_object,
+            AXES_OBJECTS_KEY: axes_object_matrix,
+            NARR_COSINES_KEY: narr_cosine_matrix,
+            NARR_SINES_KEY: narr_sine_matrix
+        }
+
+    if all([p in WIND_NAMES for p in predictor_names]):
+        plot_diffs = True
+        colour_map_object = wind_colour_map_object
+    else:
+        colour_map_object = non_wind_colour_map_object
+
+    if plot_diffs:
+        max_colour_value = numpy.percentile(
+            numpy.absolute(predictor_matrix), MAX_COLOUR_PERCENTILE
+        )
+        min_colour_value = -1 * max_colour_value
+    else:
+        min_colour_value = numpy.percentile(
+            predictor_matrix, 100. - MAX_COLOUR_PERCENTILE
+        )
+        max_colour_value = numpy.percentile(
+            predictor_matrix, MAX_COLOUR_PERCENTILE
+        )
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrix, data_matrix=predictor_matrix,
+        colour_map_object=colour_map_object,
+        min_value=min_colour_value, max_value=max_colour_value,
+        orientation_string='horizontal', padding=0.05,
+        font_size=colour_bar_font_size, extend_min=True, extend_max=True,
+        fraction_of_axis_length=colour_bar_length
+    )
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
     return {
         FIGURE_OBJECT_KEY: figure_object,
         AXES_OBJECTS_KEY: axes_object_matrix,
@@ -691,7 +741,7 @@ def plot_real_example(
 def plot_composite_example(
         example_dict, plot_wind_as_barbs, non_wind_colour_map_object,
         plot_diffs=False, num_panel_rows=None, add_titles=True,
-        colour_bar_length=DEFAULT_CBAR_LENGTH,
+        one_cbar_per_panel=True, colour_bar_length=DEFAULT_CBAR_LENGTH,
         main_font_size=DEFAULT_MAIN_FONT_SIZE,
         title_font_size=DEFAULT_TITLE_FONT_SIZE,
         colour_bar_font_size=DEFAULT_CBAR_FONT_SIZE,
@@ -715,6 +765,7 @@ def plot_composite_example(
         actual values.
     :param num_panel_rows: Same.
     :param add_titles: Same.
+    :param one_cbar_per_panel: Same.
     :param colour_bar_length: Same.
     :param main_font_size: Same.
     :param title_font_size: Same.
@@ -730,6 +781,7 @@ def plot_composite_example(
     error_checking.assert_is_boolean(plot_wind_as_barbs)
     error_checking.assert_is_boolean(plot_diffs)
     error_checking.assert_is_boolean(add_titles)
+    error_checking.assert_is_boolean(one_cbar_per_panel)
     error_checking.assert_is_greater(main_font_size, 0.)
     error_checking.assert_is_greater(title_font_size, 0.)
     error_checking.assert_is_greater(colour_bar_font_size, 0.)
@@ -770,11 +822,6 @@ def plot_composite_example(
         float(num_panels_desired) / num_panel_rows
     ))
     num_panels = num_panel_rows * num_panel_columns
-
-    if num_panel_rows >= num_panel_columns:
-        cbar_orientation_string = 'vertical'
-    else:
-        cbar_orientation_string = 'horizontal'
 
     # Do plotting.
     figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
@@ -838,19 +885,25 @@ def plot_composite_example(
         this_axes_object.set_xlim(0, predictor_matrix.shape[-2])
         this_axes_object.set_ylim(0, predictor_matrix.shape[-3])
 
-        this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
-            axes_object_or_matrix=this_axes_object,
-            data_matrix=predictor_matrix[..., k],
-            colour_map_object=this_colour_map_object,
-            min_value=this_min_value, max_value=this_max_value,
-            orientation_string=cbar_orientation_string, padding=0.01,
-            font_size=colour_bar_font_size, extend_min=True, extend_max=True,
-            fraction_of_axis_length=colour_bar_length)
+        if one_cbar_per_panel:
+            this_colour_bar_object = plotting_utils.plot_linear_colour_bar(
+                axes_object_or_matrix=this_axes_object,
+                data_matrix=predictor_matrix[..., k],
+                colour_map_object=this_colour_map_object,
+                min_value=this_min_value, max_value=this_max_value,
+                orientation_string='horizontal', padding=0.01,
+                font_size=colour_bar_font_size,
+                extend_min=True, extend_max=True,
+                fraction_of_axis_length=colour_bar_length
+            )
 
-        these_tick_values = this_colour_bar_object.get_ticks()
-        these_tick_strings = ['{0:.1f}'.format(v) for v in these_tick_values]
-        this_colour_bar_object.set_ticks(these_tick_values)
-        this_colour_bar_object.set_ticklabels(these_tick_strings)
+            these_tick_values = this_colour_bar_object.get_ticks()
+            these_tick_strings = [
+                '{0:.1f}'.format(v) for v in these_tick_values
+            ]
+
+            this_colour_bar_object.set_ticks(these_tick_values)
+            this_colour_bar_object.set_ticklabels(these_tick_strings)
 
         if pressure_levels_mb[k] == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
             this_title_string = 'Surface'
@@ -895,6 +948,45 @@ def plot_composite_example(
         i, j = numpy.unravel_index(panel_index_linear, axes_object_matrix.shape)
         axes_object_matrix[i, j].axis('off')
 
+    if one_cbar_per_panel:
+        return {
+            FIGURE_OBJECT_KEY: figure_object,
+            AXES_OBJECTS_KEY: axes_object_matrix
+        }
+
+    if all([p in WIND_NAMES for p in predictor_names]):
+        plot_diffs = True
+        colour_map_object = wind_colour_map_object
+    else:
+        colour_map_object = non_wind_colour_map_object
+
+    if plot_diffs:
+        max_colour_value = numpy.percentile(
+            numpy.absolute(predictor_matrix), MAX_COLOUR_PERCENTILE
+        )
+        min_colour_value = -1 * max_colour_value
+    else:
+        min_colour_value = numpy.percentile(
+            predictor_matrix, 100. - MAX_COLOUR_PERCENTILE
+        )
+        max_colour_value = numpy.percentile(
+            predictor_matrix, MAX_COLOUR_PERCENTILE
+        )
+
+    colour_bar_object = plotting_utils.plot_linear_colour_bar(
+        axes_object_or_matrix=axes_object_matrix, data_matrix=predictor_matrix,
+        colour_map_object=colour_map_object,
+        min_value=min_colour_value, max_value=max_colour_value,
+        orientation_string='horizontal', padding=0.01,
+        font_size=colour_bar_font_size, extend_min=True, extend_max=True,
+        fraction_of_axis_length=colour_bar_length
+    )
+
+    tick_values = colour_bar_object.get_ticks()
+    tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+    colour_bar_object.set_ticks(tick_values)
+    colour_bar_object.set_ticklabels(tick_strings)
+
     return {
         FIGURE_OBJECT_KEY: figure_object,
         AXES_OBJECTS_KEY: axes_object_matrix
@@ -907,7 +999,7 @@ def plot_real_examples(
         wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
         wind_colour_map_name=DEFAULT_WIND_CMAP_NAME,
         non_wind_colour_map_name=DEFAULT_NON_WIND_CMAP_NAME,
-        num_panel_rows=None, add_titles=True,
+        num_panel_rows=None, add_titles=True, one_cbar_per_panel=True,
         colour_bar_length=DEFAULT_CBAR_LENGTH,
         main_font_size=DEFAULT_MAIN_FONT_SIZE,
         title_font_size=DEFAULT_TITLE_FONT_SIZE,
@@ -925,13 +1017,13 @@ def plot_real_examples(
         them all.
     :param plot_diffs: Boolean flag.  If True, plotting differences rather than
         actual values.
-    :param plot_wind_as_barbs: Dictionary returned by
-        `learning_examples_io.read_file`.
+    :param plot_wind_as_barbs: See doc for `plot_real_example`.
     :param wind_barb_colour: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
     :param num_panel_rows: Same.
     :param add_titles: Same.
+    :param one_cbar_per_panel: Same.
     :param colour_bar_length: Same.
     :param main_font_size: Same.
     :param title_font_size: Same.
@@ -969,6 +1061,7 @@ def plot_real_examples(
             plot_wind_as_barbs=plot_wind_as_barbs,
             non_wind_colour_map_object=non_wind_colour_map_object,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
+            one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=colour_bar_length,
             main_font_size=main_font_size, title_font_size=title_font_size,
             colour_bar_font_size=colour_bar_font_size,
