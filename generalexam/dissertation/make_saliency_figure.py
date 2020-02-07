@@ -141,7 +141,6 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
     mean_saliency_matrix = numpy.expand_dims(
         saliency_dict[MEAN_SALIENCY_MATRIX_KEY], axis=0
     )
-    print(mean_saliency_matrix.shape)
 
     cnn_file_name = saliency_dict[MODEL_FILE_KEY]
     cnn_metafile_name = cnn.find_metafile(cnn_file_name)
@@ -166,6 +165,8 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
             input_matrix=mean_saliency_matrix[0, ..., k],
             e_folding_radius_grid_cells=smoothing_radius_grid_cells
         )
+
+    print(mean_saliency_matrix.shape)
 
     return mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict
 
