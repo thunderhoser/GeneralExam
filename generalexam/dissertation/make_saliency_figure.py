@@ -227,6 +227,7 @@ def _plot_one_composite(
             saliency_file_name=saliency_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
     )
+    print(mean_saliency_matrix.shape)
 
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
