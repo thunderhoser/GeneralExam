@@ -33,10 +33,10 @@ DESIRED_FIELD_NAMES = [
     predictor_utils.PRESSURE_NAME, predictor_utils.HEIGHT_NAME
 ]
 
-MAIN_FONT_SIZE = 35
 AXES_TITLE_FONT_SIZE = 25
-COLOUR_BAR_FONT_SIZE = 25
-COLOUR_BAR_LENGTH = 1.
+PREDICTOR_CBAR_FONT_SIZE = 35
+SALIENCY_CBAR_FONT_SIZE = 35
+COLOUR_BAR_LENGTH = 0.8
 
 WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
@@ -288,8 +288,9 @@ def _plot_one_composite(
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=len(channel_indices), add_titles=True,
             one_cbar_per_panel=False,
-            colour_bar_length=0.8 / len(channel_indices),
-            main_font_size=MAIN_FONT_SIZE, title_font_size=AXES_TITLE_FONT_SIZE,
+            colour_bar_length=COLOUR_BAR_LENGTH / len(channel_indices),
+            colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
+            title_font_size=AXES_TITLE_FONT_SIZE,
             wind_colour_map_object=WIND_COLOUR_MAP_OBJECT
         )
 
@@ -385,11 +386,11 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
         colour_map_object=colour_map_object,
         min_value=0., max_value=max_colour_value,
         orientation_string='vertical', fraction_of_axis_length=1.25,
-        extend_min=False, extend_max=True, font_size=COLOUR_BAR_FONT_SIZE
+        extend_min=False, extend_max=True, font_size=SALIENCY_CBAR_FONT_SIZE
     )
 
     colour_bar_object.set_label(
-        'Absolute saliency', fontsize=COLOUR_BAR_FONT_SIZE
+        'Absolute saliency', fontsize=SALIENCY_CBAR_FONT_SIZE
     )
 
     tick_values = colour_bar_object.get_ticks()
