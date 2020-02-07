@@ -227,7 +227,6 @@ def _plot_one_composite(
             saliency_file_name=saliency_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
     )
-    print(mean_saliency_matrix.shape)
 
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
@@ -298,6 +297,7 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
+        print(channel_indices)
         this_matrix = numpy.flip(
             mean_saliency_matrix[0, ..., channel_indices], axis=0
         )
