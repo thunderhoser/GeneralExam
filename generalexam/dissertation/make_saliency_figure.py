@@ -297,7 +297,8 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
-        print(channel_indices)
+        print(mean_saliency_matrix.shape)
+        print(mean_saliency_matrix[0, ..., channel_indices].shape)
         this_matrix = numpy.flip(
             mean_saliency_matrix[0, ..., channel_indices], axis=0
         )
