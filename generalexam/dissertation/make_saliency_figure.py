@@ -35,7 +35,7 @@ DESIRED_FIELD_NAMES = [
 
 AXES_TITLE_FONT_SIZE = 25
 PREDICTOR_CBAR_FONT_SIZE = 35
-SALIENCY_CBAR_FONT_SIZE = 35
+SALIENCY_CBAR_FONT_SIZE = 25
 COLOUR_BAR_LENGTH = 0.8
 
 WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
@@ -232,6 +232,8 @@ def _plot_one_composite(
     panel_file_names = []
 
     for this_field_name in DESIRED_FIELD_NAMES:
+        one_cbar_per_panel = False
+
         if this_field_name == predictor_utils.PRESSURE_NAME:
             gph_flags = numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
@@ -246,6 +248,8 @@ def _plot_one_composite(
             channel_indices = numpy.where(
                 numpy.logical_or(gph_flags, pressure_flags)
             )[0]
+
+            one_cbar_per_panel = True
 
         elif this_field_name == predictor_utils.HEIGHT_NAME:
             channel_indices = numpy.where(numpy.logical_and(
@@ -287,7 +291,7 @@ def _plot_one_composite(
             example_dict=example_dict, plot_wind_as_barbs=False,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=len(channel_indices), add_titles=True,
-            one_cbar_per_panel=False,
+            one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=COLOUR_BAR_LENGTH / len(channel_indices),
             colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
             title_font_size=AXES_TITLE_FONT_SIZE,
