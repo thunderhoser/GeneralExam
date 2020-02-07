@@ -300,7 +300,7 @@ def _plot_one_composite(
         print(mean_saliency_matrix.shape)
         print(mean_saliency_matrix[0, ..., channel_indices].shape)
         this_matrix = numpy.flip(
-            mean_saliency_matrix[0, ..., channel_indices], axis=0
+            mean_saliency_matrix[0, ...][..., channel_indices], axis=0
         )
 
         print(axes_object_matrix.shape)
