@@ -275,9 +275,8 @@ def _plot_one_composite(
             continue
 
         example_dict = {
-            examples_io.PREDICTOR_MATRIX_KEY: numpy.expand_dims(
-                mean_predictor_matrix[..., channel_indices], axis=0
-            ),
+            examples_io.PREDICTOR_MATRIX_KEY:
+                mean_predictor_matrix[..., channel_indices],
             examples_io.PREDICTOR_NAMES_KEY: [
                 predictor_names[k] for k in channel_indices
             ],
