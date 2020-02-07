@@ -166,8 +166,6 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
             e_folding_radius_grid_cells=smoothing_radius_grid_cells
         )
 
-    print(mean_saliency_matrix.shape)
-
     return mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict
 
 
@@ -289,7 +287,8 @@ def _plot_one_composite(
             example_dict=example_dict, plot_wind_as_barbs=False,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=len(channel_indices), add_titles=True,
-            one_cbar_per_panel=False, colour_bar_length=0.5,
+            one_cbar_per_panel=False,
+            colour_bar_length=0.8 / len(channel_indices),
             main_font_size=MAIN_FONT_SIZE, title_font_size=AXES_TITLE_FONT_SIZE,
             wind_colour_map_object=WIND_COLOUR_MAP_OBJECT
         )
@@ -297,14 +296,9 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
-        print(mean_saliency_matrix.shape)
-        print(mean_saliency_matrix[0, ..., channel_indices].shape)
         this_matrix = numpy.flip(
             mean_saliency_matrix[0, ...][..., channel_indices], axis=0
         )
-
-        print(axes_object_matrix.shape)
-        print(this_matrix.shape)
 
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=this_matrix,
@@ -508,11 +502,11 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     figure_file_name = '{0:s}/saliency_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
 
-    num_panel_rows = int(numpy.floor(
+    num_panel_columns = int(numpy.floor(
         numpy.sqrt(num_composites)
     ))
-    num_panel_columns = int(numpy.ceil(
-        float(num_composites) / num_panel_rows
+    num_panel_rows = int(numpy.ceil(
+        float(num_composites) / num_panel_columns
     ))
 
     imagemagick_utils.concatenate_images(
