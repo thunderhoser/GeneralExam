@@ -298,6 +298,10 @@ def _plot_one_composite(
         this_matrix = numpy.flip(
             mean_saliency_matrix[0, ..., channel_indices], axis=0
         )
+
+        print(axes_object_matrix.shape)
+        print(this_matrix.shape)
+
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=this_matrix,
             axes_object_matrix=axes_object_matrix,
