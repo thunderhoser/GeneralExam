@@ -824,9 +824,21 @@ def plot_composite_example(
     num_panels = num_panel_rows * num_panel_columns
 
     # Do plotting.
-    figure_object, axes_object_matrix = plotting_utils.create_paneled_figure(
-        num_rows=num_panel_rows, num_columns=num_panel_columns,
-        shared_x_axis=False, shared_y_axis=False, keep_aspect_ratio=True)
+    if one_cbar_per_panel:
+        figure_object, axes_object_matrix = (
+            plotting_utils.create_paneled_figure(
+                num_rows=num_panel_rows, num_columns=num_panel_columns,
+                horizontal_spacing=0.1, vertical_spacing=0.1,
+                shared_x_axis=False, shared_y_axis=False,
+                keep_aspect_ratio=True)
+        )
+    else:
+        figure_object, axes_object_matrix = (
+            plotting_utils.create_paneled_figure(
+                num_rows=num_panel_rows, num_columns=num_panel_columns,
+                shared_x_axis=False, shared_y_axis=False,
+                keep_aspect_ratio=True)
+        )
 
     panel_index_linear = -1
     predictor_matrix = example_dict[examples_io.PREDICTOR_MATRIX_KEY][0, ...]
