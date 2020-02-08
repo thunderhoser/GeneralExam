@@ -217,9 +217,13 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             i + 1, num_examples
         ))
 
+        this_predictor_matrix = numpy.expand_dims(
+            predictor_matrix[i, ...], axis=0
+        )
+
         this_activn_matrix = gg_gradcam.run_gradcam(
             model_object=model_object,
-            list_of_input_matrices=[predictor_matrix[[i], ...]],
+            list_of_input_matrices=[this_predictor_matrix],
             target_class=target_class, target_layer_name=target_layer_name
         )[0]
 
@@ -229,7 +233,7 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
 
         these_matrices, new_model_object = gg_gradcam.run_guided_gradcam(
             orig_model_object=model_object,
-            list_of_input_matrices=[predictor_matrix[[i], ...]],
+            list_of_input_matrices=[this_predictor_matrix],
             target_layer_name=target_layer_name,
             list_of_cam_matrices=[this_activn_matrix],
             new_model_object=new_model_object
