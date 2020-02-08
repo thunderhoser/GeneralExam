@@ -8,6 +8,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import argparse
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import \
     backwards_optimization as gg_backwards_opt
 from gewittergefahr.deep_learning import model_interpretation
@@ -27,12 +28,15 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
 NEURON_COMPONENT_TYPE_STRING = model_interpretation.NEURON_COMPONENT_TYPE_STRING
 CHANNEL_COMPONENT_TYPE_STRING = (
-    model_interpretation.CHANNEL_COMPONENT_TYPE_STRING)
+    model_interpretation.CHANNEL_COMPONENT_TYPE_STRING
+)
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 EXAMPLE_FILE_ARG_NAME = make_saliency_maps.EXAMPLE_FILE_ARG_NAME
 EXAMPLE_DIR_ARG_NAME = make_saliency_maps.EXAMPLE_DIR_ARG_NAME
 ID_FILE_ARG_NAME = make_saliency_maps.ID_FILE_ARG_NAME
+FIRST_INDEX_ARG_NAME = 'first_example_index'
+LAST_INDEX_ARG_NAME = 'last_example_index'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 LEARNING_RATE_ARG_NAME = 'learning_rate'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
@@ -46,11 +50,19 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
-    '`cnn.read_model`.')
+    '`cnn.read_model`.'
+)
 
 EXAMPLE_FILE_HELP_STRING = make_saliency_maps.EXAMPLE_FILE_HELP_STRING
 EXAMPLE_DIR_HELP_STRING = make_saliency_maps.EXAMPLE_DIR_HELP_STRING
 ID_FILE_HELP_STRING = make_saliency_maps.ID_FILE_HELP_STRING
+
+INDEX_HELP_STRING = (
+    'Example index.  Will run Grad-CAM only on the [i]th to [j]th examples, '
+    'where i = `{0:s}` and j = `{1:s}`.  If you want to use all examples, leave'
+    ' this argument alone.'
+).format(FIRST_INDEX_ARG_NAME, LAST_INDEX_ARG_NAME)
+
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for backwards optimization.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for backwards optimization.'
 L2_WEIGHT_HELP_STRING = 'L2 weight for backwards optimization.'
@@ -64,20 +76,25 @@ COMPONENT_TYPE_HELP_STRING = (
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Examples will be optimized for class k, '
     'where k = `{2:s}`.'
-).format(COMPONENT_TYPE_ARG_NAME, CLASS_COMPONENT_TYPE_STRING,
-         TARGET_CLASS_ARG_NAME)
+).format(
+    COMPONENT_TYPE_ARG_NAME, CLASS_COMPONENT_TYPE_STRING, TARGET_CLASS_ARG_NAME
+)
 
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Examples will be optimized for '
     'activation of one/many neurons or one channel in this layer.'
-).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
-         CHANNEL_COMPONENT_TYPE_STRING)
+).format(
+    COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
+    CHANNEL_COMPONENT_TYPE_STRING
+)
 
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Ideal activation used to define '
     'loss function.'
-).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
-         CHANNEL_COMPONENT_TYPE_STRING)
+).format(
+    COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
+    CHANNEL_COMPONENT_TYPE_STRING
+)
 
 NEURON_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Examples will be optimized for activation '
@@ -88,78 +105,91 @@ NEURON_INDICES_HELP_STRING = (
 CHANNEL_INDEX_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Examples will be optimized for activation '
     'of [k]th channel in the given layer, where k = `{2:s}`.'
-).format(COMPONENT_TYPE_ARG_NAME, CHANNEL_COMPONENT_TYPE_STRING,
-         CHANNEL_INDEX_ARG_NAME)
+).format(
+    COMPONENT_TYPE_ARG_NAME, CHANNEL_COMPONENT_TYPE_STRING,
+    CHANNEL_INDEX_ARG_NAME
+)
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
-    '`backwards_optimization.write_standard_file` in GeneralExam library).')
+    '`backwards_optimization.write_standard_file` in GeneralExam library).'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + MODEL_FILE_ARG_NAME, type=str, required=True,
-    help=MODEL_FILE_HELP_STRING)
-
+    help=MODEL_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=False, default='',
-    help=EXAMPLE_FILE_HELP_STRING)
-
+    help=EXAMPLE_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=False, default='',
-    help=EXAMPLE_DIR_HELP_STRING)
-
+    help=EXAMPLE_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ID_FILE_ARG_NAME, type=str, required=False, default='',
-    help=ID_FILE_HELP_STRING)
-
+    help=ID_FILE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_INDEX_ARG_NAME, type=int, required=False, default=-1,
+    help=INDEX_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_INDEX_ARG_NAME, type=int, required=False, default=-1,
+    help=INDEX_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_ITERATIONS_ARG_NAME, type=int, required=False,
     default=gg_backwards_opt.DEFAULT_NUM_ITERATIONS,
-    help=NUM_ITERATIONS_HELP_STRING)
-
+    help=NUM_ITERATIONS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LEARNING_RATE_ARG_NAME, type=float, required=False,
     default=gg_backwards_opt.DEFAULT_LEARNING_RATE,
-    help=LEARNING_RATE_HELP_STRING)
-
+    help=LEARNING_RATE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + L2_WEIGHT_ARG_NAME, type=float, required=False,
-    default=gg_backwards_opt.DEFAULT_L2_WEIGHT, help=L2_WEIGHT_HELP_STRING)
-
+    default=gg_backwards_opt.DEFAULT_L2_WEIGHT, help=L2_WEIGHT_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPONENT_TYPE_ARG_NAME, type=str, required=True,
-    help=COMPONENT_TYPE_HELP_STRING)
-
+    help=COMPONENT_TYPE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_CLASS_ARG_NAME, type=int, required=False, default=1,
-    help=TARGET_CLASS_HELP_STRING)
-
+    help=TARGET_CLASS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
-    help=LAYER_NAME_HELP_STRING)
-
+    help=LAYER_NAME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + IDEAL_ACTIVATION_ARG_NAME, type=float, required=False,
     default=gg_backwards_opt.DEFAULT_IDEAL_ACTIVATION,
-    help=IDEAL_ACTIVATION_HELP_STRING)
-
+    help=IDEAL_ACTIVATION_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NEURON_INDICES_ARG_NAME, type=int, nargs='+', required=False,
-    default=[-1], help=NEURON_INDICES_HELP_STRING)
-
+    default=[-1], help=NEURON_INDICES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CHANNEL_INDEX_ARG_NAME, type=int, required=False, default=-1,
-    help=CHANNEL_INDEX_HELP_STRING)
-
+    help=CHANNEL_INDEX_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
-    help=OUTPUT_FILE_HELP_STRING)
+    help=OUTPUT_FILE_HELP_STRING
+)
 
 
 def _run(model_file_name, example_file_name, top_example_dir_name,
-         example_id_file_name, num_iterations, learning_rate, l2_weight,
-         component_type_string, target_class, layer_name, ideal_activation,
-         neuron_indices, channel_index, output_file_name):
+         example_id_file_name, first_example_index, last_example_index,
+         num_iterations, learning_rate, l2_weight, component_type_string,
+         target_class, layer_name, ideal_activation, neuron_indices,
+         channel_index, output_file_name):
     """Uses CNN to backwards-optimize one or more examples.
 
     This is effectively the main method.
@@ -168,6 +198,8 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     :param example_file_name: Same.
     :param top_example_dir_name: Same.
     :param example_id_file_name: Same.
+    :param first_example_index: Same.
+    :param last_example_index: Same.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :param l2_weight: Same.
@@ -179,6 +211,13 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     :param channel_index: Same.
     :param output_file_name: Same.
     """
+
+    if first_example_index < 0 or last_example_index < 0:
+        first_example_index = None
+        last_example_index = None
+
+    if first_example_index is not None:
+        error_checking.assert_is_geq(last_example_index, first_example_index)
 
     if example_file_name in ['', 'None']:
         example_file_name = None
@@ -221,6 +260,14 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
         ))
         example_id_strings = examples_io.read_example_ids(example_id_file_name)
 
+        if first_example_index is not None:
+            error_checking.assert_is_less_than(
+                last_example_index, len(example_id_strings)
+            )
+            example_id_strings = (
+                example_id_strings[first_example_index:(last_example_index + 1)]
+            )
+
         example_dict = examples_io.read_specific_examples_many_files(
             top_example_dir_name=top_example_dir_name,
             example_id_strings=example_id_strings,
@@ -228,7 +275,8 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             pressure_levels_to_keep_mb=pressure_levels_mb,
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
-            normalization_file_name=normalization_file_name)
+            normalization_file_name=normalization_file_name
+        )
     else:
         print('Reading pre-optimized examples from: "{0:s}"...'.format(
             example_file_name
@@ -240,7 +288,22 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
             pressure_levels_to_keep_mb=pressure_levels_mb,
             num_half_rows_to_keep=num_half_rows,
             num_half_columns_to_keep=num_half_columns,
-            normalization_file_name=normalization_file_name)
+            normalization_file_name=normalization_file_name
+        )
+
+        if first_example_index is not None:
+            error_checking.assert_is_less_than(
+                last_example_index,
+                len(example_dict[examples_io.VALID_TIMES_KEY])
+            )
+
+            desired_indices = numpy.linspace(
+                first_example_index, last_example_index,
+                num=last_example_index - first_example_index + 1, dtype=int
+            )
+            example_dict = examples_io.subset_examples(
+                example_dict=example_dict, desired_indices=desired_indices
+            )
 
     example_id_strings = examples_io.create_example_ids(
         valid_times_unix_sec=example_dict[examples_io.VALID_TIMES_KEY],
@@ -341,16 +404,20 @@ if __name__ == '__main__':
         example_file_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_FILE_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         example_id_file_name=getattr(INPUT_ARG_OBJECT, ID_FILE_ARG_NAME),
+        first_example_index=getattr(INPUT_ARG_OBJECT, FIRST_INDEX_ARG_NAME),
+        last_example_index=getattr(INPUT_ARG_OBJECT, LAST_INDEX_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
         learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
         l2_weight=getattr(INPUT_ARG_OBJECT, L2_WEIGHT_ARG_NAME),
         component_type_string=getattr(
-            INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
+            INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME
+        ),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
         ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
         neuron_indices=numpy.array(
-            getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
+            getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int
+        ),
         channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
