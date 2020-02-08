@@ -1,4 +1,4 @@
-"""Makes nice figure with saliency maps."""
+"""Makes nice figure with class-activation maps."""
 
 import os
 import argparse
@@ -12,17 +12,18 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
-from gewittergefahr.plotting import saliency_plotting
+from gewittergefahr.plotting import cam_plotting
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
-from generalexam.machine_learning import saliency_maps
+from generalexam.machine_learning import gradcam
 from generalexam.machine_learning import learning_examples_io as examples_io
 from generalexam.scripts import plot_input_examples_simple as plot_examples
 
-MEAN_PREDICTOR_MATRIX_KEY = saliency_maps.MEAN_PREDICTOR_MATRIX_KEY
-MEAN_SALIENCY_MATRIX_KEY = saliency_maps.MEAN_SALIENCY_MATRIX_KEY
-MODEL_FILE_KEY = saliency_maps.MODEL_FILE_KEY
+MEAN_PREDICTOR_MATRIX_KEY = gradcam.MEAN_PREDICTOR_MATRIX_KEY
+MEAN_ACTIVN_MATRIX_KEY = gradcam.MEAN_ACTIVN_MATRIX_KEY
+MODEL_FILE_KEY = gradcam.MODEL_FILE_KEY
 
+MIN_COLOUR_VALUE_LOG10 = -2.
 DUMMY_SURFACE_PRESSURE_MB = predictor_utils.DUMMY_SURFACE_PRESSURE_MB
 
 DESIRED_FIELD_NAMES = [
@@ -35,7 +36,7 @@ DESIRED_FIELD_NAMES = [
 
 AXES_TITLE_FONT_SIZE = 25
 PREDICTOR_CBAR_FONT_SIZE = 35
-SALIENCY_CBAR_FONT_SIZE = 25
+GRADCAM_CBAR_FONT_SIZE = 25
 COLOUR_BAR_LENGTH = 0.8
 
 WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
@@ -48,36 +49,33 @@ FIGURE_TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_FILES_ARG_NAME = 'input_saliency_file_names'
+INPUT_FILES_ARG_NAME = 'input_gradcam_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
-MAX_VALUES_ARG_NAME = 'max_colour_values'
-HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
+MAX_VALUE_ARG_NAME = 'max_colour_value'
+NUM_CONTOURS_ARG_NAME = 'num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILES_HELP_STRING = (
-    'List of saliency files (each will be read by `saliency_maps.read_file`).'
+    'List of Grad-CAM files (each will be read by `gradcam.read_file`).'
 )
 COMPOSITE_NAMES_HELP_STRING = (
-    'List of composite names (one for each saliency file).  This list must be '
+    'List of composite names (one for each Grad-CAM file).  This list must be '
     'space-separated, but after reading the list, underscores within each item '
     'will be replaced by spaces.'
 )
 COLOUR_MAP_HELP_STRING = (
-    'Colour scheme for saliency.  Must be accepted by '
+    'Colour scheme for class activation.  Must be accepted by '
     '`matplotlib.pyplot.get_cmap`.'
 )
-MAX_VALUES_HELP_STRING = (
-    'Max absolute saliency in each colour scheme (one per file).'
-)
-HALF_NUM_CONTOURS_HELP_STRING = (
-    'Number of saliency contours on either side of zero (positive and '
-    'negative).'
-)
+
+MAX_VALUE_HELP_STRING = 'Max class activation in colour scheme.'
+NUM_CONTOURS_HELP_STRING = 'Number of class-activation contours.'
+
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth saliency maps, make this negative.'
+    'want to smooth class-activation maps, make this negative.'
 )
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).'
@@ -97,12 +95,12 @@ INPUT_ARG_PARSER.add_argument(
     help=COLOUR_MAP_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_VALUES_ARG_NAME, type=float, nargs='+', required=True,
-    help=MAX_VALUES_HELP_STRING
+    '--' + MAX_VALUE_ARG_NAME, type=float, required=False, default=10 ** 1.5,
+    help=MAX_VALUE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
-    default=10, help=HALF_NUM_CONTOURS_HELP_STRING
+    '--' + NUM_CONTOURS_ARG_NAME, type=int, required=False,
+    default=15, help=NUM_CONTOURS_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
@@ -114,59 +112,56 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
-    """Reads predictor and saliency maps for one composite.
+def _read_one_composite(gradcam_file_name, smoothing_radius_grid_cells):
+    """Reads predictor and class-activation maps for one composite.
 
     M = number of rows in grid
     N = number of columns in grid
     C = number of channels (predictor variables)
 
-    :param saliency_file_name: Path to input file (will be read by
-        `saliency_maps.read_file`).
+    :param gradcam_file_name: Path to input file (will be read by
+        `gradcam.read_file`).
     :param smoothing_radius_grid_cells: Radius for Gaussian smoother, used only
-        for saliency map.
+        for class-activation map.
     :return: mean_predictor_matrix: 1-by-M-by-N-by-C numpy array with
         denormalized predictors.
-    :return: mean_saliency_matrix: 1-by-M-by-N-by-C numpy array with saliency
-        values.
+    :return: mean_activation_matrix: 1-by-M-by-N numpy array with class
+        activations.
     :return: cnn_metadata_dict: Dictionary returned by `cnn.read_metadata`.
     """
 
-    print('Reading data from: "{0:s}"...'.format(saliency_file_name))
-    saliency_dict = saliency_maps.read_file(saliency_file_name)[0]
+    print('Reading data from: "{0:s}"...'.format(gradcam_file_name))
+    gradcam_dict = gradcam.read_file(gradcam_file_name)[0]
 
     mean_predictor_matrix = numpy.expand_dims(
-        saliency_dict[MEAN_PREDICTOR_MATRIX_KEY], axis=0
+        gradcam_dict[MEAN_PREDICTOR_MATRIX_KEY], axis=0
     )
-    mean_saliency_matrix = numpy.expand_dims(
-        saliency_dict[MEAN_SALIENCY_MATRIX_KEY], axis=0
+    mean_activation_matrix = numpy.expand_dims(
+        gradcam_dict[MEAN_ACTIVN_MATRIX_KEY], axis=0
     )
 
-    cnn_file_name = saliency_dict[MODEL_FILE_KEY]
+    cnn_file_name = gradcam_dict[MODEL_FILE_KEY]
     cnn_metafile_name = cnn.find_metafile(cnn_file_name)
 
     print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
 
     if smoothing_radius_grid_cells is None:
-        return mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict
+        return mean_predictor_matrix, mean_activation_matrix, cnn_metadata_dict
 
     print((
-        'Smoothing saliency maps with Gaussian filter (e-folding radius of '
-        '{0:.1f} grid cells)...'
+        'Smoothing class-activation maps with Gaussian filter (e-folding radius'
+        ' of {0:.1f} grid cells)...'
     ).format(
         smoothing_radius_grid_cells
     ))
 
-    num_channels = mean_saliency_matrix.shape[-1]
+    mean_activation_matrix[0, ...] = general_utils.apply_gaussian_filter(
+        input_matrix=mean_activation_matrix[0, ...],
+        e_folding_radius_grid_cells=smoothing_radius_grid_cells
+    )
 
-    for k in range(num_channels):
-        mean_saliency_matrix[0, ..., k] = general_utils.apply_gaussian_filter(
-            input_matrix=mean_saliency_matrix[0, ..., k],
-            e_folding_radius_grid_cells=smoothing_radius_grid_cells
-        )
-
-    return mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict
+    return mean_predictor_matrix, mean_activation_matrix, cnn_metadata_dict
 
 
 def _overlay_text(
@@ -199,12 +194,12 @@ def _overlay_text(
 
 
 def _plot_one_composite(
-        saliency_file_name, composite_name_abbrev, composite_name_verbose,
-        colour_map_object, max_colour_value, half_num_contours,
+        gradcam_file_name, composite_name_abbrev, composite_name_verbose,
+        colour_map_object, max_colour_value, num_contours,
         smoothing_radius_grid_cells, output_dir_name):
     """Plot one composite.
 
-    :param saliency_file_name: Path to input file.  Will be read by
+    :param gradcam_file_name: Path to input file.  Will be read by
         `_read_one_composite`.
     :param composite_name_abbrev: Abbreviated name for composite.  Will be used
         in names of output files.
@@ -212,7 +207,7 @@ def _plot_one_composite(
         figure title.
     :param colour_map_object: See documentation at top of file.
     :param max_colour_value: Same.
-    :param half_num_contours: Same.
+    :param num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
@@ -220,10 +215,16 @@ def _plot_one_composite(
         method.
     """
 
-    mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict = (
+    mean_predictor_matrix, mean_activation_matrix, cnn_metadata_dict = (
         _read_one_composite(
-            saliency_file_name=saliency_file_name,
+            gradcam_file_name=gradcam_file_name,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+    )
+
+    max_colour_value_log10 = numpy.log10(max_colour_value)
+    contour_interval_log10 = (
+        (max_colour_value_log10 - MIN_COLOUR_VALUE_LOG10) /
+        (num_contours - 1)
     )
 
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
@@ -301,16 +302,20 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
-        this_matrix = numpy.flip(
-            mean_saliency_matrix[0, ...][..., channel_indices], axis=0
+        this_matrix = numpy.flip(mean_activation_matrix[0, ...], axis=0)
+        this_matrix = numpy.repeat(
+            a=numpy.expand_dims(this_matrix, axis=-1),
+            axis=-1, repeats=len(channel_indices)
         )
+        this_matrix = numpy.log10(this_matrix)
 
-        saliency_plotting.plot_many_2d_grids_with_contours(
-            saliency_matrix_3d=this_matrix,
+        cam_plotting.plot_many_2d_grids(
+            class_activation_matrix_3d=this_matrix,
             axes_object_matrix=axes_object_matrix,
             colour_map_object=colour_map_object,
-            max_absolute_contour_level=max_colour_value,
-            contour_interval=max_colour_value / half_num_contours
+            min_contour_level=MIN_COLOUR_VALUE_LOG10,
+            max_contour_level=max_colour_value_log10,
+            contour_interval=contour_interval_log10
         )
 
         output_file_name = '{0:s}/{1:s}_{2:s}.jpg'.format(
@@ -388,28 +393,31 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=extra_axes_object, data_matrix=dummy_values,
         colour_map_object=colour_map_object,
-        min_value=0., max_value=max_colour_value,
+        min_value=MIN_COLOUR_VALUE_LOG10,
+        max_value=numpy.log10(max_colour_value),
         orientation_string='vertical', fraction_of_axis_length=1.25,
-        extend_min=False, extend_max=True, font_size=SALIENCY_CBAR_FONT_SIZE
+        extend_min=False, extend_max=True, font_size=GRADCAM_CBAR_FONT_SIZE
     )
 
     colour_bar_object.set_label(
-        'Absolute saliency', fontsize=SALIENCY_CBAR_FONT_SIZE
+        'Class activation', fontsize=GRADCAM_CBAR_FONT_SIZE
     )
 
     tick_values = colour_bar_object.get_ticks()
+    tick_strings = [
+        '{0:.2f}'.format(10 ** v) for v in tick_values
+    ]
 
-    if max_colour_value <= 0.005:
-        tick_strings = ['{0:.4f}'.format(v) for v in tick_values]
-    elif max_colour_value <= 0.05:
-        tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
-    else:
-        tick_strings = ['{0:.2f}'.format(v) for v in tick_values]
+    for i in range(len(tick_strings)):
+        if '.' in tick_strings[i][:3]:
+            tick_strings[i] = tick_strings[i][:4]
+        else:
+            tick_strings[i] = tick_strings[i].split('.')[0]
 
     colour_bar_object.set_ticks(tick_values)
     colour_bar_object.set_ticklabels(tick_strings)
 
-    extra_file_name = '{0:s}/saliency_colour-bar.jpg'.format(temporary_dir_name)
+    extra_file_name = '{0:s}/gradcam_colour-bar.jpg'.format(temporary_dir_name)
     print('Saving colour bar to: "{0:s}"...'.format(extra_file_name))
 
     extra_figure_object.savefig(
@@ -433,18 +441,18 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
     )
 
 
-def _run(saliency_file_names, composite_names, colour_map_name,
-         max_colour_values, half_num_contours, smoothing_radius_grid_cells,
+def _run(gradcam_file_names, composite_names, colour_map_name,
+         max_colour_value, num_contours, smoothing_radius_grid_cells,
          output_dir_name):
-    """Makes nice figure with saliency maps.
+    """Makes nice figure with class-activation maps.
 
     This is effectively the main method.
 
-    :param saliency_file_names: See documentation at top of file.
+    :param gradcam_file_names: See documentation at top of file.
     :param composite_names: Same.
     :param colour_map_name: Same.
-    :param max_colour_values: Same.
-    :param half_num_contours: Same.
+    :param max_colour_value: Same.
+    :param num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Same.
     """
@@ -458,17 +466,15 @@ def _run(saliency_file_names, composite_names, colour_map_name,
         smoothing_radius_grid_cells = None
 
     colour_map_object = pyplot.cm.get_cmap(colour_map_name)
-    error_checking.assert_is_geq(half_num_contours, 5)
+    error_checking.assert_is_geq(num_contours, 10)
+    error_checking.assert_is_greater(
+        max_colour_value, 10 ** MIN_COLOUR_VALUE_LOG10
+    )
 
-    num_composites = len(saliency_file_names)
+    num_composites = len(gradcam_file_names)
     expected_dim = numpy.array([num_composites], dtype=int)
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
-    )
-
-    error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
-    error_checking.assert_is_numpy_array(
-        max_colour_values, exact_dimensions=expected_dim
     )
 
     composite_names_abbrev = [
@@ -485,26 +491,18 @@ def _run(saliency_file_names, composite_names, colour_map_name,
 
     for i in range(num_composites):
         panel_file_names[i] = _plot_one_composite(
-            saliency_file_name=saliency_file_names[i],
+            gradcam_file_name=gradcam_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
-            max_colour_value=max_colour_values[i],
-            half_num_contours=half_num_contours,
+            max_colour_value=max_colour_value, num_contours=num_contours,
             smoothing_radius_grid_cells=smoothing_radius_grid_cells,
             output_dir_name=output_dir_name
         )
 
-        _add_colour_bar(
-            figure_file_name=panel_file_names[i],
-            colour_map_object=colour_map_object,
-            max_colour_value=max_colour_values[i],
-            temporary_dir_name=output_dir_name
-        )
-
         print('\n')
 
-    figure_file_name = '{0:s}/saliency_concat.jpg'.format(output_dir_name)
+    figure_file_name = '{0:s}/gradcam_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
 
     num_panel_columns = int(numpy.floor(
@@ -524,18 +522,21 @@ def _run(saliency_file_names, composite_names, colour_map_name,
         border_width_pixels=10
     )
 
+    _add_colour_bar(
+        figure_file_name=figure_file_name, colour_map_object=colour_map_object,
+        max_colour_value=max_colour_value, temporary_dir_name=output_dir_name
+    )
+
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        saliency_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
+        gradcam_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
-        max_colour_values=numpy.array(
-            getattr(INPUT_ARG_OBJECT, MAX_VALUES_ARG_NAME), dtype=float
-        ),
-        half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
+        max_colour_value=getattr(INPUT_ARG_OBJECT, MAX_VALUE_ARG_NAME),
+        num_contours=getattr(INPUT_ARG_OBJECT, NUM_CONTOURS_ARG_NAME),
         smoothing_radius_grid_cells=getattr(
             INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
         ),
