@@ -44,7 +44,7 @@ SCALAR_FIELD_NAMES = [
 MAIN_FONT_SIZE = 25
 AXES_TITLE_FONT_SIZE = 25
 COLOUR_BAR_FONT_SIZE = 25
-COLOUR_BAR_LENGTH = 1.
+COLOUR_BAR_LENGTH = 0.8
 WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
@@ -186,6 +186,8 @@ def _plot_composite(
     panel_file_names = []
 
     for scalar_field_name in SCALAR_FIELD_NAMES:
+        one_cbar_per_panel = False
+
         if scalar_field_name == predictor_utils.PRESSURE_NAME:
             gph_flags = numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
@@ -200,11 +202,15 @@ def _plot_composite(
             scalar_field_indices = numpy.where(
                 numpy.logical_or(gph_flags, pressure_flags)
             )[0]
+
+            one_cbar_per_panel = True
+
         elif scalar_field_name == predictor_utils.HEIGHT_NAME:
             scalar_field_indices = numpy.where(numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             ))[0]
+
         elif scalar_field_name == predictor_utils.WET_BULB_THETA_NAME:
             plot_theta_w = not (
                 predictor_utils.TEMPERATURE_NAME in predictor_names and
@@ -240,16 +246,12 @@ def _plot_composite(
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
-        if len(scalar_field_indices) == 1:
-            this_colour_bar_length = COLOUR_BAR_LENGTH * 0.85
-        else:
-            this_colour_bar_length = COLOUR_BAR_LENGTH
-
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=len(scalar_field_indices), add_titles=True,
-            colour_bar_length=this_colour_bar_length,
+            one_cbar_per_panel=one_cbar_per_panel,
+            colour_bar_length=COLOUR_BAR_LENGTH / len(scalar_field_indices),
             main_font_size=MAIN_FONT_SIZE,
             title_font_size=AXES_TITLE_FONT_SIZE,
             colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
