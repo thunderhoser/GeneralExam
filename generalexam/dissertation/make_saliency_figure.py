@@ -1,18 +1,21 @@
 """Makes nice figure with saliency maps."""
 
 import os
+import pickle
 import argparse
 import numpy
 from PIL import Image
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import saliency_plotting
+from gewittergefahr.plotting import significance_plotting
 from generalexam.ge_utils import predictor_utils
 from generalexam.machine_learning import cnn
 from generalexam.machine_learning import saliency_maps
@@ -23,6 +26,7 @@ MEAN_PREDICTOR_MATRIX_KEY = saliency_maps.MEAN_PREDICTOR_MATRIX_KEY
 MEAN_SALIENCY_MATRIX_KEY = saliency_maps.MEAN_SALIENCY_MATRIX_KEY
 MODEL_FILE_KEY = saliency_maps.MODEL_FILE_KEY
 
+NONE_STRINGS = ['none', 'None']
 DUMMY_SURFACE_PRESSURE_MB = predictor_utils.DUMMY_SURFACE_PRESSURE_MB
 
 DESIRED_FIELD_NAMES = [
@@ -48,7 +52,8 @@ FIGURE_TITLE_FONT_NAME = 'DejaVu-Sans-Bold'
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
 
-INPUT_FILES_ARG_NAME = 'input_saliency_file_names'
+SALIENCY_FILES_ARG_NAME = 'input_saliency_file_names'
+MC_FILES_ARG_NAME = 'input_monte_carlo_file_names'
 COMPOSITE_NAMES_ARG_NAME = 'composite_names'
 COLOUR_MAP_ARG_NAME = 'colour_map_name'
 MAX_VALUES_ARG_NAME = 'max_colour_values'
@@ -56,8 +61,13 @@ HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-INPUT_FILES_HELP_STRING = (
+SALIENCY_FILES_HELP_STRING = (
     'List of saliency files (each will be read by `saliency_maps.read_file`).'
+)
+MC_FILES_HELP_STRING = (
+    'List of files with Monte Carlo significance (one per saliency file).  Each'
+    ' will be read by `_read_monte_carlo_test`.  If you do not want to plot '
+    'significance for the [i]th composite, make the [i]th list element "None".'
 )
 COMPOSITE_NAMES_HELP_STRING = (
     'List of composite names (one for each saliency file).  This list must be '
@@ -85,8 +95,12 @@ OUTPUT_DIR_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_FILES_ARG_NAME, type=str, nargs='+', required=True,
-    help=INPUT_FILES_HELP_STRING
+    '--' + SALIENCY_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    help=SALIENCY_FILES_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + MC_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    help=MC_FILES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + COMPOSITE_NAMES_ARG_NAME, type=str, nargs='+', required=True,
@@ -114,7 +128,8 @@ INPUT_ARG_PARSER.add_argument(
 )
 
 
-def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
+def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells,
+                        monte_carlo_file_name=None):
     """Reads predictor and saliency maps for one composite.
 
     M = number of rows in grid
@@ -125,6 +140,8 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
         `saliency_maps.read_file`).
     :param smoothing_radius_grid_cells: Radius for Gaussian smoother, used only
         for saliency map.
+    :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
+        `_read_monte_carlo_file`).
     :return: mean_predictor_matrix: 1-by-M-by-N-by-C numpy array with
         denormalized predictors.
     :return: mean_saliency_matrix: 1-by-M-by-N-by-C numpy array with saliency
@@ -144,12 +161,39 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
 
     cnn_file_name = saliency_dict[MODEL_FILE_KEY]
     cnn_metafile_name = cnn.find_metafile(cnn_file_name)
-
     print('Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name))
     cnn_metadata_dict = cnn.read_metadata(cnn_metafile_name)
 
+    if monte_carlo_file_name is None:
+        significance_matrix = numpy.full(
+            mean_saliency_matrix.shape, False, dtype=bool
+        )
+    else:
+        print('Reading Monte Carlo test from: "{0:s}"...'.format(
+            monte_carlo_file_name
+        ))
+
+        this_file_handle = open(monte_carlo_file_name, 'rb')
+        monte_carlo_dict = pickle.load(this_file_handle)
+        this_file_handle.close()
+
+        significance_matrix = numpy.logical_or(
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] <
+            monte_carlo_dict[monte_carlo.MIN_MATRICES_KEY][0],
+            monte_carlo_dict[monte_carlo.TRIAL_PMM_MATRICES_KEY][0] >
+            monte_carlo_dict[monte_carlo.MAX_MATRICES_KEY][0]
+        )
+        significance_matrix = numpy.expand_dims(significance_matrix, axis=0)
+
+    print('Fraction of significant differences: {0:.4f}'.format(
+        numpy.mean(significance_matrix.astype(float))
+    ))
+
     if smoothing_radius_grid_cells is None:
-        return mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict
+        return (
+            mean_predictor_matrix, mean_saliency_matrix, significance_matrix,
+            cnn_metadata_dict
+        )
 
     print((
         'Smoothing saliency maps with Gaussian filter (e-folding radius of '
@@ -166,7 +210,10 @@ def _read_one_composite(saliency_file_name, smoothing_radius_grid_cells):
             e_folding_radius_grid_cells=smoothing_radius_grid_cells
         )
 
-    return mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict
+    return (
+        mean_predictor_matrix, mean_saliency_matrix, significance_matrix,
+        cnn_metadata_dict
+    )
 
 
 def _overlay_text(
@@ -201,7 +248,8 @@ def _overlay_text(
 def _plot_one_composite(
         saliency_file_name, composite_name_abbrev, composite_name_verbose,
         colour_map_object, max_colour_value, half_num_contours,
-        smoothing_radius_grid_cells, output_dir_name):
+        smoothing_radius_grid_cells, output_dir_name,
+        monte_carlo_file_name=None):
     """Plots one composite.
 
     :param saliency_file_name: Path to input file.  Will be read by
@@ -216,14 +264,20 @@ def _plot_one_composite(
     :param smoothing_radius_grid_cells: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
+    :param monte_carlo_file_name: Path to Monte Carlo file (will be read by
+        `_read_monte_carlo_file`).
     :return: main_figure_file_name: Path to main image file created by this
         method.
     """
 
-    mean_predictor_matrix, mean_saliency_matrix, cnn_metadata_dict = (
+    (
+        mean_predictor_matrix, mean_saliency_matrix, significance_matrix,
+        cnn_metadata_dict
+    ) = (
         _read_one_composite(
             saliency_file_name=saliency_file_name,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells,
+            monte_carlo_file_name=monte_carlo_file_name)
     )
 
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
@@ -304,13 +358,20 @@ def _plot_one_composite(
         this_matrix = numpy.flip(
             mean_saliency_matrix[0, ...][..., channel_indices], axis=0
         )
-
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=this_matrix,
             axes_object_matrix=axes_object_matrix,
             colour_map_object=colour_map_object,
             max_absolute_contour_level=max_colour_value,
             contour_interval=max_colour_value / half_num_contours
+        )
+
+        this_matrix = numpy.flip(
+            significance_matrix[0, ...][..., channel_indices], axis=0
+        )
+        significance_plotting.plot_many_2d_grids_without_coords(
+            significance_matrix=this_matrix,
+            axes_object_matrix=axes_object_matrix, marker_size=8
         )
 
         output_file_name = '{0:s}/{1:s}_{2:s}.jpg'.format(
@@ -433,14 +494,15 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
     )
 
 
-def _run(saliency_file_names, composite_names, colour_map_name,
-         max_colour_values, half_num_contours, smoothing_radius_grid_cells,
-         output_dir_name):
+def _run(saliency_file_names, monte_carlo_file_names, composite_names,
+         colour_map_name, max_colour_values, half_num_contours,
+         smoothing_radius_grid_cells, output_dir_name):
     """Makes nice figure with saliency maps.
 
     This is effectively the main method.
 
     :param saliency_file_names: See documentation at top of file.
+    :param monte_carlo_file_names: Same.
     :param composite_names: Same.
     :param colour_map_name: Same.
     :param max_colour_values: Same.
@@ -465,6 +527,12 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
     )
+    error_checking.assert_is_numpy_array(
+        numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
+    )
+    monte_carlo_file_names = [
+        None if f in NONE_STRINGS else f for f in monte_carlo_file_names
+    ]
 
     error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
     error_checking.assert_is_numpy_array(
@@ -486,6 +554,7 @@ def _run(saliency_file_names, composite_names, colour_map_name,
     for i in range(num_composites):
         panel_file_names[i] = _plot_one_composite(
             saliency_file_name=saliency_file_names[i],
+            monte_carlo_file_name=monte_carlo_file_names[i],
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
@@ -529,7 +598,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        saliency_file_names=getattr(INPUT_ARG_OBJECT, INPUT_FILES_ARG_NAME),
+        saliency_file_names=getattr(INPUT_ARG_OBJECT, SALIENCY_FILES_ARG_NAME),
+        monte_carlo_file_names=getattr(INPUT_ARG_OBJECT, MC_FILES_ARG_NAME),
         composite_names=getattr(INPUT_ARG_OBJECT, COMPOSITE_NAMES_ARG_NAME),
         colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_values=numpy.array(
