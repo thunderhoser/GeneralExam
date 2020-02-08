@@ -163,12 +163,21 @@ def _run(model_file_name, example_file_name, top_example_dir_name,
     kernel_matrix = numpy.repeat(kernel_matrix, num_channels, axis=-1)
 
     saliency_matrix = numpy.full(predictor_matrix.shape, numpy.nan)
+    print(SEPARATOR_STRING)
 
     for i in range(num_examples):
+        if numpy.mod(i, 25) == 0:
+            print('Have made {0:d} of {1:d} dummy saliency maps...'.format(
+                i, num_examples
+            ))
+
         saliency_matrix[i, ...] = standalone_utils.do_2d_convolution(
             feature_matrix=predictor_matrix[i, ...],
             kernel_matrix=kernel_matrix, pad_edges=True, stride_length_px=1
         )[0, ...]
+
+    print('Have all {0:d} dummy saliency maps!'.format(num_examples))
+    print(SEPARATOR_STRING)
 
     print('Denormalizing predictors...')
     example_dict = examples_io.denormalize_examples(example_dict)
