@@ -197,7 +197,7 @@ def _plot_one_composite(
         gradcam_file_name, composite_name_abbrev, composite_name_verbose,
         colour_map_object, max_colour_value, num_contours,
         smoothing_radius_grid_cells, output_dir_name):
-    """Plot one composite.
+    """Plots one composite.
 
     :param gradcam_file_name: Path to input file.  Will be read by
         `_read_one_composite`.
