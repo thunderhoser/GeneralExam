@@ -8,6 +8,7 @@ from PIL import Image
 import matplotlib
 matplotlib.use('agg')
 from matplotlib import pyplot
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import monte_carlo
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -247,6 +248,61 @@ def _overlay_text(
     raise ValueError(imagemagick_utils.ERROR_STRING)
 
 
+def _plot_saliency_with_wind_barbs(
+        u_wind_saliency_matrix, v_wind_saliency_matrix, axes_object,
+        colour_map_object, max_colour_value):
+    """Plots 2-D saliency map with wind barbs.
+
+    M = number of rows in grid
+    N = number of columns in grid
+
+    :param u_wind_saliency_matrix: M-by-N numpy array of saliency values for
+        u-wind.
+    :param v_wind_saliency_matrix: M-by-N numpy array of saliency values for
+        v-wind.
+    :param axes_object: Will plot on these axes (instance of
+        `matplotlib.axes._subplots.AxesSubplot`).
+    :param colour_map_object: Colour scheme (instance of `matplotlib.pyplot.cm`
+        or similar).
+    :param max_colour_value: Max saliency in colour scheme.
+    """
+
+    num_grid_rows = u_wind_saliency_matrix.shape[0]
+    num_grid_columns = v_wind_saliency_matrix.shape[1]
+
+    x_coords_unique = 0.5 + numpy.linspace(
+        0, num_grid_columns - 1, num=num_grid_columns, dtype=float
+    )
+    y_coords_unique = 0.5 + numpy.linspace(
+        0, num_grid_rows - 1, num=num_grid_rows, dtype=float
+    )
+    x_coord_matrix, y_coord_matrix = grids.xy_vectors_to_matrices(
+        x_unique_metres=x_coords_unique, y_unique_metres=y_coords_unique
+    )
+
+    x_coords = numpy.ravel(x_coord_matrix[::2, ::2])
+    y_coords = numpy.ravel(y_coord_matrix[::2, ::2])
+    u_saliency_values = numpy.ravel(u_wind_saliency_matrix[::2, ::2])
+    v_saliency_values = numpy.ravel(v_wind_saliency_matrix[::2, ::2])
+    saliency_magnitudes = numpy.sqrt(
+        u_saliency_values ** 2 + v_saliency_values ** 2
+    )
+
+    increment_dict = {
+        'half': 1e-6,
+        'full': 2 * numpy.max(saliency_magnitudes),
+        'flag': 10 * numpy.max(saliency_magnitudes)
+    }
+
+    axes_object.barbs(
+        x_coords, y_coords, u_saliency_values, v_saliency_values,
+        numpy.sqrt(u_saliency_values ** 2 + v_saliency_values ** 2),
+        sizes={'emptybarb': 0.1}, barb_increments=increment_dict,
+        length=6, linewidth=2, fill_empty=False, rounding=True,
+        cmap=colour_map_object, clim=numpy.array([0., max_colour_value])
+    )
+
+
 def _plot_one_composite(
         saliency_file_name, composite_name_abbrev, composite_name_verbose,
         colour_map_object, max_colour_value, half_num_contours,
@@ -291,6 +347,7 @@ def _plot_one_composite(
     wind_indices = numpy.where(wind_flags)[0]
 
     panel_file_names = []
+    last_panel_file_name = None
 
     for this_field_name in SCALAR_FIELD_NAMES:
         one_cbar_per_panel = False
@@ -340,7 +397,7 @@ def _plot_one_composite(
             continue
 
         channel_indices = numpy.concatenate((
-            wind_indices, scalar_field_indices
+            scalar_field_indices, wind_indices
         ))
 
         example_dict = {
@@ -399,6 +456,67 @@ def _plot_one_composite(
             pad_inches=0, bbox_inches='tight'
         )
         pyplot.close(figure_object)
+
+        if last_panel_file_name is not None:
+            continue
+
+        handle_dict = plot_examples.plot_composite_example(
+            example_dict=example_dict, plot_wind_as_barbs=True,
+            non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
+            num_panel_rows=num_panel_rows, add_titles=True,
+            one_cbar_per_panel=one_cbar_per_panel,
+            colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
+            colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
+            title_font_size=AXES_TITLE_FONT_SIZE,
+            wind_barb_colour=ACTUAL_WIND_BARB_COLOUR
+        )
+
+        axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
+        figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
+
+        for i in range(len(scalar_field_indices)):
+            this_u_wind_index = numpy.where(numpy.logical_and(
+                example_dict[examples_io.PRESSURE_LEVELS_KEY] ==
+                example_dict[examples_io.PRESSURE_LEVELS_KEY][i],
+                numpy.array(example_dict[examples_io.PREDICTOR_NAMES_KEY]) ==
+                predictor_utils.U_WIND_GRID_RELATIVE_NAME
+            ))[0][0]
+
+            this_v_wind_index = numpy.where(numpy.logical_and(
+                example_dict[examples_io.PRESSURE_LEVELS_KEY] ==
+                example_dict[examples_io.PRESSURE_LEVELS_KEY][i],
+                numpy.array(example_dict[examples_io.PREDICTOR_NAMES_KEY]) ==
+                predictor_utils.V_WIND_GRID_RELATIVE_NAME
+            ))[0][0]
+
+            u_wind_saliency_matrix = (
+                mean_saliency_matrix[0, ...][..., this_u_wind_index]
+            )
+            v_wind_saliency_matrix = (
+                mean_saliency_matrix[0, ...][..., this_v_wind_index]
+            )
+
+            _plot_saliency_with_wind_barbs(
+                u_wind_saliency_matrix=u_wind_saliency_matrix,
+                v_wind_saliency_matrix=v_wind_saliency_matrix,
+                axes_object=axes_object_matrix[i, 0],
+                colour_map_object=colour_map_object,
+                max_colour_value=max_colour_value
+            )
+
+        last_panel_file_name = '{0:s}/{1:s}_wind.jpg'.format(
+            output_dir_name, composite_name_abbrev
+        )
+
+        print('Saving figure to: "{0:s}"...'.format(last_panel_file_name))
+        figure_object.savefig(
+            last_panel_file_name, dpi=FIGURE_RESOLUTION_DPI,
+            pad_inches=0, bbox_inches='tight'
+        )
+        pyplot.close(figure_object)
+
+    if last_panel_file_name is not None:
+        panel_file_names.append(last_panel_file_name)
 
     figure_file_name = '{0:s}/{1:s}.jpg'.format(
         output_dir_name, composite_name_abbrev
