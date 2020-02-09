@@ -467,7 +467,7 @@ def _plot_one_composite(
         if last_panel_file_name is not None:
             continue
 
-        example_dict = {
+        scalar_example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
                 mean_predictor_matrix[..., scalar_field_indices],
             examples_io.PREDICTOR_NAMES_KEY: [
@@ -478,7 +478,8 @@ def _plot_one_composite(
         }
 
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=copy.deepcopy(example_dict), plot_wind_as_barbs=False,
+            example_dict=copy.deepcopy(scalar_example_dict),
+            plot_wind_as_barbs=False,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
