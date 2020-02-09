@@ -416,6 +416,10 @@ def _plot_one_composite(
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
+        print(this_field_name)
+        print(numpy.min(mean_predictor_matrix[..., scalar_field_indices]))
+        print(numpy.max(mean_predictor_matrix[..., scalar_field_indices]))
+
         num_panel_rows = len(scalar_field_indices)
 
         handle_dict = plot_examples.plot_composite_example(
