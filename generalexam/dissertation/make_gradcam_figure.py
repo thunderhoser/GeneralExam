@@ -302,7 +302,7 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
-        this_matrix = numpy.flip(mean_activation_matrix[0, ...], axis=0)
+        this_matrix = mean_activation_matrix[0, ...]
         this_matrix = numpy.repeat(
             a=numpy.expand_dims(this_matrix, axis=-1),
             axis=-1, repeats=len(channel_indices)

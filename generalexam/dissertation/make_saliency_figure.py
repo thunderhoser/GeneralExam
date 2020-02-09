@@ -368,8 +368,8 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
-        this_matrix = numpy.flip(
-            mean_saliency_matrix[0, ...][..., scalar_field_indices], axis=0
+        this_matrix = (
+            mean_saliency_matrix[0, ...][..., scalar_field_indices]
         )
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=this_matrix,
@@ -379,8 +379,8 @@ def _plot_one_composite(
             contour_interval=max_colour_value / half_num_contours
         )
 
-        this_matrix = numpy.flip(
-            significance_matrix[0, ...][..., scalar_field_indices], axis=0
+        this_matrix = (
+            significance_matrix[0, ...][..., scalar_field_indices]
         )
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=this_matrix,
