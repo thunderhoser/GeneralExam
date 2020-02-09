@@ -306,14 +306,14 @@ def _plot_one_composite(
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             )
 
-            channel_indices = numpy.where(
+            scalar_field_indices = numpy.where(
                 numpy.logical_or(gph_flags, pressure_flags)
             )[0]
 
             one_cbar_per_panel = True
 
         elif this_field_name == predictor_utils.HEIGHT_NAME:
-            channel_indices = numpy.where(numpy.logical_and(
+            scalar_field_indices = numpy.where(numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             ))[0]
@@ -325,21 +325,23 @@ def _plot_one_composite(
             )
 
             if plot_theta_w:
-                channel_indices = numpy.where(
+                scalar_field_indices = numpy.where(
                     numpy.array(predictor_names) == this_field_name
                 )[0]
             else:
-                channel_indices = numpy.array([], dtype=int)
+                scalar_field_indices = numpy.array([], dtype=int)
 
         else:
-            channel_indices = numpy.where(
+            scalar_field_indices = numpy.where(
                 numpy.array(predictor_names) == this_field_name
             )[0]
 
-        if len(channel_indices) == 0:
+        if len(scalar_field_indices) == 0:
             continue
 
-        channel_indices = numpy.concatenate((wind_indices, channel_indices))
+        channel_indices = numpy.concatenate((
+            wind_indices, scalar_field_indices
+        ))
 
         example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
@@ -350,12 +352,14 @@ def _plot_one_composite(
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
+        num_panel_rows = len(scalar_field_indices)
+
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
-            num_panel_rows=len(channel_indices), add_titles=True,
+            num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
-            colour_bar_length=COLOUR_BAR_LENGTH / len(channel_indices),
+            colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
             colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
             title_font_size=AXES_TITLE_FONT_SIZE,
             wind_barb_colour=ACTUAL_WIND_BARB_COLOUR
@@ -365,7 +369,7 @@ def _plot_one_composite(
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
         this_matrix = numpy.flip(
-            mean_saliency_matrix[0, ...][..., channel_indices], axis=0
+            mean_saliency_matrix[0, ...][..., scalar_field_indices], axis=0
         )
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=this_matrix,
@@ -376,7 +380,7 @@ def _plot_one_composite(
         )
 
         this_matrix = numpy.flip(
-            significance_matrix[0, ...][..., channel_indices], axis=0
+            significance_matrix[0, ...][..., scalar_field_indices], axis=0
         )
         significance_plotting.plot_many_2d_grids_without_coords(
             significance_matrix=this_matrix,
