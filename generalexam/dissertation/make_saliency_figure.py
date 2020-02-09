@@ -1,6 +1,7 @@
 """Makes nice figure with saliency maps."""
 
 import os
+import copy
 import pickle
 import argparse
 import numpy
@@ -45,6 +46,8 @@ PREDICTOR_CBAR_FONT_SIZE = 35
 SALIENCY_CBAR_FONT_SIZE = 25
 COLOUR_BAR_LENGTH = 0.8
 
+WIND_BARB_LENGTH = 8
+EMPTY_WIND_BARB_RADIUS = 0.1
 ACTUAL_WIND_BARB_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
@@ -284,10 +287,14 @@ def _plot_saliency_with_wind_barbs(
     y_coords = numpy.ravel(y_coord_matrix[::2, ::2])
     u_saliency_values = numpy.ravel(u_wind_saliency_matrix[::2, ::2])
     v_saliency_values = numpy.ravel(v_wind_saliency_matrix[::2, ::2])
+
     saliency_magnitudes = numpy.sqrt(
         u_saliency_values ** 2 + v_saliency_values ** 2
     )
 
+    size_dict = {
+        'emptybarb': EMPTY_WIND_BARB_RADIUS
+    }
     increment_dict = {
         'half': 1e-6,
         'full': 2 * numpy.max(saliency_magnitudes),
@@ -295,10 +302,10 @@ def _plot_saliency_with_wind_barbs(
     }
 
     axes_object.barbs(
-        x_coords, y_coords, u_saliency_values, v_saliency_values,
-        numpy.sqrt(u_saliency_values ** 2 + v_saliency_values ** 2),
-        sizes={'emptybarb': 0.1}, barb_increments=increment_dict,
-        length=6, linewidth=2, fill_empty=False, rounding=True,
+        x_coords, y_coords,
+        u_saliency_values, v_saliency_values, saliency_magnitudes,
+        sizes=size_dict, barb_increments=increment_dict,
+        length=WIND_BARB_LENGTH, linewidth=2, fill_empty=True, rounding=True,
         cmap=colour_map_object, clim=numpy.array([0., max_colour_value])
     )
 
@@ -412,7 +419,7 @@ def _plot_one_composite(
         num_panel_rows = len(scalar_field_indices)
 
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=example_dict, plot_wind_as_barbs=True,
+            example_dict=copy.deepcopy(example_dict), plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
@@ -460,15 +467,24 @@ def _plot_one_composite(
         if last_panel_file_name is not None:
             continue
 
+        example_dict = {
+            examples_io.PREDICTOR_MATRIX_KEY:
+                mean_predictor_matrix[..., scalar_field_indices],
+            examples_io.PREDICTOR_NAMES_KEY: [
+                predictor_names[k] for k in scalar_field_indices
+            ],
+            examples_io.PRESSURE_LEVELS_KEY:
+                pressure_levels_mb[scalar_field_indices]
+        }
+
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=example_dict, plot_wind_as_barbs=True,
+            example_dict=copy.deepcopy(example_dict), plot_wind_as_barbs=False,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
             colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
-            title_font_size=AXES_TITLE_FONT_SIZE,
-            wind_barb_colour=ACTUAL_WIND_BARB_COLOUR
+            title_font_size=AXES_TITLE_FONT_SIZE
         )
 
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
