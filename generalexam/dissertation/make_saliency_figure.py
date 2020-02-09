@@ -29,11 +29,13 @@ MODEL_FILE_KEY = saliency_maps.MODEL_FILE_KEY
 NONE_STRINGS = ['none', 'None']
 DUMMY_SURFACE_PRESSURE_MB = predictor_utils.DUMMY_SURFACE_PRESSURE_MB
 
-DESIRED_FIELD_NAMES = [
+WIND_FIELD_NAMES = [
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
+]
+SCALAR_FIELD_NAMES = [
     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
     predictor_utils.WET_BULB_THETA_NAME,
-    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
-    predictor_utils.V_WIND_GRID_RELATIVE_NAME,
     predictor_utils.PRESSURE_NAME, predictor_utils.HEIGHT_NAME
 ]
 
@@ -42,7 +44,7 @@ PREDICTOR_CBAR_FONT_SIZE = 35
 SALIENCY_CBAR_FONT_SIZE = 25
 COLOUR_BAR_LENGTH = 0.8
 
-WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
+ACTUAL_WIND_BARB_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
@@ -283,9 +285,14 @@ def _plot_one_composite(
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
 
+    wind_flags = numpy.array(
+        [n in WIND_FIELD_NAMES for n in predictor_names], dtype=bool
+    )
+    wind_indices = numpy.where(wind_flags)[0]
+
     panel_file_names = []
 
-    for this_field_name in DESIRED_FIELD_NAMES:
+    for this_field_name in SCALAR_FIELD_NAMES:
         one_cbar_per_panel = False
 
         if this_field_name == predictor_utils.PRESSURE_NAME:
@@ -332,6 +339,8 @@ def _plot_one_composite(
         if len(channel_indices) == 0:
             continue
 
+        channel_indices = numpy.concatenate((wind_indices, channel_indices))
+
         example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
                 mean_predictor_matrix[..., channel_indices],
@@ -342,14 +351,14 @@ def _plot_one_composite(
         }
 
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=example_dict, plot_wind_as_barbs=False,
+            example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=len(channel_indices), add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=COLOUR_BAR_LENGTH / len(channel_indices),
             colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
             title_font_size=AXES_TITLE_FONT_SIZE,
-            wind_colour_map_object=WIND_COLOUR_MAP_OBJECT
+            wind_barb_colour=ACTUAL_WIND_BARB_COLOUR
         )
 
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
