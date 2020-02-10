@@ -49,6 +49,7 @@ COLOUR_BAR_LENGTH = 0.8
 WIND_BARB_LENGTH = 8
 EMPTY_WIND_BARB_RADIUS = 0.1
 ACTUAL_WIND_BARB_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
+WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
@@ -73,7 +74,8 @@ SALIENCY_FILES_HELP_STRING = (
 MC_FILES_HELP_STRING = (
     'List of files with Monte Carlo significance (one per saliency file).  Each'
     ' will be read by `_read_monte_carlo_test`.  If you do not want to plot '
-    'significance for the [i]th composite, make the [i]th list element "None".'
+    'significance at all, leave this argument alone.  If you do not want to '
+    'plot significance for the [i]th composite, make the [i]th string "None".'
 )
 COMPOSITE_NAMES_HELP_STRING = (
     'List of composite names (one for each saliency file).  This list must be '
@@ -105,7 +107,7 @@ INPUT_ARG_PARSER.add_argument(
     help=SALIENCY_FILES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + MC_FILES_ARG_NAME, type=str, nargs='+', required=True,
+    '--' + MC_FILES_ARG_NAME, type=str, nargs='+', required=False, default=[''],
     help=MC_FILES_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -311,14 +313,15 @@ def _plot_saliency_with_wind_barbs(
 
 
 def _plot_one_composite(
-        saliency_file_name, composite_name_abbrev, composite_name_verbose,
-        colour_map_object, max_colour_value, half_num_contours,
-        smoothing_radius_grid_cells, output_dir_name,
+        saliency_file_name, plot_significance, composite_name_abbrev,
+        composite_name_verbose, colour_map_object, max_colour_value,
+        half_num_contours, smoothing_radius_grid_cells, output_dir_name,
         monte_carlo_file_name=None):
     """Plots one composite.
 
     :param saliency_file_name: Path to input file.  Will be read by
         `_read_one_composite`.
+    :param plot_significance: Boolean flag.  If True, will plot significance.
     :param composite_name_abbrev: Abbreviated name for composite.  Will be used
         in names of output files.
     :param composite_name_verbose: Verbose name for composite.  Will be used as
@@ -356,7 +359,12 @@ def _plot_one_composite(
     panel_file_names = []
     last_panel_file_name = None
 
-    for this_field_name in SCALAR_FIELD_NAMES:
+    if plot_significance:
+        all_field_names = SCALAR_FIELD_NAMES + WIND_FIELD_NAMES
+    else:
+        all_field_names = SCALAR_FIELD_NAMES
+
+    for this_field_name in all_field_names:
         one_cbar_per_panel = False
 
         if this_field_name == predictor_utils.PRESSURE_NAME:
@@ -370,14 +378,14 @@ def _plot_one_composite(
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             )
 
-            scalar_field_indices = numpy.where(
+            main_field_indices = numpy.where(
                 numpy.logical_or(gph_flags, pressure_flags)
             )[0]
 
             one_cbar_per_panel = True
 
         elif this_field_name == predictor_utils.HEIGHT_NAME:
-            scalar_field_indices = numpy.where(numpy.logical_and(
+            main_field_indices = numpy.where(numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             ))[0]
@@ -389,23 +397,26 @@ def _plot_one_composite(
             )
 
             if plot_theta_w:
-                scalar_field_indices = numpy.where(
+                main_field_indices = numpy.where(
                     numpy.array(predictor_names) == this_field_name
                 )[0]
             else:
-                scalar_field_indices = numpy.array([], dtype=int)
+                main_field_indices = numpy.array([], dtype=int)
 
         else:
-            scalar_field_indices = numpy.where(
+            main_field_indices = numpy.where(
                 numpy.array(predictor_names) == this_field_name
             )[0]
 
-        if len(scalar_field_indices) == 0:
+        if len(main_field_indices) == 0:
             continue
 
-        channel_indices = numpy.concatenate((
-            scalar_field_indices, wind_indices
-        ))
+        if plot_significance:
+            channel_indices = main_field_indices + 0
+        else:
+            channel_indices = numpy.concatenate((
+                main_field_indices, wind_indices
+            ))
 
         example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
@@ -416,24 +427,26 @@ def _plot_one_composite(
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
-        num_panel_rows = len(scalar_field_indices)
+        num_panel_rows = len(main_field_indices)
 
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=copy.deepcopy(example_dict), plot_wind_as_barbs=True,
+            example_dict=copy.deepcopy(example_dict),
+            plot_wind_as_barbs=not plot_significance,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
             colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
             title_font_size=AXES_TITLE_FONT_SIZE,
-            wind_barb_colour=ACTUAL_WIND_BARB_COLOUR
+            wind_barb_colour=ACTUAL_WIND_BARB_COLOUR,
+            wind_colour_map_object=WIND_COLOUR_MAP_OBJECT
         )
 
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
         this_matrix = (
-            mean_saliency_matrix[0, ...][..., scalar_field_indices]
+            mean_saliency_matrix[0, ...][..., main_field_indices]
         )
         saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=this_matrix,
@@ -443,13 +456,14 @@ def _plot_one_composite(
             contour_interval=max_colour_value / half_num_contours
         )
 
-        this_matrix = (
-            significance_matrix[0, ...][..., scalar_field_indices]
-        )
-        significance_plotting.plot_many_2d_grids_without_coords(
-            significance_matrix=this_matrix,
-            axes_object_matrix=axes_object_matrix, marker_size=8
-        )
+        if plot_significance:
+            this_matrix = (
+                significance_matrix[0, ...][..., main_field_indices]
+            )
+            significance_plotting.plot_many_2d_grids_without_coords(
+                significance_matrix=this_matrix,
+                axes_object_matrix=axes_object_matrix, marker_size=8
+            )
 
         output_file_name = '{0:s}/{1:s}_{2:s}.jpg'.format(
             output_dir_name, composite_name_abbrev,
@@ -464,21 +478,21 @@ def _plot_one_composite(
         )
         pyplot.close(figure_object)
 
-        if last_panel_file_name is not None:
+        if last_panel_file_name is not None or plot_significance:
             continue
 
-        scalar_example_dict = {
+        main_example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
-                mean_predictor_matrix[..., scalar_field_indices],
+                mean_predictor_matrix[..., main_field_indices],
             examples_io.PREDICTOR_NAMES_KEY: [
-                predictor_names[k] for k in scalar_field_indices
+                predictor_names[k] for k in main_field_indices
             ],
             examples_io.PRESSURE_LEVELS_KEY:
-                pressure_levels_mb[scalar_field_indices]
+                pressure_levels_mb[main_field_indices]
         }
 
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=copy.deepcopy(scalar_example_dict),
+            example_dict=copy.deepcopy(main_example_dict),
             plot_wind_as_barbs=False,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=num_panel_rows, add_titles=True,
@@ -491,7 +505,7 @@ def _plot_one_composite(
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
         figure_object = handle_dict[plot_examples.FIGURE_OBJECT_KEY]
 
-        for i in range(len(scalar_field_indices)):
+        for i in range(len(main_field_indices)):
             this_u_wind_index = numpy.where(numpy.logical_and(
                 example_dict[examples_io.PRESSURE_LEVELS_KEY] ==
                 example_dict[examples_io.PRESSURE_LEVELS_KEY][i],
@@ -532,7 +546,7 @@ def _plot_one_composite(
         )
         pyplot.close(figure_object)
 
-    if last_panel_file_name is not None:
+    if last_panel_file_name is not None and not plot_significance:
         panel_file_names.append(last_panel_file_name)
 
     figure_file_name = '{0:s}/{1:s}.jpg'.format(
@@ -608,7 +622,9 @@ def _add_colour_bar(figure_file_name, colour_map_object, max_colour_value,
 
     tick_values = colour_bar_object.get_ticks()
 
-    if max_colour_value <= 0.005:
+    if max_colour_value <= 0.0005:
+        tick_strings = ['{0:.5f}'.format(v) for v in tick_values]
+    elif max_colour_value <= 0.005:
         tick_strings = ['{0:.4f}'.format(v) for v in tick_values]
     elif max_colour_value <= 0.05:
         tick_strings = ['{0:.3f}'.format(v) for v in tick_values]
@@ -675,12 +691,18 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
     error_checking.assert_is_numpy_array(
         numpy.array(composite_names), exact_dimensions=expected_dim
     )
+
+    if len(monte_carlo_file_names) == 1 and monte_carlo_file_names[0] == '':
+        monte_carlo_file_names = [NONE_STRINGS[0]] * num_composites
+
     error_checking.assert_is_numpy_array(
         numpy.array(monte_carlo_file_names), exact_dimensions=expected_dim
     )
     monte_carlo_file_names = [
         None if f in NONE_STRINGS else f for f in monte_carlo_file_names
     ]
+
+    plot_significance = any([f is not None for f in monte_carlo_file_names])
 
     error_checking.assert_is_greater_numpy_array(max_colour_values, 0.)
     error_checking.assert_is_numpy_array(
@@ -703,6 +725,7 @@ def _run(saliency_file_names, monte_carlo_file_names, composite_names,
         panel_file_names[i] = _plot_one_composite(
             saliency_file_name=saliency_file_names[i],
             monte_carlo_file_name=monte_carlo_file_names[i],
+            plot_significance=plot_significance,
             composite_name_abbrev=composite_names_abbrev[i],
             composite_name_verbose=composite_names_verbose[i],
             colour_map_object=colour_map_object,
