@@ -229,10 +229,14 @@ def _plot_one_composite(bwo_file_name, composite_name_abbrev, output_dir_name):
         }
 
         num_panel_rows = len(scalar_field_indices)
+        colour_map_object = (
+            DIFF_COLOUR_MAP_OBJECT if composite_name_abbrev == 'difference'
+            else NON_WIND_COLOUR_MAP_OBJECT
+        )
 
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
-            non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
+            non_wind_colour_map_object=colour_map_object,
             add_titles=True, plot_diffs=composite_name_abbrev == 'difference',
             num_panel_rows=num_panel_rows,
             one_cbar_per_panel=one_cbar_per_panel,
