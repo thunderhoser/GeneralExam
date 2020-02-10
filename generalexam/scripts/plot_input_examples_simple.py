@@ -703,21 +703,33 @@ def plot_real_example(
     else:
         colour_map_object = non_wind_colour_map_object
 
+    if plot_wind_as_barbs:
+        channel_indices = numpy.array([
+            k for k in range(num_predictors)
+            if predictor_names[k] not in WIND_NAMES
+        ], dtype=int)
+    else:
+        channel_indices = numpy.linspace(
+            0, num_predictors - 1, num=num_predictors, dtype=int
+        )
+
     if plot_diffs:
         max_colour_value = numpy.percentile(
-            numpy.absolute(predictor_matrix), MAX_COLOUR_PERCENTILE
+            numpy.absolute(predictor_matrix[..., channel_indices]),
+            MAX_COLOUR_PERCENTILE
         )
         min_colour_value = -1 * max_colour_value
     else:
         min_colour_value = numpy.percentile(
-            predictor_matrix, 100. - MAX_COLOUR_PERCENTILE
+            predictor_matrix[..., channel_indices], 100. - MAX_COLOUR_PERCENTILE
         )
         max_colour_value = numpy.percentile(
-            predictor_matrix, MAX_COLOUR_PERCENTILE
+            predictor_matrix[..., channel_indices], MAX_COLOUR_PERCENTILE
         )
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix, data_matrix=predictor_matrix,
+        axes_object_or_matrix=axes_object_matrix,
+        data_matrix=predictor_matrix[..., channel_indices],
         colour_map_object=colour_map_object,
         min_value=min_colour_value, max_value=max_colour_value,
         orientation_string='horizontal', padding=0.05,
@@ -972,21 +984,33 @@ def plot_composite_example(
     else:
         colour_map_object = non_wind_colour_map_object
 
+    if plot_wind_as_barbs:
+        channel_indices = numpy.array([
+            k for k in range(num_predictors)
+            if predictor_names[k] not in WIND_NAMES
+        ], dtype=int)
+    else:
+        channel_indices = numpy.linspace(
+            0, num_predictors - 1, num=num_predictors, dtype=int
+        )
+
     if plot_diffs:
         max_colour_value = numpy.percentile(
-            numpy.absolute(predictor_matrix), MAX_COLOUR_PERCENTILE
+            numpy.absolute(predictor_matrix[..., channel_indices]),
+            MAX_COLOUR_PERCENTILE
         )
         min_colour_value = -1 * max_colour_value
     else:
         min_colour_value = numpy.percentile(
-            predictor_matrix, 100. - MAX_COLOUR_PERCENTILE
+            predictor_matrix[..., channel_indices], 100. - MAX_COLOUR_PERCENTILE
         )
         max_colour_value = numpy.percentile(
-            predictor_matrix, MAX_COLOUR_PERCENTILE
+            predictor_matrix[..., channel_indices], MAX_COLOUR_PERCENTILE
         )
 
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
-        axes_object_or_matrix=axes_object_matrix, data_matrix=predictor_matrix,
+        axes_object_or_matrix=axes_object_matrix,
+        data_matrix=predictor_matrix[..., channel_indices],
         colour_map_object=colour_map_object,
         min_value=min_colour_value, max_value=max_colour_value,
         orientation_string='horizontal', padding=0.01,
