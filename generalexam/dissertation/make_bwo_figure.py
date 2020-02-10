@@ -32,7 +32,7 @@ MEAN_OUTPUT_MATRIX_KEY = backwards_opt.MEAN_OUTPUT_MATRIX_KEY
 MODEL_FILE_KEY = backwards_opt.MODEL_FILE_KEY
 
 MAX_DIFF_PERCENTILE = 99.
-WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
+WIND_BARB_COLOUR = numpy.full(3, 0.)
 DIFF_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
