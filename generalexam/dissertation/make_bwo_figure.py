@@ -17,11 +17,13 @@ from generalexam.scripts import plot_input_examples_simple as plot_examples
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 DUMMY_SURFACE_PRESSURE_MB = predictor_utils.DUMMY_SURFACE_PRESSURE_MB
 
-DESIRED_FIELD_NAMES = [
+WIND_FIELD_NAMES = [
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
+]
+SCALAR_FIELD_NAMES = [
     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
     predictor_utils.WET_BULB_THETA_NAME,
-    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
-    predictor_utils.V_WIND_GRID_RELATIVE_NAME,
     predictor_utils.PRESSURE_NAME, predictor_utils.HEIGHT_NAME
 ]
 
@@ -159,9 +161,14 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
 
+    wind_flags = numpy.array(
+        [n in WIND_FIELD_NAMES for n in predictor_names], dtype=bool
+    )
+    wind_indices = numpy.where(wind_flags)[0]
+
     panel_file_names = []
 
-    for this_field_name in DESIRED_FIELD_NAMES:
+    for this_field_name in SCALAR_FIELD_NAMES:
         one_cbar_per_panel = False
 
         if this_field_name == predictor_utils.PRESSURE_NAME:
@@ -175,14 +182,14 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             )
 
-            channel_indices = numpy.where(
+            scalar_field_indices = numpy.where(
                 numpy.logical_or(gph_flags, pressure_flags)
             )[0]
 
             one_cbar_per_panel = True
 
         elif this_field_name == predictor_utils.HEIGHT_NAME:
-            channel_indices = numpy.where(numpy.logical_and(
+            scalar_field_indices = numpy.where(numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             ))[0]
@@ -194,19 +201,23 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
             )
 
             if plot_theta_w:
-                channel_indices = numpy.where(
+                scalar_field_indices = numpy.where(
                     numpy.array(predictor_names) == this_field_name
                 )[0]
             else:
-                channel_indices = numpy.array([], dtype=int)
+                scalar_field_indices = numpy.array([], dtype=int)
 
         else:
-            channel_indices = numpy.where(
+            scalar_field_indices = numpy.where(
                 numpy.array(predictor_names) == this_field_name
             )[0]
 
-        if len(channel_indices) == 0:
+        if len(scalar_field_indices) == 0:
             continue
+
+        channel_indices = numpy.concatenate((
+            scalar_field_indices, wind_indices
+        ))
 
         example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
@@ -217,13 +228,15 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
+        num_panel_rows = len(scalar_field_indices)
+
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             add_titles=True, plot_diffs=True,
-            num_panel_rows=len(channel_indices),
+            num_panel_rows=num_panel_rows,
             one_cbar_per_panel=one_cbar_per_panel,
-            colour_bar_length=COLOUR_BAR_LENGTH / len(channel_indices),
+            colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
             title_font_size=AXES_TITLE_FONT_SIZE,
             colour_bar_font_size=COLOUR_BAR_FONT_SIZE,
             wind_barb_colour=WIND_BARB_COLOUR

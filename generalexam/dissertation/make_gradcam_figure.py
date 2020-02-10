@@ -26,11 +26,13 @@ MODEL_FILE_KEY = gradcam.MODEL_FILE_KEY
 MIN_COLOUR_VALUE_LOG10 = -2.
 DUMMY_SURFACE_PRESSURE_MB = predictor_utils.DUMMY_SURFACE_PRESSURE_MB
 
-DESIRED_FIELD_NAMES = [
+WIND_FIELD_NAMES = [
+    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
+    predictor_utils.V_WIND_GRID_RELATIVE_NAME
+]
+SCALAR_FIELD_NAMES = [
     predictor_utils.TEMPERATURE_NAME, predictor_utils.SPECIFIC_HUMIDITY_NAME,
     predictor_utils.WET_BULB_THETA_NAME,
-    predictor_utils.U_WIND_GRID_RELATIVE_NAME,
-    predictor_utils.V_WIND_GRID_RELATIVE_NAME,
     predictor_utils.PRESSURE_NAME, predictor_utils.HEIGHT_NAME
 ]
 
@@ -39,7 +41,7 @@ PREDICTOR_CBAR_FONT_SIZE = 35
 GRADCAM_CBAR_FONT_SIZE = 25
 COLOUR_BAR_LENGTH = 0.8
 
-WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('seismic')
+WIND_BARB_COLOUR = numpy.array([31, 120, 180], dtype=float) / 255
 NON_WIND_COLOUR_MAP_OBJECT = pyplot.get_cmap('YlOrRd')
 
 CONVERT_EXE_NAME = '/usr/bin/convert'
@@ -230,9 +232,14 @@ def _plot_one_composite(
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
 
+    wind_flags = numpy.array(
+        [n in WIND_FIELD_NAMES for n in predictor_names], dtype=bool
+    )
+    wind_indices = numpy.where(wind_flags)[0]
+
     panel_file_names = []
 
-    for this_field_name in DESIRED_FIELD_NAMES:
+    for this_field_name in SCALAR_FIELD_NAMES:
         one_cbar_per_panel = False
 
         if this_field_name == predictor_utils.PRESSURE_NAME:
@@ -246,14 +253,14 @@ def _plot_one_composite(
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             )
 
-            channel_indices = numpy.where(
+            scalar_field_indices = numpy.where(
                 numpy.logical_or(gph_flags, pressure_flags)
             )[0]
 
             one_cbar_per_panel = True
 
         elif this_field_name == predictor_utils.HEIGHT_NAME:
-            channel_indices = numpy.where(numpy.logical_and(
+            scalar_field_indices = numpy.where(numpy.logical_and(
                 numpy.array(predictor_names) == predictor_utils.HEIGHT_NAME,
                 pressure_levels_mb == DUMMY_SURFACE_PRESSURE_MB
             ))[0]
@@ -265,19 +272,23 @@ def _plot_one_composite(
             )
 
             if plot_theta_w:
-                channel_indices = numpy.where(
+                scalar_field_indices = numpy.where(
                     numpy.array(predictor_names) == this_field_name
                 )[0]
             else:
-                channel_indices = numpy.array([], dtype=int)
+                scalar_field_indices = numpy.array([], dtype=int)
 
         else:
-            channel_indices = numpy.where(
+            scalar_field_indices = numpy.where(
                 numpy.array(predictor_names) == this_field_name
             )[0]
 
-        if len(channel_indices) == 0:
+        if len(scalar_field_indices) == 0:
             continue
+
+        channel_indices = numpy.concatenate((
+            scalar_field_indices, wind_indices
+        ))
 
         example_dict = {
             examples_io.PREDICTOR_MATRIX_KEY:
@@ -288,15 +299,17 @@ def _plot_one_composite(
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
+        num_panel_rows = len(scalar_field_indices)
+
         handle_dict = plot_examples.plot_composite_example(
-            example_dict=example_dict, plot_wind_as_barbs=False,
+            example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
-            num_panel_rows=len(channel_indices), add_titles=True,
+            num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
-            colour_bar_length=COLOUR_BAR_LENGTH / len(channel_indices),
+            colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
             colour_bar_font_size=PREDICTOR_CBAR_FONT_SIZE,
             title_font_size=AXES_TITLE_FONT_SIZE,
-            wind_colour_map_object=WIND_COLOUR_MAP_OBJECT
+            wind_barb_colour=WIND_BARB_COLOUR
         )
 
         axes_object_matrix = handle_dict[plot_examples.AXES_OBJECTS_KEY]
@@ -305,7 +318,7 @@ def _plot_one_composite(
         this_matrix = mean_activation_matrix[0, ...]
         this_matrix = numpy.repeat(
             a=numpy.expand_dims(this_matrix, axis=-1),
-            axis=-1, repeats=len(channel_indices)
+            axis=-1, repeats=num_panel_rows
         )
         this_matrix = numpy.log10(this_matrix)
 
