@@ -233,7 +233,7 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
-            add_titles=True, plot_diffs=True,
+            add_titles=True, plot_diffs=plot_difference,
             num_panel_rows=num_panel_rows,
             one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
