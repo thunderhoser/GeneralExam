@@ -313,6 +313,13 @@ def read_metadata(pickle_file_name):
         metadata_dict[NORMALIZATION_FILE_KEY] = None
 
     predictor_names = metadata_dict[PREDICTOR_NAMES_KEY]
+
+    if PRESSURE_LEVELS_KEY not in metadata_dict:
+        metadata_dict[PRESSURE_LEVELS_KEY] = numpy.full(
+            len(predictor_names), predictor_utils.DUMMY_SURFACE_PRESSURE_MB,
+            dtype=int
+        )
+
     pressure_levels_mb = metadata_dict[PRESSURE_LEVELS_KEY]
 
     orography_flags = numpy.logical_and(
