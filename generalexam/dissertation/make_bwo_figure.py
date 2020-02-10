@@ -132,13 +132,12 @@ def _overlay_text(
     raise ValueError(imagemagick_utils.ERROR_STRING)
 
 
-def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
+def _plot_one_composite(bwo_file_name, composite_name_abbrev, output_dir_name):
     """Plots one composite -- either diff ("before minus after") or "after".
 
     :param bwo_file_name: Path to input file.  Will be read by `_read_bwo_file`.
-    :param plot_difference: Boolean flag.  If True, will plot difference
-        ("before minus after") composite.  If False, will plot "after"
-        composite.
+    :param composite_name_abbrev: Name of composite being plotted ("before", "after",
+        or "difference").
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :return: main_figure_file_name: Path to main image file created by this
@@ -149,14 +148,15 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
         _read_bwo_file(bwo_file_name)
     )
 
-    if plot_difference:
+    if composite_name_abbrev == 'difference':
         matrix_to_plot = mean_after_matrix - mean_before_matrix
-        composite_name_abbrev = 'difference'
-        composite_name_verbose = '(b) Difference'
-    else:
+        composite_name_verbose = '(c) Difference'
+    elif composite_name_abbrev == 'after':
         matrix_to_plot = mean_after_matrix
-        composite_name_abbrev = 'after'
-        composite_name_verbose = '(a) Synthetic image'
+        composite_name_verbose = '(b) Synthetic image'
+    else:
+        matrix_to_plot = mean_before_matrix
+        composite_name_verbose = '(a) Original image'
 
     predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
     pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
@@ -233,7 +233,7 @@ def _plot_one_composite(bwo_file_name, plot_difference, output_dir_name):
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
-            add_titles=True, plot_diffs=plot_difference,
+            add_titles=True, plot_diffs=composite_name_abbrev == 'difference',
             num_panel_rows=num_panel_rows,
             one_cbar_per_panel=one_cbar_per_panel,
             colour_bar_length=COLOUR_BAR_LENGTH / num_panel_rows,
@@ -305,25 +305,33 @@ def _run(bwo_file_name, output_dir_name):
         directory_name=output_dir_name
     )
 
+    before_file_name = _plot_one_composite(
+        bwo_file_name=bwo_file_name, composite_name_abbrev='before',
+        output_dir_name=output_dir_name
+    )
+    print('\n')
+
     after_file_name = _plot_one_composite(
-        bwo_file_name=bwo_file_name, plot_difference=False,
+        bwo_file_name=bwo_file_name, composite_name_abbrev='after',
         output_dir_name=output_dir_name
     )
     print('\n')
 
     difference_file_name = _plot_one_composite(
-        bwo_file_name=bwo_file_name, plot_difference=True,
+        bwo_file_name=bwo_file_name, composite_name_abbrev='difference',
         output_dir_name=output_dir_name
     )
     print('\n')
 
-    figure_file_name = '{0:s}/gradcam_concat.jpg'.format(output_dir_name)
+    figure_file_name = '{0:s}/bwo_concat.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(figure_file_name))
 
     imagemagick_utils.concatenate_images(
-        input_file_names=[after_file_name, difference_file_name],
+        input_file_names=[
+            before_file_name, after_file_name, difference_file_name
+        ],
         output_file_name=figure_file_name, border_width_pixels=100,
-        num_panel_rows=2, num_panel_columns=1
+        num_panel_rows=2, num_panel_columns=2
     )
     imagemagick_utils.trim_whitespace(
         input_file_name=figure_file_name, output_file_name=figure_file_name,
