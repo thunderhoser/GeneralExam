@@ -299,9 +299,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             r'Wet-bulb potential temperature ($^{\circ}$C)'
         )
 
-        tick_values = colour_bar_object.ax.get_xticks()
-        colour_bar_object.ax.set_xticks(tick_values)
-        colour_bar_object.ax.set_xticklabels(tick_values)
+        # tick_values = colour_bar_object.ax.get_xticks()
+        # colour_bar_object.ax.set_xticks(tick_values)
+        # colour_bar_object.ax.set_xticklabels(tick_values)
 
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
