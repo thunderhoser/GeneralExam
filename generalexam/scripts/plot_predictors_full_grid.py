@@ -50,11 +50,11 @@ PREDICTOR_NAME_ABBREV_TO_NICE = {
 }
 
 FRONT_LINE_WIDTH = 8
-BORDER_COLOUR = numpy.full(3, 152. / 255)
+BORDER_COLOUR = numpy.full(3, 0.)
 WARM_FRONT_COLOUR = numpy.array([30, 120, 180], dtype=float) / 255
 COLD_FRONT_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
 
-WIND_BARB_COLOUR = numpy.full(3, 0.)
+WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
 MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
 
@@ -380,9 +380,10 @@ def _plot_one_time(
             PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
         )
 
-        tick_values = colour_bar_object.ax.get_xticks()
-        colour_bar_object.ax.set_xticks(tick_values)
-        colour_bar_object.ax.set_xticklabels(tick_values)
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+        colour_bar_object.set_ticks(tick_values)
+        colour_bar_object.set_ticklabels(tick_strings)
 
     u_wind_index = predictor_names.index(
         predictor_utils.U_WIND_GRID_RELATIVE_NAME
