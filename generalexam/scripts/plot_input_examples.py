@@ -296,9 +296,9 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             extend_min=True, extend_max=True, fraction_of_axis_length=0.8
         )
 
-        colour_bar_object.set_label(
-            r'Wet-bulb potential temperature ($^{\circ}$C)'
-        )
+        # colour_bar_object.set_label(
+        #     r'Wet-bulb potential temperature ($^{\circ}$C)'
+        # )
 
         tick_values = colour_bar_object.get_ticks()
         tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
