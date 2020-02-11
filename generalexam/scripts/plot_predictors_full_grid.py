@@ -484,7 +484,8 @@ def _plot_one_time(
     if letter_label is not None:
         plotting_utils.label_axes(
             axes_object=axes_object,
-            label_string='({0:s})'.format(letter_label)
+            label_string='({0:s})'.format(letter_label),
+            x_coord_normalized=0.075
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
