@@ -40,6 +40,7 @@ FRONT_DIR_ARG_NAME = 'input_front_dir_name'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 DILATION_DISTANCE_ARG_NAME = 'dilation_distance_metres'
+CUT_OFF_SOUTH_ARG_NAME = 'cut_off_south'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -47,7 +48,8 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with gridded fronts.  Files therein will be '
     'found by `fronts_io.find_gridded_file` and read by '
-    '`fronts_io.read_grid_from_file`.')
+    '`fronts_io.read_grid_from_file`.'
+)
 
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Gridded fronts will be plotted all times in '
@@ -56,56 +58,67 @@ TIME_HELP_STRING = (
 
 DILATION_DISTANCE_HELP_STRING = (
     'Dilation distance for gridded fronts.  If you do not want to dilate, leave'
-    ' this argument alone.')
-
+    ' this argument alone.'
+)
+CUT_OFF_SOUTH_HELP_STRING = (
+    'Boolean flag.  If 1, will cut off south part of grid and plot nothing '
+    'below 20 deg N.'
+)
 FIRST_LETTER_HELP_STRING = (
     'Letter label for first time step.  If this is "a", the label "(a)" will be'
     ' printed at the top-left of the figure.  If you do not want labels, leave '
-    'this argument alone.')
-
+    'this argument alone.'
+)
 LETTER_INTERVAL_HELP_STRING = (
-    'Interval between letter labels for successive time steps.')
-
+    'Interval between letter labels for successive time steps.'
+)
 OUTPUT_DIR_HELP_STRING = (
-    'Name of output directory.  Figures will be saved here.')
+    'Name of output directory.  Figures will be saved here.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FRONT_DIR_ARG_NAME, type=str, required=True,
-    help=FRONT_DIR_HELP_STRING)
-
+    help=FRONT_DIR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
-
+    '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
-
+    '--' + LAST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + DILATION_DISTANCE_ARG_NAME, type=float, required=False, default=-1,
-    help=DILATION_DISTANCE_HELP_STRING)
-
+    help=DILATION_DISTANCE_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + CUT_OFF_SOUTH_ARG_NAME, type=int, required=False, default=0,
+    help=CUT_OFF_SOUTH_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_LETTER_ARG_NAME, type=str, required=False, default='',
-    help=FIRST_LETTER_HELP_STRING)
-
+    help=FIRST_LETTER_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + LETTER_INTERVAL_ARG_NAME, type=int, required=False, default=3,
-    help=LETTER_INTERVAL_HELP_STRING)
-
+    help=LETTER_INTERVAL_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _plot_fronts_one_time(
-        input_file_name, output_file_name, dilation_distance_metres=None,
-        letter_label=None):
+        input_file_name, output_file_name, cut_off_south,
+        dilation_distance_metres=None, letter_label=None):
     """Plots gridded WPC fronts at one time.
 
     :param input_file_name: Path to input file (will be read by
         `fronts_io.read_grid_from_file`).
     :param output_file_name: Path to output file (figure will be saved here).
-    :param dilation_distance_metres: See documentation at top of file.
+    :param cut_off_south: See documentation at top of file.
+    :param dilation_distance_metres: Same.
     :param letter_label: Same.
     """
 
@@ -115,19 +128,21 @@ def _plot_fronts_one_time(
     gridded_front_matrix = ml_utils.front_table_to_images(
         frontal_grid_table=gridded_front_table,
         num_rows_per_image=NUM_GRID_ROWS,
-        num_columns_per_image=NUM_GRID_COLUMNS)
+        num_columns_per_image=NUM_GRID_COLUMNS
+    )
 
     if dilation_distance_metres is not None:
         gridded_front_matrix = ml_utils.dilate_ternary_target_images(
             target_matrix=gridded_front_matrix,
             dilation_distance_metres=dilation_distance_metres,
-            verbose=False)
+            verbose=False
+        )
 
     gridded_front_matrix = gridded_front_matrix[0, ...]
 
     basemap_dict = plot_gridded_stats.plot_basemap(
         data_matrix=gridded_front_matrix, border_colour=BORDER_COLOUR,
-        cut_off_south=True
+        cut_off_south=cut_off_south
     )
 
     figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
@@ -160,8 +175,8 @@ def _plot_fronts_one_time(
 
 
 def _run(top_front_dir_name, first_time_string, last_time_string,
-         dilation_distance_metres, first_letter_label, letter_interval,
-         output_dir_name):
+         dilation_distance_metres, cut_off_south, first_letter_label,
+         letter_interval, output_dir_name):
     """Plots gridded WPC fronts.
 
     This is effectively the main method.
@@ -170,13 +185,15 @@ def _run(top_front_dir_name, first_time_string, last_time_string,
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param dilation_distance_metres: Same.
+    :param cut_off_south: Same.
     :param first_letter_label: Same.
     :param letter_interval: Same.
     :param output_dir_name: Same.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     if dilation_distance_metres <= 0:
         dilation_distance_metres = None
@@ -184,14 +201,16 @@ def _run(top_front_dir_name, first_time_string, last_time_string,
         first_letter_label = None
 
     first_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_time_string, TIME_FORMAT)
+        first_time_string, TIME_FORMAT
+    )
     last_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_time_string, TIME_FORMAT)
-
+        last_time_string, TIME_FORMAT
+    )
     valid_times_unix_sec = time_periods.range_and_interval_to_list(
         start_time_unix_sec=first_time_unix_sec,
         end_time_unix_sec=last_time_unix_sec,
-        time_interval_sec=TIME_INTERVAL_SEC, include_endpoint=True)
+        time_interval_sec=TIME_INTERVAL_SEC, include_endpoint=True
+    )
 
     letter_label = None
 
@@ -199,7 +218,8 @@ def _run(top_front_dir_name, first_time_string, last_time_string,
         this_front_file_name = fronts_io.find_gridded_file(
             top_directory_name=top_front_dir_name,
             valid_time_unix_sec=this_time_unix_sec,
-            raise_error_if_missing=False)
+            raise_error_if_missing=False
+        )
 
         if not os.path.isfile(this_front_file_name):
             continue
@@ -221,7 +241,8 @@ def _run(top_front_dir_name, first_time_string, last_time_string,
             input_file_name=this_front_file_name,
             output_file_name=this_figure_file_name,
             dilation_distance_metres=dilation_distance_metres,
-            letter_label=letter_label)
+            cut_off_south=cut_off_south, letter_label=letter_label
+        )
 
 
 if __name__ == '__main__':
@@ -234,6 +255,9 @@ if __name__ == '__main__':
         dilation_distance_metres=getattr(
             INPUT_ARG_OBJECT, DILATION_DISTANCE_ARG_NAME
         ),
+        cut_off_south=bool(getattr(
+            INPUT_ARG_OBJECT, CUT_OFF_SOUTH_ARG_NAME
+        )),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
         letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)

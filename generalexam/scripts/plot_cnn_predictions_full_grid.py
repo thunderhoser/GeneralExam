@@ -28,6 +28,7 @@ FIGURE_RESOLUTION_DPI = 300
 
 PREDICTION_DIR_ARG_NAME = 'input_prediction_dir_name'
 DETERMINISTIC_ARG_NAME = 'plot_deterministic'
+CUT_OFF_SOUTH_ARG_NAME = 'cut_off_south'
 FIRST_TIME_ARG_NAME = 'first_time_string'
 LAST_TIME_ARG_NAME = 'last_time_string'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
@@ -41,6 +42,10 @@ PREDICTION_DIR_HELP_STRING = (
 DETERMINISTIC_HELP_STRING = (
     'Boolean flag.  If 1, deterministic predictions will be plotted.  If 0, '
     'probabilities will be plotted.'
+)
+CUT_OFF_SOUTH_HELP_STRING = (
+    'Boolean flag.  If 1, will cut off south part of grid and plot nothing '
+    'below 20 deg N.'
 )
 TIME_HELP_STRING = (
     'Time (format "yyyymmddHH").  Predictions will be plotted for all times in '
@@ -69,6 +74,10 @@ INPUT_ARG_PARSER.add_argument(
     help=DETERMINISTIC_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
+    '--' + CUT_OFF_SOUTH_ARG_NAME, type=int, required=False, default=0,
+    help=CUT_OFF_SOUTH_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -89,7 +98,7 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _plot_one_time(
-        title_string, letter_label, output_file_name,
+        title_string, letter_label, cut_off_south, output_file_name,
         class_probability_matrix=None, predicted_label_matrix=None,
         plot_wf_colour_bar=True, plot_cf_colour_bar=True):
     """Plots predictions at one time.
@@ -103,6 +112,7 @@ def _plot_one_time(
     :param title_string: Title (will be placed above figure).
     :param letter_label: Letter label.  If this is "a", the label "(a)" will be
         printed at the top left of the figure.
+    :param cut_off_south: See documentation at top of file.
     :param output_file_name: Path to output file.
     :param class_probability_matrix: M-by-N-by-3 numpy array of class
         probabilities.
@@ -116,12 +126,13 @@ def _plot_one_time(
 
     if class_probability_matrix is None:
         basemap_dict = plot_gridded_stats.plot_basemap(
-            data_matrix=predicted_label_matrix, border_colour=BORDER_COLOUR
+            data_matrix=predicted_label_matrix, border_colour=BORDER_COLOUR,
+            cut_off_south=cut_off_south
         )
     else:
         basemap_dict = plot_gridded_stats.plot_basemap(
             data_matrix=class_probability_matrix[..., 0],
-            border_colour=BORDER_COLOUR
+            border_colour=BORDER_COLOUR, cut_off_south=cut_off_south
         )
 
     figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
@@ -223,15 +234,16 @@ def _plot_one_time(
     pyplot.close(figure_object)
 
 
-def _run(prediction_dir_name, plot_deterministic, first_time_string,
-         last_time_string, first_letter_label, letter_interval,
-         output_dir_name):
+def _run(prediction_dir_name, plot_deterministic, cut_off_south,
+         first_time_string, last_time_string, first_letter_label,
+         letter_interval, output_dir_name):
     """Plots CNN predictions on full grid.
 
     This is effectively the main method.
 
     :param prediction_dir_name: See documentation at top of file.
     :param plot_deterministic: Same.
+    :param cut_off_south: Same.
     :param first_time_string: Same.
     :param last_time_string: Same.
     :param first_letter_label: Same.
@@ -324,11 +336,11 @@ def _run(prediction_dir_name, plot_deterministic, first_time_string,
 
         _plot_one_time(
             title_string=this_title_string, letter_label=this_letter_label,
-            output_file_name=this_output_file_name,
+            cut_off_south=cut_off_south, output_file_name=this_output_file_name,
             class_probability_matrix=this_class_probability_matrix,
             predicted_label_matrix=this_predicted_label_matrix,
-            plot_wf_colour_bar=True, plot_cf_colour_bar=True)
-
+            plot_wf_colour_bar=True, plot_cf_colour_bar=True
+        )
         print('\n')
 
 
@@ -337,9 +349,14 @@ if __name__ == '__main__':
 
     _run(
         prediction_dir_name=getattr(
-            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, PREDICTION_DIR_ARG_NAME
+        ),
         plot_deterministic=bool(getattr(
-            INPUT_ARG_OBJECT, DETERMINISTIC_ARG_NAME)),
+            INPUT_ARG_OBJECT, DETERMINISTIC_ARG_NAME
+        )),
+        cut_off_south=bool(getattr(
+            INPUT_ARG_OBJECT, CUT_OFF_SOUTH_ARG_NAME
+        )),
         first_time_string=getattr(INPUT_ARG_OBJECT, FIRST_TIME_ARG_NAME),
         last_time_string=getattr(INPUT_ARG_OBJECT, LAST_TIME_ARG_NAME),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
