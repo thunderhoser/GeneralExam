@@ -36,7 +36,8 @@ PRESSURE_COMBO_STRINGS = [
 CONV_BLOCK_COUNTS = numpy.array([2, 3], dtype=int)
 CONV_LAYER_COUNTS = numpy.array([1, 2, 3, 4], dtype=int)
 
-TOP_EXPERIMENT_DIR_NAME = '/glade/p/univ/uokl0026'
+TOP_INPUT_DIR_NAME = '/glade/p/univ/uokl0026'
+OUTPUT_DIR_NAME = '/glade/p/univ/uokl0026/era5_cnn_experiment'
 
 AUC_MATRIX_KEY = 'auc_matrix'
 AUPD_MATRIX_KEY = 'aupd_matrix'
@@ -64,7 +65,7 @@ THESE_DIM = (
     len(CONV_BLOCK_COUNTS), len(PRESSURE_COMBO_ABBREVS),
     len(FIELD_COMBO_ABBREVS), len(CONV_LAYER_COUNTS)
 )
-SELECTED_INDEX = numpy.ravel_multi_index((1, 5, 1, 1), THESE_DIM)
+SELECTED_INDEX = numpy.ravel_multi_index((0, 5, 1, 1), THESE_DIM)
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
@@ -165,7 +166,7 @@ def _plot_one_score(score_matrix, score_abbrev, best_index):
             this_file_name = (
                 '{0:s}/{1:s}_num-blocks={2:d}_num-layers={3:d}.jpg'
             ).format(
-                TOP_EXPERIMENT_DIR_NAME, score_abbrev,
+                OUTPUT_DIR_NAME, score_abbrev,
                 CONV_BLOCK_COUNTS[i], CONV_LAYER_COUNTS[m]
             )
 
@@ -179,7 +180,7 @@ def _plot_one_score(score_matrix, score_abbrev, best_index):
             pyplot.close()
 
     concat_file_name = '{0:s}/{1:s}.jpg'.format(
-        TOP_EXPERIMENT_DIR_NAME, score_abbrev
+        OUTPUT_DIR_NAME, score_abbrev
     )
 
     print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
@@ -242,7 +243,7 @@ def _run():
     num_conv_layer_counts = len(CONV_LAYER_COUNTS)
 
     summary_file_name = '{0:s}/validation_grid.p'.format(
-        TOP_EXPERIMENT_DIR_NAME
+        TOP_INPUT_DIR_NAME
     )
 
     if os.path.isfile(summary_file_name):
@@ -274,7 +275,7 @@ def _run():
                             'num-layers-per-block={4:d}/validation/'
                             'validation_eval.nc'
                         ).format(
-                            TOP_EXPERIMENT_DIR_NAME, PRESSURE_COMBO_ABBREVS[j],
+                            TOP_INPUT_DIR_NAME, PRESSURE_COMBO_ABBREVS[j],
                             FIELD_COMBO_ABBREVS[k], CONV_BLOCK_COUNTS[i],
                             CONV_LAYER_COUNTS[m]
                         )
