@@ -332,7 +332,8 @@ def _plot_one_time(
     """
 
     basemap_dict = plot_gridded_stats.plot_basemap(
-        data_matrix=predictor_matrix, border_colour=BORDER_COLOUR
+        data_matrix=predictor_matrix, border_colour=BORDER_COLOUR,
+        cut_off_south=True
     )
 
     figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]

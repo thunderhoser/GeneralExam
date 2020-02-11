@@ -225,7 +225,8 @@ def _plot_one_statistic(
     pyplot.close(figure_object)
 
 
-def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
+def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR,
+                 cut_off_south=False):
     """Plots basemap.
 
     M = number of grid rows to plot
@@ -233,6 +234,8 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
 
     :param data_matrix: 2-D numpy array of data values.
     :param border_colour: Border colour (length-3 numpy array).
+    :param cut_off_south: Boolean flag.  If True, will plot nothing south of
+        20 deg N.
     :return: basemap_dict: Dictionary with the following keys.
     basemap_dict["figure_object"]: Figure handle (instance of
         `matplotlib.figure.Figure`).
@@ -247,6 +250,8 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
         (deg E).
     """
 
+    error_checking.assert_is_boolean(cut_off_south)
+
     num_grid_rows = data_matrix.shape[0]
     num_grid_columns = data_matrix.shape[1]
     grid_name = nwp_model_utils.dimensions_to_grid(
@@ -260,7 +265,7 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR):
 
     figure_object, axes_object, basemap_object = (
         plotting_utils.create_equidist_cylindrical_map(
-            min_latitude_deg=MIN_ERA5_LATITUDE_DEG,
+            min_latitude_deg=20. if cut_off_south else MIN_ERA5_LATITUDE_DEG,
             max_latitude_deg=MAX_ERA5_LATITUDE_DEG,
             min_longitude_deg=MIN_ERA5_LONGITUDE_DEG,
             max_longitude_deg=MAX_ERA5_LONGITUDE_DEG)
