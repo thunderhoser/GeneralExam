@@ -15,6 +15,7 @@ from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_io import fronts_io
 from generalexam.machine_learning import machine_learning_utils as ml_utils
 from generalexam.plotting import front_plotting
+from generalexam.scripts import plot_gridded_stats
 
 TIME_FORMAT = '%Y%m%d%H'
 TIME_INTERVAL_SEC = 10800
@@ -124,50 +125,23 @@ def _plot_fronts_one_time(
 
     gridded_front_matrix = gridded_front_matrix[0, ...]
 
-    row_limits, column_limits = nwp_plotting.latlng_limits_to_rowcol_limits(
-        min_latitude_deg=MIN_LATITUDE_DEG,
-        max_latitude_deg=MAX_LATITUDE_DEG,
-        min_longitude_deg=MIN_LONGITUDE_DEG,
-        max_longitude_deg=MAX_LONGITUDE_DEG,
-        model_name=nwp_model_utils.NARR_MODEL_NAME,
-        grid_id=nwp_model_utils.NAME_OF_221GRID)
-
-    gridded_front_matrix = gridded_front_matrix[
-        row_limits[0]:(row_limits[1] + 1),
-        column_limits[0]:(column_limits[1] + 1)
-    ]
-
-    figure_object, axes_object, basemap_object = nwp_plotting.init_basemap(
-        model_name=nwp_model_utils.NARR_MODEL_NAME,
-        grid_id=nwp_model_utils.NAME_OF_221GRID,
-        first_row_in_full_grid=row_limits[0],
-        last_row_in_full_grid=row_limits[1],
-        first_column_in_full_grid=column_limits[0],
-        last_column_in_full_grid=column_limits[1]
+    basemap_dict = plot_gridded_stats.plot_basemap(
+        data_matrix=gridded_front_matrix, border_colour=BORDER_COLOUR,
+        cut_off_south=True
     )
 
-    plotting_utils.plot_coastlines(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-    plotting_utils.plot_countries(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-    plotting_utils.plot_states_and_provinces(
-        basemap_object=basemap_object, axes_object=axes_object,
-        line_colour=BORDER_COLOUR)
-    plotting_utils.plot_parallels(
-        basemap_object=basemap_object, axes_object=axes_object,
-        num_parallels=NUM_PARALLELS)
-    plotting_utils.plot_meridians(
-        basemap_object=basemap_object, axes_object=axes_object,
-        num_meridians=NUM_MERIDIANS)
+    figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
+    axes_object = basemap_dict[plot_gridded_stats.AXES_OBJECT_KEY]
+    basemap_object = basemap_dict[plot_gridded_stats.BASEMAP_OBJECT_KEY]
+    gridded_front_matrix = basemap_dict[plot_gridded_stats.MATRIX_TO_PLOT_KEY]
+    latitude_matrix_deg = basemap_dict[plot_gridded_stats.LATITUDES_KEY]
+    longitude_matrix_deg = basemap_dict[plot_gridded_stats.LONGITUDES_KEY]
 
-    front_plotting.plot_gridded_labels(
-        gridded_front_matrix=gridded_front_matrix, axes_object=axes_object,
-        basemap_object=basemap_object,
-        full_grid_name=nwp_model_utils.NAME_OF_221GRID,
-        first_row_in_full_grid=row_limits[0],
-        first_column_in_full_grid=column_limits[0]
+    front_plotting.plot_labels_on_general_grid(
+        label_matrix=gridded_front_matrix,
+        latitude_matrix_deg=latitude_matrix_deg,
+        longitude_matrix_deg=longitude_matrix_deg,
+        axes_object=axes_object, basemap_object=basemap_object
     )
 
     if letter_label is not None:
