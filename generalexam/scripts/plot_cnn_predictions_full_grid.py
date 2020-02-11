@@ -140,7 +140,7 @@ def _plot_one_time(
             label_matrix=matrix_to_plot,
             latitude_matrix_deg=latitude_matrix_deg,
             longitude_matrix_deg=longitude_matrix_deg,
-            axes_object=axes_object, basemap_object=basemap_object
+            axes_object=axes_object, basemap_object=basemap_object, opacity=1.
         )
     else:
         wf_prob_matrix_to_plot = class_probability_matrix[

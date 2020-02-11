@@ -141,7 +141,7 @@ def _plot_fronts_one_time(
         label_matrix=gridded_front_matrix,
         latitude_matrix_deg=latitude_matrix_deg,
         longitude_matrix_deg=longitude_matrix_deg,
-        axes_object=axes_object, basemap_object=basemap_object
+        axes_object=axes_object, basemap_object=basemap_object, opacity=1.
     )
 
     if letter_label is not None:
