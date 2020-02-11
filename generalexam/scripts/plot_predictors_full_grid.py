@@ -376,9 +376,9 @@ def _plot_one_time(
             extend_min=True, extend_max=True, fraction_of_axis_length=1.
         )
 
-        colour_bar_object.set_label(
-            PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
-        )
+        # colour_bar_object.set_label(
+        #     PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
+        # )
 
         tick_values = colour_bar_object.get_ticks()
         tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
