@@ -4,6 +4,7 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import temperature_conversions as temperature_conv
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -310,6 +311,7 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             basemap_object=basemap_object,
             first_row_in_full_grid=this_first_row_index,
             first_column_in_full_grid=this_first_column_index,
+            plot_every_k_rows=2, plot_every_k_columns=2,
             barb_length=WIND_BARB_LENGTH,
             empty_barb_radius=EMPTY_WIND_BARB_RADIUS, fill_empty_barb=False,
             colour_map=WIND_COLOUR_MAP_OBJECT,

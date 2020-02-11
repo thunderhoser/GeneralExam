@@ -50,19 +50,20 @@ PREDICTOR_NAME_ABBREV_TO_NICE = {
 }
 
 FRONT_LINE_WIDTH = 8
-BORDER_COLOUR = numpy.full(3, 0.)
+BORDER_COLOUR = numpy.full(3, 152. / 255)
 WARM_FRONT_COLOUR = numpy.array([30, 120, 180], dtype=float) / 255
 COLD_FRONT_COLOUR = numpy.array([166, 206, 227], dtype=float) / 255
 
-WIND_COLOUR = numpy.full(3, 152. / 255)
+WIND_BARB_COLOUR = numpy.full(3, 0.)
 MIN_COLOUR_WIND_SPEED_KT = -1.
 MAX_COLOUR_WIND_SPEED_KT = 0.
 
-WIND_COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap([WIND_COLOUR])
-WIND_COLOUR_MAP_OBJECT.set_under(WIND_COLOUR)
-WIND_COLOUR_MAP_OBJECT.set_over(WIND_COLOUR)
+WIND_COLOUR_MAP_OBJECT = matplotlib.colors.ListedColormap([WIND_BARB_COLOUR])
+WIND_COLOUR_MAP_OBJECT.set_under(WIND_BARB_COLOUR)
+WIND_COLOUR_MAP_OBJECT.set_over(WIND_BARB_COLOUR)
 
-WIND_BARB_LENGTH = 6
+WIND_BARB_WIDTH = 1.5
+WIND_BARB_LENGTH = 7
 EMPTY_WIND_BARB_RADIUS = 0.1
 PLOT_EVERY_KTH_WIND_BARB = 8
 
@@ -419,7 +420,8 @@ def _plot_one_time(
         longitudes_deg=wind_longitudes_deg[real_indices],
         u_winds_m_s01=u_winds_m_s01[real_indices],
         v_winds_m_s01=v_winds_m_s01[real_indices],
-        barb_length=WIND_BARB_LENGTH, empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
+        barb_length=WIND_BARB_LENGTH, barb_width=WIND_BARB_WIDTH,
+        empty_barb_radius=EMPTY_WIND_BARB_RADIUS,
         fill_empty_barb=False, colour_map=WIND_COLOUR_MAP_OBJECT,
         colour_minimum_kt=MIN_COLOUR_WIND_SPEED_KT,
         colour_maximum_kt=MAX_COLOUR_WIND_SPEED_KT

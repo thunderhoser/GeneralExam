@@ -78,8 +78,8 @@ DEFAULT_CBAR_LENGTH = 0.8
 
 DEFAULT_WIND_CMAP_NAME = 'seismic'
 DEFAULT_NON_WIND_CMAP_NAME = 'YlOrRd'
-# DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 152. / 255)
-DEFAULT_WIND_BARB_COLOUR = numpy.full(3, 0.)
+DEFAULT_BARB_COLOUR_WITH_BORDERS = numpy.full(3, 152. / 255)
+DEFAULT_BARB_COLOUR_SANS_BORDERS = numpy.full(3, 0.)
 
 DEFAULT_RESOLUTION_DPI = 300
 
@@ -154,63 +154,65 @@ OUTPUT_DIR_HELP_STRING = (
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_FILE_ARG_NAME, type=str, required=True,
-    help=EXAMPLE_FILE_HELP_STRING)
-
+    help=EXAMPLE_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_EXAMPLES_HELP_STRING)
-
+    help=NUM_EXAMPLES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MODEL_FILE_ARG_NAME, type=str, required=True,
-    help=MODEL_FILE_HELP_STRING)
-
+    help=MODEL_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + PLOT_BARBS_ARG_NAME, type=int, required=False, default=1,
-    help=PLOT_BARBS_HELP_STRING)
-
+    help=PLOT_BARBS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_BARB_COLOUR_ARG_NAME, type=int, nargs=3, required=False,
-    default=DEFAULT_WIND_BARB_COLOUR * 255, help=WIND_BARB_COLOUR_HELP_STRING)
-
+    default=DEFAULT_BARB_COLOUR_WITH_BORDERS * 255,
+    help=WIND_BARB_COLOUR_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_CMAP_ARG_NAME, type=str, required=False,
-    default=DEFAULT_WIND_CMAP_NAME, help=WIND_CMAP_HELP_STRING)
-
+    default=DEFAULT_WIND_CMAP_NAME, help=WIND_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NON_WIND_CMAP_ARG_NAME, type=str, required=False,
-    default=DEFAULT_NON_WIND_CMAP_NAME, help=NON_WIND_CMAP_HELP_STRING)
-
+    default=DEFAULT_NON_WIND_CMAP_NAME, help=NON_WIND_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
-    help=NUM_PANEL_ROWS_HELP_STRING)
-
+    help=NUM_PANEL_ROWS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
-    help=ADD_TITLES_HELP_STRING)
-
+    help=ADD_TITLES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False,
-    default=DEFAULT_CBAR_LENGTH, help=CBAR_LENGTH_HELP_STRING)
-
+    default=DEFAULT_CBAR_LENGTH, help=CBAR_LENGTH_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAIN_FONT_SIZE_ARG_NAME, type=float, required=False,
-    default=DEFAULT_MAIN_FONT_SIZE, help=MAIN_FONT_SIZE_HELP_STRING)
-
+    default=DEFAULT_MAIN_FONT_SIZE, help=MAIN_FONT_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + TITLE_FONT_SIZE_ARG_NAME, type=float, required=False,
-    default=DEFAULT_TITLE_FONT_SIZE, help=TITLE_FONT_SIZE_HELP_STRING)
-
+    default=DEFAULT_TITLE_FONT_SIZE, help=TITLE_FONT_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CBAR_FONT_SIZE_ARG_NAME, type=float, required=False,
-    default=DEFAULT_CBAR_FONT_SIZE, help=CBAR_FONT_SIZE_HELP_STRING)
-
+    default=DEFAULT_CBAR_FONT_SIZE, help=CBAR_FONT_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + RESOLUTION_ARG_NAME, type=int, required=False,
-    default=DEFAULT_RESOLUTION_DPI, help=RESOLUTION_HELP_STRING)
-
+    default=DEFAULT_RESOLUTION_DPI, help=RESOLUTION_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 
 def _convert_units(example_dict, example_index):
@@ -1033,7 +1035,7 @@ def plot_composite_example(
 def plot_real_examples(
         example_dict, output_dir_name, num_examples_to_plot=None,
         plot_diffs=False, plot_wind_as_barbs=True,
-        wind_barb_colour=DEFAULT_WIND_BARB_COLOUR,
+        wind_barb_colour=DEFAULT_BARB_COLOUR_SANS_BORDERS,
         wind_colour_map_name=DEFAULT_WIND_CMAP_NAME,
         non_wind_colour_map_name=DEFAULT_NON_WIND_CMAP_NAME,
         num_panel_rows=None, add_titles=True, one_cbar_per_panel=True,
@@ -1190,7 +1192,8 @@ def _run(example_file_name, num_examples_to_plot, model_file_name,
         title_font_size=title_font_size,
         colour_bar_font_size=colour_bar_font_size,
         figure_resolution_dpi=figure_resolution_dpi,
-        output_dir_name=output_dir_name)
+        output_dir_name=output_dir_name
+    )
 
 
 if __name__ == '__main__':
@@ -1206,7 +1209,8 @@ if __name__ == '__main__':
         ) / 255,
         wind_colour_map_name=getattr(INPUT_ARG_OBJECT, WIND_CMAP_ARG_NAME),
         non_wind_colour_map_name=getattr(
-            INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME),
+            INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME
+        ),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
         colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
