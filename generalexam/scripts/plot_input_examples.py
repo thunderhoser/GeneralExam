@@ -292,16 +292,18 @@ def _run(example_file_name, top_front_line_dir_name, num_examples,
             data_matrix=this_thetaw_matrix_celsius,
             colour_map_object=thetaw_colour_map_object,
             min_value=this_min_value, max_value=this_max_value,
-            orientation_string='horizontal', extend_min=True, extend_max=True,
-            fraction_of_axis_length=0.8)
+            orientation_string='horizontal', padding=0.05,
+            extend_min=True, extend_max=True, fraction_of_axis_length=0.8
+        )
 
         colour_bar_object.set_label(
             r'Wet-bulb potential temperature ($^{\circ}$C)'
         )
 
-        # tick_values = colour_bar_object.ax.get_xticks()
-        # colour_bar_object.ax.set_xticks(tick_values)
-        # colour_bar_object.ax.set_xticklabels(tick_values)
+        tick_values = colour_bar_object.get_ticks()
+        tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
+        colour_bar_object.set_ticks(tick_values)
+        colour_bar_object.set_ticklabels(tick_strings)
 
         nwp_plotting.plot_wind_barbs_on_subgrid(
             u_wind_matrix_m_s01=this_u_wind_matrix_m_s01,
