@@ -81,7 +81,7 @@ PRESSURE_LEVEL_ARG_NAME = 'pressure_level_mb'
 THERMAL_FIELD_ARG_NAME = 'thermal_field_name'
 THERMAL_CMAP_ARG_NAME = 'thermal_colour_map_name'
 MAX_PERCENTILE_ARG_NAME = 'max_colour_percentile'
-CUT_OFF_SOUTH_ARG_NAME = 'cut_off_south'
+USE_MODEL_PROJ_ARG_NAME = 'use_model_projection'
 FIRST_LETTER_ARG_NAME = 'first_letter_label'
 LETTER_INTERVAL_ARG_NAME = 'letter_interval'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
@@ -125,9 +125,9 @@ MAX_PERCENTILE_HELP_STRING = (
     'q = `{0:s}`.  Minimum value will be [100 - q]th percentile.'
 ).format(MAX_PERCENTILE_ARG_NAME)
 
-CUT_OFF_SOUTH_HELP_STRING = (
-    'Boolean flag.  If 1, will cut off south part of grid and plot nothing '
-    'below 20 deg N.'
+USE_MODEL_PROJ_HELP_STRING = (
+    'Boolean flag.  If 1, will plot in model projection.  If 0, will plot in '
+    'lat-long projection.'
 )
 FIRST_LETTER_HELP_STRING = (
     'Letter label for first time step.  If this is "a", the label "(a)" will be'
@@ -177,8 +177,8 @@ INPUT_ARG_PARSER.add_argument(
     help=MAX_PERCENTILE_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + CUT_OFF_SOUTH_ARG_NAME, type=int, required=False, default=0,
-    help=CUT_OFF_SOUTH_HELP_STRING
+    '--' + USE_MODEL_PROJ_ARG_NAME, type=int, required=False, default=1,
+    help=USE_MODEL_PROJ_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_LETTER_ARG_NAME, type=str, required=False, default='',
@@ -312,7 +312,7 @@ def _read_one_file(
 
 def _plot_one_time(
         predictor_matrix, predictor_names, front_polyline_table, high_low_table,
-        thermal_colour_map_object, max_colour_percentile, cut_off_south,
+        thermal_colour_map_object, max_colour_percentile, use_model_projection,
         title_string, letter_label, output_file_name):
     """Plots predictors at one time.
 
@@ -328,7 +328,7 @@ def _plot_one_time(
         `wpc_bulletin_input.read_highs_and_lows`.
     :param thermal_colour_map_object: See documentation at top of file.
     :param max_colour_percentile: Same.
-    :param cut_off_south: Same.
+    :param use_model_projection: Same.
     :param title_string: Title (will be placed above figure).
     :param letter_label: Letter label.  If this is "a", the label "(a)" will be
         printed at the top left of the figure.
@@ -337,7 +337,7 @@ def _plot_one_time(
 
     basemap_dict = plot_gridded_stats.plot_basemap(
         data_matrix=predictor_matrix, border_colour=BORDER_COLOUR,
-        use_model_projection=True
+        use_model_projection=use_model_projection
     )
 
     figure_object = basemap_dict[plot_gridded_stats.FIGURE_OBJECT_KEY]
@@ -489,7 +489,7 @@ def _plot_one_time(
         plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0.075
+            x_coord_normalized=0. if use_model_projection else 0.075
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -503,7 +503,7 @@ def _plot_one_time(
 def _run(top_predictor_dir_name, top_front_line_dir_name,
          top_wpc_bulletin_dir_name, first_time_string, last_time_string,
          pressure_level_mb, thermal_field_name, thermal_colour_map_name,
-         max_colour_percentile, cut_off_south, first_letter_label,
+         max_colour_percentile, use_model_projection, first_letter_label,
          letter_interval, output_dir_name):
     """Plots predictors on full NARR grid.
 
@@ -518,7 +518,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
     :param thermal_field_name: Same.
     :param thermal_colour_map_name: Same.
     :param max_colour_percentile: Same.
-    :param cut_off_south: Same.
+    :param use_model_projection: Same.
     :param first_letter_label: Same.
     :param letter_interval: Same.
     :param output_dir_name: Same.
@@ -669,8 +669,8 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             high_low_table=this_high_low_table,
             thermal_colour_map_object=thermal_colour_map_object,
             max_colour_percentile=max_colour_percentile,
-            cut_off_south=cut_off_south, title_string=this_title_string,
-            letter_label=this_letter_label,
+            use_model_projection=use_model_projection,
+            title_string=this_title_string, letter_label=this_letter_label,
             output_file_name=this_output_file_name
         )
 
@@ -698,8 +698,8 @@ if __name__ == '__main__':
         max_colour_percentile=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME
         ),
-        cut_off_south=bool(getattr(
-            INPUT_ARG_OBJECT, CUT_OFF_SOUTH_ARG_NAME
+        use_model_projection=bool(getattr(
+            INPUT_ARG_OBJECT, USE_MODEL_PROJ_ARG_NAME
         )),
         first_letter_label=getattr(INPUT_ARG_OBJECT, FIRST_LETTER_ARG_NAME),
         letter_interval=getattr(INPUT_ARG_OBJECT, LETTER_INTERVAL_ARG_NAME),
