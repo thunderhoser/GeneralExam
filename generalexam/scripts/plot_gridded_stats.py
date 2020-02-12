@@ -10,6 +10,7 @@ from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import nwp_plotting
 from generalexam.ge_utils import climatology_utils as climo_utils
 from generalexam.plotting import prediction_plotting
 
@@ -226,7 +227,7 @@ def _plot_one_statistic(
 
 
 def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR,
-                 cut_off_south=False):
+                 cut_off_south=False, use_model_projection=False):
     """Plots basemap.
 
     M = number of grid rows to plot
@@ -236,12 +237,14 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR,
     :param border_colour: Border colour (length-3 numpy array).
     :param cut_off_south: Boolean flag.  If True, will plot nothing south of
         20 deg N.
+    :param use_model_projection: Boolean flag.  Determines whether data will be
+        plotted in model projection or lat-long projection.
     :return: basemap_dict: Dictionary with the following keys.
     basemap_dict["figure_object"]: Figure handle (instance of
         `matplotlib.figure.Figure`).
-    basemap_dict["figure_object"]: Axes handle (instance of
+    basemap_dict["axes_object"]: Axes handle (instance of
         `matplotlib.axes._subplots.AxesSubplot`).
-    basemap_dict["figure_object"]: Basemap handle (instance of
+    basemap_dict["basemap_object"]: Basemap handle (instance of
         `mpl_toolkits.basemap.Basemap`).
     basemap_dict["matrix_to_plot"]: M-by-N numpy array of data values.
     basemap_dict["latitude_matrix_deg"]: M-by-N numpy array of latitudes
@@ -251,6 +254,7 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR,
     """
 
     error_checking.assert_is_boolean(cut_off_south)
+    error_checking.assert_is_boolean(use_model_projection)
 
     num_grid_rows = data_matrix.shape[0]
     num_grid_columns = data_matrix.shape[1]
@@ -258,17 +262,73 @@ def plot_basemap(data_matrix, border_colour=DEFAULT_BORDER_COLOUR,
         num_rows=num_grid_rows, num_columns=num_grid_columns
     )
 
+    row_limits = None
+    column_limits = None
+    figure_object = None
+    axes_object = None
+    basemap_object = None
+
+    if grid_name == nwp_model_utils.NAME_OF_221GRID:
+        if cut_off_south:
+            min_latitude_deg = 20.
+        else:
+            min_latitude_deg = MIN_NARR_LATITUDE_DEG
+
+        if use_model_projection:
+            row_limits, column_limits = (
+                nwp_plotting.latlng_limits_to_rowcol_limits(
+                    min_latitude_deg=min_latitude_deg,
+                    max_latitude_deg=MAX_NARR_LATITUDE_DEG,
+                    min_longitude_deg=MIN_NARR_LONGITUDE_DEG,
+                    max_longitude_deg=MAX_NARR_LONGITUDE_DEG,
+                    model_name=nwp_model_utils.NARR_MODEL_NAME,
+                    grid_id=grid_name)
+            )
+        else:
+            figure_object, axes_object, basemap_object = (
+                plotting_utils.create_equidist_cylindrical_map(
+                    min_latitude_deg=min_latitude_deg,
+                    max_latitude_deg=MAX_NARR_LATITUDE_DEG,
+                    min_longitude_deg=MIN_NARR_LONGITUDE_DEG,
+                    max_longitude_deg=MAX_NARR_LONGITUDE_DEG)
+            )
+    else:
+        if cut_off_south:
+            min_latitude_deg = 20.
+        else:
+            min_latitude_deg = MIN_ERA5_LATITUDE_DEG
+
+        if use_model_projection:
+            row_limits, column_limits = (
+                nwp_plotting.latlng_limits_to_rowcol_limits(
+                    min_latitude_deg=min_latitude_deg,
+                    max_latitude_deg=MAX_ERA5_LATITUDE_DEG,
+                    min_longitude_deg=MIN_ERA5_LONGITUDE_DEG,
+                    max_longitude_deg=MAX_ERA5_LONGITUDE_DEG,
+                    model_name=nwp_model_utils.NARR_MODEL_NAME,
+                    grid_id=grid_name)
+            )
+        else:
+            figure_object, axes_object, basemap_object = (
+                plotting_utils.create_equidist_cylindrical_map(
+                    min_latitude_deg=min_latitude_deg,
+                    max_latitude_deg=MAX_ERA5_LATITUDE_DEG,
+                    min_longitude_deg=MIN_ERA5_LONGITUDE_DEG,
+                    max_longitude_deg=MAX_ERA5_LONGITUDE_DEG)
+            )
+
+    if use_model_projection:
+        figure_object, axes_object, basemap_object = nwp_plotting.init_basemap(
+            model_name=nwp_model_utils.NARR_MODEL_NAME, grid_id=grid_name,
+            first_row_in_full_grid=row_limits[0],
+            last_row_in_full_grid=row_limits[1],
+            first_column_in_full_grid=column_limits[0],
+            last_column_in_full_grid=column_limits[1]
+        )
+
     latitude_matrix_deg, longitude_matrix_deg = (
         nwp_model_utils.get_latlng_grid_point_matrices(
             model_name=nwp_model_utils.NARR_MODEL_NAME, grid_name=grid_name)
-    )
-
-    figure_object, axes_object, basemap_object = (
-        plotting_utils.create_equidist_cylindrical_map(
-            min_latitude_deg=20. if cut_off_south else MIN_ERA5_LATITUDE_DEG,
-            max_latitude_deg=MAX_ERA5_LATITUDE_DEG,
-            min_longitude_deg=MIN_ERA5_LONGITUDE_DEG,
-            max_longitude_deg=MAX_ERA5_LONGITUDE_DEG)
     )
 
     plotting_utils.plot_coastlines(
