@@ -9,6 +9,7 @@ from generalexam.ge_utils import climatology_utils as climo_utils
 
 # TODO(thunderhoser): Remove confidence level from script.
 
+RANDOM_SEED = 6695
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 YEAR_MONTH_FORMAT = '%Y%m'
@@ -415,12 +416,16 @@ def _mc_test_frequency(
         (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
     )
 
+    this_random_seed = RANDOM_SEED + 0
+
     for k in range(num_iterations):
         if numpy.mod(k, 25) == 0:
             print('Have run {0:d} of {1:d} Monte Carlo iterations...'.format(
                 k, num_iterations
             ))
 
+        this_random_seed += 1
+        numpy.random.seed(this_random_seed)
         numpy.random.shuffle(month_indices)
 
         this_baseline_freq_matrix = numpy.sum(
@@ -521,12 +526,16 @@ def _mc_test_one_statistic(
         (num_iterations, num_grid_rows, num_grid_columns), numpy.nan
     )
 
+    this_random_seed = RANDOM_SEED + 0
+
     for k in range(num_iterations):
         if numpy.mod(k, 25) == 0:
             print('Have run {0:d} of {1:d} Monte Carlo iterations...'.format(
                 k, num_iterations
             ))
 
+        this_random_seed += 1
+        numpy.random.seed(this_random_seed)
         numpy.random.shuffle(month_indices)
 
         this_baseline_mean_matrix = _get_weighted_mean_for_statistic(
