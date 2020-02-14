@@ -48,10 +48,10 @@ VALID_COMPOSITE_NAMES_ABBREV = [
 ]
 
 COMPOSITE_ABBREV_TO_VERBOSE_DICT = {
-    'el_nino': r'El Ni{\~n}o',
-    'strong_el_nino': r'strong El Ni{\~n}o',
-    'la_nina': r'La Ni{\~n}a',
-    'strong_la_nina': r'strong La Ni{\~n}a'
+    'el_nino': r'El Ni$\~n$o',
+    'strong_el_nino': r'strong El Ni$\~n$o',
+    'la_nina': r'La Ni$\~n$a',
+    'strong_la_nina': r'strong La Ni$\~n$a'
 }
 
 SIG_MARKER_TYPE = plot_gridded_stats.SIG_MARKER_TYPE
