@@ -408,8 +408,8 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
 
     if pmm_flag:
         this_dict = plot_examples.plot_composite_example(
-            example_dict=copy.deepcopy(example_dict),
-            plot_wind_as_barbs=True,
+            example_dict=copy.deepcopy(example_dict), plot_wind_as_barbs=True,
+            wind_barb_colour=plot_examples.DEFAULT_BARB_COLOUR_SANS_BORDERS,
             non_wind_colour_map_object=non_wind_colour_map_object,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
             colour_bar_length=colour_bar_length,
@@ -428,9 +428,9 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         pyplot.close(this_figure_object)
     else:
         plot_examples.plot_real_examples(
-            example_dict=copy.deepcopy(example_dict),
+            example_dict=copy.deepcopy(example_dict), plot_wind_as_barbs=True,
+            wind_barb_colour=plot_examples.DEFAULT_BARB_COLOUR_WITH_BORDERS,
             output_dir_name='{0:s}/predictors'.format(output_dir_name),
-            plot_wind_as_barbs=True,
             non_wind_colour_map_name=non_wind_colour_map_name,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
             colour_bar_length=colour_bar_length,
