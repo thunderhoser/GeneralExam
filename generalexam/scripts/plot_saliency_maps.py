@@ -25,8 +25,9 @@ SALIENCY_CMAP_ARG_NAME = 'saliency_colour_map_name'
 MAX_SALIENCY_ARG_NAME = 'max_saliency'
 HALF_NUM_CONTOURS_ARG_NAME = 'half_num_contours'
 SMOOTHING_RADIUS_ARG_NAME = 'smoothing_radius_grid_cells'
+FIRST_INDEX_ARG_NAME = 'first_example_index'
+LAST_INDEX_ARG_NAME = 'last_example_index'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-NUM_EXAMPLES_ARG_NAME = plot_examples.NUM_EXAMPLES_ARG_NAME
 WIND_CMAP_ARG_NAME = plot_examples.WIND_CMAP_ARG_NAME
 NON_WIND_CMAP_ARG_NAME = plot_examples.NON_WIND_CMAP_ARG_NAME
 NUM_PANEL_ROWS_ARG_NAME = plot_examples.NUM_PANEL_ROWS_ARG_NAME
@@ -38,100 +39,112 @@ CBAR_FONT_SIZE_ARG_NAME = plot_examples.CBAR_FONT_SIZE_ARG_NAME
 RESOLUTION_ARG_NAME = plot_examples.RESOLUTION_ARG_NAME
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `saliency_maps.read_file`.')
-
+    'Path to input file.  Will be read by `saliency_maps.read_file`.'
+)
 SALIENCY_CMAP_HELP_STRING = (
     'Name of colour map.  Saliency for each predictor will be plotted with the '
     'same colour map.  For example, if name is "Greys", the colour map used '
     'will be `pyplot.cm.Greys`.  This argument supports only pyplot colour '
-    'maps.')
-
+    'maps.'
+)
 MAX_SALIENCY_HELP_STRING = (
     'Max saliency value in colour scheme.  Keep in mind that the colour scheme '
     'encodes *absolute* value, with positive values in solid contours and '
-    'negative values in dashed contours.')
-
+    'negative values in dashed contours.'
+)
 HALF_NUM_CONTOURS_HELP_STRING = (
-    'Number of contours on each side of zero (positive and negative).')
-
+    'Number of contours on each side of zero (positive and negative).'
+)
 SMOOTHING_RADIUS_HELP_STRING = (
     'e-folding radius for Gaussian smoother (num grid cells).  If you do not '
-    'want to smooth saliency maps, make this non-positive.')
+    'want to smooth saliency maps, make this non-positive.'
+)
+INDEX_HELP_STRING = (
+    'Example index.  Will plot only examples `{0:s}`...`{1:s}`.  If you want to'
+    ' plot all examples, leave this argument alone.'
+).format(FIRST_INDEX_ARG_NAME, LAST_INDEX_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
-    'Path to output directory.  Figures will be saved here.')
+    'Path to output directory.  Figures will be saved here.'
+)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + INPUT_FILE_ARG_NAME, type=str, required=True,
-    help=INPUT_FILE_HELP_STRING)
-
+    help=INPUT_FILE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SALIENCY_CMAP_ARG_NAME, type=str, required=False, default='binary',
-    help=SALIENCY_CMAP_HELP_STRING)
-
+    help=SALIENCY_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_SALIENCY_ARG_NAME, type=float, required=False,
-    default=1.25, help=MAX_SALIENCY_HELP_STRING)
-
+    default=1.25, help=MAX_SALIENCY_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + HALF_NUM_CONTOURS_ARG_NAME, type=int, required=False,
-    default=10, help=HALF_NUM_CONTOURS_HELP_STRING)
-
+    default=10, help=HALF_NUM_CONTOURS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + SMOOTHING_RADIUS_ARG_NAME, type=float, required=False,
-    default=2., help=SMOOTHING_RADIUS_HELP_STRING)
-
+    default=2., help=SMOOTHING_RADIUS_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_INDEX_ARG_NAME, type=int, required=False, default=-1,
+    help=INDEX_HELP_STRING
+)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_INDEX_ARG_NAME, type=int, required=False, default=-1,
+    help=INDEX_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
-    help=plot_examples.NUM_EXAMPLES_HELP_STRING)
+    help=OUTPUT_DIR_HELP_STRING
+)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + WIND_CMAP_ARG_NAME, type=str, required=False,
     default=plot_examples.DEFAULT_WIND_CMAP_NAME,
-    help=plot_examples.WIND_CMAP_HELP_STRING)
-
+    help=plot_examples.WIND_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NON_WIND_CMAP_ARG_NAME, type=str, required=False,
     default=plot_examples.DEFAULT_NON_WIND_CMAP_NAME,
-    help=plot_examples.NON_WIND_CMAP_HELP_STRING)
-
+    help=plot_examples.NON_WIND_CMAP_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_PANEL_ROWS_ARG_NAME, type=int, required=False, default=-1,
-    help=plot_examples.NUM_PANEL_ROWS_HELP_STRING)
-
+    help=plot_examples.NUM_PANEL_ROWS_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + ADD_TITLES_ARG_NAME, type=int, required=False, default=1,
-    help=plot_examples.ADD_TITLES_HELP_STRING)
-
+    help=plot_examples.ADD_TITLES_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CBAR_LENGTH_ARG_NAME, type=float, required=False,
     default=plot_examples.DEFAULT_CBAR_LENGTH,
-    help=plot_examples.CBAR_LENGTH_HELP_STRING)
-
+    help=plot_examples.CBAR_LENGTH_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + MAIN_FONT_SIZE_ARG_NAME, type=float, required=False,
     default=plot_examples.DEFAULT_MAIN_FONT_SIZE,
-    help=plot_examples.MAIN_FONT_SIZE_HELP_STRING)
-
+    help=plot_examples.MAIN_FONT_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + TITLE_FONT_SIZE_ARG_NAME, type=float, required=False,
     default=plot_examples.DEFAULT_TITLE_FONT_SIZE,
-    help=plot_examples.TITLE_FONT_SIZE_HELP_STRING)
-
+    help=plot_examples.TITLE_FONT_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + CBAR_FONT_SIZE_ARG_NAME, type=float, required=False,
     default=plot_examples.DEFAULT_CBAR_FONT_SIZE,
-    help=plot_examples.CBAR_FONT_SIZE_HELP_STRING)
-
+    help=plot_examples.CBAR_FONT_SIZE_HELP_STRING
+)
 INPUT_ARG_PARSER.add_argument(
     '--' + RESOLUTION_ARG_NAME, type=int, required=False,
     default=plot_examples.DEFAULT_RESOLUTION_DPI,
-    help=plot_examples.RESOLUTION_HELP_STRING)
+    help=plot_examples.RESOLUTION_HELP_STRING
+)
 
 
 def _plot_saliency_one_example(
@@ -277,10 +290,11 @@ def _smooth_maps(saliency_matrix, smoothing_radius_grid_cells):
 
 
 def _run(input_file_name, saliency_colour_map_name, max_saliency,
-         half_num_contours, smoothing_radius_grid_cells, output_dir_name,
-         num_examples_to_plot, wind_colour_map_name, non_wind_colour_map_name,
-         num_panel_rows, add_titles, colour_bar_length, main_font_size,
-         title_font_size, colour_bar_font_size, figure_resolution_dpi):
+         half_num_contours, smoothing_radius_grid_cells, first_example_index,
+         last_example_index, output_dir_name, wind_colour_map_name,
+         non_wind_colour_map_name, num_panel_rows, add_titles,
+         colour_bar_length, main_font_size, title_font_size,
+         colour_bar_font_size, figure_resolution_dpi):
     """Plots saliency maps.
 
     This is effectively the main method.
@@ -290,8 +304,9 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
     :param max_saliency: Same.
     :param half_num_contours: Same.
     :param smoothing_radius_grid_cells: Same.
+    :param first_example_index: Same.
+    :param last_example_index: Same.
     :param output_dir_name: Same.
-    :param num_examples_to_plot: Same.
     :param wind_colour_map_name: Same.
     :param non_wind_colour_map_name: Same.
     :param num_panel_rows: Same.
@@ -307,11 +322,14 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         smoothing_radius_grid_cells = None
     if num_panel_rows <= 0:
         num_panel_rows = None
-    if num_examples_to_plot <= 0:
-        num_examples_to_plot = None
+
+    if first_example_index < 0 or last_example_index < 0:
+        first_example_index = None
+        last_example_index = None
 
     file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
+        directory_name=output_dir_name
+    )
 
     saliency_colour_map_object = pyplot.cm.get_cmap(saliency_colour_map_name)
     wind_colour_map_object = pyplot.cm.get_cmap(wind_colour_map_name)
@@ -332,14 +350,33 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         saliency_matrix = numpy.expand_dims(
             saliency_dict[saliency_maps.MEAN_SALIENCY_MATRIX_KEY], axis=0
         )
+
+        first_example_index = None
+        last_example_index = None
     else:
         predictor_matrix = saliency_dict.pop(saliency_maps.PREDICTOR_MATRIX_KEY)
         saliency_matrix = saliency_dict.pop(saliency_maps.SALIENCY_MATRIX_KEY)
 
+    if first_example_index is not None:
+        error_checking.assert_is_geq(last_example_index, first_example_index)
+
+        good_indices = numpy.linspace(
+            first_example_index, last_example_index,
+            num=last_example_index - first_example_index + 1, dtype=int
+        )
+
+        predictor_matrix = predictor_matrix[good_indices, ...]
+        saliency_matrix = saliency_matrix[good_indices, ...]
+        saliency_dict[saliency_maps.EXAMPLE_IDS_KEY] = [
+            saliency_dict[saliency_maps.EXAMPLE_IDS_KEY][k]
+            for k in good_indices
+        ]
+
     if smoothing_radius_grid_cells is not None:
         saliency_matrix = _smooth_maps(
             saliency_matrix=saliency_matrix,
-            smoothing_radius_grid_cells=smoothing_radius_grid_cells)
+            smoothing_radius_grid_cells=smoothing_radius_grid_cells
+        )
 
     model_file_name = saliency_dict[saliency_maps.MODEL_FILE_KEY]
     model_metafile_name = cnn.find_metafile(model_file_name=model_file_name)
@@ -367,22 +404,18 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         example_dict[examples_io.COLUMN_INDICES_KEY] = column_indices
 
     num_examples = example_dict[examples_io.PREDICTOR_MATRIX_KEY].shape[0]
-    if num_examples_to_plot is None:
-        num_examples_to_plot = num_examples + 0
-
-    num_examples_to_plot = min([num_examples_to_plot, num_examples])
     print(SEPARATOR_STRING)
 
     if pmm_flag:
         this_dict = plot_examples.plot_composite_example(
             example_dict=copy.deepcopy(example_dict),
             plot_wind_as_barbs=True,
-            wind_barb_colour=plot_examples.DEFAULT_WIND_BARB_COLOUR,
             non_wind_colour_map_object=non_wind_colour_map_object,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
             colour_bar_length=colour_bar_length,
             main_font_size=main_font_size, title_font_size=title_font_size,
-            colour_bar_font_size=colour_bar_font_size)
+            colour_bar_font_size=colour_bar_font_size
+        )
 
         this_file_name = '{0:s}/predictors_pmm.jpg'.format(output_dir_name)
         this_figure_object = this_dict[plot_examples.FIGURE_OBJECT_KEY]
@@ -397,21 +430,20 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
         plot_examples.plot_real_examples(
             example_dict=copy.deepcopy(example_dict),
             output_dir_name='{0:s}/predictors'.format(output_dir_name),
-            num_examples_to_plot=num_examples_to_plot,
             plot_wind_as_barbs=True,
-            wind_barb_colour=plot_examples.DEFAULT_WIND_BARB_COLOUR,
             non_wind_colour_map_name=non_wind_colour_map_name,
             num_panel_rows=num_panel_rows, add_titles=add_titles,
             colour_bar_length=colour_bar_length,
             main_font_size=main_font_size, title_font_size=title_font_size,
             colour_bar_font_size=colour_bar_font_size,
-            figure_resolution_dpi=figure_resolution_dpi)
+            figure_resolution_dpi=figure_resolution_dpi
+        )
 
     narr_cosine_matrix = None
     narr_sine_matrix = None
     print(SEPARATOR_STRING)
 
-    for i in range(num_examples_to_plot):
+    for i in range(num_examples):
         if pmm_flag:
             this_dict = plot_examples.plot_composite_example(
                 example_dict=example_dict, plot_wind_as_barbs=False,
@@ -420,7 +452,8 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
                 num_panel_rows=num_panel_rows, add_titles=add_titles,
                 colour_bar_length=colour_bar_length,
                 main_font_size=main_font_size, title_font_size=title_font_size,
-                colour_bar_font_size=colour_bar_font_size)
+                colour_bar_font_size=colour_bar_font_size
+            )
 
             this_example_string = None
         else:
@@ -434,10 +467,12 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
                 main_font_size=main_font_size, title_font_size=title_font_size,
                 colour_bar_font_size=colour_bar_font_size,
                 narr_cosine_matrix=narr_cosine_matrix,
-                narr_sine_matrix=narr_sine_matrix)
+                narr_sine_matrix=narr_sine_matrix
+            )
 
-            this_example_string = saliency_dict[
-                saliency_maps.EXAMPLE_IDS_KEY][i]
+            this_example_string = (
+                saliency_dict[saliency_maps.EXAMPLE_IDS_KEY][i]
+            )
 
             if narr_cosine_matrix is None:
                 narr_cosine_matrix = this_dict[plot_examples.NARR_COSINES_KEY]
@@ -452,7 +487,8 @@ def _run(input_file_name, saliency_colour_map_name, max_saliency,
             figure_object=this_dict[plot_examples.FIGURE_OBJECT_KEY],
             axes_object_matrix=this_dict[plot_examples.AXES_OBJECTS_KEY],
             output_dir_name=output_dir_name,
-            example_id_string=this_example_string)
+            example_id_string=this_example_string
+        )
 
 
 if __name__ == '__main__':
@@ -461,16 +497,20 @@ if __name__ == '__main__':
     _run(
         input_file_name=getattr(INPUT_ARG_OBJECT, INPUT_FILE_ARG_NAME),
         saliency_colour_map_name=getattr(
-            INPUT_ARG_OBJECT, SALIENCY_CMAP_ARG_NAME),
+            INPUT_ARG_OBJECT, SALIENCY_CMAP_ARG_NAME
+        ),
         max_saliency=getattr(INPUT_ARG_OBJECT, MAX_SALIENCY_ARG_NAME),
         half_num_contours=getattr(INPUT_ARG_OBJECT, HALF_NUM_CONTOURS_ARG_NAME),
         smoothing_radius_grid_cells=getattr(
-            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME),
+            INPUT_ARG_OBJECT, SMOOTHING_RADIUS_ARG_NAME
+        ),
+        first_example_index=getattr(INPUT_ARG_OBJECT, FIRST_INDEX_ARG_NAME),
+        last_example_index=getattr(INPUT_ARG_OBJECT, LAST_INDEX_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
-        num_examples_to_plot=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         wind_colour_map_name=getattr(INPUT_ARG_OBJECT, WIND_CMAP_ARG_NAME),
         non_wind_colour_map_name=getattr(
-            INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME),
+            INPUT_ARG_OBJECT, NON_WIND_CMAP_ARG_NAME
+        ),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         add_titles=bool(getattr(INPUT_ARG_OBJECT, ADD_TITLES_ARG_NAME)),
         colour_bar_length=getattr(INPUT_ARG_OBJECT, CBAR_LENGTH_ARG_NAME),
