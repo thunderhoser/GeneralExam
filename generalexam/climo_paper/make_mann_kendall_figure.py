@@ -16,7 +16,8 @@ from generalexam.scripts import plot_gridded_stats
 
 NUM_YEARS = 40
 METRES_TO_KM = 0.001
-MASK_IF_NUM_LABELS_BELOW = 100
+# MASK_IF_NUM_LABELS_BELOW = 100
+MASK_IF_NUM_LABELS_BELOW = 0
 
 NUM_ROWS_IN_CNN_PATCH = plot_gridded_stats.NUM_ROWS_IN_CNN_PATCH
 NUM_COLUMNS_IN_CNN_PATCH = plot_gridded_stats.NUM_COLUMNS_IN_CNN_PATCH
@@ -225,13 +226,13 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
         # conversion_ratio = FRACTION_TO_PERCENT
         conversion_ratio = 1.
         property_names = [
-            climo_utils.WF_FREQ_PROPERTY_NAME, climo_utils.CF_FREQ_PROPERTY_NAME
+            climo_utils.CF_FREQ_PROPERTY_NAME, climo_utils.WF_FREQ_PROPERTY_NAME
         ]
     else:
         conversion_ratio = METRES_TO_KM
         property_names = [
-            climo_utils.WF_LENGTH_PROPERTY_NAME,
-            climo_utils.CF_LENGTH_PROPERTY_NAME
+            climo_utils.CF_LENGTH_PROPERTY_NAME,
+            climo_utils.WF_LENGTH_PROPERTY_NAME
         ]
 
     front_type_abbrevs = ['wf', 'cf']
