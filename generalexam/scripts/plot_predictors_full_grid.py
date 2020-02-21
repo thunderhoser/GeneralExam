@@ -94,7 +94,8 @@ PREDICTOR_DIR_HELP_STRING = (
 FRONT_DIR_HELP_STRING = (
     'Name of top-level directory with fronts (represented as polylines).  Files'
     ' therein will be found by `fronts_io.find_polyline_file` and read by '
-    '`fronts_io.read_polylines_from_file`.'
+    '`fronts_io.read_polylines_from_file`.  If you do not want to plot fronts, '
+    'leave this alone.'
 )
 BULLETIN_DIR_HELP_STRING = (
     'Name of top-level directory with WPC bulletins.  Files therein will be '
@@ -147,7 +148,7 @@ INPUT_ARG_PARSER.add_argument(
     help=PREDICTOR_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
-    '--' + FRONT_DIR_ARG_NAME, type=str, required=True,
+    '--' + FRONT_DIR_ARG_NAME, type=str, required=False, default='',
     help=FRONT_DIR_HELP_STRING
 )
 INPUT_ARG_PARSER.add_argument(
@@ -460,7 +461,10 @@ def _plot_one_time(
             verticalalignment='center'
         )
 
-    num_fronts = len(front_polyline_table.index)
+    if front_polyline_table is None:
+        num_fronts = 0
+    else:
+        num_fronts = len(front_polyline_table.index)
 
     for i in range(num_fronts):
         this_front_type_string = (
@@ -527,9 +531,10 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
     """
 
     # Process input args.
+    if top_front_line_dir_name in ['', 'None']:
+        top_front_line_dir_name = None
     if top_wpc_bulletin_dir_name in ['', 'None']:
         top_wpc_bulletin_dir_name = None
-
     if first_letter_label in ['', 'None']:
         first_letter_label = None
 
@@ -612,18 +617,21 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             this_predictor_dict[predictor_utils.DATA_MATRIX_KEY][0, ...]
         )
 
-        # Read frontal polylines.
-        this_file_name = fronts_io.find_polyline_file(
-            top_directory_name=top_front_line_dir_name,
-            valid_time_unix_sec=this_time_unix_sec
-        )
+        # If applicable, read WPC fronts.
+        if top_front_line_dir_name is None:
+            this_polyline_table = None
+        else:
+            this_file_name = fronts_io.find_polyline_file(
+                top_directory_name=top_front_line_dir_name,
+                valid_time_unix_sec=this_time_unix_sec
+            )
 
-        print('Reading data from: "{0:s}"...'.format(this_file_name))
-        this_polyline_table = fronts_io.read_polylines_from_file(
-            this_file_name
-        )[0]
+            print('Reading data from: "{0:s}"...'.format(this_file_name))
+            this_polyline_table = fronts_io.read_polylines_from_file(
+                this_file_name
+            )[0]
 
-        # If applicable, read centers of high- and low-pressure systems.
+        # If applicable, read WPC highs and lows.
         if top_wpc_bulletin_dir_name is None:
             this_high_low_table = None
         else:
