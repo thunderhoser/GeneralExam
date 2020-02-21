@@ -235,7 +235,7 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
             climo_utils.WF_LENGTH_PROPERTY_NAME
         ]
 
-    front_type_abbrevs = ['wf', 'cf']
+    front_type_abbrevs = ['cf', 'wf']
 
     output_dir_name, pathless_output_file_name = os.path.split(output_file_name)
     extensionless_output_file_name = '{0:s}/{1:s}'.format(
