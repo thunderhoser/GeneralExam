@@ -297,14 +297,14 @@ def _run(top_input_dir_name, plot_frequency, monte_carlo_max_fdr,
                 numpy.isnan(this_trend_matrix_year01)
             ] = numpy.nan
 
-            this_p_value_matrix[
-                NUM_YEARS * numpy.absolute(this_trend_matrix_year01)
-                < this_max_colour_value / 2
-            ] = numpy.nan
-
             if monte_carlo_max_fdr is None:
                 this_significance_matrix = this_p_value_matrix <= 0.05
             else:
+                this_p_value_matrix[
+                    NUM_YEARS * numpy.absolute(this_trend_matrix_year01)
+                    < this_max_colour_value / 2
+                ] = numpy.nan
+
                 this_significance_matrix = climo_utils.find_sig_grid_points(
                     p_value_matrix=this_p_value_matrix,
                     max_false_discovery_rate=monte_carlo_max_fdr

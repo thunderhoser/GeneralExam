@@ -5,7 +5,7 @@ from setuptools import setup
 PACKAGE_NAMES = [
     'generalexam', 'generalexam.ge_io', 'generalexam.ge_utils',
     'generalexam.machine_learning', 'generalexam.evaluation',
-    'generalexam.plotting', 'generalexam.scripts'
+    'generalexam.plotting', 'generalexam.scripts', 'generalexam.climo_paper'
 ]
 
 SHORT_DESCRIPTION = 'General-exam stuff'
