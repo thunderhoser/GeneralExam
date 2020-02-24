@@ -8,6 +8,7 @@ low-probability examples (regardless of true label).
 """
 
 import os
+import copy
 import pickle
 import argparse
 import numpy
@@ -173,8 +174,14 @@ def _plot_composite(
     mean_predictor_matrix, cnn_metadata_dict = _read_composite(
         composite_file_name
     )
-    predictor_names = cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY]
-    pressure_levels_mb = cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
+
+    predictor_names = copy.deepcopy(cnn_metadata_dict[cnn.PREDICTOR_NAMES_KEY])
+    pressure_levels_mb = copy.deepcopy(
+        cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
+    )
+
+    print(predictor_names)
+    print(pressure_levels_mb)
 
     wind_flags = numpy.array(
         [n in WIND_FIELD_NAMES for n in predictor_names], dtype=bool
@@ -230,6 +237,10 @@ def _plot_composite(
         if len(scalar_field_indices) == 0:
             continue
 
+        print(scalar_field_indices)
+        print(numpy.min(mean_predictor_matrix[..., scalar_field_indices]))
+        print(numpy.max(mean_predictor_matrix[..., scalar_field_indices]))
+
         channel_indices = numpy.concatenate((
             wind_indices, scalar_field_indices
         ))
@@ -243,9 +254,6 @@ def _plot_composite(
             ],
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
-
-        print(numpy.min(example_dict[examples_io.PREDICTOR_MATRIX_KEY]))
-        print(numpy.max(example_dict[examples_io.PREDICTOR_MATRIX_KEY]))
 
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
