@@ -244,6 +244,9 @@ def _plot_composite(
             examples_io.PRESSURE_LEVELS_KEY: pressure_levels_mb[channel_indices]
         }
 
+        print(numpy.min(example_dict[examples_io.PREDICTOR_MATRIX_KEY]))
+        print(numpy.max(example_dict[examples_io.PREDICTOR_MATRIX_KEY]))
+
         handle_dict = plot_examples.plot_composite_example(
             example_dict=example_dict, plot_wind_as_barbs=True,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
