@@ -1011,6 +1011,10 @@ def plot_composite_example(
             predictor_matrix[..., channel_indices], MAX_COLOUR_PERCENTILE
         )
 
+    print(channel_indices)
+    print(min_colour_value)
+    print(max_colour_value)
+
     colour_bar_object = plotting_utils.plot_linear_colour_bar(
         axes_object_or_matrix=axes_object_matrix,
         data_matrix=predictor_matrix[..., channel_indices],

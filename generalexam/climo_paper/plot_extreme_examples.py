@@ -180,9 +180,6 @@ def _plot_composite(
         cnn_metadata_dict[cnn.PRESSURE_LEVELS_KEY]
     )
 
-    print(predictor_names)
-    print(pressure_levels_mb)
-
     wind_flags = numpy.array(
         [n in WIND_FIELD_NAMES for n in predictor_names], dtype=bool
     )
@@ -236,10 +233,6 @@ def _plot_composite(
 
         if len(scalar_field_indices) == 0:
             continue
-
-        print(scalar_field_indices)
-        print(numpy.min(mean_predictor_matrix[..., scalar_field_indices]))
-        print(numpy.max(mean_predictor_matrix[..., scalar_field_indices]))
 
         channel_indices = numpy.concatenate((
             wind_indices, scalar_field_indices
