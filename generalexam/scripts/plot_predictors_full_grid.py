@@ -386,6 +386,10 @@ def _plot_one_time(
         #     PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
         # )
 
+        axes_object.set_title(
+            PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
+        )
+
         tick_values = colour_bar_object.get_ticks()
         tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
         colour_bar_object.set_ticks(tick_values)
@@ -487,7 +491,7 @@ def _plot_one_time(
             marker_colour=this_colour
         )
 
-    axes_object.set_title(title_string)
+    # axes_object.set_title(title_string)
 
     if letter_label is not None:
         plotting_utils.label_axes(
