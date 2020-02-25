@@ -386,10 +386,6 @@ def _plot_one_time(
         #     PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
         # )
 
-        axes_object.set_title(
-            PREDICTOR_NAME_ABBREV_TO_NICE[predictor_names[j]]
-        )
-
         tick_values = colour_bar_object.get_ticks()
         tick_strings = ['{0:.1f}'.format(v) for v in tick_values]
         colour_bar_object.set_ticks(tick_values)
@@ -491,7 +487,7 @@ def _plot_one_time(
             marker_colour=this_colour
         )
 
-    # axes_object.set_title(title_string)
+    axes_object.set_title(title_string, fontsize=24)
 
     if letter_label is not None:
         plotting_utils.label_axes(
@@ -605,6 +601,11 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
     # Do plotting.
     this_letter_label = None
 
+    thermal_field_name_nice = PREDICTOR_NAME_ABBREV_TO_NICE[thermal_field_name]
+    thermal_field_name_nice = '{0:s}{1:s}'.format(
+        thermal_field_name_nice[0].lower(), thermal_field_name_nice[1:]
+    )
+
     for this_time_unix_sec in valid_times_unix_sec:
 
         # Read predictors.
@@ -650,14 +651,17 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
             )
 
         # Set title, output location, and panel label.
-        this_title_string = time_conversion.unix_sec_to_string(
-            this_time_unix_sec, NICE_TIME_FORMAT
-        )
-
         if pressure_level_mb == predictor_utils.DUMMY_SURFACE_PRESSURE_MB:
-            this_title_string += ' at surface'
+            this_title_string = 'Surface'
         else:
-            this_title_string += ' at {0:d} mb'.format(pressure_level_mb)
+            this_title_string = '{0:d}-mb'.format(pressure_level_mb)
+
+        this_title_string += '{0:s} at {1:s}'.format(
+            thermal_field_name_nice,
+            time_conversion.unix_sec_to_string(
+                this_time_unix_sec, NICE_TIME_FORMAT
+            )
+        )
 
         this_output_file_name = '{0:s}/predictors_{1:s}.jpg'.format(
             output_dir_name,
