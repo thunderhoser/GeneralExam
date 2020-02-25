@@ -28,8 +28,8 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
     climo_utils.FALL_STRING: 'fall'
 }
 
-MAX_WF_FREQUENCY = 0.08
-MAX_CF_FREQUENCY = 0.14
+MAX_WF_FREQUENCY = 0.1
+MAX_CF_FREQUENCY = 0.15
 WF_COLOUR_MAP_OBJECT = pyplot.get_cmap('twilight')
 CF_COLOUR_MAP_OBJECT = pyplot.get_cmap('twilight')
 BORDER_COLOUR = numpy.full(3, 0.)
