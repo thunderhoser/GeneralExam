@@ -487,13 +487,13 @@ def _plot_one_time(
             marker_colour=this_colour
         )
 
-    axes_object.set_title(title_string, fontsize=24)
+    axes_object.set_title(title_string, fontsize=26)
 
     if letter_label is not None:
         plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0. if use_model_projection else 0.075
+            x_coord_normalized=0.
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
@@ -656,7 +656,7 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
         else:
             this_title_string = '{0:d}-mb'.format(pressure_level_mb)
 
-        this_title_string += '{0:s} at {1:s}'.format(
+        this_title_string += ' {0:s} at {1:s}'.format(
             thermal_field_name_nice,
             time_conversion.unix_sec_to_string(
                 this_time_unix_sec, NICE_TIME_FORMAT
