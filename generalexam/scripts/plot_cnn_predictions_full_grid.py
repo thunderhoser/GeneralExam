@@ -225,7 +225,7 @@ def _plot_one_time(
         plotting_utils.label_axes(
             axes_object=axes_object,
             label_string='({0:s})'.format(letter_label),
-            x_coord_normalized=0. if use_model_projection else 0.075
+            x_coord_normalized=0.
         )
 
     print('Saving figure to: "{0:s}"...'.format(output_file_name))
