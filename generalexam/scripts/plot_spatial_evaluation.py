@@ -24,7 +24,7 @@ BORDER_COLOUR = numpy.full(3, 0.)
 
 MAX_COLOUR_PERCENTILE = 99.
 SCORE_COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
-COUNT_COLOUR_MAP_OBJECT = pyplot.get_cmap('viridis')
+COUNT_COLOUR_MAP_OBJECT = pyplot.get_cmap('twilight')
 
 FIGURE_RESOLUTION_DPI = 300
 CONCAT_FIGURE_SIZE_PX = int(1e7)
