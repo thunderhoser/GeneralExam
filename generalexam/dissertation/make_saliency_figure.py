@@ -360,7 +360,8 @@ def _plot_one_composite(
     last_panel_file_name = None
 
     if plot_significance:
-        all_field_names = SCALAR_FIELD_NAMES + WIND_FIELD_NAMES
+        all_field_names = SCALAR_FIELD_NAMES
+        # all_field_names = SCALAR_FIELD_NAMES + WIND_FIELD_NAMES
     else:
         all_field_names = SCALAR_FIELD_NAMES
 
@@ -431,7 +432,8 @@ def _plot_one_composite(
 
         handle_dict = plot_examples.plot_composite_example(
             example_dict=copy.deepcopy(example_dict),
-            plot_wind_as_barbs=not plot_significance,
+            plot_wind_as_barbs=False,
+            # plot_wind_as_barbs=not plot_significance,
             non_wind_colour_map_object=NON_WIND_COLOUR_MAP_OBJECT,
             num_panel_rows=num_panel_rows, add_titles=True,
             one_cbar_per_panel=one_cbar_per_panel,
