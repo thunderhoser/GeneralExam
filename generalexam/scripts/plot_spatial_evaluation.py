@@ -341,10 +341,18 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
         title_string=this_title_string, panel_letter=this_panel_letter
     )
 
+    this_title_string = 'Frequency bias' if concat_figures else None
+    this_panel_letter = 'c' if concat_figures else None
+    _plot_one_score(
+        score_matrix=frequency_bias_matrix, is_frequency_bias=True,
+        is_count=False, output_file_name=frequency_bias_file_name,
+        title_string=this_title_string, panel_letter=this_panel_letter
+    )
+
     this_title_string = (
         'Probability of detection (POD)' if concat_figures else None
     )
-    this_panel_letter = 'c' if concat_figures else None
+    this_panel_letter = 'd' if concat_figures else None
     _plot_one_score(
         score_matrix=pod_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=pod_file_name,
@@ -354,25 +362,17 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     this_title_string = (
         'False-alarm ratio (FAR)' if concat_figures else None
     )
-    this_panel_letter = 'd' if concat_figures else None
+    this_panel_letter = 'e' if concat_figures else None
     _plot_one_score(
         score_matrix=far_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=far_file_name,
         title_string=this_title_string, panel_letter=this_panel_letter
     )
 
-    this_title_string = 'Frequency bias' if concat_figures else None
-    this_panel_letter = 'g' if concat_figures else None
-    _plot_one_score(
-        score_matrix=frequency_bias_matrix, is_frequency_bias=True,
-        is_count=False, output_file_name=frequency_bias_file_name,
-        title_string=this_title_string, panel_letter=this_panel_letter
-    )
-
     this_title_string = (
         'Critical success index (CSI)' if concat_figures else None
     )
-    this_panel_letter = 'e' if concat_figures else None
+    this_panel_letter = 'f' if concat_figures else None
     _plot_one_score(
         score_matrix=csi_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=csi_file_name,
@@ -380,7 +380,7 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     )
 
     this_title_string = 'Weighted CSI' if concat_figures else None
-    this_panel_letter = 'f' if concat_figures else None
+    this_panel_letter = 'g' if concat_figures else None
     _plot_one_score(
         score_matrix=weighted_csi_matrix, is_frequency_bias=False,
         is_count=False, output_file_name=weighted_csi_file_name,
