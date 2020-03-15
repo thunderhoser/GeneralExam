@@ -362,7 +362,7 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     )
 
     this_title_string = 'Frequency bias' if concat_figures else None
-    this_panel_letter = 'e' if concat_figures else None
+    this_panel_letter = 'g' if concat_figures else None
     _plot_one_score(
         score_matrix=frequency_bias_matrix, is_frequency_bias=True,
         is_count=False, output_file_name=frequency_bias_file_name,
@@ -372,7 +372,7 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     this_title_string = (
         'Critical success index (CSI)' if concat_figures else None
     )
-    this_panel_letter = 'f' if concat_figures else None
+    this_panel_letter = 'e' if concat_figures else None
     _plot_one_score(
         score_matrix=csi_matrix, is_frequency_bias=False, is_count=False,
         output_file_name=csi_file_name,
@@ -380,7 +380,7 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
     )
 
     this_title_string = 'Weighted CSI' if concat_figures else None
-    this_panel_letter = 'g' if concat_figures else None
+    this_panel_letter = 'f' if concat_figures else None
     _plot_one_score(
         score_matrix=weighted_csi_matrix, is_frequency_bias=False,
         is_count=False, output_file_name=weighted_csi_file_name,
@@ -391,16 +391,16 @@ def _run(evaluation_file_name, concat_figures, output_dir_name):
         return
 
     panel_file_names = [
-        num_actual_file_name, num_predicted_file_name, pod_file_name,
-        far_file_name, frequency_bias_file_name, csi_file_name,
-        weighted_csi_file_name
+        num_actual_file_name, pod_file_name, csi_file_name,
+        num_predicted_file_name, far_file_name, weighted_csi_file_name,
+        frequency_bias_file_name
     ]
     concat_file_name = '{0:s}/spatial_evaluation.jpg'.format(output_dir_name)
     print('Concatenating panels to: "{0:s}"...'.format(concat_file_name))
 
     imagemagick_utils.concatenate_images(
         input_file_names=panel_file_names, output_file_name=concat_file_name,
-        num_panel_rows=4, num_panel_columns=2
+        num_panel_rows=3, num_panel_columns=3
     )
     imagemagick_utils.resize_image(
         input_file_name=concat_file_name, output_file_name=concat_file_name,
