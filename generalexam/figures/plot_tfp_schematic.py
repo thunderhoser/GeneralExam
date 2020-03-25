@@ -49,10 +49,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
 OUTPUT_RESOLUTION_DPI = 600
-OUTPUT_FILE_NAME = (
-    '/home/ryan.lagerquist/Downloads/ams2020_talks/front_detection/'
-    'tfp_schematic.jpg'
-)
+OUTPUT_FILE_NAME = '/condo/swatwork/ralager/tfp_schematic.jpg'
 
 
 def _create_temperature_grid():
