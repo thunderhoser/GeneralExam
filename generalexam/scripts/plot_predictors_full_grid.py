@@ -46,7 +46,7 @@ PREDICTOR_NAME_ABBREV_TO_NICE = {
     predictor_utils.TEMPERATURE_NAME: r'Temperature ($^{\circ}$C)',
     predictor_utils.SPECIFIC_HUMIDITY_NAME: r'Specific humidity (g kg$^{-1}$)',
     predictor_utils.WET_BULB_THETA_NAME:
-        r'Wet-bulb potential temperature ($^{\circ}$C)'
+        r'Wet-bulb theta ($^{\circ}$C)'
 }
 
 FRONT_LINE_WIDTH = 8
