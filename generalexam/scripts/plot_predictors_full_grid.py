@@ -529,6 +529,8 @@ def _run(top_predictor_dir_name, top_front_line_dir_name,
     :raises: ValueError: if
         `thermal_field_name not in VALID_THERMAL_FIELD_NAMES`.
     """
+    
+    print('Use model projection? {0:d}'.format(use_model_projection))
 
     # Process input args.
     if top_front_line_dir_name in ['', 'None']:
