@@ -138,7 +138,7 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_one_difference(
         difference_matrix, significance_matrix, sig_marker_size,
         max_colour_value, plot_latitudes, plot_longitudes, plot_colour_bar,
-        title_string, letter_label, output_file_name):
+        cbar_label_string, title_string, letter_label, output_file_name):
     """Plots difference for one composite in one season.
 
     M = number of rows in grid
@@ -156,6 +156,7 @@ def _plot_one_difference(
         will be plotted on x-axis.
     :param plot_colour_bar: Boolean flag.  Determines whether or not colour bar
         will be plotted below.
+    :param cbar_label_string: Label for colour bar.
     :param title_string: Title.
     :param letter_label: Letter label (will appear at top-left of panel).
     :param output_file_name: Path to output file.  Figure will be saved here.
@@ -231,6 +232,7 @@ def _plot_one_difference(
             ]
 
         colour_bar_object.ax.set_xticklabels(tick_strings)
+        colour_bar_object.set_label(cbar_label_string)
 
     axes_object.set_title(title_string, fontsize=TITLE_FONT_SIZE)
     plotting_utils.label_axes(
@@ -382,6 +384,8 @@ def _run(top_input_dir_name, main_property_name, composite_names_abbrev,
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=i == 0, plot_longitudes=j == num_composites - 1,
                 plot_colour_bar=j == num_composites - 1,
+                cbar_label_string=
+                PROPERTY_ABBREV_TO_VERBOSE_DICT[property_names[i]],
                 title_string=this_title_string, letter_label=letter_label,
                 output_file_name=panel_file_names[-1]
             )

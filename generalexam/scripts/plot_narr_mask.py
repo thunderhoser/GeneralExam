@@ -58,8 +58,8 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).'
 )
 
-WF_COLOUR_MAP_NAME_DEFAULT = 'twilight'
-CF_COLOUR_MAP_NAME_DEFAULT = 'twilight'
+WF_COLOUR_MAP_NAME_DEFAULT = 'viridis'
+CF_COLOUR_MAP_NAME_DEFAULT = 'viridis'
 MASK_COLOUR_MAP_NAME_DEFAULT = 'winter'
 MAX_PERCENTILE_DEFAULT = 99.
 
