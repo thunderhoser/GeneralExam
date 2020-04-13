@@ -10,6 +10,7 @@ from generalexam.climo_paper import \
     make_monte_carlo_figure_1season as make_mc_figure
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+PROPERTY_ABBREV_TO_VERBOSE_DICT = make_mc_figure.PROPERTY_ABBREV_TO_VERBOSE_DICT
 
 KM_TO_METRES = 1000
 MIN_LENGTHS_KM = numpy.array([200, 400, 600], dtype=int)
@@ -169,6 +170,8 @@ def _run(top_prediction_dir_name, monte_carlo_max_fdr, output_dir_name):
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=True, plot_longitudes=True,
                 plot_colour_bar=j == num_min_lengths - 1,
+                cbar_label_string=
+                PROPERTY_ABBREV_TO_VERBOSE_DICT[property_names[i]],
                 title_string=this_title_string, letter_label=letter_label,
                 output_file_name=panel_file_names[-1]
             )
@@ -293,6 +296,8 @@ def _run(top_prediction_dir_name, monte_carlo_max_fdr, output_dir_name):
                 max_colour_value=this_max_colour_value,
                 plot_latitudes=True, plot_longitudes=True,
                 plot_colour_bar=j == num_min_lengths - 1,
+                cbar_label_string=
+                PROPERTY_ABBREV_TO_VERBOSE_DICT[property_names[i]],
                 title_string=this_title_string, letter_label=letter_label,
                 output_file_name=panel_file_names[-1]
             )
