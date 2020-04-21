@@ -33,7 +33,7 @@ SEASON_ABBREV_TO_VERBOSE_DICT = {
 MAX_WF_LENGTH_KM = 1500
 MAX_CF_LENGTH_KM = 3000
 # COLOUR_MAP_OBJECT = pyplot.get_cmap('PuBuGn')
-COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma')
+COLOUR_MAP_OBJECT = pyplot.get_cmap('plasma', 15)
 BORDER_COLOUR = numpy.full(3, 0.)
 
 TITLE_FONT_SIZE = 30
