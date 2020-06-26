@@ -13,21 +13,24 @@ def _run():
     This is effectively the main method.
     """
 
-    script_dir_name = os.path.dirname(__file__)
+    script_dir_name = os.getcwd()
     top_gg_dir_name = '/'.join(script_dir_name.split('/')[:-1])
 
     test_file_pattern = '{0:s}/*/*_test.py'.format(top_gg_dir_name)
     test_file_names = glob.glob(test_file_pattern)
 
     for this_file_name in test_file_names:
-        if ('run_monte_carlo_test.py' in this_file_name
-                or 'run_mann_kendall_test.py' in this_file_name):
+        if (
+                'run_monte_carlo_test.py' in this_file_name
+                or 'mann_kendall_test.py' in this_file_name
+        ):
             continue
 
         print('Running file: "{0:s}"...'.format(this_file_name))
 
         command_string = '"{0:s}" "{1:s}"'.format(
-            sys.executable, this_file_name)
+            sys.executable, this_file_name
+        )
         os.system(command_string)
         print(SEPARATOR_STRING)
 
